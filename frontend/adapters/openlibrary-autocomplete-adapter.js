@@ -120,12 +120,12 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
     let hasExact = str => str.toUpperCase().indexOf(query.toUpperCase()) != -1;
     docs.sort((a, b) => {
       if (typeof a != 'object' || typeof b != 'object' ||
-        a.title_suggest === undefined || b.title_suggest === undefined)
+        a.title === undefined || b.title === undefined)
         return 0;
 
-      if (hasExact(a.title_suggest) && !hasExact(b.title_suggest))
+      if (hasExact(a.title) && !hasExact(b.title))
         return -1;
-      else if (!hasExact(a.title_suggest) && hasExact(b.title_suggest))
+      else if (!hasExact(a.title) && hasExact(b.title))
         return 1;
       else
         return 0;
@@ -323,7 +323,7 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
           this.results = data.docs.map(item =>
             ({
               url: `https://openlibrary.org${item.key}`,
-              label: item.title_suggest,
+              label: item.title,
               authors: item.author_name,
               publishers: item.publisher || [],
               years: item.publish_year || []
