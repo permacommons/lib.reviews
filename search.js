@@ -2,10 +2,21 @@
 const elasticsearch = require('elasticsearch');
 const config = require('config');
 const debug = require('./util/debug');
-const client = new elasticsearch.Client({
-  host: `${config.search.host}:${config.search.port}`,
-  log: config.search.log
-});
+
+let client;
+
+function createClient() {
+  return new elasticsearch.Client({
+    host: `${config.search.host}:${config.search.port}`,
+    log: config.search.log
+  });
+}
+
+function getClient() {
+  if (!client)
+    client = createClient();
+  return client;
+}
 const mlString = require('./models/helpers/ml-string');
 const languages = require('./locales/languages');
 
@@ -54,7 +65,7 @@ let search = {
 
   // For testing queries
   _raw(obj) {
-    return client.search(obj);
+    return getClient().search(obj);
   },
 
   // Find things by their label or description; performs language fallback
@@ -64,7 +75,7 @@ let search = {
     options.fields = options.fields.concat(descriptionOptions.fields);
     Object.assign(options.highlight.fields, descriptionOptions.highlight.fields);
 
-    return client.search({
+    return getClient().search({
       index: 'libreviews',
       body: {
         query: {
@@ -101,7 +112,7 @@ let search = {
     options.fields = options.fields.concat(titleOptions.fields);
 
     Object.assign(options.highlight.fields, titleOptions.highlight.fields);
-    return client.search({
+    return getClient().search({
       index: 'libreviews',
       body: {
         query: {
@@ -197,12 +208,12 @@ let search = {
       };
     }
 
-    return client.search(query);
+    return getClient().search(query);
   },
 
   // Index a new review. Returns a promise; logs errors
   indexReview(review) {
-    return client.index({
+    return getClient().index({
         index: 'libreviews',
         id: review.id,
         routing: review.thingID,
@@ -225,7 +236,7 @@ let search = {
 
   // Index a new review subject (thing). Returns a promise; logs errors
   indexThing(thing) {
-    return client.index({
+    return getClient().index({
         index: 'libreviews',
         id: thing.id,
         body: {
@@ -245,7 +256,7 @@ let search = {
   },
 
   deleteThing(thing) {
-    return client.delete({
+    return getClient().delete({
         index: 'libreviews',
         id: thing.id
       })
@@ -255,7 +266,7 @@ let search = {
   },
 
   deleteReview(review) {
-    return client.delete({
+    return getClient().delete({
         index: 'libreviews',
         id: review.id
       })
@@ -267,7 +278,7 @@ let search = {
   // Create the initial index for holding reviews and review subjects (things).
   // If index already exists, does nothing. Logs all other errors.
   createIndices() {
-    return client.indices.create({
+    return getClient().indices.create({
         index: 'libreviews',
         body: {
           settings: {
@@ -400,6 +411,12 @@ let search = {
       max_input_length: 256 // default is 50, our labels are 256
     };
 
+  },
+
+  close() {
+    if (client && typeof client.close === 'function')
+      client.close();
+    client = null;
   }
 
 };

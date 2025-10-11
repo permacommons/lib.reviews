@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22.x, 20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Add RethinkDB apt repository
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg
+          curl -fsSL https://download.rethinkdb.com/repository/raw/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rethinkdb-archive-keyring.gpg
+          source /etc/lsb-release
+          echo "deb [signed-by=/usr/share/keyrings/rethinkdb-archive-keyring.gpg] https://download.rethinkdb.com/repository/ubuntu-${DISTRIB_CODENAME} ${DISTRIB_CODENAME} main" | sudo tee /etc/apt/sources.list.d/rethinkdb.list
+          sudo apt-get update
+
+      - name: Install RethinkDB
+        run: sudo apt-get install -y rethinkdb
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Run tests
+        run: npm run test

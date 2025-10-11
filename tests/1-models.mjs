@@ -1,13 +1,16 @@
-'use strict';
+import test from 'ava';
+import isUUID from 'is-uuid';
+import { getReviewDataGenerator, getTeamData } from './helpers/content-helpers.mjs';
+import { getModels } from './helpers/model-helpers.mjs';
+
 // Standard env settings
 process.env.NODE_ENV = 'development';
+// Prevent config from installing file watchers that would leak handles under AVA.
+process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
 process.env.NODE_APP_INSTANCE = 'testing-1';
 
-const dbFixture = require('./fixtures/db-fixture');
-const { getReviewDataGenerator, getTeamData } = require('./helpers/content-helpers');
-const { getModels } = require('./helpers/model-helpers');
-const isUUID = require('is-uuid');
-const test = require('ava');
+const { createDBFixture } = await import('./fixtures/db-fixture.mjs');
+const dbFixture = createDBFixture();
 
 let user, reviewData;
 

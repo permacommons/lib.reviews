@@ -1,8 +1,14 @@
-'use strict';
-const { exec, spawn } = require('child-process-promise');
-const { logNotice, logOK } = require('../helpers/test-helpers');
-const chalk = require('chalk');
-const path = require('path');
+import childProcessPromise from 'child-process-promise';
+import { logNotice, logOK } from '../helpers/test-helpers.mjs';
+import chalk from 'chalk';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const { exec, spawn } = childProcessPromise;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class DBFixture {
 
@@ -57,10 +63,26 @@ class DBFixture {
   }
 
 
+  // Gracefully tear down the child rethinkdb process and its pooled connections.
   async cleanup() {
-    logNotice('Killing test database process.');
-    await this.killDB();
     logNotice('Cleaning up.');
+    if (this.db) {
+      try {
+        await this.db.r.getPoolMaster().drain();
+      } catch (error) {
+        console.error(chalk.red('Failed to drain RethinkDB connection pool.'));
+        console.error(error);
+      }
+      // Prevent subsequent tests from reusing stale handles.
+      logOK('RethinkDB connection pool drained.');
+      this.db = null;
+    }
+    if (this.dbProcess) {
+      logNotice('Killing test database process.');
+      await this.killDB();
+      this.dbProcess = null;
+      logOK('Test database process terminated.');
+    }
     try {
       await exec(`rm -rf ${this.filename}`);
     } catch (error) {
@@ -86,13 +108,14 @@ class DBFixture {
 
   killDB() {
     return new Promise((resolve, reject) => {
-      this.dbProcess.on('close', resolve);
-      this.dbProcess.on('error', reject);
-      this.dbProcess.kill();
+      const proc = this.dbProcess;
+      proc.once('close', resolve);
+      proc.once('error', reject);
+      if (!proc.kill('SIGTERM'))
+        resolve();
     });
   }
 
 
 }
-
-module.exports = new DBFixture();
+export const createDBFixture = () => new DBFixture();

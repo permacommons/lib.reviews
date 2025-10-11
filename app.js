@@ -11,7 +11,6 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const util = require('util');
 const favicon = require('serve-favicon');
 const serveIndex = require('serve-index');
 const logger = require('morgan');
@@ -82,7 +81,9 @@ async function getApp(db = require('./db')) {
   i18n.configure({
     locales: languages.getValidLanguages(),
     cookie: 'locale',
-    autoReload: true,
+    // Tests set NODE_CONFIG_DISABLE_WATCH to keep the config module from
+    // registering filesystem watchers that would keep AVA workers alive.
+    autoReload: process.env.NODE_CONFIG_DISABLE_WATCH !== 'Y',
     updateFiles: false,
     retryInDefaultLocale: true,
     directory: __dirname + '/locales'
@@ -255,13 +256,14 @@ async function getApp(db = require('./db')) {
  * @memberof App
  */
 async function setupDirectory(dir) {
-  dir = path.join(__dirname, dir);
-  let exists = util.promisify(fs.exists),
-    mkdir = util.promisify(fs.mkdir);
-
-  if (!await exists(dir)) {
-    debug.app(`Directory '${dir}' does not exist yet, creating.`);
-    await mkdir(dir);
+  const directory = path.join(__dirname, dir);
+  try {
+    await fs.promises.mkdir(directory);
+    debug.app(`Directory '${directory}' did not exist yet, creating.`);
+  } catch (error) {
+    if (error.code !== 'EEXIST')
+      throw error;
+    // Ignore collision: parallel test workers may ensure the same path.
   }
 }
 

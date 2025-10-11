@@ -1,16 +1,21 @@
-'use strict';
+import test from 'ava';
+import supertest from 'supertest';
+import isUUID from 'is-uuid';
+import { createRequire } from 'module';
+import { extractCSRF } from './helpers/integration-helpers.mjs';
+import { getModels } from './helpers/model-helpers.mjs';
+
+const require = createRequire(import.meta.url);
+
 // Standard env settings
 process.env.NODE_ENV = 'development';
+// Prevent config from installing file watchers that would leak handles under AVA.
+process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
 process.env.NODE_APP_INSTANCE = 'testing-3';
 
-const { extractCSRF } = require('./helpers/integration-helpers');
-const { getModels } = require('./helpers/model-helpers');
-const isUUID = require('is-uuid');
-const request = require('supertest');
-const test = require('ava');
-
-process.env.NODE_APP_INSTANCE = 'testing-3';
-const dbFixture = require('./fixtures/db-fixture');
+const { createDBFixture } = await import('./fixtures/db-fixture.mjs');
+const dbFixture = createDBFixture();
+const search = require('../search');
 
 // Share cookies and app across tests
 let agent, app;
@@ -18,20 +23,20 @@ let agent, app;
 test.before(async() => {
   await dbFixture.bootstrap(getModels());
   // Initialize once so sessions table is created if needed
-  let getApp = require('../app');
+  const getApp = require('../app');
   app = await getApp();
 });
 
 // This test needs to run before all the following. It creates a user and logs
 // them in
-test.serial(`We can register an account via the form (captcha disabled)`, async t => {
-  agent = request.agent(app);
-  let registerResponse = await agent.get('/register');
-  let csrf = extractCSRF(registerResponse.text);
+test.serial('We can register an account via the form (captcha disabled)', async t => {
+  agent = supertest.agent(app);
+  const registerResponse = await agent.get('/register');
+  const csrf = extractCSRF(registerResponse.text);
   if (!csrf)
     return t.fail('Could not obtain CSRF token');
 
-  let postResponse = await agent
+  const postResponse = await agent
     .post('/register')
     .type('form')
     .send({
@@ -51,13 +56,13 @@ test.serial(`We can register an account via the form (captcha disabled)`, async 
 });
 
 // This may fail if we add more than one review concurrently to the feed
-test(`We can create and edit a review`, async t => {
-  let newReviewResponse = await agent.get('/new/review');
+test('We can create and edit a review', async t => {
+  const newReviewResponse = await agent.get('/new/review');
   let csrf = extractCSRF(newReviewResponse.text);
   if (!csrf)
     return t.fail('Could not obtain CSRF token');
 
-  let postResponse = await agent
+  const postResponse = await agent
     .post('/new/review')
     .type('form')
     .send({
@@ -71,25 +76,25 @@ test(`We can create and edit a review`, async t => {
     })
     .expect(302);
 
-  let feedResponse = await agent
+  const feedResponse = await agent
     .get(postResponse.headers.location)
     .expect(200)
-    .expect(/<p>This is a decent enough resource if you want to do anything/) //  Text ..
-    .expect(/Written by <a href="\/user\/A_friend_of_many_GNUs">A friend of/); // was saved
+    .expect(/<p>This is a decent enough resource if you want to do anything/)
+    .expect(/Written by <a href="\/user\/A_friend_of_many_GNUs">A friend of/);
 
-  let m = feedResponse.text.match(/<a href="(\/review\/.*?\/edit)/);
-  if (!m)
+  const match = feedResponse.text.match(/<a href="(\/review\/.*?\/edit)/);
+  if (!match)
     return t.fail('Could not find edit link');
 
-  let editURL = m[1];
-  let editResponse = await agent.get(editURL)
+  const editURL = match[1];
+  const editResponse = await agent.get(editURL)
     .expect(200)
-    .expect(/Editing a review of/) // We're in edit mode
-    .expect(/value="The unattainable is unknown"/); // There's a field with expected text
+    .expect(/Editing a review of/)
+    .expect(/value="The unattainable is unknown"/);
 
   csrf = extractCSRF(editResponse.text);
 
-  let editPostResponse = await agent
+  const editPostResponse = await agent
     .post(editURL)
     .type('form')
     .send({
@@ -105,34 +110,32 @@ test(`We can create and edit a review`, async t => {
   await agent
     .get(editPostResponse.headers.location)
     .expect(200)
-    .expect(/I just checked/) // New text is there ..
-    .expect(/Written by <a href="\/user\/A_friend_of_many_GNUs">A friend of/); // .. and byline indicates save
+    .expect(/I just checked/)
+    .expect(/Written by <a href="\/user\/A_friend_of_many_GNUs">A friend of/);
 
   t.pass();
-
 });
 
-test(`We can create a new team`, async t => {
-
+test('We can create a new team', async t => {
   await agent.get('/new/team')
     .expect(403)
     .expect(/do not have permission/);
 
-  let user = await dbFixture.models.User.findByURLName('A_friend_of_many_GNUs', { withPassword: true });
+  const user = await dbFixture.models.User.findByURLName('A_friend_of_many_GNUs', { withPassword: true });
   t.true(isUUID.v4(user.id), 'Previously created user could be found through model');
 
   // Give user permission needed to create team
   user.isTrusted = true;
   await user.save();
-  let newTeamResponse = await agent.get('/new/team')
+  const newTeamResponse = await agent.get('/new/team')
     .expect(200)
     .expect(/Rules for joining/);
 
-  let csrf = extractCSRF(newTeamResponse.text);
+  const csrf = extractCSRF(newTeamResponse.text);
   if (!csrf)
     return t.fail('Could not obtain CSRF token');
 
-  let newTeamPostResponse = await agent
+  const newTeamPostResponse = await agent
     .post('/new/team')
     .type('form')
     .send({
@@ -150,12 +153,26 @@ test(`We can create a new team`, async t => {
   await agent
     .get(newTeamPostResponse.headers.location)
     .expect(200)
-    .expect(/Team: Kale Alliance/); // Team has been saved
+    .expect(/Team: Kale Alliance/);
 
   t.pass();
-
 });
 
-test.after.always(async() => {
+test.after.always(async t => {
+  if (agent && typeof agent.close === 'function') {
+    await new Promise(resolve => agent.close(resolve));
+    agent = null;
+  }
   await dbFixture.cleanup();
+  // AVA treats lingering handles as failures, so explicitly close anything the test touched.
+  const activeHandles = process._getActiveHandles();
+  for (const handle of activeHandles) {
+    const name = handle && handle.constructor ? handle.constructor.name : undefined;
+    if (name === 'FSWatcher' && typeof handle.close === 'function')
+      handle.close();
+    if (name === 'Socket' && typeof handle.destroy === 'function')
+      handle.destroy();
+  }
+  if (search && typeof search.close === 'function')
+    search.close();
 });
