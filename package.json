@@ -10,9 +10,9 @@
     "start-prod": "pm2 start process.json --only app-production",
     "del-prod": "pm2 delete app-production",
     "restart-prod": "pm2 restart app-production",
-    "test": "NODE_ENV=development ava --verbose tests/**",
-    "test-debug": "NODE_ENV=development DEBUG=libreviews:* node node_modules/ava/cli.js --verbose tests/**",
-    "test-watch": "NODE_ENV=development DEBUG=libreviews:tests node node_modules/ava/cli.js --watch --verbose tests/**",
+    "test": "NODE_ENV=development ava --verbose \"tests/*-*.mjs\"",
+    "test-debug": "NODE_ENV=development DEBUG=libreviews:* ava --verbose \"tests/*-*.mjs\"",
+    "test-watch": "NODE_ENV=development DEBUG=libreviews:tests ava --watch --verbose \"tests/*-*.mjs\"",
     "snyk-protect": "snyk-protect",
     "prepare": "npm run snyk-protect",
     "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
@@ -101,7 +101,7 @@
     "unescape-html": "^1.1.0"
   },
   "devDependencies": {
-    "ava": "^4.3.3",
+    "ava": "^6.4.1",
     "babel-preset-env": "^1.7.0",
     "chalk": "^1.1.3",
     "child-process-promise": "^2.2.1",
@@ -112,5 +112,11 @@
     "snyk": "^1.1300.0",
     "supertest": "^3.4.2"
   },
-  "snyk": true
+  "snyk": true,
+  "ava": {
+    "files": [
+      "tests/*-*.mjs"
+    ],
+    "concurrency": 1
+  }
 }

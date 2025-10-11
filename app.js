@@ -82,7 +82,9 @@ async function getApp(db = require('./db')) {
   i18n.configure({
     locales: languages.getValidLanguages(),
     cookie: 'locale',
-    autoReload: true,
+    // Tests set NODE_CONFIG_DISABLE_WATCH to keep the config module from
+    // registering filesystem watchers that would keep AVA workers alive.
+    autoReload: process.env.NODE_CONFIG_DISABLE_WATCH !== 'Y',
     updateFiles: false,
     retryInDefaultLocale: true,
     directory: __dirname + '/locales'

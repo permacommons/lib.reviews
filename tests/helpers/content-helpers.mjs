@@ -1,6 +1,6 @@
 // Generator to get arbitrary number of review objects with unique URLs. Sample
 // URLs are just for fun.
-exports.getReviewDataGenerator = function *(userID) {
+export function* getReviewDataGenerator(userID) {
   const urls = [
     'https://github.com/eloquence/lib.reviews/blob/master/tests/1-models.js',
     'https://github.com/eloquence/lib.reviews/blob/master/tests/2-integration-signed-out.js',
@@ -22,9 +22,9 @@ exports.getReviewDataGenerator = function *(userID) {
       // not provisioned: createdBy, revision metadata
     };
   }
-};
+}
 
-exports.getTeamData = (userID) => ({
+export const getTeamData = userID => ({
   name: { en: 'Annoyed QA Team' },
   motto: { en: 'We hate it when things are broken, damnit' },
   description: {

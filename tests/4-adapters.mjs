@@ -1,29 +1,28 @@
-'use strict';
+import test from 'ava';
+import OpenLibraryBackendAdapter from '../adapters/openlibrary-backend-adapter.js';
+import WikidataBackendAdapter from '../adapters/wikidata-backend-adapter.js';
+import OpenStreetMapBackendAdapter from '../adapters/openstreetmap-backend-adapter.js';
+
 // Standard env settings
 process.env.NODE_ENV = 'development';
+// Prevent config from installing file watchers that would leak handles under AVA.
+process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
 process.env.NODE_APP_INSTANCE = 'testing-4';
 
-const OpenLibraryBackendAdapter = require('../adapters/openlibrary-backend-adapter');
-const WikidataBackendAdapter = require('../adapters/wikidata-backend-adapter');
-const OpenStreetMapBackendAdapter = require('../adapters/openstreetmap-backend-adapter');
-const test = require('ava');
-
-
 const tests = {
-  openlibrary: { // Must correspond to canonical source ID
+  openlibrary: {
     adapter: new OpenLibraryBackendAdapter(),
-    validURLsWithData: [ // Should return data
+    validURLsWithData: [
       'https://openlibrary.org/works/OL16239864W/The_Storytelling_Animal',
       'https://openlibrary.org/works/OL16239864W',
       'https://openlibrary.org/books/OL25087046M',
       'http://openlibrary.org/books/OL25087046M'
     ],
-    validURLsWithoutData: [ // Lookup should be attempted but no data returned
+    validURLsWithoutData: [
       'https://openlibrary.org/works/OL0W',
       'https://openlibrary.org/books/OL0M'
-
     ],
-    invalidURLs: [ // Should not be considered acceptable by this adapter
+    invalidURLs: [
       'https://openlibrary.org/authors/OL23919A/J._K._Rowling',
       'https://openlibrary.org/authors/OL3433440A.json',
       'https://openlibrary.org/works/OL16239864W.json',
@@ -64,46 +63,48 @@ const tests = {
   }
 };
 
-test(`Adapters return correct source ID`, t => {
-  for (let source in tests)
+test('Adapters return correct source ID', t => {
+  for (const source in tests)
     t.is(tests[source].adapter.getSourceID(), source);
   t.pass();
 });
 
-test(`Adapters reject invalid URLs`, t => {
-  for (let source in tests) {
+test('Adapters reject invalid URLs', t => {
+  for (const source in tests) {
     const invalidURLs = tests[source].invalidURLs.slice();
-    // Add some generic invalid URLs for good measure
     invalidURLs.unshift(['https://zombo.com/', 'an elephant']);
-    for (let url of invalidURLs)
+    for (const url of invalidURLs)
       t.false(tests[source].adapter.ask(url));
   }
   t.pass();
 });
 
-test(`Adapters say they support valid URLs`, t => {
-  for (let source in tests) {
+test('Adapters say they support valid URLs', t => {
+  for (const source in tests) {
     const validURLs = [
       ...tests[source].validURLsWithData,
       ...tests[source].validURLsWithoutData
     ];
-    for (let url of validURLs)
+    for (const url of validURLs)
       t.true(tests[source].adapter.ask(url));
   }
   t.pass();
 });
 
-test(`Adapters retrieve data with label and correct source ID from valid URLs with data`, async t => {
-  for (let source in tests) {
+test('Adapters retrieve data with label and correct source ID from valid URLs with data', async t => {
+  for (const source in tests) {
     const urls = tests[source].validURLsWithData.slice();
-    for (let url of urls) {
-      // Note this is serial lookup. We can parallelize a bit, but let's try
-      // not to hit external APIs too hard. Also note it's already parallelized
-      // with the invalid URL lookups below.
-      const result = await tests[source].adapter.lookup(url);
+    for (const url of urls) {
+      let result;
+      try {
+        result = await tests[source].adapter.lookup(url);
+      } catch (error) {
+        t.fail(`Lookup failed for ${source} adapter URL ${url}: ${error.message || error.name}`);
+        return;
+      }
       t.is('object', typeof result);
       t.is('object', typeof result.data);
-      t.is('object', typeof result.data.label); // multilingual string object
+      t.is('object', typeof result.data.label);
       t.is(tests[source].adapter.getSourceID(), result.sourceID);
     }
   }
@@ -111,10 +112,20 @@ test(`Adapters retrieve data with label and correct source ID from valid URLs wi
 });
 
 test(`Adapters don't retrieve data from valid URLs that contain no data`, async t => {
-  for (let source in tests) {
+  for (const source in tests) {
     const urls = tests[source].validURLsWithoutData.slice();
-    for (let url of urls)
-      await t.throwsAsync(tests[source].adapter.lookup(url));
+    for (const url of urls) {
+      let didThrow = false;
+      // AVA can't clone the request-promise callback chain when a rejection escapes,
+      // so perform the assertion manually and surface a clearer failure message.
+      try {
+        await tests[source].adapter.lookup(url);
+      } catch (error) {
+        didThrow = true;
+        t.truthy(error, `Expected error object for ${source} adapter`);
+      }
+      t.true(didThrow, `Expected lookup failure for ${source} adapter URL ${url}`);
+    }
   }
   t.pass();
 });

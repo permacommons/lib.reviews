@@ -1,4 +1,4 @@
-exports.getModels = () => [{
+export const getModels = () => [{
     name: 'User',
     file: 'user.js'
   },
