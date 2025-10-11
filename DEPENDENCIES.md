@@ -43,8 +43,8 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Add CI matrix entries for Node 22 (retain Node 20 temporarily if needed). *(Added `.github/workflows/ci.yml` with Node 22/20 jobs installing RethinkDB and running build/test.)*
 
 - [ ] **Low-Risk Batch (patch/minor)**
-  - [ ] Upgrade packages listed in “Routine Patch/Minor Updates”.
-  - [ ] Refresh lockfile, run unit/integration tests, and smoke test the Grunt pipeline.
+  - [x] Upgrade packages listed in “Routine Patch/Minor Updates”. *(2025-10-11: Applied `ncu --target minor` + `npm install`, covering browserify, cookie-parser, compression, elasticsearch, express-session, session-rethinkdb, sisyphus.js, sprintf-js, @snyk/protect, snyk, child-process-promise, pre-commit, jquery (+ powertip), morgan, rethinkdbdash, serve-favicon, serve-index, prosemirror suite, etc.)*
+  - [x] Refresh lockfile, run unit/integration tests, and smoke test the Grunt pipeline. *(package-lock regenerated; `npm run build` and `npm run test` succeed on Node 22 with expected Elasticsearch warnings.)*
   - [ ] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
 
 - [ ] **Dev Toolchain Refresh**
