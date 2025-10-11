@@ -1,6 +1,10 @@
-# Dependency Modernization Plan
+# Modernization Roadmap
 
 This document tracks the lib.reviews dependency strategy while we lift the stack to Node.js 22. Keep entries concise so they can be updated alongside incremental commits.
+
+## CI / Testing Notes
+- AVA currently runs with `concurrency: 2` because external adapter tests (OpenStreetMap, etc.) still touch live services. Increase only after those adapters are mocked or a local test double is in place.
+- Integration suites close shared resources (RethinkDB, Elasticsearch client) manually; keep this in mind when adding new long-lived connections.
 
 ## Current Snapshot
 - Audit tool: `npx npm-check-updates` (v19) against the existing package.json.
@@ -45,10 +49,10 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 - [ ] **Low-Risk Batch (patch/minor)**
   - [x] Upgrade packages listed in “Routine Patch/Minor Updates”. *(2025-10-11: Applied `ncu --target minor` + `npm install`, covering browserify, cookie-parser, compression, elasticsearch, express-session, session-rethinkdb, sisyphus.js, sprintf-js, @snyk/protect, snyk, child-process-promise, pre-commit, jquery (+ powertip), morgan, rethinkdbdash, serve-favicon, serve-index, prosemirror suite, etc.)*
   - [x] Refresh lockfile, run unit/integration tests, and smoke test the Grunt pipeline. *(package-lock regenerated; `npm run build` and `npm run test` succeed on Node 22 with expected Elasticsearch warnings.)*
-  - [ ] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
+  - [x] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
 
 - [ ] **Dev Toolchain Refresh**
-  - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(Tests currently run with concurrency 1 because external API fixtures throttle under CI; revisit once adapters are mocked.)*
+  - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(Tests currently run with concurrency 2 because external API fixtures throttle under CI; revisit once adapters are mocked.)*
   - [ ] Upgrade `supertest`, `chalk`, `jsdoc`, `pm2`, `grunt`, `grunt-babel`.
     - *Plan*: tackle remaining upgrades in a follow-up commit — update HTTP test tooling (`supertest` API changes) alongside console libs (`chalk@5` ESM import adjustments), refresh PM2 configuration for v6, then bump Grunt-related tooling once Babel modernization work lands.
   - [ ] Address breaking changes (e.g., AVA 6 → pure ESM config, Chalk 5 ESM, PM2 config adjustments).
@@ -70,6 +74,6 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [ ] Gradually replace Grunt plugins as the new pipeline comes online; avoid disruptive switches until prior stages land.
 
 ## Tracking & Follow-Up
-- [ ] Update this document when each stage lands (include commit references).
+- [ ] Update this document when each stage lands in a mergeable commit.
 - [ ] Note compatibility gotchas discovered during upgrades (e.g., API changes, polyfills removed).
 - [ ] Record decisions for replacing unmaintained packages so future contributors see the rationale.

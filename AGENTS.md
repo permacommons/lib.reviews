@@ -7,6 +7,7 @@ This repository powers the lib.reviews platform. The codebase dates back several
 - Progressive refactors: favor incremental improvements over big bangs; prefer adding tests when touching fragile areas.
 - Asset/build pipeline: slated for replacement, but Grunt/Browserify remain the source of truth until a new toolchain is ready.
 - Database: still Thinky + RethinkDB; evaluate migration paths carefully before making breaking changes.
+- Modernization roadmap (dependency upgrades, testing quirks, external service notes) lives in `plans/modernization-roadmap.md`.
 
 ## Guidance for Agents
 - Preserve existing behavior unless instructions say otherwise; many routes have implicit dependencies.
