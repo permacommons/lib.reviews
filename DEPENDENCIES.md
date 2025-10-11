@@ -37,10 +37,10 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 
 ## Incremental Update Plan (Checklist)
 
-- [ ] **Baseline Node 22 Support**
-  - [ ] Update local/tooling docs to state Node.js 22.
-  - [ ] Run tests under Node 22 to capture immediate runtime breaks.
-  - [ ] Add CI matrix entries for Node 22 (retain Node 20 temporarily if needed).
+- [x] **Baseline Node 22 Support**
+  - [x] Update local/tooling docs to state Node.js 22.
+  - [x] Run tests under Node 22 to capture immediate runtime breaks. *(2025-10-11: AVA suite passes locally on Node 22; requires Elasticsearch stub or skip but no regressions observed.)*
+  - [x] Add CI matrix entries for Node 22 (retain Node 20 temporarily if needed). *(Added `.github/workflows/ci.yml` with Node 22/20 jobs installing RethinkDB and running build/test.)*
 
 - [ ] **Low-Risk Batch (patch/minor)**
   - [ ] Upgrade packages listed in “Routine Patch/Minor Updates”.

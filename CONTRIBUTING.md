@@ -10,7 +10,7 @@ lib.reviews is a pure-JavaScript application, using modern language features whe
 
 | Technology                               | Current use                              |
 | ---------------------------------------- | ---------------------------------------- |
-| [Node.js](https://nodejs.org/en/) LTS (currently the Node.js 812 series) | lib.reviews server, API and tests        |
+| [Node.js](https://nodejs.org/en/) 22.x (current release line) | lib.reviews server, API and tests        |
 | [Express](https://expressjs.com/) (V4 series) | Framework for the web application        |
 | [RethinkDB](https://rethinkdb.com/)      | Primary storage backend for text. (This may need to change in the long-run since RethinkDB no longer has a commercial parent and development has slowed down.) |
 | [ElasticSearch](https://www.elastic.co/) | Search backend                           |
@@ -33,7 +33,7 @@ We aim to be multilingual in UI and content, and are exclusively using translata
 
 # Getting started
 
-This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need the current Node.js stable release. Switch to your check-out directory and then run `npm install`. Run `grunt` to build the JavaScript. Make sure you also have RethinkDB up and running before starting the service.
+This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need Node.js 22.x (the current release line we target). Switch to your check-out directory and then run `npm install`. Run `grunt` to build the JavaScript. Make sure you also have RethinkDB up and running before starting the service.
 
 You can customize your development configuration by copying `config/default.json5` to `config/development.json5`. Finally, run `npm run start-dev` and visit `localhost` at the configured port number.
 
