@@ -14,6 +14,7 @@ process.env.NODE_APP_INSTANCE = 'testing-2';
 
 const { createDBFixture } = await import('./fixtures/db-fixture.mjs');
 const dbFixture = createDBFixture();
+const search = require('../search');
 
 const routeTests = [{
     path: '/',
@@ -133,4 +134,6 @@ test.after.always(async t => {
     if (name === 'Socket' && typeof handle.destroy === 'function')
       handle.destroy();
   }
+  if (search && typeof search.close === 'function')
+    search.close();
 });

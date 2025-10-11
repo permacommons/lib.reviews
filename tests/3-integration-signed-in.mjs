@@ -15,6 +15,7 @@ process.env.NODE_APP_INSTANCE = 'testing-3';
 
 const { createDBFixture } = await import('./fixtures/db-fixture.mjs');
 const dbFixture = createDBFixture();
+const search = require('../search');
 
 // Share cookies and app across tests
 let agent, app;
@@ -172,4 +173,6 @@ test.after.always(async t => {
     if (name === 'Socket' && typeof handle.destroy === 'function')
       handle.destroy();
   }
+  if (search && typeof search.close === 'function')
+    search.close();
 });

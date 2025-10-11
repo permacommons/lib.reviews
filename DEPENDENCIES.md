@@ -48,7 +48,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [ ] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
 
 - [ ] **Dev Toolchain Refresh**
-  - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers.
+  - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(Tests currently run with concurrency 1 because external API fixtures throttle under CI; revisit once adapters are mocked.)*
   - [ ] Upgrade `supertest`, `chalk`, `jsdoc`, `pm2`, `grunt`, `grunt-babel`.
     - *Plan*: tackle remaining upgrades in a follow-up commit — update HTTP test tooling (`supertest` API changes) alongside console libs (`chalk@5` ESM import adjustments), refresh PM2 configuration for v6, then bump Grunt-related tooling once Babel modernization work lands.
   - [ ] Address breaking changes (e.g., AVA 6 → pure ESM config, Chalk 5 ESM, PM2 config adjustments).
