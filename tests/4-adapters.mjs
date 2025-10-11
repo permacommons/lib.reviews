@@ -115,16 +115,15 @@ test(`Adapters don't retrieve data from valid URLs that contain no data`, async 
   for (const source in tests) {
     const urls = tests[source].validURLsWithoutData.slice();
     for (const url of urls) {
-      let didThrow = false;
-      // AVA can't clone the request-promise callback chain when a rejection escapes,
-      // so perform the assertion manually and surface a clearer failure message.
-      try {
-        await tests[source].adapter.lookup(url);
-      } catch (error) {
-        didThrow = true;
-        t.truthy(error, `Expected error object for ${source} adapter`);
-      }
-      t.true(didThrow, `Expected lookup failure for ${source} adapter URL ${url}`);
+      await t.throwsAsync(async () => {
+        try {
+          await tests[source].adapter.lookup(url);
+        } catch (error) {
+          // AVA chokes on the richer RequestError object, so throw a minimal error.
+          throw new Error(error && error.message ? error.message : String(error));
+        }
+        throw new Error(`Expected lookup failure for ${source} adapter URL ${url}`);
+      });
     }
   }
   t.pass();
