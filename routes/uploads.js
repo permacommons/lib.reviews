@@ -11,8 +11,6 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const checkCSRF = require('csurf')();
-const fileType = require('file-type');
-const readChunk = require('read-chunk');
 const fs = require('fs');
 const isSVG = require('is-svg');
 const config = require('config');
@@ -34,6 +32,14 @@ const readFile = promisify(fs.readFile),
   unlink = promisify(fs.unlink);
 const stage1Router = express.Router(),
   stage2Router = express.Router();
+
+let fileTypeFromFileFn;
+async function detectFileType(filePath) {
+  if (!fileTypeFromFileFn) {
+    ({ fileTypeFromFile: fileTypeFromFileFn } = await import('file-type'));
+  }
+  return fileTypeFromFileFn(filePath);
+}
 
 const allowedTypes = [
   'image/png', 'image/gif', 'image/svg+xml', 'image/jpeg', 'image/webp',
@@ -250,8 +256,7 @@ async function cleanupFiles(req) {
 // fast validation. If files are manipulated, we need to pay further attention
 // to any possible exploits.
 async function validateFile(filePath, claimedType) {
-  const buffer = await readChunk(filePath, 0, 262);
-  const type = fileType(buffer);
+  const type = await detectFileType(filePath);
 
   // Browser sometimes misreports media type for Ogg files. We don't throw an
   // error in this case, but return the correct type.

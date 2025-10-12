@@ -225,6 +225,54 @@ test('We can upload media via the API', async t => {
   }
 });
 
+test('API upload rejects files with unrecognized signature', async t => {
+  await fs.mkdir(config.uploadTempDir, { recursive: true });
+
+  const uploadAgent = supertest.agent(app);
+  const username = `Uploader ${Date.now()} invalid`;
+  await registerTestUser(uploadAgent, {
+    username,
+    password: 'uploadFails!'
+  });
+
+  const urlName = username.replace(/ /g, '_');
+  const uploader = await dbFixture.models.User.findByURLName(urlName, { withPassword: true });
+  uploader.isTrusted = true;
+  await uploader.save();
+
+  const bogusBuffer = Buffer.from('definitely not an image');
+
+  // Attach a plaintext buffer while pretending it's a PNG; file-type should
+  // reject it and report an error payload instead of persisting metadata.
+  const response = await uploadAgent
+    .post('/api/actions/upload')
+    .set('x-requested-with', 'XMLHttpRequest')
+    .field('description', 'Bogus file')
+    .field('license', 'cc-by')
+    .field('ownwork', 'true')
+    .field('language', 'en')
+    .attach('files', bogusBuffer, {
+      filename: 'fake.png',
+      contentType: 'image/png'
+    });
+
+  t.is(response.status, 400, `Expected upload to be rejected, got ${response.status}`);
+
+  const body = Object.keys(response.body || {}).length ? response.body : JSON.parse(response.text);
+  t.is(body.message, 'Could not perform action.');
+  t.true(Array.isArray(body.errors) && body.errors.length > 0, 'Expected error details in response');
+
+  const [errorDetail] = body.errors;
+  t.truthy(errorDetail.internalMessage);
+  t.true(
+    (errorDetail.displayMessage || '').includes('did not recognize the file type'),
+    `Unexpected display message: ${errorDetail.displayMessage}`
+  );
+
+  const savedFiles = await dbFixture.models.File.filter({ uploadedBy: uploader.id });
+  t.is(savedFiles.length, 0, 'No file records should be persisted for rejected uploads');
+});
+
 test.after.always(async t => {
   if (agent && typeof agent.close === 'function') {
     await new Promise(resolve => agent.close(resolve));
