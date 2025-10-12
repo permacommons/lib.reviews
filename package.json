@@ -68,7 +68,7 @@
     "markdown-it-html5-media": "^0.7.1",
     "module-deps": "^4.1.1",
     "morgan": "^1.10.1",
-    "multer": "^1.4.4",
+    "multer": "^2.0.2",
     "node-webhooks": "^1.4.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
