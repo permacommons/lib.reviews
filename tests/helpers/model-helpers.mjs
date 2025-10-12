@@ -15,6 +15,10 @@ export const getModels = () => [{
     file: 'thing.js'
   },
   {
+    name: 'File',
+    file: 'file.js'
+  },
+  {
     name: 'Team',
     file: 'team.js'
   },

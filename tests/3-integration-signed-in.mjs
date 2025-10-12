@@ -1,17 +1,26 @@
 import test from 'ava';
 import supertest from 'supertest';
 import isUUID from 'is-uuid';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
-import { extractCSRF } from './helpers/integration-helpers.mjs';
+import { extractCSRF, registerTestUser } from './helpers/integration-helpers.mjs';
 import { getModels } from './helpers/model-helpers.mjs';
 
 const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.join(__dirname, '..');
+const uploadsDir = path.join(projectRoot, 'static/uploads');
 
 // Standard env settings
 process.env.NODE_ENV = 'development';
 // Prevent config from installing file watchers that would leak handles under AVA.
 process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
 process.env.NODE_APP_INSTANCE = 'testing-3';
+
+const config = require('config');
 
 const { createDBFixture } = await import('./fixtures/db-fixture.mjs');
 const dbFixture = createDBFixture();
@@ -31,27 +40,14 @@ test.before(async() => {
 // them in
 test.serial('We can register an account via the form (captcha disabled)', async t => {
   agent = supertest.agent(app);
-  const registerResponse = await agent.get('/register');
-  const csrf = extractCSRF(registerResponse.text);
-  if (!csrf)
-    return t.fail('Could not obtain CSRF token');
+  const username = 'A friend of many GNUs';
+  const { landingResponse } = await registerTestUser(agent, {
+    username,
+    password: 'toGNUornottoGNU'
+  });
 
-  const postResponse = await agent
-    .post('/register')
-    .type('form')
-    .send({
-      _csrf: csrf,
-      username: 'A friend of many GNUs',
-      password: 'toGNUornottoGNU',
-    })
-    .expect(302)
-    .expect('location', '/');
-
-  await agent
-    .get(postResponse.headers.location)
-    .expect(200)
-    .expect(/Thank you for registering a lib.reviews account, A friend of many GNUs!/);
-
+  t.truthy(landingResponse);
+  t.regex(landingResponse.text, /Thank you for registering a lib\.reviews account, A friend of many GNUs!/);
   t.pass();
 });
 
@@ -156,6 +152,77 @@ test('We can create a new team', async t => {
     .expect(/Team: Kale Alliance/);
 
   t.pass();
+});
+
+test('We can upload media via the API', async t => {
+  await fs.mkdir(config.uploadTempDir, { recursive: true });
+
+  const pngBuffer = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
+    'base64'
+  );
+
+  const uploadAgent = supertest.agent(app);
+  const username = `Uploader ${Date.now()}`;
+  await registerTestUser(uploadAgent, {
+    username,
+    password: 'uploadRocks!'
+  });
+
+  const urlName = username.replace(/ /g, '_');
+  const uploader = await dbFixture.models.User.findByURLName(urlName, { withPassword: true });
+  uploader.isTrusted = true;
+  await uploader.save();
+
+  let uploadedPath;
+  let savedFile;
+
+  try {
+    const response = await uploadAgent
+      .post('/api/actions/upload')
+      .set('x-requested-with', 'XMLHttpRequest')
+      .field('description', 'Tiny PNG')
+      .field('license', 'cc-by')
+      .field('ownwork', 'true')
+      .field('language', 'en')
+      .attach('files', pngBuffer, {
+        filename: 'tiny.png',
+        contentType: 'image/png'
+      });
+
+    t.is(response.status, 200, `Upload failed: ${response.status} ${response.text}`);
+    t.true(/json/.test(response.headers['content-type']), 'Response should be JSON');
+
+    const body = Object.keys(response.body || {}).length ? response.body : JSON.parse(response.text);
+
+    t.is(body.message, 'Upload successful.');
+    t.deepEqual(body.errors, []);
+    t.true(Array.isArray(body.uploads));
+    t.is(body.uploads.length, 1);
+
+    const uploaded = body.uploads[0];
+    t.truthy(uploaded.fileID);
+    t.is(uploaded.originalName, 'tiny.png');
+    t.is(uploaded.license, 'cc-by');
+    t.deepEqual(uploaded.description, { en: 'Tiny PNG' });
+
+    uploadedPath = path.join(uploadsDir, uploaded.uploadedFileName);
+    const stats = await fs.stat(uploadedPath);
+    t.true(stats.size > 0, 'Uploaded file should exist on disk.');
+
+    savedFile = await dbFixture.models.File.get(uploaded.fileID);
+    t.true(savedFile.completed, 'Saved file metadata should be marked completed.');
+    t.is(savedFile.mimeType, 'image/png');
+    t.is(savedFile.license, 'cc-by');
+    t.is(savedFile.uploadedBy, uploader.id);
+    t.deepEqual(savedFile.description, { en: 'Tiny PNG' });
+  } finally {
+    if (savedFile)
+      await savedFile.deleteAllRevisions().catch(() => {});
+    if (uploadedPath) {
+      await fs.unlink(uploadedPath).catch(() => {});
+    }
+  }
 });
 
 test.after.always(async t => {
