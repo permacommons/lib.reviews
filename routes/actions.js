@@ -137,7 +137,7 @@ router.post('/actions/change-language', function(req, res) {
     if (redirectTo)
       return res.redirect(redirectTo);
     else
-      return res.redirect('back');
+      return redirectBackOrHome(req, res);
   }
 
   res.cookie('locale', lang, {
@@ -153,7 +153,7 @@ router.post('/actions/change-language', function(req, res) {
   if (redirectTo)
     res.redirect(redirectTo);
   else
-    res.redirect('back');
+    redirectBackOrHome(req, res);
 });
 
 // Below actions have shorter names for convenience
@@ -344,6 +344,7 @@ function sendRegistrationForm(req, res, formInfo) {
   let pageErrors = req.flash('pageErrors');
 
   const { code } = req.params;
+  const body = req.body || {};
 
   render.template(req, res, 'register', {
     titleKey: 'register',
@@ -353,7 +354,7 @@ function sendRegistrationForm(req, res, formInfo) {
     illegalUsernameCharactersReadable: User.options.illegalCharsReadable,
     scripts: ['register.js'],
     inviteCode: code,
-    signupLanguage: req.query.signupLanguage || req.body.signupLanguage
+    signupLanguage: req.query.signupLanguage || body.signupLanguage
   }, {
     illegalUsernameCharacters: User.options.illegalChars.source
   });
@@ -371,10 +372,16 @@ function returnToPath(req, res) {
   res.redirect(returnTo);
 }
 
+function redirectBackOrHome(req, res) {
+  const backURL = req.get('referer') || '/';
+  return res.redirect(backURL);
+}
+
 // If the ?signupLanguage query parameter or has been POSTed, and the language
 // is valid, show the form in the language (but do not set the cookie yet).
 function viewInSignupLanguage(req) {
-  const signupLanguage = req.query.signupLanguage || req.body.signupLanguage;
+  const body = req.body || {};
+  const signupLanguage = req.query.signupLanguage || body.signupLanguage;
   if (signupLanguage && languages.isValid(signupLanguage))
     i18n.setLocale(req, signupLanguage);
 }

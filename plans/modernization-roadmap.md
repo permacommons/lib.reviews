@@ -58,7 +58,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Ensure scripts (`npm test`, `npm run build`) still succeed. *(2025-10-11: Build/devdocs run clean; npm test and `npm run start-dev` confirmed outside sandbox.)*
 
 - [ ] **Runtime Breaking Changes**
-  - [ ] Coordinate Express 5 + body-parser 2 migration (router error handling, async middleware, CSRF setup).
+  - [x] Coordinate Express 5 + body-parser 2 migration (router error handling, async middleware, CSRF setup). *(2025-10-11: Upgraded to express@^5.1.0 + body-parser@^2.2.0, updated API error handler to detect body-parser parse failures, and verified build/test/PM2 flows outside sandbox.)*
   - [ ] Update `config`, `debug`, `multer`, `file-type`, `markdown-it` (and plugins) in focused commits with regression tests.
   - [ ] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
 
