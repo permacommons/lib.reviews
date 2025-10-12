@@ -60,6 +60,10 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 - [ ] **Runtime Breaking Changes**
   - [x] Coordinate Express 5 + body-parser 2 migration (router error handling, async middleware, CSRF setup). *(2025-10-11: Upgraded to express@^5.1.0 + body-parser@^2.2.0, updated API error handler to detect body-parser parse failures, and verified build/test/PM2 flows outside sandbox.)*
   - [ ] Update `config`, `debug`, `multer`, `file-type`, `markdown-it` (and plugins) in focused commits with regression tests.
+    - [x] Upgrade `config` to ^4.1.1 and `debug` to ^4.4.3; validated `npm run build` and `npm test` outside the sandbox (2025-10-12).
+    - [ ] Upgrade `multer` → ^2.x with async storage handler updates.
+    - [ ] Migrate `file-type` usage to async API and bump dependency.
+    - [ ] Update `markdown-it` and plugins, confirming rendered output parity.
   - [ ] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
 
 - [ ] **Legacy Replacements**

@@ -2,12 +2,26 @@ import test from 'ava';
 import OpenLibraryBackendAdapter from '../adapters/openlibrary-backend-adapter.js';
 import WikidataBackendAdapter from '../adapters/wikidata-backend-adapter.js';
 import OpenStreetMapBackendAdapter from '../adapters/openstreetmap-backend-adapter.js';
+import {
+  setupAdapterApiMocks,
+  teardownAdapterApiMocks
+} from './helpers/adapter-api-mocks.mjs';
 
 // Standard env settings
 process.env.NODE_ENV = 'development';
 // Prevent config from installing file watchers that would leak handles under AVA.
 process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
 process.env.NODE_APP_INSTANCE = 'testing-4';
+
+test.before(() => {
+  // Intercept adapter HTTP calls so tests never hit live services.
+  setupAdapterApiMocks();
+});
+
+test.after.always(() => {
+  // Restore default nock behavior for subsequent test files.
+  teardownAdapterApiMocks();
+});
 
 const tests = {
   openlibrary: {
