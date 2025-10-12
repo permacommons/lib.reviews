@@ -52,7 +52,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
 
 - [ ] **Dev Toolchain Refresh**
-  - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(Tests currently run with concurrency 2 because external API fixtures throttle under CI; revisit once adapters are mocked.)*
+  - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(2025-10-12: Adapter tests now run on local mocks, so AVA concurrency increased to 4 without flakes.)*
   - [x] Upgrade `supertest`, `chalk`, `jsdoc`, `pm2`, `grunt`, `grunt-babel`. *(2025-10-11: Bumped to supertest@^7, chalk@^5, jsdoc@^4, pm2@^6, confirmed grunt@^1.6.1 compatibility, upgraded grunt-babel@^8, and migrated build to @babel/core/@babel/preset-env.)*
   - [x] Address breaking changes (e.g., AVA 6 → pure ESM config, Chalk 5 ESM, PM2 config adjustments). *(Adjusted Grunt Babel preset to @babel/preset-env and verified jsdoc pipeline.)*
   - [x] Ensure scripts (`npm test`, `npm run build`) still succeed. *(2025-10-11: Build/devdocs run clean; npm test and `npm run start-dev` confirmed outside sandbox.)*
@@ -61,9 +61,9 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Coordinate Express 5 + body-parser 2 migration (router error handling, async middleware, CSRF setup). *(2025-10-11: Upgraded to express@^5.1.0 + body-parser@^2.2.0, updated API error handler to detect body-parser parse failures, and verified build/test/PM2 flows outside sandbox.)*
   - [ ] Update `config`, `debug`, `multer`, `file-type`, `markdown-it` (and plugins) in focused commits with regression tests.
     - [x] Upgrade `config` to ^4.1.1 and `debug` to ^4.4.3; validated `npm run build` and `npm test` outside the sandbox (2025-10-12).
-    - [ ] Upgrade `multer` → ^2.x with async storage handler updates.
-    - [ ] Migrate `file-type` usage to async API and bump dependency.
-    - [ ] Update `markdown-it` and plugins, confirming rendered output parity.
+    - [ ] Upgrade `multer` → ^2.x with async storage handler updates. *(Adapters now mock HTTP calls, so focus next on async storage migration + tests covering upload flow.)*
+    - [ ] Migrate `file-type` usage to async API and bump dependency. *(Shared upload pipeline relies on sync signature detection—plan separate refactor after Multer v2 lands.)*
+    - [ ] Update `markdown-it` and plugins, confirming rendered output parity. *(Consider snapshotting critical templates before bump.)*
   - [ ] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
 
 - [ ] **Legacy Replacements**
