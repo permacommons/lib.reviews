@@ -31,7 +31,7 @@ const debug = {
       return;
     }
 
-    let log = this.errorLog;
+    const log = this.errorLog;
     if (error && error.req) {
 
       if (error.req.route)
@@ -40,7 +40,7 @@ const debug = {
       log(`Request method: ${error.req.method} - URL: ${error.req.originalUrl}`);
       if (error.req.method !== 'GET' && error.req.body !== undefined) {
         log('Request body:');
-        if (typeof error.req.body == "object")
+        if (typeof error.req.body == 'object')
           log(JSON.stringify(error.req.body, null, 2));
         else
           log(error.req.body.toString());

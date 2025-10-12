@@ -44,8 +44,8 @@ module.exports = function(grunt) {
     babel: {
       mainJS: {
         options: {
-          sourceMap: true,
-          presets: ['env']
+          sourceMaps: true,
+          presets: ['@babel/preset-env']
         },
         files: {
           'static/js/libreviews.js': 'frontend/libreviews.js',

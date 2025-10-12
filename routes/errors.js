@@ -46,7 +46,8 @@ class ErrorProvider {
 
     if (req.isAPI) {
       let response;
-      switch (error.message) {
+      switch (error.type || error.message) {
+        case 'entity.parse.failed':
         case 'invalid json':
           response = {
             message: 'Could not process your request.',
