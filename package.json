@@ -23,7 +23,7 @@
   "dependencies": {
     "@babel/core": "^7.28.4",
     "@snyk/protect": "^1.1300.0",
-    "bcrypt-nodejs": "0.0.3",
+    "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",
     "browserify": "^17.0.1",
     "cldr-core": "^29.0.0",

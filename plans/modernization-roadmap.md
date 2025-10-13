@@ -67,7 +67,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
 
 - [ ] **Legacy Replacements**
-  - [ ] Swap `bcrypt-nodejs` → `bcrypt` (or `bcryptjs`) and refactor auth helpers/tests.
+  - [x] Swap `bcrypt-nodejs` → `bcrypt` (or `bcryptjs`) and refactor auth helpers/tests.
   - [ ] Replace `request`/`request-promise-native` with a modern HTTP client; adjust any Promise wrapping.
   - [ ] Decide on the future of `thinky`: upgrade to a maintained fork or migrate to the official `rethinkdb` driver / alternative ORM.
   - [ ] Evaluate `greenlock-express`, `node-webhooks`, `remote-ac`, `i18n` git dependency, and other utilities for maintained successors.
