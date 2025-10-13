@@ -6,10 +6,10 @@
 // present in the source.
 
 // External deps
-const request = require('request-promise-native');
 const config = require('config');
 const escapeHTML = require('escape-html');
 const debug = require('../util/debug');
+const { fetchJSON } = require('../util/http');
 
 // Internal deps
 const AbstractBackendAdapter = require('./abstract-backend-adapter');
@@ -67,16 +67,13 @@ class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
     const jsonURL = isEdition ? `https://openlibrary.org/books/${m[2]}.json` :
       `https://openlibrary.org/works/${m[2]}.json`;
 
-    const options = {
-      uri: jsonURL,
+    const data = await fetchJSON(jsonURL, {
+      timeout: config.adapterTimeout,
+      label: 'Open Library',
       headers: {
         'User-Agent': config.adapterUserAgent
-      },
-      json: true,
-      timeout: config.adapterTimeout
-    };
-
-    const data = await request(options);
+      }
+    });
     debug.adapters('Received data from Open Library adapter (book/edition lookup):\n' +
       JSON.stringify(data, null, 2));
 
@@ -149,15 +146,13 @@ class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
 
     const authorLookups = [];
     for (let authorKey of authorKeys) {
-      const authorLookupOptions = {
-        uri: `https://openlibrary.org${authorKey}.json`,
+      authorLookups.push(fetchJSON(`https://openlibrary.org${authorKey}.json`, {
+        timeout: config.adapterTimeout,
+        label: 'Open Library author lookup',
         headers: {
           'User-Agent': config.adapterUserAgent
-        },
-        json: true,
-        timeout: config.adapterTimeout
-      };
-      authorLookups.push(request(authorLookupOptions));
+        }
+      }));
     }
     const authors = await Promise.all(authorLookups);
     debug.adapters('Received data from Open Library adapter (author lookup):\n' +

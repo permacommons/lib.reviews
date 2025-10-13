@@ -13,3 +13,4 @@ This repository powers the lib.reviews platform. The codebase dates back several
 - Preserve existing behavior unless instructions say otherwise; many routes have implicit dependencies.
 - Document notable trade-offs or open questions in PR descriptions or this file to keep future contributors aligned.
 - When in doubt about a legacy pattern, surface findings before refactoring; the maintainers value visibility over surprises.
+- When asked to draft a commit message, use conventional commit format. Keep the first line ≤50 chars, subsequent lines ≤72 chars, and limit bullet lists to at most four items. Only describe changes that remain in the current diff.

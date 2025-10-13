@@ -1,9 +1,9 @@
 'use strict';
 // External deps
-const request = require('request-promise-native');
 const config = require('config');
 const escapeHTML = require('escape-html');
 const debug = require('../util/debug');
+const { fetchJSON } = require('../util/http');
 
 // Internal deps
 const AbstractBackendAdapter = require('./abstract-backend-adapter');
@@ -39,23 +39,22 @@ class WikidataBackendAdapter extends AbstractBackendAdapter {
 
     // Not we don't specify fallback, so we won't get results for languages
     // that don't have content
-    const options = {
-      uri: apiBaseURL,
-      qs: {
-        action: 'wbgetentities',
-        format: 'json',
-        languages: this.getAcceptedWikidataLanguageList(),
-        props: 'labels|descriptions',
-        ids: qNumber
-      },
+    const urlWithParams = new URL(apiBaseURL);
+    urlWithParams.search = new URLSearchParams({
+      action: 'wbgetentities',
+      format: 'json',
+      languages: this.getAcceptedWikidataLanguageList(),
+      props: 'labels|descriptions',
+      ids: qNumber
+    }).toString();
+
+    const data = await fetchJSON(urlWithParams, {
+      timeout: config.adapterTimeout,
+      label: 'Wikidata',
       headers: {
         'User-Agent': config.adapterUserAgent
-      },
-      json: true,
-      timeout: config.adapterTimeout
-    };
-
-    const data = await request(options);
+      }
+    });
     debug.adapters('Received data from Wikidata adapter:\n' + JSON.stringify(data, null, 2));
 
     if (typeof data !== 'object' || !data.success || !data.entities || !data.entities[qNumber])
