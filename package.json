@@ -10,9 +10,9 @@
     "start-prod": "pm2 start process.json --only app-production",
     "del-prod": "pm2 delete app-production",
     "restart-prod": "pm2 restart app-production",
-    "test": "NODE_ENV=development ava --verbose \"tests/*-*.mjs\"",
-    "test-debug": "NODE_ENV=development DEBUG=libreviews:* ava --verbose \"tests/*-*.mjs\"",
-    "test-watch": "NODE_ENV=development DEBUG=libreviews:tests ava --watch --verbose \"tests/*-*.mjs\"",
+    "test": "NODE_ENV=development node tests/helpers/run-ava.mjs",
+    "test-debug": "NODE_ENV=development DEBUG=libreviews:* node tests/helpers/run-ava.mjs",
+    "test-watch": "NODE_ENV=development DEBUG=libreviews:tests node tests/helpers/run-ava.mjs --watch",
     "snyk-protect": "snyk-protect",
     "prepare": "npm run snyk-protect",
     "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"

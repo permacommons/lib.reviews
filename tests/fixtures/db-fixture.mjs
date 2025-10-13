@@ -4,6 +4,8 @@ import chalk from 'chalk';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import fs from 'fs/promises';
+import { cleanupFixture, pidSuffix } from '../helpers/rethinkdb-cleanup.mjs';
 
 const require = createRequire(import.meta.url);
 const { exec, spawn } = childProcessPromise;
@@ -23,6 +25,7 @@ class DBFixture {
     // Sanitize name
     let dbName = 'rethinkdb_data_' + process.env.NODE_APP_INSTANCE.replace(/[^a-zA-Z0-9]/g, '_');
     this.filename = path.join(__dirname, dbName);
+    this.pidFile = path.join(__dirname, `${dbName}${pidSuffix}`);
   }
 
   async bootstrap(models) {
@@ -35,7 +38,20 @@ class DBFixture {
 
     logNotice('Starting up RethinkDB.');
 
+    const baseName = path.basename(this.filename);
+    // Ensure we start from a clean slate; removes any leftover pid/data directories from
+    // previous runs (e.g., tests interrupted via Ctrl+C).
+    await cleanupFixture(baseName);
+    await fs.mkdir(path.dirname(this.filename), { recursive: true });
+    try {
+      await exec(`rethinkdb create -d ${this.filename}`);
+    } catch (error) {
+      console.error(chalk.red('Failed to initialize RethinkDB data directory.'));
+      throw error;
+    }
+
     this.dbProcess = spawn('rethinkdb', ['-d', this.filename, '--driver-port', String(config.dbServers[0].port), '--cluster-port', String(config.dbServers[0].port + 1000), '--no-http-admin']).childProcess;
+    await fs.writeFile(this.pidFile, String(this.dbProcess.pid));
 
     try {
       await this.dbReady();
@@ -79,15 +95,12 @@ class DBFixture {
     }
     if (this.dbProcess) {
       logNotice('Killing test database process.');
+      // Graceful shutdown keeps rethinkdb from spewing errors about unclean exits.
       await this.killDB();
       this.dbProcess = null;
       logOK('Test database process terminated.');
     }
-    try {
-      await exec(`rm -rf ${this.filename}`);
-    } catch (error) {
-      console.error(error);
-    }
+    // Data directory removal is handled by the global cleanup logic.
   }
 
   dbReady() {
@@ -109,13 +122,17 @@ class DBFixture {
   killDB() {
     return new Promise((resolve, reject) => {
       const proc = this.dbProcess;
+      if (!proc) {
+        resolve();
+        return;
+      }
       proc.once('close', resolve);
       proc.once('error', reject);
-      if (!proc.kill('SIGTERM'))
+      if (!proc.kill('SIGTERM')) {
         resolve();
+      }
     });
   }
-
 
 }
 export const createDBFixture = () => new DBFixture();
