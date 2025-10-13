@@ -57,14 +57,14 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Address breaking changes (e.g., AVA 6 → pure ESM config, Chalk 5 ESM, PM2 config adjustments). *(Adjusted Grunt Babel preset to @babel/preset-env and verified jsdoc pipeline.)*
   - [x] Ensure scripts (`npm test`, `npm run build`) still succeed. *(2025-10-11: Build/devdocs run clean; npm test and `npm run start-dev` confirmed outside sandbox.)*
 
-- [ ] **Runtime Breaking Changes**
+- [x] **Runtime Breaking Changes**
   - [x] Coordinate Express 5 + body-parser 2 migration (router error handling, async middleware, CSRF setup). *(2025-10-11: Upgraded to express@^5.1.0 + body-parser@^2.2.0, updated API error handler to detect body-parser parse failures, and verified build/test/PM2 flows outside sandbox.)*
-  - [ ] Update `config`, `debug`, `multer`, `file-type`, `markdown-it` (and plugins) in focused commits with regression tests.
+  - [x] Update `config`, `debug`, `multer`, `file-type`, `markdown-it` (and plugins) in focused commits with regression tests.
     - [x] Upgrade `config` to ^4.1.1 and `debug` to ^4.4.3; validated `npm run build` and `npm test` outside the sandbox (2025-10-12).
     - [x] Upgrade `multer` → ^2.x with async storage handler updates. *(2025-10-12: Bumped to multer@^2.0.2; existing disk storage callbacks remain compatible—new AVA integration test covers `/api/actions/upload` flow.)*
     - [x] Migrate `file-type` usage to async API and bump dependency. *(2025-10-12: Upgraded to file-type@^21, removed read-chunk, and updated upload validation to async detection with integration test coverage.)*
     - [x] Update `markdown-it` and plugins, confirming rendered output parity. *(2025-10-12: Upgraded to markdown-it@^14 + markdown-it-container@^4; refreshed `markdown-it-html5-media` to 0.8.0 (Node ≥20, peer markdown-it >=13) with new regression test `tests/5-markdown.mjs` for spoiler/media output.)*
-  - [ ] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
+  - [x] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
 
 - [ ] **Legacy Replacements**
   - [ ] Swap `bcrypt-nodejs` → `bcrypt` (or `bcryptjs`) and refactor auth helpers/tests.
