@@ -69,7 +69,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 - [ ] **Legacy Replacements**
   - [x] Swap `bcrypt-nodejs` → `bcrypt` (or `bcryptjs`) and refactor auth helpers/tests.
   - [x] Replace `request`/`request-promise-native` with a modern HTTP client; adjust any Promise wrapping. *(2025-10-13: Migrated metadata adapters to native fetch with `AbortSignal.timeout` (Node ≥17.3) covering timeouts, and removed deprecated dependencies.)*
-  - [ ] Decide on the future of `thinky`: upgrade to a maintained fork or migrate to the official `rethinkdb` driver / alternative ORM.
+  - [ ] Decide on the future of `thinky`: upgrade to a maintained fork or migrate to the official `rethinkdb` driver / alternative ORM. *(2025-10-13: thinky@2.3.9 has seen no releases since 2019 and depends on `rethinkdbdash@2.3.31`; proposal is to maintain a minimal internal fork for Node 22 fixes while auditing model hooks/relations to scope a phased migration to the official `rethinkdb` driver and a lightweight data layer.)*
   - [ ] Evaluate `greenlock-express`, `node-webhooks`, `remote-ac`, `i18n` git dependency, and other utilities for maintained successors.
 
 - [ ] **Build Pipeline Modernization (Longer-Term)**

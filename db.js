@@ -1,5 +1,5 @@
 'use strict';
-const Thinky = require('thinky');
+const Thinky = require('./orm');
 const config = require('config');
 const debug = require('./util/debug');
 
