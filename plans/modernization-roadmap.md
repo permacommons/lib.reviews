@@ -63,7 +63,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
     - [x] Upgrade `config` to ^4.1.1 and `debug` to ^4.4.3; validated `npm run build` and `npm test` outside the sandbox (2025-10-12).
     - [x] Upgrade `multer` → ^2.x with async storage handler updates. *(2025-10-12: Bumped to multer@^2.0.2; existing disk storage callbacks remain compatible—new AVA integration test covers `/api/actions/upload` flow.)*
     - [x] Migrate `file-type` usage to async API and bump dependency. *(2025-10-12: Upgraded to file-type@^21, removed read-chunk, and updated upload validation to async detection with integration test coverage.)*
-    - [ ] Update `markdown-it` and plugins, confirming rendered output parity. *(Consider snapshotting critical templates before bump.)*
+    - [x] Update `markdown-it` and plugins, confirming rendered output parity. *(2025-10-12: Upgraded to markdown-it@^14 + markdown-it-container@^4; refreshed `markdown-it-html5-media` to 0.8.0 (Node ≥20, peer markdown-it >=13) with new regression test `tests/5-markdown.mjs` for spoiler/media output.)*
   - [ ] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
 
 - [ ] **Legacy Replacements**
