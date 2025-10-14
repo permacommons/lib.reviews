@@ -46,12 +46,12 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Run tests under Node 22 to capture immediate runtime breaks. *(2025-10-11: AVA suite passes locally on Node 22; requires Elasticsearch stub or skip but no regressions observed.)*
   - [x] Add CI matrix entries for Node 22 (retain Node 20 temporarily if needed). *(Added `.github/workflows/ci.yml` with Node 22/20 jobs installing RethinkDB and running build/test.)*
 
-- [ ] **Low-Risk Batch (patch/minor)**
+- [x] **Low-Risk Batch (patch/minor)**
   - [x] Upgrade packages listed in “Routine Patch/Minor Updates”. *(2025-10-11: Applied `ncu --target minor` + `npm install`, covering browserify, cookie-parser, compression, elasticsearch, express-session, session-rethinkdb, sisyphus.js, sprintf-js, @snyk/protect, snyk, child-process-promise, pre-commit, jquery (+ powertip), morgan, rethinkdbdash, serve-favicon, serve-index, prosemirror suite, etc.)*
   - [x] Refresh lockfile, run unit/integration tests, and smoke test the Grunt pipeline. *(package-lock regenerated; `npm run build` and `npm run test` succeed on Node 22 with expected Elasticsearch warnings.)*
   - [x] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
 
-- [ ] **Dev Toolchain Refresh**
+- [x] **Dev Toolchain Refresh**
   - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(2025-10-12: Adapter tests now run on local mocks, so AVA concurrency increased to 4 without flakes.)*
   - [x] Upgrade `supertest`, `chalk`, `jsdoc`, `pm2`, `grunt`, `grunt-babel`. *(2025-10-11: Bumped to supertest@^7, chalk@^5, jsdoc@^4, pm2@^6, confirmed grunt@^1.6.1 compatibility, upgraded grunt-babel@^8, and migrated build to @babel/core/@babel/preset-env.)*
   - [x] Address breaking changes (e.g., AVA 6 → pure ESM config, Chalk 5 ESM, PM2 config adjustments). *(Adjusted Grunt Babel preset to @babel/preset-env and verified jsdoc pipeline.)*
@@ -69,7 +69,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 - [ ] **Legacy Replacements**
   - [x] Swap `bcrypt-nodejs` → `bcrypt` (or `bcryptjs`) and refactor auth helpers/tests.
   - [x] Replace `request`/`request-promise-native` with a modern HTTP client; adjust any Promise wrapping. *(2025-10-13: Migrated metadata adapters to native fetch with `AbortSignal.timeout` (Node ≥17.3) covering timeouts, and removed deprecated dependencies.)*
-  - [ ] Decide on the future of `thinky`: upgrade to a maintained fork or migrate to the official `rethinkdb` driver / alternative ORM. *(2025-10-13: thinky@2.3.9 has seen no releases since 2019 and depends on `rethinkdbdash@2.3.31`; proposal is to maintain a minimal internal fork for Node 22 fixes while auditing model hooks/relations to scope a phased migration to the official `rethinkdb` driver and a lightweight data layer.)*
+  - [x] Decide on the future of `thinky`: upgrade to a maintained fork or migrate to the official `rethinkdb` driver / alternative ORM. *(2025-10-13: vendored thinky under orm/ for now; long term plan is to migrate to postgres)
   - [ ] Evaluate `greenlock-express`, `node-webhooks`, `remote-ac`, `i18n` git dependency, and other utilities for maintained successors.
 
 - [ ] **Build Pipeline Modernization (Longer-Term)**
