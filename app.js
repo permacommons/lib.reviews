@@ -28,8 +28,8 @@ const passport = require('passport');
 const csrf = require('csurf'); // protect against request forgery using tokens
 const config = require('config');
 const compression = require('compression');
-const WebHooks = require('node-webhooks');
 const csp = require('helmet-csp'); // Content security policy
+const WebHookDispatcher = require('./util/webhooks');
 
 // Internal dependencies
 const languages = require('./locales/languages');
@@ -238,7 +238,7 @@ async function getApp(db = require('./db')) {
   // Webhooks let us notify other applications and services (running on the
   // same server or elsewhere) when something happens. See the configuration
   // file for details.
-  app.locals.webHooks = new WebHooks({ db: config.webHooks });
+  app.locals.webHooks = new WebHookDispatcher(config.webHooks);
 
   await Promise.all(asyncJobs);
   const mode = app.get('env') == 'production' ? 'PRODUCTION' : 'DEVELOPMENT';

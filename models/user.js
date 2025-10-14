@@ -11,7 +11,7 @@ const thinky = require('../db');
 const type = thinky.type;
 const Errors = thinky.Errors;
 const r = thinky.r;
-const bcrypt = require('bcrypt-nodejs');
+const bcrypt = require('bcrypt');
 const ReportedError = require('../util/reported-error');
 const UserMeta = require('./user-meta');
 
@@ -20,6 +20,7 @@ const userOptions = {
   illegalChars: /[<>;"&?!./_]/,
   minPasswordLength: 6
 };
+const BCRYPT_ROUNDS = 10; // matches legacy bcrypt-nodejs default cost
 
 /* eslint-disable no-useless-escape */ // False positive
 // Erm, if we add [, ] or \ to forbidden chars, we'll have to fix this :)
@@ -335,7 +336,7 @@ function setPassword(password) {
         messageParams: [String(userOptions.minPasswordLength)]
       }));
     } else {
-      bcrypt.hash(password, null, null, function(error, hash) {
+      bcrypt.hash(password, BCRYPT_ROUNDS, function(error, hash) {
         if (error)
           reject(error);
         else {

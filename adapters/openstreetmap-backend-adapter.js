@@ -4,10 +4,10 @@
 // on the 'name' property in OpenStreetMap
 
 // External deps
-const request = require('request-promise-native');
 const config = require('config');
 const escapeHTML = require('escape-html');
 const debug = require('../util/debug');
+const { fetchJSON } = require('../util/http');
 
 const languages = require('../locales/languages');
 const validLanguages = languages.getValidLanguages();
@@ -46,20 +46,17 @@ class OpenStreetMapBackendAdapter extends AbstractBackendAdapter {
       `${osmType}(${osmID});\n` +
       'out;\n';
 
-    const options = {
+    const body = new URLSearchParams({ data: query });
+    const data = await fetchJSON('https://overpass-api.de/api/interpreter', {
       method: 'POST',
-      uri: 'https://overpass-api.de/api/interpreter',
+      timeout: config.adapterTimeout,
+      label: 'OpenStreetMap',
       headers: {
         'User-Agent': config.adapterUserAgent,
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      form: {
-        data: query,
-      },
-      json: true,
-      timeout: config.adapterTimeout
-    };
-
-    const data = await request(options);
+      body
+    });
     debug.adapters('Received data from OpenStreetMap adapter (way/node lookup):\n' +
       JSON.stringify(data, null, 2));
 

@@ -13,6 +13,9 @@
   // Omit all logging from tests
   frontPageTeamBlog: "",
   logger: false,
+  search: {
+    log: 'error'
+  },
   dbServers: [
     {
       host: "localhost",
