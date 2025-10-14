@@ -15,7 +15,7 @@ module.exports = function(grunt) {
         src: [
           'node_modules/jquery/dist/jquery.js',
           'node_modules/sisyphus.js/sisyphus.js',
-          'node_modules/remote-ac/ac.js',
+          'frontend/lib/ac.js',
           'node_modules/jquery-powertip/dist/jquery.powertip.js',
           'node_modules/jquery-modal/jquery.modal.js'
         ],
