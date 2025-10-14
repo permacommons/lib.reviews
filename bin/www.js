@@ -2,21 +2,7 @@
 
 'use strict';
 
-// pm2 sets the NODE_APP_INSTANCE variable in cluster mode, which config
-// also uses for instance-specific configuration, and throws warnings when
-// it doesn't find them. For this reason we temporarily change the value
-// before loading the config, _unless_ it is set to 'testing', which is
-// used for test-specific configurations. If we ever actually want
-// instance-specific configs in cluster mode, we can remove this.
-let instance = process.env.NODE_APP_INSTANCE;
-
-if (instance && !/^testing/.test(instance))
-  Reflect.deleteProperty(process.env, 'NODE_APP_INSTANCE');
-
 const config = require('config');
-
-if (instance)
-  process.env.NODE_APP_INSTANCE = instance;
 
 const getApp = require('../app');
 const getDB = require('../db').getDB;

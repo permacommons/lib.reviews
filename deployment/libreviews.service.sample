@@ -1,0 +1,25 @@
+# Place in /etc/systemd/system
+# Enable via `systemctl enable libreviews`
+[Unit]
+Description=lib.reviews
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=node
+Group=node
+WorkingDirectory=/home/node/lib.reviews
+# nvm needs a login shell to populate PATH; simplest is to exec a shell that sources nvm
+ExecStart=/bin/bash -lc 'source /home/node/.nvm/nvm.sh && node bin/www.js'
+Restart=on-failure
+RestartSec=3
+Environment=NODE_ENV=production DEBUG=libreviews:*
+# Useful limits
+LimitNOFILE=65535
+# Allow use of lower ports
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
