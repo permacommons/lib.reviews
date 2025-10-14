@@ -11,6 +11,7 @@ const debug = {
   util: debugModule('libreviews:util'),
   tests: debugModule('libreviews:tests'),
   adapters: debugModule('libreviews:adapters'),
+  webhooks: debugModule('libreviews:webhooks'),
   errorLog: debugModule('libreviews:error'), // for property access, use debug.error for logging
 
 
