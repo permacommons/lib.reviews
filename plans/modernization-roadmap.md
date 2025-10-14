@@ -8,7 +8,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 
 ## Current Snapshot
 - Audit tool: `npx npm-check-updates` (v19) against the existing package.json.
-- Direct dependencies: 78 runtime, 10 dev (88 total).
+- Direct dependencies: 73 runtime, 11 dev (84 total).
 - Upgrades available: 11 patch, 23 minor, 27 major releases.
 - Packages with no maintained upgrade path in the registry: 27 (listed below).
 
@@ -31,7 +31,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 | `module-deps`, `load-grunt-tasks`, `grunt-*` | various | latest majors | Ensure Grunt tasks still run; some plugins drop legacy Node support. |
 | `markdown-it` (+ plugins) | ^13.x | latest | Confirm rendered output stability and custom plugins. |
 | `type-is` | ^1.6.18 | ^2.0.1 | Used by Express stack; review any direct calls. |
-| Dev tooling (`ava`, `chalk`, `jsdoc`, `pm2`, `supertest`, `grunt-babel`) | various | latest majors | Check breaking changes (e.g., ESM-first packages, dropping older Node versions). |
+| Dev tooling (`ava`, `chalk`, `jsdoc`, `supertest`, `grunt-babel`) | various | latest majors | Check breaking changes (e.g., ESM-first packages, dropping older Node versions). |
 
 ### Routine Patch/Minor Updates
 - Safe to batch once tests cover critical flows: `browserify`, `cookie-parser`, `compression`, `morgan`, `serve-favicon`, `serve-index`, `express-session`, `session-rethinkdb`, `sisyphus.js`, `sprintf-js`, `prosemirror*`, `jquery` and related utilities, `@snyk/protect`, `snyk`, `pre-commit`, `child-process-promise`.
@@ -53,7 +53,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 
 - [x] **Dev Toolchain Refresh**
   - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(2025-10-12: Adapter tests now run on local mocks, so AVA concurrency increased to 4 without flakes.)*
-  - [x] Upgrade `supertest`, `chalk`, `jsdoc`, `pm2`, `grunt`, `grunt-babel`. *(2025-10-11: Bumped to supertest@^7, chalk@^5, jsdoc@^4, pm2@^6, confirmed grunt@^1.6.1 compatibility, upgraded grunt-babel@^8, and migrated build to @babel/core/@babel/preset-env.)*
+  - [x] Upgrade `supertest`, `chalk`, `jsdoc`, `grunt`, `grunt-babel`. *(2025-10-11: Bumped to supertest@^7, chalk@^5, jsdoc@^4, confirmed grunt@^1.6.1 compatibility, upgraded grunt-babel@^8, and migrated build to @babel/core/@babel/preset-env. 2025-10-14: dropped pm2 in favor of systemd units; npm scripts now call `node bin/www.js` directly.)*
   - [x] Address breaking changes (e.g., AVA 6 → pure ESM config, Chalk 5 ESM, PM2 config adjustments). *(Adjusted Grunt Babel preset to @babel/preset-env and verified jsdoc pipeline.)*
   - [x] Ensure scripts (`npm test`, `npm run build`) still succeed. *(2025-10-11: Build/devdocs run clean; npm test and `npm run start-dev` confirmed outside sandbox.)*
 

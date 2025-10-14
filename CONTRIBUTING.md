@@ -21,7 +21,7 @@ lib.reviews is a pure-JavaScript application, using modern language features whe
 | [Grunt](https://gruntjs.com/)            | Build pipeline for front-end assets. (Moving to another pipeline is worth investigating primarily for performance benefits.) |
 | [Babel](https://babeljs.io/)             | Transpilation of front-end code that includes ES6 Javascript language features; transpilation of tests that include ES7 features |
 | [ava](https://github.com/avajs/ava)      | Asynchronous test runner                 |
-| [pm2](http://pm2.keymetrics.io/)         | Process management, monitoring, deployment |
+| [systemd](https://systemd.io/)           | Production service supervision using `deployment/libreviews.service.sample` |
 | [ProseMirror](http://prosemirror.net/)   | Rich-text editor                         |
 | [jQuery](https://jquery.com/)            | DOM manipulation                         |
 
@@ -35,21 +35,9 @@ We aim to be multilingual in UI and content, and are exclusively using translata
 
 This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need Node.js 22.x (the current release line we target). Switch to your check-out directory and then run `npm install`. Run `grunt` to build the JavaScript. Make sure you also have RethinkDB up and running before starting the service.
 
-You can customize your development configuration by copying `config/default.json5` to `config/development.json5`. Finally, run `npm run start-dev` and visit `localhost` at the configured port number.
-
-The startup scripts use [pm2](https://www.npmjs.com/package/pm2), which you can safely install globally alongside the local version. It's a handy tool that keeps the process running in the background, balances it across multiple cores if available, lets you manage log files, etc. If for any reason you just want to run the server without pm2, you can always fire up `node bin/www` instead.
+You can customize your development configuration by copying `config/default.json5` to `config/development.json5`. Finally, run `npm run start-dev` and visit `localhost` at the configured port number. The npm scripts invoke `node bin/www.js` directly; in production we recommend adapting the sample systemd unit in `deployment/libreviews.service.sample`.
 
 Any pull requests must be under the [CC-0 License](./LICENSE). This project has adopted a [code of conduct](./CODE_OF_CONDUCT.md) to make sure all contributors feel welcome.
-
-# Using Vagrant
-
-*The Vagrant setup is experimental and in need of some maintenance love.*
-
-If you're familiar with Vagrant and VirtualBox, you may find it easier to configure a working environment using our Vagrantfile. To install using Vagrant, simply type
-
-`vagrant up`
-
-in the main directory, and follow the instructions printed on screen. All dependencies will be installed automatically within a virtualized Debian environment.
 
 # Code style
 
