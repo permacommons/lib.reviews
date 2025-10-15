@@ -71,14 +71,14 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
     - [x] Update `markdown-it` and plugins, confirming rendered output parity. *(2025-10-12: Upgraded to markdown-it@^14 + markdown-it-container@^4; refreshed `markdown-it-html5-media` to 0.8.0 (Node ≥20, peer markdown-it >=13) with new regression test `tests/5-markdown.mjs` for spoiler/media output.)*
   - [x] Track required code changes directly in the affected modules (`app.js`, `routes/*`, upload handlers, markdown renderers).
 
-- [ ] **Legacy Replacements**
+- [x] **Legacy Replacements**
   - [x] Swap `bcrypt-nodejs` → `bcrypt` (or `bcryptjs`) and refactor auth helpers/tests.
   - [x] Replace `request`/`request-promise-native` with a modern HTTP client; adjust any Promise wrapping. *(2025-10-13: Migrated metadata adapters to native fetch with `AbortSignal.timeout` (Node ≥17.3) covering timeouts, and removed deprecated dependencies.)*
   - [x] Decide on the future of `thinky`: upgrade to a maintained fork or migrate to the official `rethinkdb` driver / alternative ORM. *(2025-10-13: vendored thinky under orm/ for now; long term plan is to migrate to postgres)
   - [x] Evaluate `greenlock-express`, `node-webhooks`, `remote-ac`, `i18n` git dependency, and other utilities for maintained successors. *(2025-10-14: `greenlock-express` last shipped in 2020; plan to read certs issued via Certbot directly instead of keeping the embedded ACME flow. `node-webhooks` (2019) still pulls in `request`; we can replace it with a small fetch-based dispatcher. `remote-ac` (2018) lags on accessibility—evaluate `accessible-autocomplete@3` vs `@tarekraafat/autocomplete.js`. The `i18n` fork pins 0.8.3; upstream 0.15.2 keeps the API we use, so we should migrate off the git dependency. `express-flash` remains frozen at 0.0.2 (2013) and may be replaced once we have an in-house flash helper.)*
     - [x] Reimplement webhook dispatching without `node-webhooks` using Node 22's global `fetch`, retries, and logging; add integration coverage. *(2025-10-14: Replaced with `WebHookDispatcher` utility using `fetch` + timeouts and AVA coverage mirroring the IRC bot webhook.)*
     - [x] Swap the frontend autocomplete widget (`remote-ac`) for a maintained alternative and refactor the adapter surface to preserve current UX. *(2025-10-14: Replaced the dependency with an in-repo `AC` widget featuring ARIA support; Grunt now copies `frontend/lib/ac.js`, and AVA coverage (`tests/7-autocomplete.mjs`) guards rendering + triggering APIs.)*
-    - [ ] Upgrade to the published `i18n@^0.15.2`, drop the git pin, and ensure watcher/test configuration stays stable on Node 22.
+    - [x] Upgrade to the published `i18n@^0.15.2`, drop the git pin, and ensure watcher/test configuration stays stable on Node 22.
     - [x] Replace `greenlock-express` with a Certbot-managed TLS workflow (load cert/key from disk, handle reloads), documenting operational steps; tackle this last since it is the trickiest migration. *(2025-10-14: Removed `greenlock-express`; `bin/www.js` now reads Certbot-managed key/cert paths from config and serves HTTPS directly on port 443 by default. Add a follow-up to watch for renewals and reload certificates without restart.)*
 
 - [ ] **Build Pipeline Modernization (Longer-Term)**
