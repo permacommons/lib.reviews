@@ -1,8 +1,8 @@
-*Please also see the [code of conduct](https://github.com/eloquence/lib.reviews/blob/master/CODE_OF_CONDUCT.md).*
+*Please also see the [code of conduct](https://github.com/permacommons/lib.reviews/blob/master/CODE_OF_CONDUCT.md).*
 
 Thanks for taking a look! If you just want to write reviews, please see the [instructions for getting an account](https://lib.reviews/register). For technical/design contributions, read on.
 
-We welcome contributions to [any of our open issues](https://github.com/eloquence/lib.reviews/issues), as well as new ideas. Issues tagged as "[good for new contributors](https://github.com/eloquence/lib.reviews/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+for+new+contributors%22)" don't require in-depth knowledge of the whole codebase. We're happy to set aside time for personal coaching in the codebase (e.g., via video-conference/screen-sharing). Ping `Eloquence` on `#lib.reviews` (irc.libera.chat) to get started.
+We welcome contributions to [any of our open issues](https://github.com/permacommons/lib.reviews/issues), as well as new ideas. Issues tagged as "[good for new contributors](https://github.com/permacommons/lib.reviews/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+for+new+contributors%22)" don't require in-depth knowledge of the whole codebase. We're happy to set aside time for personal coaching in the codebase (e.g., via video-conference/screen-sharing). Ping `Eloquence` on **#lib.reviews** on [libera.chat](https://libera.chat/) to get started.
 
 # Technical overview
 
@@ -61,7 +61,7 @@ Any pull requests must be under the [CC-0 License](./LICENSE). This project has 
 
 - Object literals and arrow functions can be written on a single line.
 
-- We use [eslint](http://eslint.org/)  with the [babel-eslint](https://github.com/babel/babel-eslint) package for automatic code linting, using the [.eslintrc](https://github.com/eloquence/lib.reviews/blob/master/.eslintrc.json) that's checked into the repository. This defines most of our other assumptions.
+- We use [eslint](http://eslint.org/)  with the [babel-eslint](https://github.com/babel/babel-eslint) package for automatic code linting, using the [.eslintrc](https://github.com/permacommons/lib.reviews/blob/master/.eslintrc.json) that's checked into the repository. This defines most of our other assumptions.
 
 - Semicolons are nice. They help to navigate multi-line statements like this:
 
