@@ -28,7 +28,7 @@ test.serial('We can create a user', async t => {
   user = await dbFixture.models.User.create({
     name: 'Eloquence',
     password: 'password',
-    email: 'eloquence+libreviews@gmail.com',
+    email: 'erik+libreviews@permacommons.org',
   });
   t.true(isUUID.v4(user.id), 'User has valid v4 UUID');
   t.is(user.password.length, 60, 'Password appears to be hashed correctly');

@@ -1,5 +1,5 @@
 // Patch for renaming the _revOf column to _oldRevOf in all revisioned tables.
-// This was done for clarity, see https://github.com/eloquence/lib.reviews/issues/176
+// This was done for clarity, see https://github.com/permacommons/lib.reviews/issues/176
 
 const { getDB } = require('../db');
 const tables = ['blog_posts', 'files', 'reviews', 'teams', 'things', 'user_meta'];

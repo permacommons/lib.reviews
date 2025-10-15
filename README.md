@@ -10,6 +10,6 @@ At this point, you need an invite code to make an account. Follow [lib_reviews o
 
 # Contributing design/code/documentation
 
-Please see our [contribution guidelines](https://github.com/eloquence/lib.reviews/blob/master/CONTRIBUTING.md) and our [code of conduct](https://github.com/eloquence/lib.reviews/blob/master/CODE_OF_CONDUCT.md).
+Please see our [contribution guidelines](https://github.com/permacommons/lib.reviews/blob/master/CONTRIBUTING.md) and our [code of conduct](https://github.com/permacommons/lib.reviews/blob/master/CODE_OF_CONDUCT.md).
 
 We also welcome contributions completed with AI assistance. Please see our [AGENTS.md](AGENTS.md) file for more.

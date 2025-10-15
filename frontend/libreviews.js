@@ -667,6 +667,6 @@
     '  / / / __ \\  / ___/ _ \\ | / / / _ \\ | /| / / ___/\n' +
     ' / / / /_/ / / /  /  __/ |/ / /  __/ |/ |/ (__  )\n' +
     '/_/_/_.___(_)_/   \\___/|___/_/\\___/|__/|__/____/\n' +
-    'Happy hacking! https://github.com/eloquence/lib.reviews\n\n'
+    'Happy hacking! https://github.com/permacommons/lib.reviews\n\n'
   );
 }());

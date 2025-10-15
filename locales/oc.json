@@ -46,7 +46,7 @@
 	"add http": "Apondre http://",
 	"add https": "Apondre https://",
 	"freedom": "lib.reviews Respècta vòstra libertat :",
-	"code": "<a href='%1$s'>Còdi font</a> (<a href='%2$s'>notabug mirror</a>)",
+	"code": "<a href='%1$s'>Còdi font</a>",
 	"need review-url": "Una URL es necessària per aquesta critica.",
 	"need review-title": "Un títol es necessari per aquesta critica.",
 	"need review-text": "Un tèxte es necessari per aquesta critica.",
