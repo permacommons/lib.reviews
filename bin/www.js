@@ -3,33 +3,34 @@
 'use strict';
 
 const config = require('config');
+const fs = require('fs');
+const https = require('https');
 
 const getApp = require('../app');
 const getDB = require('../db').getDB;
-const path = require('path');
-const greenlock = require('greenlock-express');
 
 async function runWebsite() {
   const db = await getDB();
   const app = await getApp(db);
-  const port = normalizePort(process.env.PORT || config.get('devPort'));
 
-  if (app.get('env') == 'production') {
-    greenlock.init({
-      packageRoot: path.join(__dirname, '..'),
+  const httpsConfig = config.has('https') ? config.get('https') : {};
+  const httpsEnabled = app.get('env') === 'production' && httpsConfig.enabled;
 
-      // contact for security and critical bug notices
-      maintainerEmail: config.get('adminEmail'),
+  if (httpsEnabled) {
+    const port = normalizePort(process.env.PORT || httpsConfig.port || 443);
+    const host = httpsConfig.host || '0.0.0.0';
+    const credentials = loadHttpsCredentials(httpsConfig);
 
-      // where to look for configuration
-      configDir: path.join(__dirname, '../config/greenlock'),
-
-      // whether or not to run at cloudscale
-      cluster: false
-    }).serve(app);
-  } else {
     app.set('port', port);
-    app.listen(port, '127.0.0.1').on('error', onError);
+    const server = https.createServer(credentials, app);
+
+    server.listen(port, host).on('error', error => onError(error, port));
+    setupHttpsReload(server);
+  } else {
+    const port = normalizePort(process.env.PORT || config.get('devPort'));
+
+    app.set('port', port);
+    app.listen(port, '127.0.0.1').on('error', error => onError(error, port));
   }
 }
 
@@ -59,9 +60,13 @@ function normalizePort(val) {
  * Event listener for HTTP server "error" event.
  */
 
-function onError(error) {
+function onError(error, port) {
   if (error.syscall !== 'listen') {
     throw error;
+  }
+
+  if (port != null) {
+    error.port = port;
   }
 
   // handle specific listen errors with friendly messages
@@ -77,4 +82,56 @@ function onError(error) {
     default:
       throw error;
   }
+}
+
+function loadHttpsCredentials(httpsConfig) {
+  if (!httpsConfig.keyPath || !httpsConfig.certPath) {
+    throw new Error('HTTPS is enabled but keyPath or certPath is not configured.');
+  }
+
+  try {
+    const credentials = {
+      key: fs.readFileSync(httpsConfig.keyPath),
+      cert: fs.readFileSync(httpsConfig.certPath)
+    };
+
+    if (httpsConfig.caPath) {
+      credentials.ca = fs.readFileSync(httpsConfig.caPath);
+    }
+
+    return credentials;
+  } catch (error) {
+    console.error('Failed to load TLS certificates. Please verify the configured paths.');
+    throw error;
+  }
+}
+
+function setupHttpsReload(server) {
+  if (!server || typeof server.setSecureContext !== 'function') {
+    return;
+  }
+
+  process.on('SIGHUP', () => {
+    console.info('[HTTPS] Received SIGHUP; reloading TLS configuration.');
+
+    try {
+      if (!config.has('https')) {
+        console.warn('[HTTPS] Reload skipped: `https` configuration block is missing.');
+        return;
+      }
+
+      const httpsConfig = config.get('https');
+
+      if (!httpsConfig.enabled) {
+        console.warn('[HTTPS] Reload skipped: HTTPS is disabled in configuration.');
+        return;
+      }
+
+      const credentials = loadHttpsCredentials(httpsConfig);
+      server.setSecureContext(credentials);
+      console.info('[HTTPS] TLS certificates reloaded successfully.');
+    } catch (error) {
+      console.error('[HTTPS] Failed to reload TLS certificates:', error);
+    }
+  });
 }

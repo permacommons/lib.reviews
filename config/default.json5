@@ -29,6 +29,15 @@
   // if you don't want to grant elevated privileges to Node.
   devPort: 80,
 
+  // HTTPS settings; disabled for local development. Production deployments
+  // can enable this to serve TLS directly using Certbot-managed files.
+  https: {
+    enabled: false,
+    port: 443,
+    certPath: "/etc/letsencrypt/live/lib.reviews/fullchain.pem",
+    keyPath: "/etc/letsencrypt/live/lib.reviews/privkey.pem"
+  },
+
   // RethinkDB configuration. We use a connection pool, so you can add
   // additional servers to the array if needed.
   dbServers: [

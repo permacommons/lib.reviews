@@ -74,7 +74,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
     - [x] Reimplement webhook dispatching without `node-webhooks` using Node 22's global `fetch`, retries, and logging; add integration coverage. *(2025-10-14: Replaced with `WebHookDispatcher` utility using `fetch` + timeouts and AVA coverage mirroring the IRC bot webhook.)*
     - [x] Swap the frontend autocomplete widget (`remote-ac`) for a maintained alternative and refactor the adapter surface to preserve current UX. *(2025-10-14: Replaced the dependency with an in-repo `AC` widget featuring ARIA support; Grunt now copies `frontend/lib/ac.js`, and AVA coverage (`tests/7-autocomplete.mjs`) guards rendering + triggering APIs.)*
     - [ ] Upgrade to the published `i18n@^0.15.2`, drop the git pin, and ensure watcher/test configuration stays stable on Node 22.
-    - [ ] Replace `greenlock-express` with a Certbot-managed TLS workflow (load cert/key from disk, handle reloads), documenting operational steps; tackle this last since it is the trickiest migration.
+    - [x] Replace `greenlock-express` with a Certbot-managed TLS workflow (load cert/key from disk, handle reloads), documenting operational steps; tackle this last since it is the trickiest migration. *(2025-10-14: Removed `greenlock-express`; `bin/www.js` now reads Certbot-managed key/cert paths from config and serves HTTPS directly on port 443 by default. Add a follow-up to watch for renewals and reload certificates without restart.)*
 
 - [ ] **Build Pipeline Modernization (Longer-Term)**
   - [ ] Map Grunt tasks to a modern bundler (Vite, esbuild, or Webpack) once runtime deps are stable.
