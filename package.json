@@ -38,7 +38,6 @@
     "express-session": "^1.18.2",
     "express-useragent": "^1.0.15",
     "file-type": "^21.0.0",
-    "greenlock-express": "^4.0.3",
     "grunt": "^1.6.1",
     "grunt-browserify": "^6.0.0",
     "grunt-contrib-concat": "^1.0.1",
