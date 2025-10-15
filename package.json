@@ -47,7 +47,7 @@
     "hbs": "^4.2.0",
     "hbs-utils": "0.0.4",
     "helmet-csp": "^2.10.0",
-    "i18n": "git://github.com/eloquence/i18n-node.git",
+    "i18n": "^0.15.2",
     "irc-upd": "^0.11.0",
     "is-svg": "^4.4.0",
     "is-uuid": "^1.0.2",

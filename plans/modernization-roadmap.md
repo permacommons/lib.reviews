@@ -16,7 +16,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 - `bcrypt-nodejs` – unmaintained; replace with actively maintained `bcrypt` or `bcryptjs`.
 - `request` / `request-promise-native` – deprecated; migrate to `node-fetch`, `got`, or another well-supported HTTP client.
 - `thinky` (and its `rethinkdbdash@~2.3.0` pin) – no activity since 2019; plan to move to the official RethinkDB driver or another persistence layer.
-- `greenlock-express@4`, `node-webhooks`, `express-flash`, `remote-ac`, `irc-upd`, `promise-limit`, `es6-promise`, `striptags`, `i18n` git dependency, and similar utilities – review individually for maintenance status and Node 22 compatibility before upgrades.
+- `greenlock-express@4`, `node-webhooks`, `express-flash`, `remote-ac`, `irc-upd`, `promise-limit`, `es6-promise`, `striptags`, and similar utilities – review individually for maintenance status and Node 22 compatibility before upgrades.
 - Asset pipeline packages tied to Grunt/Browserify (`grunt-browserify`, `grunt-contrib-copy`, `less-middleware`, `jquery-modal`, etc.) still work but block modernization; migration strategy to a contemporary bundler will determine their replacement timeline.
 
 ### Major Upgrades Requiring Code Changes
@@ -50,6 +50,11 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Upgrade packages listed in “Routine Patch/Minor Updates”. *(2025-10-11: Applied `ncu --target minor` + `npm install`, covering browserify, cookie-parser, compression, elasticsearch, express-session, session-rethinkdb, sisyphus.js, sprintf-js, @snyk/protect, snyk, child-process-promise, pre-commit, jquery (+ powertip), morgan, rethinkdbdash, serve-favicon, serve-index, prosemirror suite, etc.)*
   - [x] Refresh lockfile, run unit/integration tests, and smoke test the Grunt pipeline. *(package-lock regenerated; `npm run build` and `npm run test` succeed on Node 22 with expected Elasticsearch warnings.)*
   - [x] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
+
+- [x] **i18n Upgrade**
+  - [x] Switch from the `eloquence/i18n-node` fork to upstream `i18n@^0.15.2`. *(2025-10-15: dependency and lockfile updated, default locale explicitly configured in `app.js`.)*
+  - [x] Add regression coverage to verify default-locale fallback for missing strings and plurals. *(New AVA suite `tests/8-i18n-fallbacks.mjs`.)*
+  - [x] Full `npm run test` on Node 22 passes; Elasticsearch warnings remain expected due to missing local service.
 
 - [x] **Dev Toolchain Refresh**
   - [x] Upgrade `ava` to ^6.4.1 and migrate the test suite to ESM (`*.mjs`), including helper/fixture refactors and disabling i18n auto-reload when `NODE_CONFIG_DISABLE_WATCH` is set to avoid lingering FS watchers in AVA workers. *(2025-10-12: Adapter tests now run on local mocks, so AVA concurrency increased to 4 without flakes.)*
