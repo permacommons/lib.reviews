@@ -9,17 +9,9 @@ const DEV_ENTRY_PREFIX = '/frontend/entries/';
 const DEV_CLIENT_ENTRY = '/@vite/client';
 const PUBLIC_ASSET_PREFIX = '/assets/';
 
-const ENTRY_MAP = new Map(Object.entries({
-  lib: 'frontend/entries/lib.js',
-  editor: 'frontend/entries/editor.js',
-  review: 'frontend/entries/review.js',
-  register: 'frontend/entries/register.js',
-  upload: 'frontend/entries/upload.js',
-  user: 'frontend/entries/user.js',
-  'manage-urls': 'frontend/entries/manage-urls.js',
-  'upload-modal': 'frontend/entries/upload-modal.js',
-  apitest: 'frontend/entries/apitest.js'
-}));
+const entryDefinitions = require('../config/frontend-entries.json');
+
+const ENTRY_MAP = new Map(Object.entries(entryDefinitions));
 
 let cachedManifest = null;
 
