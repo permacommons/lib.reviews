@@ -1,6 +1,10 @@
 import $ from './lib/jquery.js';
+import Autocomplete from './lib/ac.mjs';
+import initializeSisyphus from './lib/sisyphus.js';
 
 let initialized = false;
+
+initializeSisyphus();
 
 function msg(messageKey, options) {
   if (!globalThis.config || !globalThis.config.messages || !globalThis.config.messages[messageKey])
@@ -136,7 +140,7 @@ function toggleDangerousContent(event) {
 }
 
 function setupSearch() {
-  let ac = new globalThis.AC($('#search-input')[0], null, requestFn, null, rowFn, triggerFn);
+  let ac = new Autocomplete($('#search-input')[0], null, requestFn, null, rowFn, triggerFn);
   ac.delay = 0;
 
   function triggerFn(text) {
@@ -361,6 +365,7 @@ function initializeLibreviews() {
     return libreviews;
 
   initializePlugins();
+  initializeSisyphus();
 
   $('input[type="radio"][data-enable-required-group]').focus(function() {
     enableRequiredGroup($(this).attr('data-enable-required-group'));
