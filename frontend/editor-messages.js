@@ -1,4 +1,3 @@
-'use strict';
 const { getUploadModalMessageKeys } = require('./upload-modal-messages');
 
 const msgArr = [

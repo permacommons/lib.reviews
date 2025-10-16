@@ -1,4 +1,3 @@
-'use strict';
 const msgArr = [
   'select file',
   'start upload',

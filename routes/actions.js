@@ -352,7 +352,7 @@ function sendRegistrationForm(req, res, formInfo) {
     formValues: formInfo ? formInfo.formValues : undefined,
     questionCaptcha: forms.getQuestionCaptcha('register'),
     illegalUsernameCharactersReadable: User.options.illegalCharsReadable,
-    scripts: ['register.js'],
+    scripts: ['register'],
     inviteCode: code,
     signupLanguage: req.query.signupLanguage || body.signupLanguage
   }, {

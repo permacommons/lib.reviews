@@ -1,7 +1,5 @@
 /* global $, config, libreviews */
-'use strict';
-
-const AbstractAutocompleteAdapter = require('./abstract-autocomplete-adapter');
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
 
 /**
  * This module performs shallow lookups on Wikidata. They are shallow in that
@@ -477,4 +475,4 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
 }
 
-module.exports = WikidataAutocompleteAdapter;
+export default WikidataAutocompleteAdapter;

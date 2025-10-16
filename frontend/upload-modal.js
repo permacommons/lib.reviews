@@ -10,7 +10,7 @@
  * @param {Function} [errorCallback]
  *  Callback to run after a failed upload (does not run if modal is closed).
  */
-exports.uploadModal = function uploadModal(successCallback, errorCallback) {
+export function uploadModal(successCallback, errorCallback) {
   // Obtain template for the dialog (a simple jQuery object).
   const $modal = getTemplate();
 
@@ -69,7 +69,7 @@ exports.uploadModal = function uploadModal(successCallback, errorCallback) {
     $modal.remove();
   });
 
-};
+}
 
 
 const

@@ -7,7 +7,7 @@ const render = require('./helpers/render');
 
 router.get('/apitest', (req, res) => {
 
-  render.template(req, res, 'apitest', { scripts: ['apitest.js'] }, {
+  render.template(req, res, 'apitest', { scripts: ['apitest'] }, {
     messages: ['select file', 'start upload', 'upload and insert media',
         'enter description', 'my own work', 'someone else\'s work',
         'someone else\'s work specified', 'creator',

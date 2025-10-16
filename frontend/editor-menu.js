@@ -1,5 +1,5 @@
 /* global $, libreviews, config */
-const {
+import {
   wrapItem,
   blockTypeItem,
   Dropdown,
@@ -10,9 +10,9 @@ const {
   redoItem,
   icons,
   MenuItem
-} = require("prosemirror-menu");
+} from 'prosemirror-menu';
 
-const unescapeHTML = require('unescape-html');
+import unescapeHTML from 'unescape-html';
 
 // Load proper translations for built-in items
 undoItem.spec.title = libreviews.msg('undo');
@@ -20,12 +20,12 @@ redoItem.spec.title = libreviews.msg('redo');
 joinUpItem.spec.title = libreviews.msg('join with item above');
 liftItem.spec.title = libreviews.msg('decrease item indentation');
 
-const { NodeSelection, TextSelection } = require('prosemirror-state');
-const { toggleMark, wrapIn } = require('prosemirror-commands');
-const { wrapInList } = require('prosemirror-schema-list');
-const { TextField, openPrompt } = require('./editor-prompt');
-const { uploadModal } = require('./upload-modal');
-const { guessMediaType } = require('markdown-it-html5-media');
+import { NodeSelection, TextSelection } from 'prosemirror-state';
+import { toggleMark, wrapIn } from 'prosemirror-commands';
+import { wrapInList } from 'prosemirror-schema-list';
+import { TextField, openPrompt } from './editor-prompt';
+import { uploadModal } from './upload-modal';
+import { guessMediaType } from 'markdown-it-html5-media';
 
 // Helpers to create specific types of items
 
@@ -467,4 +467,4 @@ function buildMenuItems(schema) {
   return { menu, items };
 }
 
-exports.buildMenuItems = buildMenuItems;
+export { buildMenuItems };

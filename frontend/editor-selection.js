@@ -1,8 +1,9 @@
-'use strict';
+let saveSelection;
+let restoreSelection;
 
 // Original code by Tim Down; CC-BY-SA - http://ur1.ca/qryjg
 if (window.getSelection && document.createRange) {
-  exports.saveSelection = function(containerEl) {
+  saveSelection = function(containerEl) {
     const range = window.getSelection().getRangeAt(0);
     const preSelectionRange = range.cloneRange();
     preSelectionRange.selectNodeContents(containerEl);
@@ -15,7 +16,7 @@ if (window.getSelection && document.createRange) {
     };
   };
 
-  exports.restoreSelection = function(containerEl, savedSel) {
+  restoreSelection = function(containerEl, savedSel) {
     let charIndex = 0;
     const range = document.createRange();
     range.setStart(containerEl, 0);
@@ -50,7 +51,7 @@ if (window.getSelection && document.createRange) {
     sel.addRange(range);
   };
 } else if (document.selection) {
-  exports.saveSelection = function(containerEl) {
+  saveSelection = function(containerEl) {
     const selectedTextRange = document.selection.createRange();
     const preSelectionTextRange = document.body.createTextRange();
     preSelectionTextRange.moveToElementText(containerEl);
@@ -63,7 +64,7 @@ if (window.getSelection && document.createRange) {
     };
   };
 
-  exports.restoreSelection = function(containerEl, savedSel) {
+  restoreSelection = function(containerEl, savedSel) {
     const textRange = document.body.createTextRange();
     textRange.moveToElementText(containerEl);
     textRange.collapse(true);
@@ -72,3 +73,10 @@ if (window.getSelection && document.createRange) {
     textRange.select();
   };
 }
+
+if (!saveSelection || !restoreSelection) {
+  saveSelection = () => ({ start: 0, end: 0 });
+  restoreSelection = () => {};
+}
+
+export { saveSelection, restoreSelection };

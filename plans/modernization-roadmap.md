@@ -8,7 +8,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 
 ## Current Snapshot
 - Audit tool: `npx npm-check-updates` (v19) against the existing package.json.
-- Direct dependencies: 73 runtime, 11 dev (84 total).
+- Direct dependencies: 62 runtime, 11 dev (73 total).
 - Upgrades available: 11 patch, 23 minor, 27 major releases.
 - Packages with no maintained upgrade path in the registry: 27 (listed below).
 
@@ -17,7 +17,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 - `request` / `request-promise-native` – deprecated; migrate to `node-fetch`, `got`, or another well-supported HTTP client.
 - `thinky` (and its `rethinkdbdash@~2.3.0` pin) – no activity since 2019; plan to move to the official RethinkDB driver or another persistence layer.
 - `greenlock-express@4`, `node-webhooks`, `express-flash`, `remote-ac`, `irc-upd`, `promise-limit`, `es6-promise`, `striptags`, and similar utilities – review individually for maintenance status and Node 22 compatibility before upgrades.
-- Asset pipeline packages tied to Grunt/Browserify (`grunt-browserify`, `grunt-contrib-copy`, `less-middleware`, `jquery-modal`, etc.) still work but block modernization; migration strategy to a contemporary bundler will determine their replacement timeline.
+- Asset build pipeline replaced with Vite (2025-10-16); follow-up: prune unused legacy assets under `static/js` and keep the manifest/HMR integration exercised in CI.
 
 ### Major Upgrades Requiring Code Changes
 | Package | Current | Target | Notes |
@@ -28,16 +28,15 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 | `debug` | ~2.6.7 | ~4.4.3 | Update usage patterns (namespaces are backward compatible). |
 | `file-type` | ^3.8.0 | ^21.0.0 | API switched to async/Buffer methods; requires refactor in upload pipelines. |
 | `multer` | ^1.4.2 | ^2.0.2 | v2 adopts Promise-based handlers; verify storage adapters. |
-| `module-deps`, `load-grunt-tasks`, `grunt-*` | various | latest majors | Ensure Grunt tasks still run; some plugins drop legacy Node support. |
 | `markdown-it` (+ plugins) | ^13.x | latest | Confirm rendered output stability and custom plugins. |
 | `type-is` | ^1.6.18 | ^2.0.1 | Used by Express stack; review any direct calls. |
-| Dev tooling (`ava`, `chalk`, `jsdoc`, `supertest`, `grunt-babel`) | various | latest majors | Check breaking changes (e.g., ESM-first packages, dropping older Node versions). |
+| Dev tooling (`ava`, `chalk`, `jsdoc`, `supertest`) | various | latest majors | Check breaking changes (e.g., ESM-first packages, dropping older Node versions). |
 
 ### Routine Patch/Minor Updates
-- Safe to batch once tests cover critical flows: `browserify`, `cookie-parser`, `compression`, `morgan`, `serve-favicon`, `serve-index`, `express-session`, `session-rethinkdb`, `sisyphus.js`, `sprintf-js`, `prosemirror*`, `jquery` and related utilities, `@snyk/protect`, `snyk`, `pre-commit`, `child-process-promise`.
+- Safe to batch once tests cover critical flows: `cookie-parser`, `compression`, `morgan`, `serve-favicon`, `serve-index`, `express-session`, `session-rethinkdb`, `sisyphus.js`, `sprintf-js`, `prosemirror*`, `jquery` and related utilities, `@snyk/protect`, `snyk`, `pre-commit`, `child-process-promise`.
 
 ### No Registry Updates Detected
-`babel-core`, `babel-preset-env`, `csurf`, `escape-html`, `express-useragent`, `grunt-contrib-copy`, `i18n` (git dependency), `jquery-modal`, `less-middleware`, `markdown-it-html5-media`, `passport-local`, `remote-ac`, `uglify-save-license`, etc. – confirm whether to replace, fork, or pin with explicit rationale.
+`babel-core`, `babel-preset-env`, `csurf`, `escape-html`, `express-useragent`, `i18n` (git dependency), `jquery-modal`, `less-middleware`, `markdown-it-html5-media`, `passport-local`, `remote-ac`, etc. – confirm whether to replace, fork, or pin with explicit rationale.
 
 ## Incremental Update Plan (Checklist)
 
@@ -47,8 +46,8 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Add CI matrix entries for Node 22 (retain Node 20 temporarily if needed). *(Added `.github/workflows/ci.yml` with Node 22/20 jobs installing RethinkDB and running build/test.)*
 
 - [x] **Low-Risk Batch (patch/minor)**
-  - [x] Upgrade packages listed in “Routine Patch/Minor Updates”. *(2025-10-11: Applied `ncu --target minor` + `npm install`, covering browserify, cookie-parser, compression, elasticsearch, express-session, session-rethinkdb, sisyphus.js, sprintf-js, @snyk/protect, snyk, child-process-promise, pre-commit, jquery (+ powertip), morgan, rethinkdbdash, serve-favicon, serve-index, prosemirror suite, etc.)*
-  - [x] Refresh lockfile, run unit/integration tests, and smoke test the Grunt pipeline. *(package-lock regenerated; `npm run build` and `npm run test` succeed on Node 22 with expected Elasticsearch warnings.)*
+  - [x] Upgrade packages listed in “Routine Patch/Minor Updates”. *(2025-10-11: Applied `ncu --target minor` + `npm install`, covering cookie-parser, compression, elasticsearch, express-session, session-rethinkdb, sisyphus.js, sprintf-js, @snyk/protect, snyk, child-process-promise, pre-commit, jquery (+ powertip), morgan, rethinkdbdash, serve-favicon, serve-index, prosemirror suite, etc.)*
+  - [x] Refresh lockfile, run unit/integration tests, and smoke test the asset pipeline. *(2025-10-11: package-lock regenerated; `npm run build` (Grunt at the time) and `npm run test` succeed on Node 22 with expected Elasticsearch warnings.)*
   - [x] Commit with clear scope (`chore(deps): patch/minor runtime updates for Node 22`).
 
 - [x] **i18n Upgrade**
@@ -77,13 +76,17 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
   - [x] Decide on the future of `thinky`: upgrade to a maintained fork or migrate to the official `rethinkdb` driver / alternative ORM. *(2025-10-13: vendored thinky under orm/ for now; long term plan is to migrate to postgres)
   - [x] Evaluate `greenlock-express`, `node-webhooks`, `remote-ac`, `i18n` git dependency, and other utilities for maintained successors. *(2025-10-14: `greenlock-express` last shipped in 2020; plan to read certs issued via Certbot directly instead of keeping the embedded ACME flow. `node-webhooks` (2019) still pulls in `request`; we can replace it with a small fetch-based dispatcher. `remote-ac` (2018) lags on accessibility—evaluate `accessible-autocomplete@3` vs `@tarekraafat/autocomplete.js`. The `i18n` fork pins 0.8.3; upstream 0.15.2 keeps the API we use, so we should migrate off the git dependency. `express-flash` remains frozen at 0.0.2 (2013) and may be replaced once we have an in-house flash helper.)*
     - [x] Reimplement webhook dispatching without `node-webhooks` using Node 22's global `fetch`, retries, and logging; add integration coverage. *(2025-10-14: Replaced with `WebHookDispatcher` utility using `fetch` + timeouts and AVA coverage mirroring the IRC bot webhook.)*
-    - [x] Swap the frontend autocomplete widget (`remote-ac`) for a maintained alternative and refactor the adapter surface to preserve current UX. *(2025-10-14: Replaced the dependency with an in-repo `AC` widget featuring ARIA support; Grunt now copies `frontend/lib/ac.js`, and AVA coverage (`tests/7-autocomplete.mjs`) guards rendering + triggering APIs.)*
+    - [x] Swap the frontend autocomplete widget (`remote-ac`) for a maintained alternative and refactor the adapter surface to preserve current UX. *(2025-10-14: Replaced the dependency with an in-repo `AC` widget featuring ARIA support; the Vite `lib` entry imports `frontend/lib/ac.js`, and AVA coverage (`tests/7-autocomplete.mjs`) guards rendering + triggering APIs.)*
     - [x] Upgrade to the published `i18n@^0.15.2`, drop the git pin, and ensure watcher/test configuration stays stable on Node 22.
     - [x] Replace `greenlock-express` with a Certbot-managed TLS workflow (load cert/key from disk, handle reloads), documenting operational steps; tackle this last since it is the trickiest migration. *(2025-10-14: Removed `greenlock-express`; `bin/www.js` now reads Certbot-managed key/cert paths from config and serves HTTPS directly on port 443 by default. Add a follow-up to watch for renewals and reload certificates without restart.)*
 
-- [ ] **Build Pipeline Modernization (Longer-Term)**
-  - [ ] Map Grunt tasks to a modern bundler (Vite, esbuild, or Webpack) once runtime deps are stable.
-  - [ ] Gradually replace Grunt plugins as the new pipeline comes online; avoid disruptive switches until prior stages land.
+- [ ] **Build Pipeline Modernization**
+  - [x] Capture then-legacy Grunt asset inventory (copy/browserify/babel/concat/uglify outputs) and map consumers in `static/` and `views/layout.hbs`. *(2025-10-16: documented generated bundles `static/js/lib(.min).js`, `static/js/editor(.min).js`, Browserify outputs `build/editor-es6-bundle.js`, `build/review-es6-bundle.js`, and vendor copies sourced via `copy` task ahead of the migration.)*
+  - [x] Land initial Vite spike bundling `frontend/libreviews.js` → `build/vite/js/libreviews.js` with `vite.config.mjs` + `npm run vite:build` for validation. *(2025-10-16: Vite build succeeds locally on Node 22; Grunt remained temporarily as fallback until full cut-over.)*
+  - [x] Extend Vite inputs to cover `frontend/editor.js`, `frontend/review.js`, `frontend/upload.js`, and shared vendor code while preserving global jQuery/prosemirror expectations. *(2025-10-16: `vite.config.mjs` now emits hashed bundles + `frontend/entries/*.js`, and extracts ProseMirror styles into `build/vite/assets/editor-*.css`.)*
+  - [x] Integrate Vite with Express (manifest endpoint, `/assets` static handler, middleware-mode dev server for HMR) and decommission Grunt. *(2025-10-16: `app.js` loads the manifest, injects `<script type="module">`/CSS via `client-assets`, and exposes `/assets/manifest.json` for development tooling.)*
+  - [x] Follow-ups: Prune unused legacy files under `static/js/` and rely on Vite's generated preload helper for shared chunks. *(2025-10-16: removed the old Grunt outputs in `static/js/`; dynamic imports now ride on Vite's runtime preload helper, so no manual modulepreload tags needed.)*
+  - [ ] Modernize legacy frontend modules (`frontend/*.js`) into true ES modules so Vite can target them directly (drop `entries/` wrappers). Scope: replace global IIFEs with exported setup functions, remove reliance on `window.libreviewsReady`, and adjust template helpers to consume the new exports. Coordinate with jQuery/global tooling assumptions before tackling.
 
 ## Tracking & Follow-Up
 - [ ] Update this document when each stage lands in a mergeable commit.

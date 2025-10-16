@@ -1,30 +1,20 @@
 /* global libreviews */
-'use strict';
 
-// For parsing markdown
-const MarkdownIt = require('markdown-it');
-
-// For custom ::: fenced elements (spoiler warnings, NSFW warnings, etc.)
-const container = require('markdown-it-container');
-
-// For HTML5 video/audio support via ![description](filename.webm)
-const { html5Media } = require('markdown-it-html5-media');
-
-// Provides ProseMirror integration with default schema
-const {
+import MarkdownIt from 'markdown-it';
+import markdownItContainer from 'markdown-it-container';
+import { html5Media } from 'markdown-it-html5-media';
+import {
   MarkdownParser,
   schema,
   defaultMarkdownParser,
   defaultMarkdownSerializer
-} = require('prosemirror-markdown');
-
-// We need to create a new schema with our customizations, though
-const { Schema } = require('prosemirror-model');
+} from 'prosemirror-markdown';
+import { Schema } from 'prosemirror-model';
 
 const md = new MarkdownIt('commonmark', { html: false });
 
 // Container module with our custom fenced blocks
-md.use(container, 'warning', {
+md.use(markdownItContainer, 'warning', {
   validate: params => /^(spoiler|nsfw)$/.test(params.trim()) || /^warning\s+\S{1}.*$/.test(params.trim())
 });
 
@@ -108,7 +98,7 @@ const markdownSchema = new Schema({
   marks: schema.spec.marks
 });
 
-exports.markdownSchema = markdownSchema;
+export { markdownSchema };
 
 // Serialize content back into markdown
 defaultMarkdownSerializer.nodes['container_warning'] = (state, node) => {
@@ -125,7 +115,7 @@ defaultMarkdownSerializer.nodes.video = defaultMarkdownSerializer.nodes.audio =
     state.write(`![${node.attrs.description || ''}](${node.attrs.src}${title})`);
   };
 
-exports.markdownSerializer = defaultMarkdownSerializer;
+export { defaultMarkdownSerializer as markdownSerializer };
 
 const defaultMarkdownParserTokens = defaultMarkdownParser.tokens;
 
@@ -160,4 +150,4 @@ defaultMarkdownParserTokens.container_warning = {
 
 const markdownParser = new MarkdownParser(markdownSchema, md, defaultMarkdownParserTokens);
 
-exports.markdownParser = markdownParser;
+export { markdownParser };

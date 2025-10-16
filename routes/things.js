@@ -355,7 +355,7 @@ function sendThing(req, res, thing, options) {
     otherReviews: options.otherReviews ? options.otherReviews.feedItems : undefined,
     taggedURLs,
     activeSourceIDs: thing.getSourceIDsOfActiveSyncs(),
-    scripts: ['upload.js']
+    scripts: ['upload']
   }, {
     messages: {
       "one file selected": req.__('one file selected'),
@@ -381,7 +381,7 @@ function sendThingURLsForm(paramsObj) {
     // Preserve submission content, if any
     urls: formValues ? formValues.urls : thing.urls,
     primary: formValues ? formValues.primary : 0,
-    scripts: ['manage-urls.js']
+    scripts: ['manage-urls']
   }, {
     messages: getMessages(req.locale, ['not a url', 'add http', 'add https', 'enter web address short'])
   });

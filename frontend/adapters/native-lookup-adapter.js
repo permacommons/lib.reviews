@@ -1,9 +1,5 @@
 /* global $, config, libreviews */
-'use strict';
-
-// Perform native (lib.reviews) lookups
-
-const AbstractLookupAdapter = require('./abstract-lookup-adapter');
+import AbstractLookupAdapter from './abstract-lookup-adapter';
 
 class NativeLookupAdapter extends AbstractLookupAdapter {
 
@@ -34,4 +30,4 @@ class NativeLookupAdapter extends AbstractLookupAdapter {
 
 }
 
-module.exports = NativeLookupAdapter;
+export default NativeLookupAdapter;

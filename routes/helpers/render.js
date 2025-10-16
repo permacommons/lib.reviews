@@ -2,7 +2,7 @@
 // External dependencies
 const config = require('config');
 const url = require('url');
-const getJS = require('../../util/get-js');
+const clientAssets = require('../../util/client-assets');
 
 // Internal dependencies
 const languages = require('../../locales/languages');
@@ -31,14 +31,22 @@ let render = {
 
     vars.configScript = `window.config = ${JSON.stringify(jsConfig)};`;
 
+    let requestedScripts = [];
+
     if (extraVars)
       Object.assign(vars, extraVars);
 
     vars.user = req.user;
 
-    vars.scripts = [getJS('lib')];
     if (extraVars && Array.isArray(extraVars.scripts))
-      vars.scripts = vars.scripts.concat(extraVars.scripts);
+      requestedScripts = requestedScripts.concat(extraVars.scripts);
+
+    const assets = clientAssets.getClientAssets(requestedScripts);
+    vars.scripts = assets.scripts;
+    vars.styles = assets.styles;
+
+    if (process.env.NODE_ENV !== 'production')
+      vars.viteManifest = clientAssets.getManifest();
 
     vars.languageNames = [];
     languages.getValidLanguagesSorted().forEach(langKey => {

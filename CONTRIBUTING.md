@@ -18,7 +18,7 @@ lib.reviews is a pure-JavaScript application, using modern language features whe
 | [Handlebars](http://handlebarsjs.com/)   | Front-end templates (currently only rendered server-side) |
 | [LESS](http://lesscss.org/)              | CSS pre-processor, makes CSS easier to use |
 | [PureCSS](https://purecss.io/)           | Grid system and basic styles             |
-| [Grunt](https://gruntjs.com/)            | Build pipeline for front-end assets. (Moving to another pipeline is worth investigating primarily for performance benefits.) |
+| [Vite](https://vite.dev/)                | Build pipeline for front-end assets (outputs in `build/vite`, middleware-mode HMR in development). |
 | [Babel](https://babeljs.io/)             | Transpilation of front-end code that includes ES6 Javascript language features; transpilation of tests that include ES7 features |
 | [ava](https://github.com/avajs/ava)      | Asynchronous test runner                 |
 | [systemd](https://systemd.io/)           | Production service supervision using `deployment/libreviews.service.sample` |
@@ -33,7 +33,7 @@ We aim to be multilingual in UI and content, and are exclusively using translata
 
 # Getting started
 
-This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need Node.js 22.x (the current release line we target). Switch to your check-out directory and then run `npm install`. Run `grunt` to build the JavaScript. Make sure you also have RethinkDB up and running before starting the service.
+This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need Node.js 22.x (the current release line we target). Switch to your check-out directory and then run `npm install`. Run `npm run build` to produce the Vite bundles. Make sure you also have RethinkDB up and running before starting the service.
 
 You can customize your development configuration by copying `config/default.json5` to `config/development.json5`. Finally, run `npm run start-dev` and visit `localhost` at the configured port number. The npm scripts invoke `node bin/www.js` directly; in production we recommend adapting the sample systemd unit in `deployment/libreviews.service.sample`.
 
@@ -76,7 +76,7 @@ Any pull requests must be under the [CC-0 License](./LICENSE). This project has 
 
 # Front-end code
 
-- Front-end assets are built via `grunt`, the JS source code lives in the `frontend/` directory.
+- Front-end assets are built via Vite (`npm run build`), the source modules live in the `frontend/` directory.
 - We're not consistently using CommonJS yet (only in the editor module). This should change to make the codebase more manageable.
 - We try to keep globals to a minimum. There's a couple global objects we do use:
   - `window.config` stores exported settings and UI messages from the application specific for the current user and page.

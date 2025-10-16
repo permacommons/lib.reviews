@@ -1,11 +1,11 @@
 # lib.reviews Agent Notes
 
-This repository powers the lib.reviews platform. The codebase dates back several years and still reflects legacy patterns (Express 4, Grunt/Browserify asset pipeline, Thinky/RethinkDB). We are in the middle of a long-running modernization effort.
+This repository powers the lib.reviews platform. The codebase dates back several years and still reflects legacy patterns (Express 5 migration in flight, Vite-based frontend pipeline, Thinky/RethinkDB). We are in the middle of a long-running modernization effort.
 
 ## Current Focus
 - Target runtime: Node.js 22.x (update dependencies, code, and tooling with this version in mind).
 - Progressive refactors: favor incremental improvements over big bangs; prefer adding tests when touching fragile areas.
-- Asset/build pipeline: slated for replacement, but Grunt/Browserify remain the source of truth until a new toolchain is ready.
+- Asset/build pipeline: Vite bundles everything (production builds under `build/vite`, middleware HMR when `NODE_ENV=development`); legacy Grunt tasks are gone.
 - Database: still Thinky + RethinkDB; evaluate migration paths carefully before making breaking changes.
 - Modernization roadmap (dependency upgrades, testing quirks, external service notes) lives in `plans/modernization-roadmap.md`.
 

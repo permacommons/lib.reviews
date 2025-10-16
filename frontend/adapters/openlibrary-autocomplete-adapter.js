@@ -1,8 +1,5 @@
 /* global $, AC, libreviews */
-'use strict';
-
-// Internal deps
-const AbstractAutocompleteAdapter = require('./abstract-autocomplete-adapter');
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
 
 /**
  * Perform book metadata lookups on openlibrary.org. Like other frontend
@@ -346,4 +343,4 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
 }
 
-module.exports = OpenLibraryAutocompleteAdapter;
+export default OpenLibraryAutocompleteAdapter;

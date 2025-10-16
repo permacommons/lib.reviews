@@ -1,5 +1,14 @@
 /* global $, config, libreviews */
 /* eslint prefer-reflect: "off" */
+
+import { polyfill as es6PromisePolyfill } from 'es6-promise';
+import NativeLookupAdapter from './adapters/native-lookup-adapter';
+import OpenStreetMapLookupAdapter from './adapters/openstreetmap-lookup-adapter';
+import WikidataAutocompleteAdapter from './adapters/wikidata-autocomplete-adapter';
+import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter';
+
+es6PromisePolyfill();
+
 /**
  * Immediately invoked function expression that initializes various event
  * handlers that are part of the review form, including:
@@ -12,13 +21,6 @@
 (function() {
 
   'use strict';
-
-  require('es6-promise').polyfill();
-
-  const NativeLookupAdapter = require('./adapters/native-lookup-adapter');
-  const OpenStreetMapLookupAdapter = require('./adapters/openstreetmap-lookup-adapter');
-  const WikidataAutocompleteAdapter = require('./adapters/wikidata-autocomplete-adapter');
-  const OpenLibraryAutocompleteAdapter = require('./adapters/openlibrary-autocomplete-adapter');
 
   // All adapters will be tried against a provided review subject URL. If they
   // support it, they will perform a parallel, asynchronous lookup. The array order

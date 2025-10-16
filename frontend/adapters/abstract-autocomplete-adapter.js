@@ -1,10 +1,6 @@
 /* global $, AC, libreviews */
-'use strict';
-const AbstractLookupAdapter = require('./abstract-lookup-adapter');
-
-// Even when selecting via search, we still want to check whether there's a
-// native entry for this URL
-const NativeLookupAdapter = require('./native-lookup-adapter');
+import AbstractLookupAdapter from './abstract-lookup-adapter';
+import NativeLookupAdapter from './native-lookup-adapter';
 const nativeLookupAdapter = new NativeLookupAdapter();
 
 /**
@@ -20,7 +16,7 @@ const nativeLookupAdapter = new NativeLookupAdapter();
  * @abstract
  * @extends AbstractLookupAdapter
  */
-class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
+export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
 
   /**
    * @param {Function} updateCallback - Callback to run after a row has been
@@ -232,5 +228,3 @@ class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
   }
 
 }
-
-module.exports = AbstractAutocompleteAdapter;

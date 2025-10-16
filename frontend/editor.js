@@ -1,37 +1,36 @@
 /* global $, libreviews */
 /* eslint prefer-reflect: "off" */
-'use strict';
 
 // This file integrates the ProseMirror RTE for textareas that have the
 // data-markdown attribute set. The switcher between the two modes is rendered
 // server-side from the views/partial/editor-switcher.hbs template.
 
 // ProseMirror editor components
-const { EditorState } = require('prosemirror-state');
-const { EditorView } = require('prosemirror-view');
-const { keymap } = require('prosemirror-keymap');
-const { baseKeymap } = require('prosemirror-commands');
-const { menuBar } = require('prosemirror-menu');
+import { EditorState } from 'prosemirror-state';
+import { EditorView } from 'prosemirror-view';
+import { keymap } from 'prosemirror-keymap';
+import { baseKeymap } from 'prosemirror-commands';
+import { menuBar } from 'prosemirror-menu';
 
 // For indicating the drop target when dragging a text selection
-const { dropCursor } = require('prosemirror-dropcursor');
-const history = require('prosemirror-history');
+import { dropCursor } from 'prosemirror-dropcursor';
+import { history } from 'prosemirror-history';
 
 // Custom input rules, e.g. # for headline
-const { buildInputRules } = require('./editor-inputrules');
+import { buildInputRules } from './editor-inputrules';
 
 // Custom keymap
-const { getExtendedKeymap } = require('./editor-extended-keymap');
+import { getExtendedKeymap } from './editor-extended-keymap';
 
 // Custom menu
-const { buildMenuItems } = require('./editor-menu');
+import { buildMenuItems } from './editor-menu';
 
 // For tracking contentEditable selection
-const { saveSelection, restoreSelection } = require('./editor-selection');
+import { saveSelection, restoreSelection } from './editor-selection';
 
 // For parsing, serializing and tokenizing markdown including our custom
 // markup for spoiler/NSFW warnings
-const { markdownParser, markdownSerializer, markdownSchema } = require('./editor-markdown');
+import { markdownParser, markdownSerializer, markdownSchema } from './editor-markdown';
 
 // ProseMirror provides no native way to enable/disable the editor, so
 // we add it here
@@ -226,7 +225,7 @@ function renderRTE($textarea) {
       buildInputRules(markdownSchema),
       keymap(getExtendedKeymap(markdownSchema, menuObj.items)),
       keymap(baseKeymap),
-      history.history(),
+      history(),
       dropCursor(),
       menuBar({
         floating: false,

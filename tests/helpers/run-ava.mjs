@@ -14,9 +14,14 @@ process.stdout.write('Cleaning up rethinkdb fixtures …');
 await cleanupAllFixtures();
 process.stdout.write(' Cleanup complete.\n');
 
+const env = {
+  ...process.env,
+  LIBREVIEWS_VITE_DEV_SERVER: process.env.LIBREVIEWS_VITE_DEV_SERVER || 'off'
+};
+
 const child = spawn('ava', args, {
   stdio: 'inherit',
-  env: process.env,
+  env
 });
 
 let shuttingDown = false;
