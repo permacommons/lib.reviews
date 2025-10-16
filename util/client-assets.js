@@ -7,6 +7,11 @@ const PROJECT_ROOT = path.join(__dirname, '..');
 const VITE_MANIFEST_PATH = path.join(PROJECT_ROOT, 'build', 'vite', '.vite', 'manifest.json');
 const DEV_ENTRY_PREFIX = '/frontend/entries/';
 const DEV_CLIENT_ENTRY = '/@vite/client';
+const DEV_ENTRY_STYLES = new Map([
+  // Ensure core styles are linked eagerly during development to avoid a flash of
+  // unstyled content while Vite injects CSS via JS.
+  ['lib', ['/frontend/styles/style.less']]
+]);
 const PUBLIC_ASSET_PREFIX = '/assets/';
 
 const entryDefinitions = require('../config/frontend-entries.json');
@@ -128,7 +133,13 @@ function getClientAssets(requestedEntries) {
     });
   } else {
     scripts.add(DEV_CLIENT_ENTRY);
-    orderedEntries.forEach(entryName => scripts.add(`${DEV_ENTRY_PREFIX}${entryName}.js`));
+    orderedEntries.forEach(entryName => {
+      scripts.add(`${DEV_ENTRY_PREFIX}${entryName}.js`);
+
+      const stylesForEntry = DEV_ENTRY_STYLES.get(entryName);
+      if (Array.isArray(stylesForEntry))
+        stylesForEntry.forEach(stylePath => styles.add(stylePath));
+    });
   }
 
   return {

@@ -36,7 +36,7 @@ This document tracks the lib.reviews dependency strategy while we lift the stack
 - Safe to batch once tests cover critical flows: `cookie-parser`, `compression`, `morgan`, `serve-favicon`, `serve-index`, `express-session`, `session-rethinkdb`, `sisyphus.js`, `sprintf-js`, `prosemirror*`, `jquery` and related utilities, `@snyk/protect`, `snyk`, `pre-commit`, `child-process-promise`.
 
 ### No Registry Updates Detected
-`babel-core`, `babel-preset-env`, `csurf`, `escape-html`, `express-useragent`, `i18n` (git dependency), `jquery-modal`, `less-middleware`, `markdown-it-html5-media`, `passport-local`, `remote-ac`, etc. – confirm whether to replace, fork, or pin with explicit rationale.
+`babel-core`, `babel-preset-env`, `csurf`, `escape-html`, `express-useragent`, `i18n` (git dependency), `jquery-modal`, `markdown-it-html5-media`, `passport-local`, `remote-ac`, etc. – confirm whether to replace, fork, or pin with explicit rationale.
 
 ## Incremental Update Plan (Checklist)
 

@@ -1,6 +1,7 @@
 import '../lib/jquery.js';
 import 'jquery-powertip';
 import 'jquery-modal';
+import '../styles/style.less';
 import initializeSisyphus from '../lib/sisyphus.js';
 import { initializeLibreviews } from '../libreviews.js';
 

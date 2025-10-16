@@ -19,7 +19,6 @@ const bodyParser = require('body-parser');
 const i18n = require('i18n');
 const hbs = require('hbs'); // handlebars templating
 const hbsutils = require('hbs-utils')(hbs);
-const lessMiddleware = require('less-middleware');
 const session = require('express-session');
 const RDBStore = require('session-rethinkdb')(session);
 const flash = require('express-flash');
@@ -157,9 +156,6 @@ async function getApp(db = require('./db')) {
     'icons': true,
     template: path.join(__dirname, 'views/downloads.html')
   }));
-
-  let cssPath = path.join(__dirname, 'static', 'css');
-  app.use('/static/css', lessMiddleware(cssPath));
 
   // Cache immutable assets for one year
   app.use('/static', function(req, res, next) {
