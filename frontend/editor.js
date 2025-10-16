@@ -1,5 +1,6 @@
-/* global $ */
 /* eslint prefer-reflect: "off" */
+
+import $ from './lib/jquery.js';
 
 // This file integrates the ProseMirror RTE for textareas that have the
 // data-markdown attribute set. The switcher between the two modes is rendered

@@ -1,6 +1,4 @@
-/* global $ */
-'use strict';
-
+import $ from './lib/jquery.js';
 import { msg, validateURL, urlHasSupportedProtocol } from './libreviews.js';
 
 // Front-end code for the /some-thing/manage/urls interface

@@ -1,5 +1,4 @@
-/* global $ */
-
+import $ from './lib/jquery.js';
 import { msg } from './libreviews.js';
 
 // Helper module for menu prompts. Derived from

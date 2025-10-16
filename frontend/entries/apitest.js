@@ -1,2 +1,2 @@
-import './jquery-globals.js';
+import '../lib/jquery.js';
 import '../upload-modal.js';

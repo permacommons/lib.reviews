@@ -1,4 +1,4 @@
-/* global $ */
+import $ from '../lib/jquery.js';
 import AbstractLookupAdapter from './abstract-lookup-adapter';
 
 class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {

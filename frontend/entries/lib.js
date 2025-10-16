@@ -1,4 +1,4 @@
-import './jquery-globals.js';
+import '../lib/jquery.js';
 import 'jquery-powertip';
 import 'jquery-modal';
 import sisyphusSource from 'sisyphus.js/sisyphus.js?raw';
