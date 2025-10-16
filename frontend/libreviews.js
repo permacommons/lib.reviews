@@ -143,20 +143,36 @@ function setupSearch() {
   let ac = new Autocomplete($('#search-input')[0], null, requestFn, null, rowFn, triggerFn);
   ac.delay = 0;
 
-  function triggerFn(text) {
-    if (ac.selectedIndex !== -1)
+  function triggerFn(result, event) {
+    if (!result || !result.urlID)
       return;
-    ac.handleQuery(text);
+
+    if (event && typeof event.preventDefault === 'function')
+      event.preventDefault();
+
+    window.location = `/${result.urlID}`;
   }
 
   function rowFn(row) {
-    let $row = $('<a>').attr('href', `/${row.urlID}`);
-    let $heading = $('<h4>').text(row.title);
+    const $row = $('<div>');
+
+    const $primary = $('<span>')
+      .addClass(this.getCSS('PRIMARY_SPAN'))
+      .append($(Autocomplete.createMatchTextEls(this.value, row[this.primaryTextKey])))
+      .appendTo($row);
+
     if (row.language)
-      $heading.append(getLanguageIDSpan(row.language));
-    $row.append($heading);
-    if (row.description)
-      $row.append(`<p>${row.description}</p>`);
+      $primary.append(
+        getLanguageIDSpan(row.language).addClass('language-identifier-search-row')
+      );
+
+    if (row.description) {
+      $('<span>')
+        .addClass(this.getCSS('SECONDARY_SPAN'))
+        .text(row.description)
+        .appendTo($row);
+    }
+
     return $row[0];
   }
 
