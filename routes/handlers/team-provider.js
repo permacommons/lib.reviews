@@ -12,7 +12,7 @@ const mlString = require('../../models/helpers/ml-string');
 const BlogPost = require('../../models/blog-post');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
-const { getEditorMessages } = require('../../frontend/editor-messages');
+const { getEditorMessages } = require('../../util/frontend-messages');
 
 class TeamProvider extends AbstractBREADProvider {
 

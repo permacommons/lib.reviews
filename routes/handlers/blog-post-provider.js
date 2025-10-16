@@ -12,7 +12,7 @@ const mlString = require('../../models/helpers/ml-string.js');
 const languages = require('../../locales/languages');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
-const { getEditorMessages } = require('../../frontend/editor-messages');
+const { getEditorMessages } = require('../../util/frontend-messages');
 
 class BlogPostProvider extends AbstractBREADProvider {
 

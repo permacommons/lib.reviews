@@ -2,7 +2,8 @@ import './jquery-globals.js';
 import 'jquery-powertip';
 import 'jquery-modal';
 import sisyphusSource from 'sisyphus.js/sisyphus.js?raw';
-import acSource from '../lib/ac.js?raw';
+import Autocomplete from '../lib/ac.mjs';
+import { initializeLibreviews } from '../libreviews.js';
 
 if (typeof window !== 'undefined') {
   const ensureScript = (key, source) => {
@@ -18,18 +19,10 @@ if (typeof window !== 'undefined') {
 
   ensureScript('sisyphus', sisyphusSource);
 
-  ensureScript('ac', acSource);
-  const globalSource = typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : globalThis);
-  if (globalSource && globalSource.AC && !window.AC)
-    window.AC = globalSource.AC;
+  if (!window.AC)
+    window.AC = Autocomplete;
+
+  const api = initializeLibreviews();
+  if (!window.libreviews)
+    window.libreviews = api;
 }
-
-const libreviewsPromise = import('../libreviews.js');
-if (typeof window !== 'undefined')
-  window.libreviewsReady = libreviewsPromise;
-
-libreviewsPromise.catch(error => {
-  // Surface loading issues for debugging without breaking legacy globals.
-  // eslint-disable-next-line no-console
-  console.error('Failed to load libreviews.js:', error);
-});

@@ -1,4 +1,6 @@
-/* global $, libreviews */
+/* global $ */
+
+import { msg } from './libreviews.js';
 
 // Helper module for menu prompts. Derived from
 // https://github.com/ProseMirror/prosemirror-example-setup/blob/master/src/prompt.js
@@ -36,12 +38,12 @@ export function openPrompt(spec) {
   let $submitButton = $('<button>')
     .attr('type', 'submit')
     .addClass(`${prefix}-submit pure-button pure-button-primary`)
-    .text(libreviews.msg('ok'));
+    .text(msg('ok'));
 
   let $cancelButton = $('<button>')
     .attr('type', 'button')
     .addClass(`${prefix}-cancel pure-button`)
-    .text(libreviews.msg('cancel'));
+    .text(msg('cancel'));
 
   $cancelButton.click(close);
 
@@ -164,7 +166,7 @@ export class Field {
 
   validate(value) {
     if (!value && this.options.required)
-      return libreviews.msg('required field');
+      return msg('required field');
     return this.validateType(value) || (this.options.validate && this.options.validate(value));
   }
 

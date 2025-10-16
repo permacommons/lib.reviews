@@ -1,21 +1,13 @@
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
-import commonjs from '@rollup/plugin-commonjs';
-
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const fromRoot = (...paths) => resolve(rootDir, ...paths);
 
 export default defineConfig({
   base: '/assets/',
   appType: 'mpa',
-  plugins: [
-    commonjs({
-      include: ['frontend/**', 'node_modules/sisyphus.js/**'],
-      transformMixedEsModules: true,
-      requireReturnsDefault: 'auto'
-    })
-  ],
+  plugins: [],
   build: {
     outDir: 'build/vite',
     emptyOutDir: false,

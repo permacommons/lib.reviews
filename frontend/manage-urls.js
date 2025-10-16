@@ -1,5 +1,7 @@
-/* global $, libreviews */
+/* global $ */
 'use strict';
+
+import { msg, validateURL, urlHasSupportedProtocol } from './libreviews.js';
 
 // Front-end code for the /some-thing/manage/urls interface
 
@@ -19,17 +21,17 @@ function initializeValidationTemplate() {
   // data-url-input is used to mark inputs with URL validation
   let input = $(this).parent().find('input[data-url-input]')[0];
   // data-add-protocol-for is used to look up input element
-  $(this).append(`<div class="validation-error">${libreviews.msg('not a url')}</div>` +
+  $(this).append(`<div class="validation-error">${msg('not a url')}</div>` +
     `<div class="helper-links"><a href="#" data-add-protocol="https://" data-add-protocol-for="${input.name}">` +
-    `${libreviews.msg('add https')}</a> &ndash; <a href="#" data-add-protocol="http://"` +
-    `data-add-protocol-for="${input.name}">${libreviews.msg('add http')}</div>`);
+    `${msg('add https')}</a> &ndash; <a href="#" data-add-protocol="http://"` +
+    `data-add-protocol-for="${input.name}">${msg('add http')}</div>`);
 }
 
 function handleURLValidation() {
   let $parent = $(this).parent();
   let hasText = typeof this.value == 'string' && this.value.length > 0;
-  let showValidationError = hasText && !window.libreviews.validateURL(this.value);
-  let showProtocolHelperLinks = hasText && !window.libreviews.urlHasSupportedProtocol(this.value);
+  let showValidationError = hasText && !validateURL(this.value);
+  let showProtocolHelperLinks = hasText && !urlHasSupportedProtocol(this.value);
   $parent.find('.validation-error').toggle(showValidationError);
   $parent.find('.helper-links').toggle(showProtocolHelperLinks);
 }
@@ -59,7 +61,7 @@ function addNewURLRow(e) {
   if (!isNaN(count)) {
     let $newRow = $(`<tr valign="top"><td class="max-width">` +
         `<input name="url-${count}" data-url-input type="text" class="max-width" ` +
-        `placeholder="${libreviews.msg('enter web address short')}">` +
+        `placeholder="${msg('enter web address short')}">` +
         `<div id="url-validation-${count}"></div></td>` +
         `<td><input type="radio" name="primary" value="${count}"></td></tr>`)
       .insertBefore('#add-more-row');

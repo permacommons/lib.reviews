@@ -1,4 +1,4 @@
-/* global $, config, libreviews */
+/* global $, config */
 /* eslint prefer-reflect: "off" */
 
 import { polyfill as es6PromisePolyfill } from 'es6-promise';
@@ -6,6 +6,7 @@ import NativeLookupAdapter from './adapters/native-lookup-adapter';
 import OpenStreetMapLookupAdapter from './adapters/openstreetmap-lookup-adapter';
 import WikidataAutocompleteAdapter from './adapters/wikidata-autocomplete-adapter';
 import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter';
+import libreviews, { msg, repaintFocusedHelp, trimInput, validateURL, urlHasSupportedProtocol } from './libreviews.js';
 
 es6PromisePolyfill();
 
@@ -324,12 +325,12 @@ es6PromisePolyfill();
    */
   function showModalForEditingExistingReview(data) {
     const $modal = $(`<div class="hidden-regular" id="review-modal"></div>`)
-      .append('<p>' + window.libreviews.msg('previously reviewed') + '</p>')
+      .append('<p>' + msg('previously reviewed') + '</p>')
       .append('<p><b>' + data.label + '</b></p>')
-      .append('<p>' + window.libreviews.msg('abandon form changes') + '</p>')
+      .append('<p>' + msg('abandon form changes') + '</p>')
       .append('<button class="pure-button pure-button-primary button-rounded" id="edit-existing-review">' +
-        window.libreviews.msg('edit review') + '</button>')
-      .append('&nbsp;<a href="#" id="pick-different-subject">' + window.libreviews.msg('pick a different subject') + '</a>');
+        msg('edit review') + '</button>')
+      .append('&nbsp;<a href="#" id="pick-different-subject">' + msg('pick a different subject') + '</a>');
     $modal.insertAfter('#review-subject');
     $modal.modal({
       escapeClose: false,
@@ -360,7 +361,7 @@ es6PromisePolyfill();
     $('.resolved-info').empty();
     $('#review-subject').hide();
     $('.review-label-group').show();
-    window.libreviews.repaintFocusedHelp();
+    repaintFocusedHelp();
   }
 
   /**
@@ -371,9 +372,9 @@ es6PromisePolyfill();
   function handleURLValidation() {
     let inputURL = this.value;
 
-    if (inputURL && !libreviews.validateURL(inputURL)) {
+    if (inputURL && !validateURL(inputURL)) {
       $('#review-url-error').show();
-      if (!libreviews.urlHasSupportedProtocol(inputURL)) {
+      if (!urlHasSupportedProtocol(inputURL)) {
         $('.helper-links').show();
         $('#add-https').focus();
       } else {
@@ -396,7 +397,7 @@ es6PromisePolyfill();
   function handleURLFixes() {
     let inputURL = this.value;
     if ($('#review-url-error').is(':visible')) {
-      if (libreviews.validateURL(inputURL)) {
+      if (validateURL(inputURL)) {
         $('#review-url-error').hide();
         $('.helper-links').hide();
       }
@@ -456,7 +457,7 @@ es6PromisePolyfill();
       $('#resolved-subtitle').html(`<i>${subtitle}</i>`);
 
     if (thing) {
-      $('#resolved-thing').append(`<a href="/${thing.urlID}" target="_blank">${libreviews.msg('more info')}</a>`);
+      $('#resolved-thing').append(`<a href="/${thing.urlID}" target="_blank">${msg('more info')}</a>`);
     }
     $('#review-subject').show();
     if (wasFocused)
@@ -480,8 +481,8 @@ es6PromisePolyfill();
     clearStars();
     $('#review-url,#review-title,#review-text,#review-rating').val('');
     $('#review-url').trigger('change');
-    for (let rte in window.libreviews.activeRTEs)
-      window.libreviews.activeRTEs[rte].reRender();
+    for (let rte in libreviews.activeRTEs)
+      libreviews.activeRTEs[rte].reRender();
     sisyphus.manuallyReleaseData();
     hideDraftNotice();
     event.preventDefault();
@@ -513,7 +514,7 @@ es6PromisePolyfill();
     let rating = Number($('#review-rating').val());
 
     // Trim just in case whitespace got persisted
-    $('input[data-auto-trim],textarea[data-auto-trim]').each(window.libreviews.trimInput);
+    $('input[data-auto-trim],textarea[data-auto-trim]').each(trimInput);
 
     // Only show notice if we've actually recovered some data
     if (rating || $('#review-url').val() || $('#review-title').val() || $('#review-text').val()) {
@@ -522,7 +523,7 @@ es6PromisePolyfill();
 
       $('#draft-notice').show();
       // Repaint help in case it got pushed down
-      window.libreviews.repaintFocusedHelp();
+      repaintFocusedHelp();
     }
 
     // Show URL issues if appropriate
@@ -626,8 +627,8 @@ es6PromisePolyfill();
    */
   function initializeURLValidation() {
     $('#url-validation').append(
-      `<div id="review-url-error" class="validation-error">${libreviews.msg('not a url')}</div>` +
-      `<div class="helper-links"><a href="#" id="add-https">${libreviews.msg('add https')}</a> &ndash; <a href="#" id="add-http">${libreviews.msg('add http')}</a></div>`
+      `<div id="review-url-error" class="validation-error">${msg('not a url')}</div>` +
+      `<div class="helper-links"><a href="#" id="add-https">${msg('add https')}</a> &ndash; <a href="#" id="add-http">${msg('add http')}</a></div>`
     );
   }
 
@@ -707,16 +708,16 @@ es6PromisePolyfill();
 
         // Change help text
         $('#review-search-database-help .help-heading')
-          .html(libreviews.msg(`review via ${adapter.getSourceID()} help label`));
+          .html(msg(`review via ${adapter.getSourceID()} help label`));
 
         $('#review-search-database-help .help-paragraph')
-          .html(libreviews.msg(`review via ${adapter.getSourceID()} help text`));
+          .html(msg(`review via ${adapter.getSourceID()} help text`));
 
         // Change input placeholder
         $('#review-search-database').attr('placeholder',
-          libreviews.msg(`start typing to search ${adapter.getSourceID()}`));
+          msg(`start typing to search ${adapter.getSourceID()}`));
 
-        window.libreviews.repaintFocusedHelp();
+        repaintFocusedHelp();
       }
     }
 

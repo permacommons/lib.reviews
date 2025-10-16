@@ -1,5 +1,3 @@
-/* global libreviews */
-
 import MarkdownIt from 'markdown-it';
 import markdownItContainer from 'markdown-it-container';
 import { html5Media } from 'markdown-it-html5-media';
@@ -10,6 +8,7 @@ import {
   defaultMarkdownSerializer
 } from 'prosemirror-markdown';
 import { Schema } from 'prosemirror-model';
+import { msg } from './libreviews.js';
 
 const md = new MarkdownIt('commonmark', { html: false });
 
@@ -140,7 +139,7 @@ defaultMarkdownParserTokens.container_warning = {
       rv = {};
     rv.markup = info;
     if (info === 'spoiler' || info === 'nsfw') {
-      rv.message = libreviews.msg(`${info} warning`);
+      rv.message = msg(`${info} warning`);
     } else if (/^warning\s+\S{1}.*/.test(info)) {
       rv.message = (info.match(/^warning\s+(\S{1}.*)$/) || [])[1];
     }

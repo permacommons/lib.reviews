@@ -1,4 +1,6 @@
-/* global $, libreviews */
+/* global $ */
+import { msg } from './libreviews.js';
+
 (function() {
   'use strict';
   let originalLabel = $('#upload-label').text();
@@ -14,8 +16,8 @@
       $('#file-name-container').empty();
     } else {
       let countLabel = count == 1 ?
-        libreviews.msg('one file selected') :
-        libreviews.msg('files selected', { stringParam: count });
+        msg('one file selected') :
+        msg('files selected', { stringParam: count });
       // We use a different icon to represent multiple files
       if (count == 1)
         $('#upload-icon').removeClass('fa-files-o').addClass('fa-file-image-o');

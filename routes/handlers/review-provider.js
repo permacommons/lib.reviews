@@ -15,8 +15,7 @@ const md = require('../../util/md');
 const slugs = require('../helpers/slugs');
 const search = require('../../search');
 const getMessages = require('../../util/get-messages');
-const { getEditorMessageKeys } = require('../../frontend/editor-messages');
-const { getAdapterMessageKeys } = require('../../frontend/adapters/adapter-messages');
+const { getAdapterMessageKeys, getEditorMessageKeys } = require('../../util/frontend-messages');
 
 class ReviewProvider extends AbstractBREADProvider {
 

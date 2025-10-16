@@ -1,6 +1,7 @@
-/* global $, AC, libreviews */
+/* global $, AC */
 import AbstractLookupAdapter from './abstract-lookup-adapter';
 import NativeLookupAdapter from './native-lookup-adapter';
+import { msg } from '../libreviews.js';
 const nativeLookupAdapter = new NativeLookupAdapter();
 
 /**
@@ -221,7 +222,7 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
    */
   _renderNoResultsHandler() {
     const $wrapper = $(this.rowWrapperEl);
-    const $noResults = $('<div class="ac-adapter-no-results">' + libreviews.msg('no search results') + '</div>');
+    const $noResults = $('<div class="ac-adapter-no-results">' + msg('no search results') + '</div>');
     $wrapper
       .append($noResults)
       .show();

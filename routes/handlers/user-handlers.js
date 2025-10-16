@@ -7,7 +7,7 @@ const User = require('../../models/user');
 const Review = require('../../models/review');
 const reviewHandlers = require('./review-handlers');
 const md = require('../../util/md');
-const { getEditorMessages } = require('../../frontend/editor-messages');
+const { getEditorMessages } = require('../../util/frontend-messages');
 
 let userHandlers = {
 

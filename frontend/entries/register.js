@@ -1,3 +1,1 @@
-import loadAfterGlobals from './load-after-globals.js';
-
-loadAfterGlobals(() => import('../register.js'));
+import '../register.js';

@@ -1,4 +1,4 @@
-/* global $, libreviews */
+/* global $ */
 /* eslint prefer-reflect: "off" */
 
 // This file integrates the ProseMirror RTE for textareas that have the
@@ -31,6 +31,7 @@ import { saveSelection, restoreSelection } from './editor-selection';
 // For parsing, serializing and tokenizing markdown including our custom
 // markup for spoiler/NSFW warnings
 import { markdownParser, markdownSerializer, markdownSchema } from './editor-markdown';
+import libreviews, { addHelpListeners, msg } from './libreviews.js';
 
 // ProseMirror provides no native way to enable/disable the editor, so
 // we add it here
@@ -75,8 +76,7 @@ const rteCounter = {
 let rtes = {};
 
 // Export for access to other parts of the application, if available
-if (window.libreviews)
-  window.libreviews.activeRTEs = rtes;
+libreviews.activeRTEs = rtes;
 
 // We keep track of the RTE's caret and scroll position, but only if the
 // markdown representation hasn't been changed.
@@ -184,12 +184,12 @@ $('.switcher-pin[data-toggle-rte-preference]').click(function() {
         $('.switcher-pin[data-toggle-rte-preference]')
           .removeClass('switcher-unpinned')
           .addClass('switcher-pinned')
-          .attr('title', libreviews.msg('forget rte preference'));
+          .attr('title', msg('forget rte preference'));
       else
         $('.switcher-pin[data-toggle-rte-preference]')
           .removeClass('switcher-pinned')
           .addClass('switcher-unpinned')
-          .attr('title', libreviews.msg('remember rte preference'));
+          .attr('title', msg('remember rte preference'));
     })
     .fail(() => {
       done = true;
@@ -244,7 +244,7 @@ function renderRTE($textarea) {
   const textareaID = $textarea[0].id;
   if ($(`[data-help-for="${textareaID}"]`).length) {
     $(editorView.dom).attr('data-acts-as', textareaID);
-    window.libreviews.addHelpListeners($(editorView.dom));
+    addHelpListeners($(editorView.dom));
   }
   addCustomFeatures({ $rteContainer, myID, $textarea });
 

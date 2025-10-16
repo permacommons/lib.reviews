@@ -1,5 +1,6 @@
-/* global $, config, libreviews */
+/* global $, config */
 import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
+import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
 
 /**
  * This module performs shallow lookups on Wikidata. They are shallow in that
@@ -311,7 +312,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
       .fail(_error => {
         // Show generic error
         $('#generic-action-error').removeClass('hidden');
-        window.libreviews.repaintFocusedHelp();
+        repaintFocusedHelp();
         // Turn off spinner
         this.adapter.disableSpinner();
       });
@@ -415,9 +416,9 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
     //  UI messages
     const msg = {
-      more: libreviews.msg('more results'),
-      prev: libreviews.msg('load previous page', { accessKey: keys.prev }),
-      next: libreviews.msg('load next page', { accessKey: keys.next })
+      more: libreviewsMsg('more results'),
+      prev: libreviewsMsg('load previous page', { accessKey: keys.prev }),
+      next: libreviewsMsg('load next page', { accessKey: keys.next })
     };
 
     // Templates

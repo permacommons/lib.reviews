@@ -1,26 +1,7 @@
-const msgArr = [
-  'select file',
-  'start upload',
-  'upload and insert media',
-  'enter description',
-  'my own work',
-  'someone else\'s work',
-  'someone else\'s work specified',
-  'creator',
-  'enter creator name',
-  'enter source',
-  'source',
-  'license',
-  'select license',
-  'ok',
-  'cancel',
-  'fair use short',
-  'cc-0 short',
-  'cc-by short',
-  'cc-by-sa short',
-  'please enter description',
-  'please specify rights',
-  'could not complete action'
-];
+import uploadModalMessageKeys from './messages/upload-modal-keys.json';
 
-module.exports.getUploadModalMessageKeys = () => msgArr.slice();
+export const uploadModalMessages = Object.freeze([...uploadModalMessageKeys]);
+
+export const getUploadModalMessageKeys = () => [...uploadModalMessageKeys];
+
+export default uploadModalMessages;
