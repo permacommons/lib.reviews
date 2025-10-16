@@ -14,7 +14,7 @@
 	"welcome": "Üdvözlünk!",
 	"intro lead": "<b>Üdvözlünk a lib.reviews oldalán!</b> Mi egy ingyenes, nyitott és non-profit platformot építünk abszolút bárminek az értékelésére, bármilyen nyelven.",
 	"intro message": "Ez egy korai fejlesztés, és most, szükséged van egy meghívó linkre a regisztrációhoz. Ha nem tudod, hogyan szerezz egyet, kövesd a <a href='https://fosstodon.org/@lib_reviews'>lib_reviews</a>-t Mastodonon, küldj nekünk egy üzenetet, és mi majd válaszolunk.",
-	"find us on": "Szintén megtalálsz minket <a href='https://github.com/permacommons/lib.reviews'>GitHubon</a>, és beszélgethetsz velünk IRC-n (<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>).",
+	"find us on": "Szintén megtalálsz minket <a href='https://github.com/permacommons/lib.reviews'>GitHubon</a>, és beszélgethetsz velünk IRC-n (<b>#lib.reviews</b> a <a href='https://libera.chat/'>libera.chat</a>-en).",
 	"change language": "Nyelvváltás:",
 	"change language button": "Nyelv megváltoztatása",
 	"sign in": "Bejelentkezés",
