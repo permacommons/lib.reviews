@@ -21,7 +21,6 @@ const hbs = require('hbs'); // handlebars templating
 const hbsutils = require('hbs-utils')(hbs);
 const session = require('express-session');
 const RDBStore = require('session-rethinkdb')(session);
-const flash = require('express-flash');
 const useragent = require('express-useragent');
 const passport = require('passport');
 const csrf = require('csurf'); // protect against request forgery using tokens
@@ -48,6 +47,7 @@ const ErrorProvider = require('./routes/errors');
 const debug = require('./util/debug');
 const apitest = require('./routes/apitest');
 const clientAssets = require('./util/client-assets');
+const flashStore = require('./util/flash-store');
 
 // Initialize custom HBS helpers
 require('./util/handlebars-helpers.js');
@@ -142,7 +142,7 @@ async function getApp(db = require('./db')) {
     store
   }));
 
-  app.use(flash());
+  app.use(flashStore);
   app.use(flashHelper);
 
   app.use(compression());
