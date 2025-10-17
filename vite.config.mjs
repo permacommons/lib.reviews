@@ -1,4 +1,4 @@
-import { dirname, resolve } from 'node:path';
+import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import entries from './config/frontend-entries.json' with { type: 'json' };
@@ -20,7 +20,10 @@ export default defineConfig({
       output: {
         entryFileNames: 'js/[name]-[hash].js',
         chunkFileNames: 'js/[name]-[hash].js',
-        assetFileNames: '[name]-[hash][extname]'
+        assetFileNames: (assetInfo) =>
+          extname(assetInfo.name ?? '') === '.css'
+            ? 'css/[name]-[hash][extname]'
+            : '[name]-[hash][extname]'
       }
     }
   },
