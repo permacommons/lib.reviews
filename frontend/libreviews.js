@@ -1,4 +1,7 @@
 import $ from './lib/jquery.js';
+import 'jquery-powertip';
+import 'jquery-modal';
+import './styles/style.less';
 import Autocomplete from './lib/ac.mjs';
 import initializeSisyphus from './lib/sisyphus.js';
 
@@ -523,6 +526,13 @@ const libreviews = {
   urlHasSupportedProtocol,
   activeRTEs: {}
 };
+
+// Auto-initialize and expose globally when loaded in browser
+if (typeof window !== 'undefined') {
+  const api = initializeLibreviews();
+  if (!window.libreviews)
+    window.libreviews = api;
+}
 
 export { msg, resolveString, getLanguageIDSpan, trimInput, enableRequiredGroup, disableRequiredGroup, repaintFocusedHelp, addHelpListeners, updateContentClickHandlers, validateURL, urlHasSupportedProtocol, initializeLibreviews };
 

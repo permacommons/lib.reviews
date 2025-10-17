@@ -1,6 +1,7 @@
-/* global $, config */
+/* global config */
 'use strict';
 
+import $ from './lib/jquery.js';
 import { msg, trimInput } from './libreviews.js';
 
 /**

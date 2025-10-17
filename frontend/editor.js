@@ -1,5 +1,9 @@
 /* eslint prefer-reflect: "off" */
 
+import 'prosemirror-view/style/prosemirror.css';
+import 'prosemirror-menu/style/menu.css';
+import './styles/editor-overrides.css';
+
 import $ from './lib/jquery.js';
 
 // This file integrates the ProseMirror RTE for textareas that have the
