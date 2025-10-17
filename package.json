@@ -91,7 +91,7 @@
     "pre-commit": "^1.2.2",
     "snyk": "^1.1300.0",
     "supertest": "^7.1.4",
-    "vite": "^5.1.0"
+    "vite": "^7.1.10"
   },
   "snyk": true,
   "ava": {
