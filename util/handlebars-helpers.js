@@ -5,7 +5,7 @@ const hbs = require('hbs');
 const escapeHTML = require('escape-html');
 const i18n = require('i18n');
 const stripTags = require('striptags');
-const linkifyHTML = require('linkifyjs/html');
+const linkifyHTML = require('linkify-html');
 
 // Internal dependencies
 const mlString = require('../models/helpers/ml-string');
@@ -227,7 +227,13 @@ hbs.registerHelper('fileCredit', function(file, options) {
       link);
 });
 
-hbs.registerHelper('linkify', str => linkifyHTML(str, { defaultProtocol: 'https' }));
+hbs.registerHelper('linkify', str => linkifyHTML(str, { 
+  defaultProtocol: 'https',
+  target: {
+    url: '_blank'
+    // email links won't get target="_blank"
+  }
+}));
 
 function userLink(user) {
   return user ? `<a href="/user/${user.urlName}">${user.displayName}</a>` : '';
