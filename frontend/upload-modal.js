@@ -1,5 +1,8 @@
-/* global $, libreviews, config */
+/* global config */
 'use strict';
+
+import $ from './lib/jquery.js';
+import { msg, trimInput } from './libreviews.js';
 
 /**
  * Creates an overlay modal dialog which lets the user upload a single file via
@@ -10,7 +13,7 @@
  * @param {Function} [errorCallback]
  *  Callback to run after a failed upload (does not run if modal is closed).
  */
-exports.uploadModal = function uploadModal(successCallback, errorCallback) {
+export function uploadModal(successCallback, errorCallback) {
   // Obtain template for the dialog (a simple jQuery object).
   const $modal = getTemplate();
 
@@ -28,7 +31,7 @@ exports.uploadModal = function uploadModal(successCallback, errorCallback) {
   // values
   $('#upload-modal-ownwork').click(resetMetadata);
 
-  $('#upload-modal-description').blur(libreviews.trimInput);
+  $('#upload-modal-description').blur(trimInput);
 
   // If the user clicks "Cancel" on page 2, we flip back to page 1, and we
   // de-select the radio buttons unless we have complete data from a previous
@@ -69,12 +72,12 @@ exports.uploadModal = function uploadModal(successCallback, errorCallback) {
     $modal.remove();
   });
 
-};
+}
 
 
 const
-  __ = libreviews.msg,
-  msg = {
+  __ = msg,
+  messages = {
     head: __('upload and insert media'),
     select: __('select file'),
     start: __('start upload'),
@@ -110,24 +113,24 @@ const
 <form class="pure-form" id="upload-modal-form">
 <div id="upload-modal-page-1">
 <div class="upload-modal-buttondiv">
-<h3>${msg.head}</h3>
+<h3>${messages.head}</h3>
 <input type="file" name="files" id="upload-input" accept="image/*,video/webm,video/ogg,audio/*" class="hidden">
 <label id="upload-modal-label" for="upload-input" data-upload-count class="pure-button button-rounded" tabindex="0" data-focusable>
-<span class="fa fa-fw fa-file-image-o spaced-icon" id="upload-icon">&nbsp;</span><span id="upload-label-text">${msg.select}</span></label>
+<span class="fa fa-fw fa-file-image-o spaced-icon" id="upload-icon">&nbsp;</span><span id="upload-label-text">${messages.select}</span></label>
 </div>
 <div id="upload-modal-page-1-expansion" class="hidden-regular">
 <p>
-<textarea id="upload-modal-description" name="description" class="pure-input-1" placeholder="${msg.placeholder.description}"></textarea>
+<textarea id="upload-modal-description" name="description" class="pure-input-1" placeholder="${messages.placeholder.description}"></textarea>
 <p>
 <table>
 <tr class="input-row">
 <td><input type="radio" id="upload-modal-ownwork" name="ownwork" value="1"></td>
-<td><label for="upload-modal-ownwork" class="inline-label">${msg.ownwork}</label></td>
+<td><label for="upload-modal-ownwork" class="inline-label">${messages.ownwork}</label></td>
 </tr>
 <tr class="input-row">
 <td>
 <input type="radio" id="upload-modal-other" name="ownwork" value=""></td>
-<td><label for="upload-modal-other" class="inline-label" id="upload-modal-other-label">${msg.other}</label></td>
+<td><label for="upload-modal-other" class="inline-label" id="upload-modal-other-label">${messages.other}</label></td>
 </tr>
 </table>
 <input type="hidden" name="language" value="${config.language}">
@@ -135,38 +138,38 @@ const
 <input type="hidden" id="upload-modal-creator" name="creator" value="">
 <input type="hidden" id="upload-modal-source" name="source" value="">
 <p>
-<div id="upload-modal-need-description" class="upload-modal-error error hidden-regular">${msg.required.description}</div>
-<div id="upload-modal-need-rights" class="upload-modal-error error hidden-regular">${msg.required.rights}</div>
+<div id="upload-modal-need-description" class="upload-modal-error error hidden-regular">${messages.required.description}</div>
+<div id="upload-modal-need-rights" class="upload-modal-error error hidden-regular">${messages.required.rights}</div>
 <div class="upload-modal-buttondiv">
-<button id="upload-modal-start-upload" disabled class="pure-button pure-button-primary button-rounded" type="submit"><span class="fa fa-fw fa-cloud-upload spaced-icon">&nbsp;</span>${msg.start}</button><span id="upload-modal-spinner" class="fa fa-spinner fa-spin hidden-regular"></span>
+<button id="upload-modal-start-upload" disabled class="pure-button pure-button-primary button-rounded" type="submit"><span class="fa fa-fw fa-cloud-upload spaced-icon">&nbsp;</span>${messages.start}</button><span id="upload-modal-spinner" class="fa fa-spinner fa-spin hidden-regular"></span>
 </div>
 <div class="error" id="upload-errors"></div>
 </div>
 </form>
 </div>
 <div id="upload-modal-page-2" class="hidden-regular">
-<span id="upload-modal-cancel-metadata"><span class="fa fa-chevron-left fa-fw">&nbsp;</span> ${msg.cancel}
+<span id="upload-modal-cancel-metadata"><span class="fa fa-chevron-left fa-fw">&nbsp;</span> ${messages.cancel}
 </span>
 <p>
 <p>
 <form id="upload-metadata-form" class="pure-form">
-<label for="upload-metadata-creator">${msg.creator}<span class="required"> *</span></label><br>
-<input id="upload-metadata-creator" data-required type="text" class="pure-input-1" placeholder="${msg.placeholder.creator}">
+<label for="upload-metadata-creator">${messages.creator}<span class="required"> *</span></label><br>
+<input id="upload-metadata-creator" data-required type="text" class="pure-input-1" placeholder="${messages.placeholder.creator}">
 <p>
-<label for="upload-metadata-source">${msg.source}<span class="required"> *</span></label><br>
-<input id="upload-metadata-source" data-required type="text" class="pure-input-1" name="source" placeholder="${msg.placeholder.source}">
+<label for="upload-metadata-source">${messages.source}<span class="required"> *</span></label><br>
+<input id="upload-metadata-source" data-required type="text" class="pure-input-1" name="source" placeholder="${messages.placeholder.source}">
 <p>
-<label for="upload-metadata-license">${msg.license}<span class="required"> *</span></label><br>
+<label for="upload-metadata-license">${messages.license}<span class="required"> *</span></label><br>
 <select id="upload-metadata-license" data-required class="pure-input-1" name="license">
-<option value="" disabled selected>${msg.placeholder.license}</option>
-<option value="fair-use">${msg.licenses['fair-use']}</option>
-<option value="cc-0">${msg.licenses['cc-0']}</option>
-<option value="cc-by">${msg.licenses['cc-by']}</option>
-<option value="cc-by-sa">${msg.licenses['cc-by-sa']}</option>
+<option value="" disabled selected>${messages.placeholder.license}</option>
+<option value="fair-use">${messages.licenses['fair-use']}</option>
+<option value="cc-0">${messages.licenses['cc-0']}</option>
+<option value="cc-by">${messages.licenses['cc-by']}</option>
+<option value="cc-by-sa">${messages.licenses['cc-by-sa']}</option>
 </select>
 <p>
 <button id="upload-modal-confirm-metadata" data-check-required class="pure-button pure-button-primary button-rounded">
-${msg.ok}
+${messages.ok}
 </button>
 </form>
 </div>
@@ -261,7 +264,7 @@ function startUpload(successCallback, errorCallback) {
         errorArray.push('Unknown error');
       }
       if (showGenericError)
-        $('#upload-errors').html(msg.error);
+        $('#upload-errors').html(messages.error);
 
       if (errorCallback)
         errorCallback(errorArray);
@@ -276,11 +279,11 @@ function confirmMetadata(event) {
   $('#upload-modal-source').val(source);
   $('#upload-modal-creator').val(creator);
   const info = `
-${msg.specified}<br>
+${messages.specified}<br>
 <table id="upload-modal-metadata-info">
-<tr><td><b>${msg.creator}</b></td><td>${creator}</td></tr>
-<tr><td><b>${msg.source}</b></td><td>${source}</td></tr>
-<tr><td><b>${msg.license}</b></td><td>${msg.licenses[license]}</td></tr>
+<tr><td><b>${messages.creator}</b></td><td>${creator}</td></tr>
+<tr><td><b>${messages.source}</b></td><td>${source}</td></tr>
+<tr><td><b>${messages.license}</b></td><td>${messages.licenses[license]}</td></tr>
 </table>
 `;
   $('#upload-modal-other-label').html(info);

@@ -1,8 +1,6 @@
-/* global $, AC, libreviews */
-'use strict';
-
-// Internal deps
-const AbstractAutocompleteAdapter = require('./abstract-autocomplete-adapter');
+/* global $, AC */
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
+import { msg, repaintFocusedHelp } from '../libreviews.js';
 
 /**
  * Perform book metadata lookups on openlibrary.org. Like other frontend
@@ -175,16 +173,16 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
         // whitespace, etc., so the message is substituted into the main
         // message.
         yearStr = minYear == maxYear ?
-          libreviews.msg('single year', { stringParam: minYear }) :
-          libreviews.msg('year range', { numberParams: [minYear, maxYear] });
+          msg('single year', { stringParam: minYear }) :
+          msg('year range', { numberParams: [minYear, maxYear] });
       } else
-        yearStr = libreviews.msg('single year', { stringParam: libreviews.msg('unknown year') });
+        yearStr = msg('single year', { stringParam: msg('unknown year') });
 
       if (edNum == 1)
-        description += libreviews.msg('one edition', { stringParam: yearStr });
+        description += msg('one edition', { stringParam: yearStr });
       else
         // Pass along number of editions
-        description += libreviews.msg('multiple editions', { numberParam: edNum, stringParam: yearStr });
+        description += msg('multiple editions', { numberParam: edNum, stringParam: yearStr });
     }
 
     if (description) {
@@ -338,7 +336,7 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
       .catch(_error => {
         // Show generic error
         $('#generic-action-error').removeClass('hidden');
-        window.libreviews.repaintFocusedHelp();
+        repaintFocusedHelp();
         // Turn off spinner
         this.adapter.disableSpinner();
       });
@@ -346,4 +344,4 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
 }
 
-module.exports = OpenLibraryAutocompleteAdapter;
+export default OpenLibraryAutocompleteAdapter;

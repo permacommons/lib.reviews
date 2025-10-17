@@ -1,36 +1,45 @@
-/* global $, libreviews */
-(function() {
-  'use strict';
-  let originalLabel = $('#upload-label').text();
+import $ from './lib/jquery.js';
+import { msg } from './libreviews.js';
+
+const $uploadInput = $('#upload-input');
+const $startUpload = $('#start-upload');
+const $uploadLabel = $('#upload-label');
+const $uploadLabelText = $('#upload-label-text');
+const $uploadIcon = $('#upload-icon');
+const $fileNameContainer = $('#file-name-container');
+
+if ($uploadInput.length && $startUpload.length) {
+  const originalLabel = $uploadLabel.text();
+
   // We shouldn't be able to start an upload until we've selected some files.
-  $('#start-upload').prop('disabled', true);
-  $('#upload-input').change(() => {
-    let files = $('#upload-input')[0].files;
-    let count = files.length;
-    let names = getNames(files);
+  $startUpload.prop('disabled', true);
+  $uploadInput.change(() => {
+    const files = $uploadInput[0]?.files || [];
+    const count = files.length;
+    const names = getNames(files);
     if (!count) {
-      $('#start-upload').prop('disabled', true);
-      $('#upload-label').text(originalLabel);
-      $('#file-name-container').empty();
+      $startUpload.prop('disabled', true);
+      $uploadLabel.text(originalLabel);
+      $fileNameContainer.empty();
     } else {
-      let countLabel = count == 1 ?
-        libreviews.msg('one file selected') :
-        libreviews.msg('files selected', { stringParam: count });
+      const countLabel = count == 1 ?
+        msg('one file selected') :
+        msg('files selected', { stringParam: count });
       // We use a different icon to represent multiple files
       if (count == 1)
-        $('#upload-icon').removeClass('fa-files-o').addClass('fa-file-image-o');
+        $uploadIcon.removeClass('fa-files-o').addClass('fa-file-image-o');
       else
-        $('#upload-icon').removeClass('fa-file-image-o').addClass('fa-files-o');
-      $('#upload-label-text').text(countLabel);
-      $('#start-upload').prop('disabled', false);
-      $('#file-name-container').text(names.join(', '));
+        $uploadIcon.removeClass('fa-file-image-o').addClass('fa-files-o');
+      $uploadLabelText.text(countLabel);
+      $startUpload.prop('disabled', false);
+      $fileNameContainer.text(names.join(', '));
     }
   });
+}
 
-  function getNames(fileList) {
-    let names = [];
-    for (let i = 0; i < fileList.length; i++)
-      names.push(fileList[i].name);
-    return names;
-  }
-}());
+function getNames(fileList) {
+  let names = [];
+  for (let i = 0; i < fileList.length; i++)
+    names.push(fileList[i].name);
+  return names;
+}

@@ -7,8 +7,7 @@ const User = require('../../models/user');
 const Review = require('../../models/review');
 const reviewHandlers = require('./review-handlers');
 const md = require('../../util/md');
-const getJS = require('../../util/get-js');
-const { getEditorMessages } = require('../../frontend/editor-messages');
+const { getEditorMessages } = require('../../util/frontend-messages');
 
 let userHandlers = {
 
@@ -147,7 +146,7 @@ let userHandlers = {
                 userInfo: user,
                 feedItems,
                 edit,
-                scripts: loadEditor ? ['user.js', getJS('editor')] : ['user.js'],
+                scripts: loadEditor ? ['user', 'editor'] : ['user'],
                 pageErrors,
                 teams: user.teams,
                 modOf,

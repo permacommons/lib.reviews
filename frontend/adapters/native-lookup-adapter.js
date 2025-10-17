@@ -1,15 +1,12 @@
-/* global $, config, libreviews */
-'use strict';
-
-// Perform native (lib.reviews) lookups
-
-const AbstractLookupAdapter = require('./abstract-lookup-adapter');
+/* global $, config */
+import AbstractLookupAdapter from './abstract-lookup-adapter';
+import { resolveString, validateURL } from '../libreviews.js';
 
 class NativeLookupAdapter extends AbstractLookupAdapter {
 
   ask(url) {
     // Any valid URL can be looked up natively
-    return libreviews.validateURL(url);
+    return validateURL(url);
   }
 
   lookup(url) {
@@ -18,8 +15,8 @@ class NativeLookupAdapter extends AbstractLookupAdapter {
         .then(data => {
           let thing = data.thing;
           let thingURL = thing.urls[0];
-          let label = window.libreviews.resolveString(config.language, thing.label) || thingURL;
-          let description = window.libreviews.resolveString(config.language, thing.description);
+          let label = resolveString(config.language, thing.label) || thingURL;
+          let description = resolveString(config.language, thing.description);
           resolve({
             data: {
               label,
@@ -34,4 +31,4 @@ class NativeLookupAdapter extends AbstractLookupAdapter {
 
 }
 
-module.exports = NativeLookupAdapter;
+export default NativeLookupAdapter;

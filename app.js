@@ -19,7 +19,6 @@ const bodyParser = require('body-parser');
 const i18n = require('i18n');
 const hbs = require('hbs'); // handlebars templating
 const hbsutils = require('hbs-utils')(hbs);
-const lessMiddleware = require('less-middleware');
 const session = require('express-session');
 const RDBStore = require('session-rethinkdb')(session);
 const flash = require('express-flash');
@@ -48,6 +47,7 @@ const things = require('./routes/things');
 const ErrorProvider = require('./routes/errors');
 const debug = require('./util/debug');
 const apitest = require('./routes/apitest');
+const clientAssets = require('./util/client-assets');
 
 // Initialize custom HBS helpers
 require('./util/handlebars-helpers.js');
@@ -157,9 +157,6 @@ async function getApp(db = require('./db')) {
     template: path.join(__dirname, 'views/downloads.html')
   }));
 
-  let cssPath = path.join(__dirname, 'static', 'css');
-  app.use('/static/css', lessMiddleware(cssPath));
-
   // Cache immutable assets for one year
   app.use('/static', function(req, res, next) {
     if (/.*\.(svg|jpg|webm|gif|png|ogg|tgz|zip|woff2)$/.test(req.path))
@@ -168,6 +165,45 @@ async function getApp(db = require('./db')) {
   });
 
   app.use('/static', express.static(path.join(__dirname, 'static')));
+
+  if (process.env.NODE_ENV !== 'production') {
+    // Convenience endpoint: the Vite build reads the manifest from disk, but exposing it here
+    // lets developers inspect `manifest.json` in the browser during dev.
+    app.get('/assets/manifest.json', (req, res, next) => {
+      try {
+        res.set('Cache-Control', 'no-store');
+        res.json(clientAssets.getManifest());
+      } catch (error) {
+        next(error);
+      }
+    });
+  }
+
+  app.use('/assets', express.static(path.join(__dirname, 'build', 'vite'), {
+    fallthrough: true,
+    maxAge: '1y'
+  }));
+
+  if (process.env.NODE_ENV !== 'production' && process.env.LIBREVIEWS_VITE_DEV_SERVER !== 'off') {
+    const viteConfigPath = path.join(__dirname, 'vite.config.mjs');
+    const createViteServer = async() => {
+      const { createServer } = await import('vite');
+      return createServer({
+        configFile: viteConfigPath,
+        server: {
+          middlewareMode: true,
+          watch: {
+            usePolling: process.env.VITE_USE_POLLING === '1'
+          }
+        },
+        appType: 'custom'
+      });
+    };
+
+    const viteServer = await createViteServer();
+    app.use(viteServer.middlewares);
+    app.locals.vite = viteServer;
+  }
 
   app.use('/robots.txt', (req, res) => {
     res.type('text');

@@ -1,32 +1,7 @@
-'use strict';
-const msgArr = [
-  'no relevant results',
-  'load next page',
-  'load previous page',
-  'more results',
-  'no search results',
-  'one edition',
-  'multiple editions',
-  'unknown year',
-  'single year',
-  'year range',
-  'review via openlibrary help label',
-  'review via wikidata help label',
-  'review via openlibrary help text',
-  'review via wikidata help text',
-  'start typing to search openlibrary',
-  'start typing to search wikidata',
-  'previously reviewed',
-  'abandon form changes',
-  'pick a different subject',
-  'edit review'
-];
-const getMessages = require('../../util/get-messages');
+import adapterMessageKeys from '../messages/adapter-keys.json';
 
-module.exports.getAdapterMessageKeys = function() {
-  return msgArr.slice();
-};
+export const adapterMessages = Object.freeze([...adapterMessageKeys]);
 
-module.exports.getAdapterMessages = function(locale) {
-  return getMessages(locale, msgArr.slice());
-};
+export const getAdapterMessageKeys = () => [...adapterMessageKeys];
+
+export default adapterMessages;

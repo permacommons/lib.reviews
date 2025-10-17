@@ -1,14 +1,13 @@
-'use strict';
-const { undo, redo } = require("prosemirror-history");
-const { undoInputRule } = require("prosemirror-inputrules");
-const { wrapIn, setBlockType, chainCommands, toggleMark, exitCode, selectParentNode } = require("prosemirror-commands");
-const { wrapInList, splitListItem, liftListItem, sinkListItem } = require("prosemirror-schema-list");
+import { undo, redo } from 'prosemirror-history';
+import { undoInputRule } from 'prosemirror-inputrules';
+import { wrapIn, setBlockType, chainCommands, toggleMark, exitCode, selectParentNode } from 'prosemirror-commands';
+import { wrapInList, splitListItem, liftListItem, sinkListItem } from 'prosemirror-schema-list';
 
 const mac = typeof navigator != "undefined" ? /Mac/.test(navigator.platform) : false;
 
 // In order to avoid having to keep updating this file, we check the schema
 // for supported node and mark types.
-exports.getExtendedKeymap = function getExtendedKeymap(schema, menuItems) {
+export function getExtendedKeymap(schema, menuItems) {
   let keymap = {};
 
   keymap['Mod-z'] = undo;
@@ -126,4 +125,4 @@ exports.getExtendedKeymap = function getExtendedKeymap(schema, menuItems) {
   };
 
   return keymap;
-};
+}

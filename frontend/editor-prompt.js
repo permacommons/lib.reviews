@@ -1,10 +1,11 @@
-/* global $, libreviews */
+import $ from './lib/jquery.js';
+import { msg } from './libreviews.js';
 
 // Helper module for menu prompts. Derived from
 // https://github.com/ProseMirror/prosemirror-example-setup/blob/master/src/prompt.js
 const prefix = "ProseMirror-prompt";
 
-exports.openPrompt = function(spec) {
+export function openPrompt(spec) {
   // Spec: title (string), fields (object), view (EditorView), callback (function)
 
   // We want modal-like behavior, so we disable the active view
@@ -36,12 +37,12 @@ exports.openPrompt = function(spec) {
   let $submitButton = $('<button>')
     .attr('type', 'submit')
     .addClass(`${prefix}-submit pure-button pure-button-primary`)
-    .text(libreviews.msg('ok'));
+    .text(msg('ok'));
 
   let $cancelButton = $('<button>')
     .attr('type', 'button')
     .addClass(`${prefix}-cancel pure-button`)
-    .text(libreviews.msg('cancel'));
+    .text(msg('cancel'));
 
   $cancelButton.click(close);
 
@@ -94,7 +95,7 @@ exports.openPrompt = function(spec) {
   // Prevent tabbing outside dialog (only adds listeners to inputs inside the
   // wrapper). Focuses on first input.
   $wrapper.lockTab();
-};
+}
 
 function getValues(fields, domFields) {
   let i = 0,
@@ -126,7 +127,7 @@ function reportInvalid(dom, message) {
 }
 
 // ::- The type of field that `FieldPrompt` expects to be passed to it.
-class Field {
+export class Field {
   // :: (Object)
   // Create a field with the given options. Options support by all
   // field types are:
@@ -164,7 +165,7 @@ class Field {
 
   validate(value) {
     if (!value && this.options.required)
-      return libreviews.msg('required field');
+      return msg('required field');
     return this.validateType(value) || (this.options.validate && this.options.validate(value));
   }
 
@@ -172,10 +173,9 @@ class Field {
     return this.options.clean ? this.options.clean(value) : value;
   }
 }
-exports.Field = Field;
 
 // ::- A field class for single-line text fields.
-class TextField extends Field {
+export class TextField extends Field {
   render() {
     let input = document.createElement("input");
     input.type = "text";
@@ -185,14 +185,13 @@ class TextField extends Field {
     return input;
   }
 }
-exports.TextField = TextField;
 
 
 // ::- A field class for dropdown fields based on a plain `<select>`
 // tag. Expects an option `options`, which should be an array of
 // `{value: string, label: string}` objects, or a function taking a
 // `ProseMirror` instance and returning such an array.
-class SelectField extends Field {
+export class SelectField extends Field {
   render() {
     let select = document.createElement("select");
     this.options.options.forEach(o => {
@@ -204,4 +203,3 @@ class SelectField extends Field {
     return select;
   }
 }
-exports.SelectField = SelectField;

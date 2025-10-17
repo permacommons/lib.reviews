@@ -12,8 +12,7 @@ const mlString = require('../../models/helpers/ml-string');
 const BlogPost = require('../../models/blog-post');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
-const getJS = require('../../util/get-js');
-const { getEditorMessages } = require('../../frontend/editor-messages');
+const { getEditorMessages } = require('../../util/frontend-messages');
 
 class TeamProvider extends AbstractBREADProvider {
 
@@ -204,7 +203,7 @@ class TeamProvider extends AbstractBREADProvider {
       pageErrors: this.isPreview ? undefined : pageErrors,
       formValues,
       isPreview: this.isPreview,
-      scripts: [getJS('editor')]
+      scripts: ['editor']
     }, {
       messages: getEditorMessages(this.req.locale)
     });

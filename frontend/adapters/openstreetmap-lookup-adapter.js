@@ -1,9 +1,5 @@
-/* global $ */
-'use strict';
-
-// Look up labels from OSM for ways or nodes
-
-const AbstractLookupAdapter = require('./abstract-lookup-adapter');
+import $ from '../lib/jquery.js';
+import AbstractLookupAdapter from './abstract-lookup-adapter';
 
 class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
 
@@ -50,4 +46,4 @@ class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
 
 }
 
-module.exports = OpenStreetMapLookupAdapter;
+export default OpenStreetMapLookupAdapter;

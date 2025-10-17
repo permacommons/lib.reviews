@@ -1,12 +1,10 @@
-'use strict';
-
 /**
  * Adapter that, given a URL, looks up metadata that can identify a review
  * subject, such as a book's title or a restauraunt name.
  *
  * @abstract
  */
-class AbstractLookupAdapter {
+export default class AbstractLookupAdapter {
 
   /**
    * Lookup adapters return a limited set of data that's displayed to the
@@ -93,5 +91,3 @@ class AbstractLookupAdapter {
   }
 
 }
-
-module.exports = AbstractLookupAdapter;

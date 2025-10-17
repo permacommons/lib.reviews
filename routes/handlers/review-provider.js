@@ -14,10 +14,8 @@ const ReportedError = require('../../util/reported-error.js');
 const md = require('../../util/md');
 const slugs = require('../helpers/slugs');
 const search = require('../../search');
-const getJS = require('../../util/get-js');
 const getMessages = require('../../util/get-messages');
-const { getEditorMessageKeys } = require('../../frontend/editor-messages');
-const { getAdapterMessageKeys } = require('../../frontend/adapters/adapter-messages');
+const { getAdapterMessageKeys, getEditorMessageKeys } = require('../../util/frontend-messages');
 
 class ReviewProvider extends AbstractBREADProvider {
 
@@ -104,7 +102,7 @@ class ReviewProvider extends AbstractBREADProvider {
       pageErrors: !this.isPreview ? pageErrors : undefined, // Don't show errors on preview
       isPreview: this.isPreview,
       preview: this.preview,
-      scripts: ['review.js', getJS('editor')],
+      scripts: ['review', 'editor'],
       showLanguageNotice,
       pageMessages,
       thing,

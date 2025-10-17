@@ -15,14 +15,14 @@
 
 // Adapted from https://github.com/ProseMirror/prosemirror-example-setup
 
-const {
+import {
   inputRules,
   wrappingInputRule,
   textblockTypeInputRule,
   smartQuotes,
   emDash,
   ellipsis
-} = require('prosemirror-inputrules');
+} from 'prosemirror-inputrules';
 
 // : (NodeType) → InputRule
 // Given a blockquote node type, returns an input rule that turns `"> "`
@@ -67,7 +67,7 @@ function headingRule(nodeType, maxLevel) {
 // : (Schema) → Plugin
 // A set of input rules for creating the basic block quotes, lists,
 // code blocks, and heading.
-exports.buildInputRules = function(schema) {
+export function buildInputRules(schema) {
   let rules = smartQuotes.concat(ellipsis, emDash),
     type;
   if ((type = schema.nodes.blockquote))
@@ -81,4 +81,4 @@ exports.buildInputRules = function(schema) {
   if ((type = schema.nodes.heading))
     rules.push(headingRule(type, 6));
   return inputRules({ rules });
-};
+}

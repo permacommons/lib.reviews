@@ -1,5 +1,5 @@
-/* global $, libreviews, config */
-const {
+/* global $, config */
+import {
   wrapItem,
   blockTypeItem,
   Dropdown,
@@ -10,22 +10,23 @@ const {
   redoItem,
   icons,
   MenuItem
-} = require("prosemirror-menu");
+} from 'prosemirror-menu';
 
-const unescapeHTML = require('unescape-html');
+import unescapeHTML from 'unescape-html';
+import libreviews, { msg } from './libreviews.js';
 
 // Load proper translations for built-in items
-undoItem.spec.title = libreviews.msg('undo');
-redoItem.spec.title = libreviews.msg('redo');
-joinUpItem.spec.title = libreviews.msg('join with item above');
-liftItem.spec.title = libreviews.msg('decrease item indentation');
+undoItem.spec.title = msg('undo');
+redoItem.spec.title = msg('redo');
+joinUpItem.spec.title = msg('join with item above');
+liftItem.spec.title = msg('decrease item indentation');
 
-const { NodeSelection, TextSelection } = require('prosemirror-state');
-const { toggleMark, wrapIn } = require('prosemirror-commands');
-const { wrapInList } = require('prosemirror-schema-list');
-const { TextField, openPrompt } = require('./editor-prompt');
-const { uploadModal } = require('./upload-modal');
-const { guessMediaType } = require('markdown-it-html5-media');
+import { NodeSelection, TextSelection } from 'prosemirror-state';
+import { toggleMark, wrapIn } from 'prosemirror-commands';
+import { wrapInList } from 'prosemirror-schema-list';
+import { TextField, openPrompt } from './editor-prompt';
+import { uploadModal } from './upload-modal';
+import { guessMediaType } from 'markdown-it-html5-media';
 
 // Helpers to create specific types of items
 
@@ -41,8 +42,8 @@ function canInsert(state, nodeType, attrs) {
 
 function insertMediaItem(nodeTypes, schema) {
   return new MenuItem({
-    title: libreviews.msg('insert media help'),
-    label: libreviews.msg('insert media'),
+    title: msg('insert media help'),
+    label: msg('insert media'),
     select(state) {
       return canInsert(state, nodeTypes.image);
     },
@@ -77,22 +78,22 @@ function insertMediaItem(nodeTypes, schema) {
       }
       const fields = {};
 
-      fields.src = new TextField({ label: libreviews.msg('media url'), required: true, value: attrs && attrs.src });
+      fields.src = new TextField({ label: msg('media url'), required: true, value: attrs && attrs.src });
 
       if (showCaptionField)
         fields.caption = new TextField({
-          label: libreviews.msg('caption label'),
+          label: msg('caption label'),
         });
 
       fields.alt = new TextField({
-        label: libreviews.msg('media alt text'),
+        label: msg('media alt text'),
         value: attrs ? attrs.alt || attrs.description : state.doc.textBetween(from, to, " ")
       });
 
       openPrompt({
         view,
         fields,
-        title: libreviews.msg('insert media dialog title'),
+        title: msg('insert media dialog title'),
         callback(attrs) {
           const nodeType = guessMediaType(attrs.src);
           // <video>/<audio> tags do not support ALT; the text is rendered
@@ -125,8 +126,8 @@ function addCaption({ description, schema, state, transaction }) {
 function horizontalRuleItem(hr) {
 
   return new MenuItem({
-    title: libreviews.msg('insert horizontal rule help', { accessKey: '_' }),
-    label: libreviews.msg('insert horizontal rule'),
+    title: msg('insert horizontal rule help', { accessKey: '_' }),
+    label: msg('insert horizontal rule'),
     select(state) {
       return canInsert(state, hr);
     },
@@ -171,7 +172,7 @@ function markItem(markType, options) {
 
 function fullScreenItem() {
   return new MenuItem({
-    title: libreviews.msg('full screen mode', { accessKey: 'u' }),
+    title: msg('full screen mode', { accessKey: 'u' }),
     icon: { dom: $('<span class="fa fa-arrows-alt baselined-icon"></span>')[0] },
     active() {
       return this.enabled || false;
@@ -193,7 +194,7 @@ function fullScreenItem() {
 
 function uploadModalItem(mediaNodes, schema) {
   return new MenuItem({
-    title: libreviews.msg('upload and insert media'),
+    title: msg('upload and insert media'),
     icon: { dom: $('<span class="fa fa-cloud-upload baselined-icon"><span>')[0] },
     active() {
       return false;
@@ -239,40 +240,40 @@ function generateDescriptionFromUpload(upload) {
   let license;
   switch (upload.license) {
     case 'fair-use':
-      license = libreviews.msg('fair use in caption');
+      license = msg('fair use in caption');
       break;
     case 'cc-0':
-      license = libreviews.msg('public domain in caption');
+      license = msg('public domain in caption');
       break;
     default:
-      license = libreviews.msg('license in caption', {
-        stringParam: libreviews.msg(`${upload.license} short`)
+      license = msg('license in caption', {
+        stringParam: msg(`${upload.license} short`)
       });
   }
 
   let rights;
   if (!creator) // Own work
-    rights = libreviews.msg('rights in caption, own work', { stringParam: license });
+    rights = msg('rights in caption, own work', { stringParam: license });
   else
-    rights = libreviews.msg('rights in caption, someone else\'s work', {
+    rights = msg('rights in caption, someone else\'s work', {
       stringParams: [creator, license]
     });
-  const caption = libreviews.msg('caption', { stringParams: [description, rights] });
+  const caption = msg('caption', { stringParams: [description, rights] });
   // Final newline is important to ensure resulting markdown is parsed correctly
   return caption + '\n';
 }
 
 function formatCustomWarningItem(nodeType) {
   return new MenuItem({
-    title: libreviews.msg('format as custom warning help'),
-    label: libreviews.msg('format as custom warning'),
+    title: msg('format as custom warning help'),
+    label: msg('format as custom warning'),
     run(state, dispatch, view) {
       let prompt = {
         view,
-        title: libreviews.msg('format as custom warning dialog title'),
+        title: msg('format as custom warning dialog title'),
         fields: {
           message: new TextField({
-            label: libreviews.msg('custom warning text'),
+            label: msg('custom warning text'),
             required: true
           })
         },
@@ -293,7 +294,7 @@ function formatCustomWarningItem(nodeType) {
 
 function linkItem(schema) {
   return new MenuItem({
-    title: libreviews.msg('add or remove link', { accessKey: 'k' }),
+    title: msg('add or remove link', { accessKey: 'k' }),
     icon: icons.link,
     active(state) {
       return markActive(state, schema.marks.link);
@@ -306,7 +307,7 @@ function linkItem(schema) {
       const required = true;
       const fields = {
         href: new TextField({
-          label: libreviews.msg('web address'),
+          label: msg('web address'),
           required,
           clean: val => !/^https?:\/\//i.test(val) ? 'http://' + val : val
         })
@@ -314,13 +315,13 @@ function linkItem(schema) {
       // User has not selected any text, so needs to provide it via dialog
       if (view.state.selection.empty)
         fields.linkText = new TextField({
-          label: libreviews.msg('link text'),
+          label: msg('link text'),
           required,
           clean: val => val.trim()
         });
       openPrompt({
         view,
-        title: libreviews.msg('add link dialog title'),
+        title: msg('add link dialog title'),
         fields,
         callback(attrs) {
           if (!attrs.linkText) {
@@ -357,8 +358,8 @@ function headingItems(nodeType) {
   const headingItems = [];
   for (let i = 1; i <= 6; i++)
     headingItems[i - 1] = blockTypeItem(nodeType, {
-      title: libreviews.msg('format as level heading help', { accessKey: String(i), numberParam: i }),
-      label: libreviews.msg('format as level heading', { numberParam: i }),
+      title: msg('format as level heading help', { accessKey: String(i), numberParam: i }),
+      label: msg('format as level heading', { numberParam: i }),
       attrs: { level: i }
     });
   return headingItems;
@@ -380,41 +381,41 @@ function buildMenuItems(schema) {
   };
 
   const items = {
-    toggleStrong: markItem(schema.marks.strong, { title: libreviews.msg('toggle bold', { accessKey: 'b' }), icon: icons.strong }),
-    toggleEm: markItem(schema.marks.em, { title: libreviews.msg('toggle italic', { accessKey: 'i' }), icon: icons.em }),
-    toggleCode: markItem(schema.marks.code, { title: libreviews.msg('toggle code', { accessKey: '`' }), icon: icons.code }),
+    toggleStrong: markItem(schema.marks.strong, { title: msg('toggle bold', { accessKey: 'b' }), icon: icons.strong }),
+    toggleEm: markItem(schema.marks.em, { title: msg('toggle italic', { accessKey: 'i' }), icon: icons.em }),
+    toggleCode: markItem(schema.marks.code, { title: msg('toggle code', { accessKey: '`' }), icon: icons.code }),
     toggleLink: linkItem(schema),
     insertMedia: insertMediaItem(mediaNodes, schema),
     insertHorizontalRule: horizontalRuleItem(schema.nodes.horizontal_rule),
     wrapBulletList: wrapListItem(schema.nodes.bullet_list, {
-      title: libreviews.msg('format as bullet list', { accessKey: '8' }),
+      title: msg('format as bullet list', { accessKey: '8' }),
       icon: icons.bulletList
     }),
     wrapOrderedList: wrapListItem(schema.nodes.ordered_list, {
-      title: libreviews.msg('format as numbered list', { accessKey: '9' }),
+      title: msg('format as numbered list', { accessKey: '9' }),
       icon: icons.orderedList
     }),
     wrapBlockQuote: wrapItem(schema.nodes.blockquote, {
-      title: libreviews.msg('format as quote', { accessKey: '>' }),
+      title: msg('format as quote', { accessKey: '>' }),
       icon: icons.blockquote
     }),
     makeParagraph: blockTypeItem(schema.nodes.paragraph, {
-      title: libreviews.msg('format as paragraph help', { accessKey: '0' }),
-      label: libreviews.msg('format as paragraph')
+      title: msg('format as paragraph help', { accessKey: '0' }),
+      label: msg('format as paragraph')
     }),
     makeCodeBlock: blockTypeItem(schema.nodes.code_block, {
-      title: libreviews.msg('format as code block help'),
-      label: libreviews.msg('format as code block')
+      title: msg('format as code block help'),
+      label: msg('format as code block')
     }),
     formatSpoilerWarning: wrapItem(schema.nodes.container_warning, {
-      title: libreviews.msg('format as spoiler help'),
-      label: libreviews.msg('format as spoiler'),
-      attrs: { markup: 'spoiler', message: libreviews.msg('spoiler warning') }
+      title: msg('format as spoiler help'),
+      label: msg('format as spoiler'),
+      attrs: { markup: 'spoiler', message: msg('spoiler warning') }
     }),
     formatNSFWWarning: wrapItem(schema.nodes.container_warning, {
-      title: libreviews.msg('format as nsfw help'),
-      label: libreviews.msg('format as nsfw'),
-      attrs: { markup: 'nsfw', message: libreviews.msg('nsfw warning') }
+      title: msg('format as nsfw help'),
+      label: msg('format as nsfw'),
+      attrs: { markup: 'nsfw', message: msg('nsfw warning') }
     }),
     formatCustomWarning: formatCustomWarningItem(schema.nodes.container_warning),
     makeHeading: headingItems(schema.nodes.heading),
@@ -430,19 +431,19 @@ function buildMenuItems(schema) {
     items.upload = uploadModalItem(mediaNodes, schema);
 
   const insertDropdown = new Dropdown([items.insertMedia, items.insertHorizontalRule], {
-    label: libreviews.msg('insert'),
-    title: libreviews.msg('insert help')
+    label: msg('insert'),
+    title: msg('insert help')
   });
 
-  const headingSubmenu = new DropdownSubmenu([...items.makeHeading], { label: libreviews.msg('format as heading') });
+  const headingSubmenu = new DropdownSubmenu([...items.makeHeading], { label: msg('format as heading') });
 
   const typeDropdown = new Dropdown(
     [
       items.makeParagraph, items.makeCodeBlock, items.formatSpoilerWarning,
       items.formatNSFWWarning, items.formatCustomWarning, headingSubmenu
     ], {
-      label: libreviews.msg('format block'),
-      title: libreviews.msg('format block help')
+      label: msg('format block'),
+      title: msg('format block help')
     });
 
   // Create final menu structure. In the rendered menu, there is a separator
@@ -467,4 +468,4 @@ function buildMenuItems(schema) {
   return { menu, items };
 }
 
-exports.buildMenuItems = buildMenuItems;
+export { buildMenuItems };

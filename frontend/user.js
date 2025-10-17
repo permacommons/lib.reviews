@@ -1,25 +1,28 @@
-/* global $ */
-(function() {
-  'use strict';
-  if ($('#bio-textarea').length) {
-    $('#bio-textarea').keyup(updateCharacterCount);
-    updateCharacterCount();
-  }
+import $ from './lib/jquery.js';
 
-  function updateCharacterCount() {
-    let count = $('#bio-textarea').val().length;
-    let remaining = 1000 - count;
-    if (remaining > 0) {
-      $('#character-counter').show();
-      $('#over-maximum-warning').hide();
-      $('#character-count').text(remaining);
-    } else if (remaining === 0) {
-      $('#character-counter').hide();
-      $('#over-maximum-warning').hide();
-    } else {
-      $('#character-counter').hide();
-      $('#over-maximum-warning').show();
-      $('#over-maximum-count').text(-1 * remaining);
-    }
+const $bioTextarea = $('#bio-textarea');
+
+if ($bioTextarea.length) {
+  $bioTextarea.keyup(updateCharacterCount);
+  updateCharacterCount();
+}
+
+function updateCharacterCount() {
+  const $counter = $('#character-counter');
+  const $warning = $('#over-maximum-warning');
+  const $overMaximumCount = $('#over-maximum-count');
+  const count = $bioTextarea.val().length;
+  const remaining = 1000 - count;
+  if (remaining > 0) {
+    $counter.show();
+    $warning.hide();
+    $('#character-count').text(remaining);
+  } else if (remaining === 0) {
+    $counter.hide();
+    $warning.hide();
+  } else {
+    $counter.hide();
+    $warning.show();
+    $overMaximumCount.text(-1 * remaining);
   }
-}());
+}

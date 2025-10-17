@@ -1,9 +1,6 @@
 import test from 'ava';
 import { JSDOM } from 'jsdom';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const Autocomplete = require('../frontend/lib/ac.js');
+import Autocomplete from '../frontend/lib/ac.mjs';
 
 test.beforeEach(t => {
   const dom = new JSDOM('<!doctype html><html><body><input type="text" id="search"></body></html>', {
