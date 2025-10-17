@@ -46,7 +46,7 @@ class WebHookDispatcher {
    * @param {string} eventName - The webhook event identifier.
    * @param {Object} payload - Payload to serialise as JSON.
    * @param {Object} [headers] - Additional HTTP headers for the request.
-   * @returns {Promise<{event: string, deliveries: Array<{url: string, ok: boolean, status?: number, error?: string}>}>}
+   * @returns {Promise<{event: string, deliveries: Array<{url: string, ok: boolean, status: (number|undefined), error: (string|undefined)}>}>}
    *  Summary of delivery attempts (always resolves, never rejects).
    */
   async trigger(eventName, payload, headers = {}) {
