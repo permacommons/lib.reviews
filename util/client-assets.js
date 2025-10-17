@@ -9,7 +9,10 @@ const DEV_CLIENT_ENTRY = '/@vite/client';
 const DEV_ENTRY_STYLES = new Map([
   // Ensure core styles are linked eagerly during development to avoid a flash of
   // unstyled content while Vite injects CSS via JS.
-  ['lib', ['/frontend/styles/style.less']]
+  ['lib', [
+    '/frontend/styles/vendor.css',
+    '/frontend/styles/style.less'
+  ]]
 ]);
 const PUBLIC_ASSET_PREFIX = '/assets/';
 
