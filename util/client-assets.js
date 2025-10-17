@@ -5,7 +5,6 @@ const path = require('node:path');
 
 const PROJECT_ROOT = path.join(__dirname, '..');
 const VITE_MANIFEST_PATH = path.join(PROJECT_ROOT, 'build', 'vite', '.vite', 'manifest.json');
-const DEV_ENTRY_PREFIX = '/frontend/entries/';
 const DEV_CLIENT_ENTRY = '/@vite/client';
 const DEV_ENTRY_STYLES = new Map([
   // Ensure core styles are linked eagerly during development to avoid a flash of
@@ -82,7 +81,7 @@ function getDevManifest() {
   const manifest = {};
   ENTRY_MAP.forEach((sourcePath, entryName) => {
     manifest[sourcePath] = {
-      file: `${DEV_ENTRY_PREFIX}${entryName}.js`,
+      file: `/${sourcePath}`,
       isEntry: true,
       name: entryName,
       src: sourcePath
@@ -133,7 +132,12 @@ function getClientAssets(requestedEntries) {
   } else {
     scripts.add(DEV_CLIENT_ENTRY);
     orderedEntries.forEach(entryName => {
-      scripts.add(`${DEV_ENTRY_PREFIX}${entryName}.js`);
+      const sourcePath = ENTRY_MAP.get(entryName);
+
+      if (!sourcePath)
+        throw new Error(`Unknown frontend entry "${entryName}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`);
+
+      scripts.add(`/${sourcePath}`);
 
       const stylesForEntry = DEV_ENTRY_STYLES.get(entryName);
       if (Array.isArray(stylesForEntry))
