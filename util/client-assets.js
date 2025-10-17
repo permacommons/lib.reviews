@@ -5,16 +5,16 @@ const path = require('node:path');
 
 const PROJECT_ROOT = path.join(__dirname, '..');
 const VITE_MANIFEST_PATH = path.join(PROJECT_ROOT, 'build', 'vite', '.vite', 'manifest.json');
-const DEV_CLIENT_ENTRY = '/@vite/client';
+const PUBLIC_ASSET_PREFIX = '/assets/';
+const DEV_CLIENT_ENTRY = path.posix.join(PUBLIC_ASSET_PREFIX, '@vite/client');
 const DEV_ENTRY_STYLES = new Map([
   // Ensure core styles are linked eagerly during development to avoid a flash of
   // unstyled content while Vite injects CSS via JS.
   ['lib', [
-    '/frontend/styles/vendor.css',
-    '/frontend/styles/style.less'
+    'frontend/styles/vendor.css',
+    'frontend/styles/style.less'
   ]]
 ]);
-const PUBLIC_ASSET_PREFIX = '/assets/';
 
 const entryDefinitions = require('../config/frontend-entries.json');
 
@@ -84,7 +84,7 @@ function getDevManifest() {
   const manifest = {};
   ENTRY_MAP.forEach((sourcePath, entryName) => {
     manifest[sourcePath] = {
-      file: `/${sourcePath}`,
+      file: toPublicPath(sourcePath),
       isEntry: true,
       name: entryName,
       src: sourcePath
@@ -140,11 +140,11 @@ function getClientAssets(requestedEntries) {
       if (!sourcePath)
         throw new Error(`Unknown frontend entry "${entryName}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`);
 
-      scripts.add(`/${sourcePath}`);
+      scripts.add(toPublicPath(sourcePath));
 
       const stylesForEntry = DEV_ENTRY_STYLES.get(entryName);
       if (Array.isArray(stylesForEntry))
-        stylesForEntry.forEach(stylePath => styles.add(stylePath));
+        stylesForEntry.forEach(stylePath => styles.add(toPublicPath(stylePath)));
     });
   }
 
