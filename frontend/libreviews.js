@@ -1,6 +1,7 @@
 import $ from './lib/jquery.js';
 import 'jquery-powertip';
 import 'jquery-modal';
+import './styles/vendor.css';
 import './styles/style.less';
 import Autocomplete from './lib/ac.mjs';
 import initializeSisyphus from './lib/sisyphus.js';

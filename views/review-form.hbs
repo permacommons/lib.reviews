@@ -36,7 +36,7 @@
 {{>page_errors}}
 <div id="draft-notice" class="message-box">
 <span class="fa fa-info-circle fa-fw spaced-icon">&nbsp;</span>{{{__ "draft loaded"}}}
-<button id="abandon-draft" class="pure-button button-rounded message-button message-button-destructive"><span class="fa fa-fw fa-trash-o spaced-icon">&nbsp;</span>{{__ "abandon draft"}}</a></button> <button class="pure-button button-rounded message-button" id="dismiss-draft-notice"><span class="fa fa-fw fa-check-circle spaced-icon">&nbsp;</span>{{{__ "got it"}}}</button>
+<button id="abandon-draft" class="pure-button button-rounded message-button message-button-destructive"><span class="fa fa-fw fa-trash spaced-icon">&nbsp;</span>{{__ "abandon draft"}}</a></button> <button class="pure-button button-rounded message-button" id="dismiss-draft-notice"><span class="fa fa-fw fa-check-circle spaced-icon">&nbsp;</span>{{{__ "got it"}}}</button>
 </div>
 <form class="pure-form pure-form-stacked" id="review-form" name="review-form" method="post" data-submit-uploaded-files>
   <input type="hidden" value="{{csrfToken}}" name="_csrf" id="review-token" data-ignore-autosave>

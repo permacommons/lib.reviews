@@ -116,7 +116,7 @@ const
 <h3>${messages.head}</h3>
 <input type="file" name="files" id="upload-input" accept="image/*,video/webm,video/ogg,audio/*" class="hidden">
 <label id="upload-modal-label" for="upload-input" data-upload-count class="pure-button button-rounded" tabindex="0" data-focusable>
-<span class="fa fa-fw fa-file-image-o spaced-icon" id="upload-icon">&nbsp;</span><span id="upload-label-text">${messages.select}</span></label>
+<span class="fa fa-fw fa-file-image spaced-icon" id="upload-icon">&nbsp;</span><span id="upload-label-text">${messages.select}</span></label>
 </div>
 <div id="upload-modal-page-1-expansion" class="hidden-regular">
 <p>

@@ -2,7 +2,7 @@
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
 <input type="file" name="media" multiple id="upload-input" accept="image/*,video/webm,video/ogg,audio/*" class="hidden nojs-visible">
 <label id="upload-label" for="upload-input" data-upload-count class="pure-button button-rounded nojs-hidden">
-<span class="fa fa-fw fa-file-image-o spaced-icon" id="upload-icon">&nbsp;</span><span id="upload-label-text">{{{__ "add media"}}}</span></label>
+<span class="fa fa-fw fa-file-image spaced-icon" id="upload-icon">&nbsp;</span><span id="upload-label-text">{{{__ "add media"}}}</span></label>
 {{!We have to declare this twice so we can initially disable the button for JS users}}
 <button id="start-upload" class="nojs-hidden pure-button pure-button-primary button-rounded" data-upload-check type="submit" disabled><span class="fa fa-fw fa-cloud-upload spaced-icon">&nbsp;</span>{{{__ "start upload"}}}</button>
 <button id="start-upload-nojs" class="nojs-visible hidden-regular pure-button pure-button-primary button-rounded" type="submit"><span class="fa fa-fw fa-cloud-upload spaced-icon">&nbsp;</span>{{{__ "start upload"}}}</button>

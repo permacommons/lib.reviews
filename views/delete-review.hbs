@@ -11,7 +11,7 @@
   <label for="delete-thing" class="inline-label">{{{__ "also delete thing" review.thing.id}}}</label><p>
   {{/if}}
   <input type="hidden" value="{{csrfToken}}" name="_csrf">
-  <button type="submit" id="delete" name="delete-action" value="delete" class="pure-button button-destructive button-rounded" accesskey="d" title="{{{__ "accesskey" "d"}}}"><span class="fa fa-fw fa-trash-o spaced-icon">&nbsp;</span> {{{__ "delete"}}}</button>
+  <button type="submit" id="delete" name="delete-action" value="delete" class="pure-button button-destructive button-rounded" accesskey="d" title="{{{__ "accesskey" "d"}}}"><span class="fa fa-fw fa-trash spaced-icon">&nbsp;</span> {{{__ "delete"}}}</button>
   <a class="cancel-link" href="/review/{{review.id}}">{{{__ "cancel"}}}</a>
   </form>
 </div>

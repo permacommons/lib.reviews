@@ -18,9 +18,6 @@
     {{#each embeddedFeeds}}
     <link href="{{{this.url}}}" type="{{{this.type}}}" rel="alternate" title="{{{this.title}}}" hreflang="{{{this.language}}}"/>
     {{/each}}
-    <link rel='stylesheet' href='/static/css/pure-min.css' />
-    <link rel='stylesheet' href='/static/css/grids-responsive-min.css' />
-    <link rel="stylesheet" href="/static/css/font-awesome/font-awesome.css">
     {{#if styles}}
     {{#each styles}}
     <link rel="stylesheet" href="{{this}}">
@@ -101,7 +98,7 @@
     {{/if}}
     <div id="site-messages">
     {{#each siteMessages}}
-    <div class="message-box"><span class="fa fa-fw fa-bell-o spaced-icon">&nbsp;</span>{{{__ "site notification" this}}}</div>
+    <div class="message-box"><span class="fa fa-fw fa-bell spaced-icon">&nbsp;</span>{{{__ "site notification" this}}}</div>
     {{/each}}
     </div>
     <div id="site-errors">

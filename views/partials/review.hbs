@@ -54,7 +54,7 @@
 {{/if}}
 {{#unless hideDeleteControls}}
 {{#if review.userCanDelete}}
-<span class="content-action"><a href="/review/{{review.id}}/delete"{{#if singleReview}} accesskey="d" title="{{{__ "accesskey" "d"}}}"{{/if}}><span class="fa fa-fw fa-trash-o">&nbsp;</span>{{{__ "delete"}}}</a></span>
+<span class="content-action"><a href="/review/{{review.id}}/delete"{{#if singleReview}} accesskey="d" title="{{{__ "accesskey" "d"}}}"{{/if}}><span class="fa fa-fw fa-trash">&nbsp;</span>{{{__ "delete"}}}</a></span>
 {{/if}}
 {{/unless}}
 {{#if review.userCanEdit}}
