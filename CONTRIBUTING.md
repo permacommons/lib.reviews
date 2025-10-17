@@ -39,6 +39,10 @@ You can customize your development configuration by copying `config/default.json
 
 Any pull requests must be under the [CC-0 License](./LICENSE). This project has adopted a [code of conduct](./CODE_OF_CONDUCT.md) to make sure all contributors feel welcome.
 
+# Running tests
+
+Use `npm run test` to execute the AVA suite. The helper script automatically ensures a production Vite manifest exists, running `npm run build` on your behalf when necessary before starting the tests.
+
 # Code style
 
 - We generally use `// single-line comments` because they're more easy to add/remove in bulk.

@@ -1,4 +1,6 @@
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import process from 'process';
 import { cleanupAllFixtures } from './rethinkdb-cleanup.mjs';
 
@@ -13,6 +15,27 @@ if (args.length === 0)
 process.stdout.write('Cleaning up rethinkdb fixtures …');
 await cleanupAllFixtures();
 process.stdout.write(' Cleanup complete.\n');
+
+const manifestPath = resolve(process.cwd(), 'build', 'vite', '.vite', 'manifest.json');
+if (!existsSync(manifestPath)) {
+  process.stdout.write(`Missing Vite manifest at ${manifestPath}. Running "npm run build"…\n`);
+  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const buildResult = spawnSync(npmCommand, ['run', 'build'], {
+    stdio: 'inherit',
+    env: process.env
+  });
+
+  if (buildResult.status !== 0) {
+    const exitCode = buildResult.status ?? 1;
+    process.stderr.write('\n`npm run build` failed; aborting test run.\n');
+    process.exit(exitCode);
+  }
+
+  if (!existsSync(manifestPath)) {
+    process.stderr.write(`\nVite manifest still missing after build step (${manifestPath}).\n`);
+    process.exit(1);
+  }
+}
 
 const env = {
   ...process.env,
