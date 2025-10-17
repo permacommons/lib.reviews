@@ -34,7 +34,6 @@
     "es6-promise": "^4.2.8",
     "escape-html": "^1.0.3",
     "express": "^5.1.0",
-    "express-flash": "0.0.2",
     "express-session": "^1.18.2",
     "express-useragent": "^1.0.15",
     "file-type": "^21.0.0",
