@@ -32,7 +32,6 @@ function normalizeEntryName(value) {
 
   normalized = normalized.replace(/^frontend\/entries\//, '');
   normalized = normalized.replace(/\.m?js$/, '');
-  normalized = normalized.replace(/\.min$/, '');
 
   return normalized;
 }
