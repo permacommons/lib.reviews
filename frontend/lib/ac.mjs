@@ -209,12 +209,15 @@ class Autocomplete {
 
     if (this.selectedIndex >= 0 && this.rows[this.selectedIndex]) {
       const previousRow = this.rows[this.selectedIndex];
+      previousRow.classList.remove('selected');
       this._removeClasses(previousRow, 'SELECTED_ROW');
+      this._addClasses(previousRow, 'ROW');
       previousRow.setAttribute('aria-selected', 'false');
     }
 
     const row = this.rows[nextIndex];
     this._addClasses(row, 'SELECTED_ROW');
+    row.classList.add('selected');
     row.setAttribute('aria-selected', 'true');
     this.selectedIndex = nextIndex;
     this.inputEl.setAttribute('aria-activedescendant', row.id);
