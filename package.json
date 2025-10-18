@@ -9,6 +9,7 @@
     "test": "NODE_ENV=development node tests/helpers/run-ava.mjs",
     "test-debug": "NODE_ENV=development DEBUG=libreviews:* node tests/helpers/run-ava.mjs",
     "test-watch": "NODE_ENV=development DEBUG=libreviews:tests node tests/helpers/run-ava.mjs --watch",
+    "test-dual-db": "NODE_ENV=development DEBUG=libreviews:* node test-dual-db.js",
     "snyk-protect": "snyk-protect",
     "prepare": "npm run snyk-protect",
     "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
@@ -57,6 +58,8 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "pg": "^8.13.1",
+    "pg-pool": "^3.7.0",
     "promise-limit": "^2.7.0",
     "prosemirror-commands": "^1.7.1",
     "prosemirror-dropcursor": "^1.8.2",
