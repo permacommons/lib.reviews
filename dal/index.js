@@ -14,6 +14,7 @@ const QueryBuilder = require('./lib/query-builder');
 const type = require('./lib/type');
 const Errors = require('./lib/errors');
 const mlString = require('./lib/ml-string');
+const revision = require('./lib/revision');
 
 module.exports = function(config) {
   return new DataAccessLayer(config);
@@ -26,3 +27,4 @@ module.exports.QueryBuilder = QueryBuilder;
 module.exports.type = type;
 module.exports.Errors = Errors;
 module.exports.mlString = mlString;
+module.exports.revision = revision;

@@ -287,11 +287,13 @@ class Model {
     
     for (const [fieldName, fieldDef] of Object.entries(schema)) {
       if (fieldDef && fieldDef.isVirtual) {
-        const defaultValue = fieldDef.getDefault();
-        if (defaultValue !== undefined) {
-          this._virtualFields[fieldName] = typeof defaultValue === 'function' 
+        // For virtual fields, we need to access the raw defaultValue function
+        if (fieldDef.hasDefault) {
+          const defaultValue = fieldDef.defaultValue;
+          const computedValue = typeof defaultValue === 'function' 
             ? defaultValue.call(this) 
             : defaultValue;
+          this._virtualFields[fieldName] = computedValue;
         }
       }
     }
