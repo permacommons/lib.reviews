@@ -1,4 +1,4 @@
-{
+No{
   // We use an instance setting, as described in
   // https://github.com/lorenwest/node-config/wiki/Configuration-Files#file-load-order
   // in order to configure any settings that are specific for test instances,
@@ -23,6 +23,18 @@
       port: 28019
     }
   ],
+  
+  // PostgreSQL configuration for DAL testing
+  postgres: {
+    host: "localhost",
+    port: 5432,
+    database: "libreviews_test_4", // Separate DB for this test instance
+    user: "libreviews_user",
+    password: "libreviews_password",
+    max: 5, // Smaller pool for tests
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 2000
+  },
   questionCaptcha: {
     forms: {
       register: false

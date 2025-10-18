@@ -26,6 +26,9 @@ class Model {
     
     // Generate virtual field values
     this.generateVirtualValues();
+    
+    // Set up property accessors
+    this._setupPropertyAccessors();
   }
 
   /**
@@ -44,12 +47,6 @@ class Model {
       static get options() { return options; }
       static get dal() { return dal; }
     }
-    
-    // Set up static methods
-    DynamicModel.tableName = tableName;
-    DynamicModel.schema = schema;
-    DynamicModel.options = options;
-    DynamicModel.dal = dal;
     
     return DynamicModel;
   }  /**
@@ -168,6 +165,27 @@ class Model {
   }
 
   /**
+   * Filter records to exclude stale and deleted revisions
+   * @returns {QueryBuilder} Query builder with revision filters
+   */
+  static filterNotStaleOrDeleted() {
+    const query = new QueryBuilder(this, this.dal);
+    return query.filterNotStaleOrDeleted();
+  }
+
+  /**
+   * Get multiple records by IDs, excluding stale and deleted revisions
+   * @param {...string} ids - Record IDs
+   * @returns {QueryBuilder} Query builder for chaining
+   */
+  static getMultipleNotStaleOrDeleted(...ids) {
+    const query = new QueryBuilder(this, this.dal);
+    return query
+      .filter(row => ids.includes(row.id))
+      .filterNotStaleOrDeleted();
+  }
+
+  /**
    * Create a model instance from database result
    * @param {Object} data - Database row data
    * @returns {Model} Model instance
@@ -177,6 +195,7 @@ class Model {
     const instance = new this(data);
     instance._isNew = false;
     instance._changed.clear();
+    instance._setupPropertyAccessors();
     return instance;
   }
 
@@ -239,6 +258,28 @@ class Model {
   }
 
   /**
+   * Create a new revision of this model instance
+   * This method will be dynamically assigned by revision handlers
+   * @param {Object} user - User creating the revision
+   * @param {Object} options - Revision options
+   * @returns {Promise<Model>} New revision instance
+   */
+  async newRevision(user, options = {}) {
+    throw new Error('newRevision method not implemented. Use revision.getNewRevisionHandler() to add this method.');
+  }
+
+  /**
+   * Delete all revisions of this model instance
+   * This method will be dynamically assigned by revision handlers
+   * @param {Object} user - User performing the deletion
+   * @param {Object} options - Deletion options
+   * @returns {Promise<Model>} Deletion revision
+   */
+  async deleteAllRevisions(user, options = {}) {
+    throw new Error('deleteAllRevisions method not implemented. Use revision.getDeleteAllRevisionsHandler() to add this method.');
+  }
+
+  /**
    * Generate virtual field values
    */
   generateVirtualValues() {
@@ -253,6 +294,33 @@ class Model {
             : defaultValue;
         }
       }
+    }
+  }
+
+  /**
+   * Set up dynamic property accessors for schema fields
+   * @private
+   */
+  _setupPropertyAccessors() {
+    const schema = this.constructor.schema;
+    
+    for (const fieldName of Object.keys(schema)) {
+      // Skip if property already exists
+      if (this.hasOwnProperty(fieldName)) {
+        continue;
+      }
+      
+      // Create getter/setter for each schema field
+      Object.defineProperty(this, fieldName, {
+        get() {
+          return this.getValue(fieldName);
+        },
+        set(value) {
+          this.setValue(fieldName, value);
+        },
+        enumerable: true,
+        configurable: true
+      });
     }
   }
 

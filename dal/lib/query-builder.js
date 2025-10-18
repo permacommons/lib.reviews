@@ -49,6 +49,81 @@ class QueryBuilder {
   }
 
   /**
+   * Filter out stale (old) and deleted revisions
+   * Uses PostgreSQL partial indexes for optimal performance
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  filterNotStaleOrDeleted() {
+    // Add conditions to filter current, non-deleted revisions
+    // This leverages the partial indexes created in the schema
+    this._addWhereCondition('_old_rev_of', 'IS', null);
+    this._addWhereCondition('_rev_deleted', '=', false);
+    return this;
+  }
+
+  /**
+   * Filter by revision user
+   * @param {string} userId - User ID who created the revision
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  filterByRevisionUser(userId) {
+    this._addWhereCondition('_rev_user', '=', userId);
+    return this;
+  }
+
+  /**
+   * Filter by revision tags
+   * @param {string|string[]} tags - Tag or array of tags to filter by
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  filterByRevisionTags(tags) {
+    const tagArray = Array.isArray(tags) ? tags : [tags];
+    
+    // Use PostgreSQL array overlap operator
+    const placeholder = `$${this._paramIndex++}`;
+    this._where.push(`_rev_tags && ${placeholder}`);
+    this._params.push(tagArray);
+    
+    return this;
+  }
+
+  /**
+   * Filter by revision date range
+   * @param {Date} startDate - Start date (inclusive)
+   * @param {Date} endDate - End date (inclusive)
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  filterByRevisionDateRange(startDate, endDate) {
+    if (startDate) {
+      this._addWhereCondition('_rev_date', '>=', startDate);
+    }
+    if (endDate) {
+      this._addWhereCondition('_rev_date', '<=', endDate);
+    }
+    return this;
+  }
+
+  /**
+   * Get all revisions of a specific document (including old and deleted)
+   * @param {string} documentId - The document ID to get revisions for
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  getAllRevisions(documentId) {
+    // Clear any existing revision filters
+    this._where = this._where.filter(condition => 
+      !condition.includes('_old_rev_of') && !condition.includes('_rev_deleted')
+    );
+    
+    // Add condition to get all revisions of the document
+    const placeholder1 = `$${this._paramIndex++}`;
+    const placeholder2 = `$${this._paramIndex++}`;
+    this._where.push(`(id = ${placeholder1} OR _old_rev_of = ${placeholder2})`);
+    this._params.push(documentId, documentId);
+    
+    return this;
+  }
+
+  /**
    * Add ORDER BY clause
    * @param {string} field - Field to order by
    * @param {string} direction - Sort direction (ASC/DESC)
@@ -84,11 +159,53 @@ class QueryBuilder {
    * @returns {QueryBuilder} This instance for chaining
    */
   getJoin(joinSpec) {
-    // For now, this is a simplified implementation
-    // Full join support would require relationship definitions
-    // and more sophisticated query building
+    if (!joinSpec || Object.keys(joinSpec).length === 0) {
+      return this;
+    }
+    
+    // Store join specification for processing during query building
     this._joinSpec = joinSpec;
+    
+    // Process joins and add to query
+    for (const [relationName, relationSpec] of Object.entries(joinSpec)) {
+      this._processJoin(relationName, relationSpec);
+    }
+    
     return this;
+  }
+
+  /**
+   * Process a single join specification
+   * @param {string} relationName - Name of the relation
+   * @param {Object} relationSpec - Join specification
+   * @private
+   */
+  _processJoin(relationName, relationSpec) {
+    // This is a simplified join implementation
+    // In a full implementation, this would use model relationship definitions
+    
+    if (typeof relationSpec === 'object' && relationSpec.tableName) {
+      const joinTable = relationSpec.tableName;
+      const joinCondition = relationSpec.on || `${this.tableName}.${relationName}_id = ${joinTable}.id`;
+      
+      // Add revision-aware join condition for joined table
+      let joinClause = `LEFT JOIN ${joinTable} ON ${joinCondition}`;
+      
+      // If the joined table has revision fields, filter for current revisions
+      if (relationSpec.hasRevisions !== false) {
+        joinClause += ` AND ${joinTable}._old_rev_of IS NULL AND ${joinTable}._rev_deleted = false`;
+      }
+      
+      this._joins.push(joinClause);
+      
+      // Update select to include joined fields with aliases
+      if (relationSpec.select) {
+        const joinedFields = relationSpec.select.map(field => 
+          `${joinTable}.${field} AS ${relationName}_${field}`
+        );
+        this._select = this._select.concat(joinedFields);
+      }
+    }
   }
 
   /**
@@ -165,9 +282,15 @@ class QueryBuilder {
    * @private
    */
   _addWhereCondition(field, operator, value) {
-    const placeholder = `$${this._paramIndex++}`;
-    this._where.push(`${field} ${operator} ${placeholder}`);
-    this._params.push(value);
+    if (operator === 'IS' && value === null) {
+      this._where.push(`${field} IS NULL`);
+    } else if (operator === 'IS NOT' && value === null) {
+      this._where.push(`${field} IS NOT NULL`);
+    } else {
+      const placeholder = `$${this._paramIndex++}`;
+      this._where.push(`${field} ${operator} ${placeholder}`);
+      this._params.push(value);
+    }
   }
 
   /**

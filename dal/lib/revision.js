@@ -1,0 +1,278 @@
+'use strict';
+
+/**
+ * Revision system handlers for PostgreSQL DAL
+ * 
+ * Provides revision management functionality that maintains compatibility
+ * with the existing RethinkDB revision system while leveraging PostgreSQL
+ * features like partial indexes for performance.
+ */
+
+const { randomUUID } = require('crypto');
+const { DocumentNotFound, ValidationError } = require('./errors');
+const debug = require('../../util/debug');
+
+/**
+ * Revision system handlers
+ */
+const revision = {
+
+  /**
+   * Get a function that creates a new revision handler for PostgreSQL
+   * 
+   * @param {Function} ModelClass - The model class
+   * @returns {Function} New revision handler function
+   */
+  getNewRevisionHandler(ModelClass) {
+    /**
+     * Create a new revision by archiving the current revision and preparing
+     * a new one with updated revision metadata
+     * 
+     * @param {Object} user - User creating the revision
+     * @param {Object} options - Revision options
+     * @param {string[]} options.tags - Tags to associate with revision
+     * @returns {Promise<Model>} New revision instance
+     */
+    const newRevision = async function(user, { tags } = {}) {
+      const currentRev = this;
+      
+      // Create old revision copy
+      const oldRevData = { ...currentRev._data };
+      oldRevData._old_rev_of = currentRev.id;
+      delete oldRevData.id; // Let PostgreSQL generate new ID
+      
+      // Save the old revision
+      const insertFields = Object.keys(oldRevData).filter(key => oldRevData[key] !== undefined);
+      const insertValues = insertFields.map(key => oldRevData[key]);
+      const placeholders = insertFields.map((_, index) => `$${index + 1}`);
+      
+      const insertQuery = `
+        INSERT INTO ${ModelClass.tableName} (${insertFields.join(', ')})
+        VALUES (${placeholders.join(', ')})
+      `;
+      
+      await ModelClass.dal.query(insertQuery, insertValues);
+      
+      // Update current revision with new metadata
+      const revId = randomUUID();
+      currentRev._data._rev_id = revId;
+      currentRev._data._rev_user = user.id;
+      currentRev._data._rev_date = new Date();
+      currentRev._data._rev_tags = tags || [];
+      
+      // Mark fields as changed
+      currentRev._changed.add('_rev_id');
+      currentRev._changed.add('_rev_user');
+      currentRev._changed.add('_rev_date');
+      currentRev._changed.add('_rev_tags');
+      
+      return currentRev;
+    };
+    
+    return newRevision;
+  },
+
+  /**
+   * Get a function that handles deletion of all revisions
+   * 
+   * @param {Function} ModelClass - The model class
+   * @returns {Function} Delete all revisions handler
+   */
+  getDeleteAllRevisionsHandler(ModelClass) {
+    /**
+     * Mark all revisions as deleted by creating a deletion revision
+     * and updating all related revisions
+     * 
+     * @param {Object} user - User performing the deletion
+     * @param {Object} options - Deletion options
+     * @param {string[]} options.tags - Tags for the deletion (will prepend 'delete')
+     * @returns {Promise<Model>} Deletion revision
+     */
+    const deleteAllRevisions = async function(user, { tags = [] } = {}) {
+      const id = this.id;
+      const deletionTags = ['delete', ...tags];
+      
+      // Create new revision for deletion
+      const rev = await this.newRevision(user, { tags: deletionTags });
+      rev._data._rev_deleted = true;
+      rev._changed.add('_rev_deleted');
+      
+      // Save the deletion revision
+      await rev.save();
+      
+      // Update all old revisions to mark as deleted
+      const updateQuery = `
+        UPDATE ${ModelClass.tableName}
+        SET _rev_deleted = true
+        WHERE _old_rev_of = $1
+      `;
+      
+      await ModelClass.dal.query(updateQuery, [id]);
+      
+      return rev;
+    };
+    
+    return deleteAllRevisions;
+  },
+
+  /**
+   * Get a function that retrieves non-stale, non-deleted records
+   * 
+   * @param {Function} ModelClass - The model class
+   * @returns {Function} Get handler for current revisions
+   */
+  getNotStaleOrDeletedGetHandler(ModelClass) {
+    /**
+     * Get a record by ID, ensuring it's not stale or deleted
+     * 
+     * @param {string} id - Record ID
+     * @param {Object} joinOptions - Join options for related data
+     * @returns {Promise<Model>} Model instance
+     * @throws {Error} If revision is deleted or stale
+     */
+    const getNotStaleOrDeleted = async function(id, joinOptions = {}) {
+      let data;
+      
+      if (Object.keys(joinOptions).length > 0) {
+        // Use query builder with joins
+        const query = new (require('./query-builder'))(ModelClass, ModelClass.dal);
+        data = await query
+          .filter({ id })
+          .getJoin(joinOptions)
+          .first();
+      } else {
+        // Simple get by ID
+        const query = `
+          SELECT * FROM ${ModelClass.tableName}
+          WHERE id = $1
+        `;
+        const result = await ModelClass.dal.query(query, [id]);
+        data = result.rows[0] ? ModelClass._createInstance(result.rows[0]) : null;
+      }
+      
+      if (!data) {
+        throw new DocumentNotFound(`${ModelClass.tableName} with id ${id} not found`);
+      }
+      
+      if (data._data._rev_deleted) {
+        throw revision.deletedError;
+      }
+      
+      if (data._data._old_rev_of) {
+        throw revision.staleError;
+      }
+      
+      return data;
+    };
+    
+    return getNotStaleOrDeleted;
+  },
+
+  /**
+   * Get a function that creates the first revision of a model
+   * 
+   * @param {Function} ModelClass - The model class
+   * @returns {Function} First revision creator
+   */
+  getFirstRevisionHandler(ModelClass) {
+    /**
+     * Create the first revision of a model instance
+     * 
+     * @param {Object} user - User creating the first revision
+     * @param {Object} options - Revision options
+     * @param {string[]} options.tags - Tags to associate with revision
+     * @returns {Promise<Model>} First revision instance
+     */
+    const createFirstRevision = async function(user, { tags } = {}) {
+      const firstRev = new ModelClass({});
+      
+      const revId = randomUUID();
+      firstRev._data._rev_id = revId;
+      firstRev._data._rev_user = user.id;
+      firstRev._data._rev_date = new Date();
+      firstRev._data._rev_tags = tags || [];
+      
+      return firstRev;
+    };
+    
+    return createFirstRevision;
+  },
+
+  /**
+   * Get a function that filters records to exclude stale and deleted revisions
+   * 
+   * @param {Function} ModelClass - The model class
+   * @returns {Function} Filter function for current revisions
+   */
+  getNotStaleOrDeletedFilterHandler(ModelClass) {
+    /**
+     * Filter records to exclude stale and deleted revisions
+     * 
+     * @returns {QueryBuilder} Query builder with revision filters applied
+     */
+    const filterNotStaleOrDeleted = function() {
+      const QueryBuilder = require('./query-builder');
+      const query = new QueryBuilder(ModelClass, ModelClass.dal);
+      return query.filterNotStaleOrDeleted();
+    };
+    
+    return filterNotStaleOrDeleted;
+  },
+
+  /**
+   * Get a function that retrieves multiple records by IDs, excluding stale and deleted revisions
+   * 
+   * @param {Function} ModelClass - The model class
+   * @returns {Function} Multiple get handler for current revisions
+   */
+  getMultipleNotStaleOrDeletedHandler(ModelClass) {
+    /**
+     * Get multiple records by IDs, excluding stale and deleted revisions
+     * 
+     * @param {string[]} idArray - Array of record IDs
+     * @returns {QueryBuilder} Query builder for chaining
+     */
+    const getMultipleNotStaleOrDeleted = function(idArray) {
+      const QueryBuilder = require('./query-builder');
+      const query = new QueryBuilder(ModelClass, ModelClass.dal);
+      
+      // Add condition for multiple IDs
+      if (idArray.length > 0) {
+        const placeholders = idArray.map((_, index) => `$${index + 1}`).join(', ');
+        query._where.push(`id IN (${placeholders})`);
+        query._params.push(...idArray);
+        query._paramIndex = idArray.length + 1;
+      }
+      
+      return query.filterNotStaleOrDeleted();
+    };
+    
+    return getMultipleNotStaleOrDeleted;
+  },
+
+  /**
+   * Get revision schema fields for PostgreSQL
+   * 
+   * @returns {Object} Schema fields for revision system
+   */
+  getSchema() {
+    const Type = require('./type');
+    
+    return {
+      _rev_user: Type.string().uuid(4).required(true),
+      _rev_date: Type.date().required(true),
+      _rev_id: Type.string().uuid(4).required(true),
+      _old_rev_of: Type.string().uuid(4),
+      _rev_deleted: Type.boolean().default(false),
+      _rev_tags: Type.array(Type.string()).default([])
+    };
+  }
+};
+
+// Standard revision errors
+revision.deletedError = new Error('Revision has been deleted.');
+revision.staleError = new Error('Outdated revision.');
+revision.deletedError.name = 'RevisionDeletedError';
+revision.staleError.name = 'RevisionStaleError';
+
+module.exports = revision;

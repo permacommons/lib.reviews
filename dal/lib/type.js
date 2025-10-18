@@ -17,7 +17,7 @@ class Type {
   constructor(options = {}) {
     this.options = options;
     this.validators = [];
-    this.required = false;
+    this._required = false;
     this.defaultValue = undefined;
     this.hasDefault = false;
   }
@@ -40,7 +40,7 @@ class Type {
    * @returns {Type} This instance for chaining
    */
   required(isRequired = true) {
-    this.required = isRequired;
+    this._required = isRequired;
     return this;
   }
 
@@ -64,7 +64,7 @@ class Type {
    */
   validate(value, fieldName = 'field') {
     // Check required
-    if (this.required && (value === null || value === undefined)) {
+    if (this._required && (value === null || value === undefined)) {
       throw new ValidationError(`${fieldName} is required`);
     }
 

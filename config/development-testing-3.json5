@@ -23,6 +23,18 @@
       port: 28018
     }
   ],
+  
+  // PostgreSQL configuration for DAL testing
+  postgres: {
+    host: "localhost",
+    port: 5432,
+    database: "libreviews_test_3", // Separate DB for this test instance
+    user: "libreviews_user",
+    password: "libreviews_password",
+    max: 5, // Smaller pool for tests
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 2000
+  },
   questionCaptcha: {
     forms: {
       register: false
