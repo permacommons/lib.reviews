@@ -37,6 +37,12 @@ The DAL provides a compatible interface with the existing Thinky ORM while using
    - PostgreSQL error conversion
    - Compatible with existing error handling
 
+6. **Multilingual Strings** (`lib/ml-string.js`)
+   - JSONB-based multilingual string handling
+   - Language validation and fallback resolution
+   - PostgreSQL query generation for JSONB fields
+   - HTML stripping and content processing
+
 ## Database Schema
 
 The migration uses a hybrid approach:
@@ -82,6 +88,24 @@ const user = await User.create({
   displayName: 'John Doe',
   email: 'john@example.com'
 });
+
+// Multilingual string usage
+const titleSchema = DAL.mlString.getSchema({ maxLength: 200 });
+const multilingualTitle = {
+  en: 'English Title',
+  de: 'German Title',
+  fr: 'French Title'
+};
+
+// Validate multilingual string
+titleSchema.validate(multilingualTitle, 'title');
+
+// Resolve to preferred language with fallbacks
+const resolved = DAL.mlString.resolve('es', multilingualTitle); // Falls back to English
+
+// Generate PostgreSQL queries for JSONB fields
+const query = DAL.mlString.buildQuery('title', 'en', '%search%', 'ILIKE');
+// Result: "title->>'en' ILIKE $1"
 ```
 
 ## Migration
@@ -114,6 +138,7 @@ The DAL maintains compatibility with the existing Thinky ORM interface:
 - Error handling and conversion
 - PostgreSQL schema definition
 - Migration system
+- Multilingual string handling and validation for JSONB columns
 
 🔄 **Future Enhancements:**
 - Advanced join operations
@@ -130,5 +155,7 @@ The DAL maintains compatibility with the existing Thinky ORM interface:
 - `lib/query-builder.js` - Query building functionality
 - `lib/type.js` - Type system and validation
 - `lib/errors.js` - Error handling
+- `lib/ml-string.js` - Multilingual string handling
 - `example-usage.js` - Usage examples
+- `test-ml-string.js` - Multilingual string tests
 - `../migrations/001_create_postgresql_schema.sql` - Database schema

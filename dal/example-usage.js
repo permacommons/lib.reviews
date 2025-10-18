@@ -69,6 +69,53 @@ async function example() {
     await foundUser.save();
     console.log('Updated user trust status');
     
+    // === Multilingual String Examples ===
+    console.log('\n=== Multilingual String Examples ===');
+    
+    // Create schemas for multilingual strings
+    const titleSchema = DAL.mlString.getSchema({ maxLength: 200 });
+    const aliasesSchema = DAL.mlString.getSchema({ array: true, maxLength: 100 });
+    
+    // Example multilingual data
+    const bookTitle = {
+      en: 'The Great Gatsby',
+      de: 'Der große Gatsby',
+      fr: 'Gatsby le Magnifique'
+    };
+    
+    const bookAliases = {
+      en: ['The Great Gatsby', 'Gatsby'],
+      de: ['Der große Gatsby', 'Gatsby']
+    };
+    
+    // Validate multilingual strings
+    titleSchema.validate(bookTitle, 'title');
+    console.log('✓ Title validation passed');
+    
+    aliasesSchema.validate(bookAliases, 'aliases');
+    console.log('✓ Aliases validation passed');
+    
+    // Language resolution examples
+    console.log('\nLanguage resolution:');
+    console.log('English:', DAL.mlString.resolve('en', bookTitle));
+    console.log('German:', DAL.mlString.resolve('de', bookTitle));
+    console.log('Spanish (fallback):', DAL.mlString.resolve('es', bookTitle));
+    
+    // Query building examples
+    console.log('\nQuery building:');
+    console.log('Simple query:', DAL.mlString.buildQuery('title', 'en', 'The Great Gatsby'));
+    console.log('Search query:', DAL.mlString.buildQuery('title', 'en', '%Gatsby%', 'ILIKE'));
+    console.log('Multi-language search:', DAL.mlString.buildMultiLanguageQuery('title', '%Gatsby%'));
+    
+    // HTML stripping example
+    const htmlContent = {
+      en: '<p>This is <strong>bold</strong> text</p>',
+      de: '<p>Das ist <strong>fetter</strong> Text</p>'
+    };
+    console.log('\nHTML stripping:');
+    console.log('Original:', htmlContent);
+    console.log('Stripped:', DAL.mlString.stripHTML(htmlContent));
+    
   } catch (error) {
     console.error('Error:', error.message);
   } finally {
