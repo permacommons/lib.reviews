@@ -19,6 +19,7 @@ class DALFixtureAVA {
     this.loaded = false;
     this.testInstance = testInstance;
     this.tablePrefix = `test_${testInstance.replace('-', '_')}_`;
+    this.connected = false;
   }
 
   /**
@@ -53,9 +54,23 @@ class DALFixtureAVA {
     
     // Initialize DAL
     this.dal = new DataAccessLayer(pgConfig);
-    await this.dal.connect();
-    
-    logOK('PostgreSQL DAL connected for AVA tests.');
+    // Attach table prefix so real models can derive their table names
+    this.dal.tablePrefix = this.tablePrefix;
+    try {
+      await this.dal.connect();
+      this.connected = true;
+      logOK('PostgreSQL DAL connected for AVA tests.');
+    } catch (error) {
+      // Best effort cleanup of partially initialized pools
+      try {
+        await this.dal.disconnect();
+      } catch (disconnectError) {
+        logNotice(`Ignoring disconnect error during bootstrap cleanup: ${disconnectError.message}`);
+      }
+      this.dal = null;
+      this.connected = false;
+      throw error;
+    }
     
     // Create models if provided
     if (modelDefinitions.length > 0) {
@@ -94,7 +109,7 @@ class DALFixtureAVA {
    * @param {Array} tableNames - Names of tables to clean up (without prefix)
    */
   async cleanupTables(tableNames = []) {
-    if (!this.dal) return;
+    if (!this.dal || !this.connected) return;
     
     // Use a transaction to ensure cleanup is atomic
     await this.dal.transaction(async (client) => {
@@ -117,7 +132,7 @@ class DALFixtureAVA {
    * @param {Array} tableDefinitions - Array of table creation definitions
    */
   async createTestTables(tableDefinitions = []) {
-    if (!this.dal) return;
+    if (!this.dal || !this.connected) return;
     
     for (const tableDef of tableDefinitions) {
       const fullTableName = this.tablePrefix + tableDef.name;
@@ -152,7 +167,7 @@ class DALFixtureAVA {
    * @param {Array} tableNames - Names of tables to drop (without prefix)
    */
   async dropTestTables(tableNames = []) {
-    if (!this.dal) return;
+    if (!this.dal || !this.connected) return;
     
     for (const tableName of tableNames) {
       const fullTableName = this.tablePrefix + tableName;
@@ -178,6 +193,18 @@ class DALFixtureAVA {
       }
       this.dal = null;
     }
+    try {
+      const pg = require('pg');
+      if (pg?.pools?.all) {
+        await Promise.all(Array.from(pg.pools.all).map(async ([, pool]) => {
+          try {
+            await pool.end();
+          } catch {}
+        }));
+        pg.pools.all.clear?.();
+      }
+    } catch {}
+    this.connected = false;
     this.models = {};
     this.loaded = false;
   }
@@ -198,7 +225,7 @@ class DALFixtureAVA {
    * @returns {Promise} Query result
    */
   async query(sql, params = []) {
-    if (!this.dal) {
+    if (!this.dal || !this.connected) {
       throw new Error('DAL not initialized');
     }
     return await this.dal.query(sql, params);
@@ -211,6 +238,53 @@ class DALFixtureAVA {
    */
   getTableName(tableName) {
     return this.tablePrefix + tableName;
+  }
+
+  /**
+   * Initialize real PostgreSQL models using their initializer functions.
+   * Each initializer receives the DAL instance so it can attach to the same
+   * connection pool and honor table prefixes for isolation.
+   * @param {Array} loaders - Array of loader configs or functions
+   * @returns {Object} Map of loaded models keyed by base table name
+   */
+  async initializeModels(loaders = []) {
+    if (!this.dal || !this.connected) {
+      throw new Error('DAL not initialized');
+    }
+
+    const results = {};
+
+    for (const entry of loaders) {
+      if (!entry) continue;
+
+      let loaderFn;
+      let key;
+
+      if (typeof entry === 'function') {
+        loaderFn = entry;
+      } else if (typeof entry === 'object') {
+        loaderFn = entry.loader || entry.load;
+        key = entry.key || entry.name;
+      }
+
+      if (typeof loaderFn !== 'function') {
+        continue;
+      }
+
+      const model = await loaderFn(this.dal);
+      if (!model) continue;
+
+      const tableName = typeof model.tableName === 'string' ? model.tableName : '';
+      const baseName = tableName.startsWith(this.tablePrefix) ?
+        tableName.slice(this.tablePrefix.length) :
+        tableName;
+
+      const modelKey = key || baseName || loaderFn.name || `model_${Object.keys(results).length + 1}`;
+      this.models[modelKey] = model;
+      results[modelKey] = model;
+    }
+
+    return results;
   }
 }
 

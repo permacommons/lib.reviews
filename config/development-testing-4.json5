@@ -1,4 +1,4 @@
-No{
+{
   // We use an instance setting, as described in
   // https://github.com/lorenwest/node-config/wiki/Configuration-Files#file-load-order
   // in order to configure any settings that are specific for test instances,

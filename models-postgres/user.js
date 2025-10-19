@@ -189,7 +189,7 @@ async function ensureUnique(name) {
   }
 
   name = name.trim();
-  const users = await User.filter({ canonical_name: User.canonicalize(name) });
+  const users = await User.filter({ canonical_name: User.canonicalize(name) }).run();
   if (users.length) {
     throw new NewUserError({
       message: 'A user named %s already exists.',

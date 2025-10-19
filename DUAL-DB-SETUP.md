@@ -174,6 +174,19 @@ Once both databases are connected:
 2. You can start testing individual model migrations
 3. Compare data between RethinkDB and PostgreSQL implementations
 
+### Running PostgreSQL-only tests
+
+When you want to exercise just the PostgreSQL DAL without bringing up RethinkDB,
+set `LIBREVIEWS_SKIP_RETHINK=1`. The harness in `tests-postgres/` does this
+automatically:
+
+```bash
+LIBREVIEWS_SKIP_RETHINK=1 npm run test-postgres
+```
+
+With the flag set, `db-dual.js` skips Thinky initialisation entirely, making it
+safe to run on machines that only have PostgreSQL available.
+
 ## Files Created for Dual Setup
 
 - `config/development.json5` - Dual database configuration

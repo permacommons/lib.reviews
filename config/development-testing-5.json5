@@ -1,0 +1,27 @@
+{
+  // Instance-specific overrides for AVA worker slot "testing-5".
+  // See other development-testing-*.json5 files for details.
+
+  frontPageTeamBlog: "",
+  logger: false,
+  search: {
+    log: 'error'
+  },
+  dbServers: [
+    {
+      host: "localhost",
+      port: 28020
+    }
+  ],
+
+  postgres: {
+    host: "localhost",
+    port: 5432,
+    database: "libreviews_test_5",
+    user: "libreviews_user",
+    password: "libreviews_password",
+    max: 5,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 2000
+  }
+}
