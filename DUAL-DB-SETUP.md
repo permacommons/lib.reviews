@@ -52,27 +52,77 @@ createuser libreviews_user
 createdb libreviews -O libreviews_user
 ```
 
-### 3. Set Required Database Permissions
+### 3. Apply Schema and Set Permissions
 
-The libreviews_user needs specific permissions for the DAL to work properly:
+Apply the PostgreSQL schema and configure permissions:
 
 ```bash
-# Connect to the libreviews database
-psql libreviews
+# Apply the initial schema migration
+psql libreviews -f migrations/001_initial_schema.sql
 
-# Grant schema permissions (required for migrations and table creation)
+# Grant permissions to libreviews_user
+psql libreviews << EOF
+# Grant schema permissions (required for migrations and table operations)
 GRANT ALL PRIVILEGES ON DATABASE libreviews TO libreviews_user;
 GRANT ALL ON SCHEMA public TO libreviews_user;
 GRANT CREATE ON SCHEMA public TO libreviews_user;
 
+# Grant permissions on all tables and sequences
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO libreviews_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO libreviews_user;
+
 # Set password for the user (required for TCP connections)
 ALTER USER libreviews_user WITH PASSWORD 'libreviews_password';
-\q
+EOF
 ```
 
 **Important**: The DAL connects via TCP (localhost) rather than Unix sockets to avoid peer authentication issues.
 
-### 4. Update Configuration
+### 4. Migrate Data from RethinkDB to PostgreSQL
+
+Once the schema is in place, migrate data from RethinkDB:
+
+```bash
+# Ensure RethinkDB is running with your data
+# Then run the migration tool
+node migrations/migrate-rethinkdb-to-postgres.js --verbose
+```
+
+The migration tool will:
+- Connect to both RethinkDB and PostgreSQL
+- Migrate all 15 tables (users, teams, things, reviews, files, etc.)
+- Transform data to PostgreSQL format (camelCase → snake_case, etc.)
+- Validate data integrity after migration
+- Generate a detailed migration report at `migration-report.json`
+
+Expected output:
+```
+✓ Migration completed successfully
+Duration: ~15 seconds
+Tables processed: 15
+Records migrated: 7000+
+Records skipped: 0-5 (due to referential integrity)
+Errors: 0
+```
+
+**What gets migrated:**
+- All user accounts and metadata
+- Teams and team memberships
+- Things (items being reviewed) and their metadata
+- Reviews with multilingual content
+- Files and media attachments
+- Blog posts
+- Invite links
+- All many-to-many relationships
+
+**Data transformations:**
+- Field names converted from camelCase to snake_case
+- Multilingual strings preserved as JSONB
+- Metadata fields grouped in JSONB for things
+- Revision tracking fields maintained
+- Foreign key relationships validated
+
+### 5. Update Configuration
 
 Edit `config/development.json5` to match your PostgreSQL setup:
 
@@ -90,13 +140,13 @@ Edit `config/development.json5` to match your PostgreSQL setup:
 }
 ```
 
-### 5. Install Dependencies
+### 6. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 6. Test the Setup
+### 7. Test the Setup
 
 ```bash
 # Test PostgreSQL connection and basic functionality
@@ -150,33 +200,88 @@ See `tests-postgres/README.md` for detailed information about the test setup and
 For convenience, here's the complete setup in one script:
 
 ```bash
-# Create user and database
+# Step 1: Create user and database
 createuser libreviews_user
-createdb libreviews -O libreviews_user
+createdb libreviews
 
-# Set up permissions
+# Step 2: Apply schema migration
+psql libreviews -f migrations/001_initial_schema.sql
+
+# Step 3: Set up permissions
 psql libreviews << EOF
 ALTER USER libreviews_user WITH PASSWORD 'libreviews_password';
 GRANT ALL PRIVILEGES ON DATABASE libreviews TO libreviews_user;
 GRANT ALL ON SCHEMA public TO libreviews_user;
 GRANT CREATE ON SCHEMA public TO libreviews_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO libreviews_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO libreviews_user;
 EOF
 
-# Test the connection
+# Step 4: Test the connection
 PGPASSWORD=libreviews_password psql -h localhost -U libreviews_user -d libreviews -c "SELECT 'Connection successful!' as status;"
 
-# Install dependencies and test
+# Step 5: Install dependencies
 npm install
+
+# Step 6: Migrate data from RethinkDB (ensure RethinkDB is running first!)
+node migrations/migrate-rethinkdb-to-postgres.js --verbose
+
+# Step 7: Run tests
 npm run test-postgres
 ```
 
+**Note**: Make sure RethinkDB is running with your data before executing step 6.
+
 ## Next Steps
 
-Once both databases are connected:
+Once both databases are connected and data is migrated:
 
-1. The PostgreSQL schema will be automatically created via migrations
-2. You can start testing individual model migrations
-3. Compare data between RethinkDB and PostgreSQL implementations
+1. The PostgreSQL schema is applied via `migrations/001_initial_schema.sql`
+2. Data is migrated from RethinkDB using `migrations/migrate-rethinkdb-to-postgres.js`
+3. You can compare data between RethinkDB and PostgreSQL implementations
+4. Run tests to verify both database implementations work correctly
+
+### Verifying the Migration
+
+Check migrated data:
+
+```bash
+# Connect to PostgreSQL
+psql libreviews
+
+# Check table counts
+SELECT 'users' as table, count(*) FROM users
+UNION ALL SELECT 'teams', count(*) FROM teams
+UNION ALL SELECT 'things', count(*) FROM things
+UNION ALL SELECT 'reviews', count(*) FROM reviews
+UNION ALL SELECT 'files', count(*) FROM files;
+
+# Review the migration report
+cat migration-report.json
+```
+
+### Re-running the Migration
+
+If you need to re-run the migration:
+
+```bash
+# Drop and recreate the database
+dropdb libreviews
+createdb libreviews
+
+# Re-apply schema and permissions
+psql libreviews -f migrations/001_initial_schema.sql
+psql libreviews << EOF
+GRANT ALL PRIVILEGES ON DATABASE libreviews TO libreviews_user;
+GRANT ALL ON SCHEMA public TO libreviews_user;
+GRANT CREATE ON SCHEMA public TO libreviews_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO libreviews_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO libreviews_user;
+EOF
+
+# Re-run migration
+node migrations/migrate-rethinkdb-to-postgres.js --verbose
+```
 
 ### Running PostgreSQL Tests
 
@@ -201,11 +306,38 @@ see `tests-postgres/README.md`.
 - `models-postgres/` - Complete PostgreSQL model implementations
 - `tests-postgres/` - PostgreSQL test suite with proper isolation
 - `dal/` - Complete PostgreSQL DAL implementation
-- `migrations/001_create_postgresql_schema.sql` - Database schema
+- `migrations/001_initial_schema.sql` - Consolidated database schema
+- `migrations/migrate-rethinkdb-to-postgres.js` - Data migration tool
+- `migrations/lib/migration-validator.js` - Migration validation logic
+- `migrations/lib/data-transformer.js` - Data transformation utilities
+- `migrations/lib/migration-reporter.js` - Migration reporting
+
+## Migration Tool Options
+
+The migration tool supports several command-line options:
+
+```bash
+# Run with verbose logging
+node migrations/migrate-rethinkdb-to-postgres.js --verbose
+
+# Dry run (show what would be migrated without changes)
+node migrations/migrate-rethinkdb-to-postgres.js --dry-run
+
+# Migrate only a specific table
+node migrations/migrate-rethinkdb-to-postgres.js --table=users
+
+# Validate data only (no migration)
+node migrations/migrate-rethinkdb-to-postgres.js --validate-only
+
+# Custom batch size
+node migrations/migrate-rethinkdb-to-postgres.js --batch-size=500
+```
 
 ## Safety Notes
 
 - This setup runs both databases in parallel
-- No data is automatically migrated between them
-- The existing RethinkDB setup remains unchanged
+- Data is migrated via the migration tool, not automatically
+- The migration tool validates all data and generates reports
+- The existing RethinkDB setup remains unchanged during migration
 - PostgreSQL is additive and can be safely removed
+- All migrations can be re-run by dropping and recreating the database

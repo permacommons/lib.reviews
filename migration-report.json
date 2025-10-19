@@ -1,0 +1,36 @@
+{
+  "migration": {
+    "timestamp": "2025-10-19T21:25:09.206Z",
+    "duration": {
+      "milliseconds": 11052,
+      "seconds": 11,
+      "minutes": 0
+    },
+    "options": {
+      "dryRun": false,
+      "batchSize": 1000,
+      "validateOnly": false,
+      "table": null,
+      "verbose": true
+    }
+  },
+  "summary": {
+    "tablesProcessed": 15,
+    "recordsMigrated": 7265,
+    "recordsSkipped": 3,
+    "errorsEncountered": 0,
+    "success": true
+  },
+  "performance": {
+    "recordsPerSecond": 657,
+    "averageRecordsPerTable": 484
+  },
+  "errors": [],
+  "recommendations": [
+    {
+      "type": "success",
+      "message": "Migration completed successfully. Consider running validation tests and updating application configuration.",
+      "priority": "low"
+    }
+  ]
+}
