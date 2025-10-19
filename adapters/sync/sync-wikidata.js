@@ -10,7 +10,7 @@ const limit = require('promise-limit')(4); // Max 4 concurrent requests
 // Internal deps
 const WikidataBackendAdapter = require('../wikidata-backend-adapter');
 const wikidata = new WikidataBackendAdapter();
-const Thing = require('../../models/thing');
+const { getPostgresThingModel } = require('../../models-postgres/thing');
 const search = require('../../search');
 
 // URL pattern a thing needs to have among its .urls to enable and perform
@@ -18,11 +18,29 @@ const search = require('../../search');
 // adapter, but keep in mind that RethinkDB uses RE2 expressions, not JS ones.
 const regexStr = '^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)$';
 
+// Get the PostgreSQL Thing model
+const Thing = getPostgresThingModel();
+
+if (!Thing) {
+  console.error('PostgreSQL Thing model not available. Make sure PostgreSQL is configured.');
+  process.exit(1);
+}
+
+// Use PostgreSQL-compatible filtering
 Thing
-  .filter({ _oldRevOf: false }, { default: true })
-  .filter({ _revDeleted: false }, { default: true })
-  .filter(thing => thing('urls').contains(url => url.match(regexStr)))
-  .then(processThings);
+  .filterNotStaleOrDeleted()
+  .then(things => {
+    // Filter things that have Wikidata URLs
+    const wikidataThings = things.filter(thing => 
+      thing.urls && thing.urls.some(url => new RegExp(regexStr).test(url))
+    );
+    return processThings(wikidataThings);
+  })
+  .catch(error => {
+    console.log('Problem fetching things for sync. The error was:');
+    console.log(error);
+    process.exit(1);
+  });
 
 // For an array of things, perform Wikidata lookups and update their
 // descriptions as appropriate
@@ -59,7 +77,11 @@ function processThings(things) {
           wikidataResults[index].data && wikidataResults[index].data.description;
 
         if (syncActive && hasDescription) {
-          thing.description = wikidataResults[index].data.description;
+          // Update description in metadata JSONB field for PostgreSQL
+          if (!thing.metadata) {
+            thing.metadata = {};
+          }
+          thing.metadata.description = wikidataResults[index].data.description;
           thing.sync.description.updated = new Date();
           thing.sync.description.source = 'wikidata';
           thingUpdates.push(thing.save());

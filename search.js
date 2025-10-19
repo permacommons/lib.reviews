@@ -236,18 +236,22 @@ let search = {
 
   // Index a new review subject (thing). Returns a promise; logs errors
   indexThing(thing) {
+    // Extract description from metadata for PostgreSQL structure
+    const description = thing.metadata && thing.metadata.description ? 
+      thing.metadata.description : thing.description;
+    
     return getClient().index({
         index: 'libreviews',
         id: thing.id,
         body: {
-          createdOn: thing.createdOn,
+          createdOn: thing.created_on || thing.createdOn, // Support both field names
           label: mlString.stripHTML(thing.label),
           aliases: mlString.stripHTMLFromArray(thing.aliases),
-          description: mlString.stripHTML(thing.description),
+          description: mlString.stripHTML(description),
           joined: 'thing',
           type: 'thing',
           urls: thing.urls,
-          urlID: thing.urlID
+          urlID: thing.url_id || thing.urlID // Support both field names
         }
       })
       .catch(error => debug.error({

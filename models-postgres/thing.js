@@ -380,6 +380,7 @@ async function updateActiveSyncs(userID) {
 
   // Organize data by source and update fields
   const dataBySource = _organizeDataBySource(results);
+  
   sources.forEach((source) => {
     for (const field in thing.sync) {
       if (thing.sync[field].active && thing.sync[field].source === source &&
@@ -387,16 +388,19 @@ async function updateActiveSyncs(userID) {
         
         for (const data of dataBySource[source]) {
           if (data[field] !== undefined) {
-            thing.sync[field].updated = new Date();
+            // Create a new sync object to ensure change detection works
+            const newSync = { ...thing.sync };
+            newSync[field] = { ...newSync[field], updated: new Date() };
+            thing.sync = newSync;
             
             // Handle metadata grouping for PostgreSQL
             if (['description', 'subtitle', 'authors'].includes(field)) {
-              if (!this.metadata) {
-                this.metadata = {};
+              if (!thing.metadata) {
+                thing.metadata = {};
               }
-              this.metadata[field] = data[field];
+              thing.metadata[field] = data[field];
             } else {
-              this[field] = data[field];
+              thing[field] = data[field];
             }
             
             if (field === 'label') {

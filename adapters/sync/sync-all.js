@@ -8,7 +8,7 @@
 
 // External deps
 const limit = require('promise-limit')(2); // Max 2 URL batch updates at a time
-const Thing = require('../../models/thing');
+const { getPostgresThingModel } = require('../../models-postgres/thing');
 const debug = require('../../util/debug');
 
 // Commonly run from command-line, force output
@@ -16,6 +16,13 @@ debug.util.enabled = true;
 debug.errorLog.enabled = true;
 
 async function syncAll() {
+  // Get the PostgreSQL Thing model
+  const Thing = getPostgresThingModel();
+  
+  if (!Thing) {
+    throw new Error('PostgreSQL Thing model not available. Make sure PostgreSQL is configured.');
+  }
+  
   const things = await Thing.filterNotStaleOrDeleted();
   // Reset sync settings
   things.forEach(thing => thing.setURLs(thing.urls));
