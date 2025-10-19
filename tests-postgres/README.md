@@ -2,11 +2,87 @@
 
 The files in this directory exercise the in-progress PostgreSQL DAL and models.  
 They run independently from the legacy RethinkDB tests under `tests/` and use a
-dedicated AVA wrapper (`npm run test-postgres`). Make sure the PostgreSQL
-instance has the `pgcrypto` extension available so `gen_random_uuid()` defaults
-work; the fixture will attempt to enable it but may lack permissions on hosted
-services. The harness sets `LIBREVIEWS_SKIP_RETHINK=1`, so no RethinkDB
+dedicated AVA wrapper (`npm run test-postgres`). The harness sets `LIBREVIEWS_SKIP_RETHINK=1`, so no RethinkDB
 connections are opened while the Postgres suite runs.
+
+## Database Setup Requirements
+
+The PostgreSQL tests require proper database setup with appropriate permissions:
+
+### 1. Create Test Databases
+
+Create test databases for each AVA worker (tests run with concurrency: 4, plus extras for specific test suites):
+
+```sql
+CREATE DATABASE libreviews_test_1;
+CREATE DATABASE libreviews_test_2;
+CREATE DATABASE libreviews_test_3;
+CREATE DATABASE libreviews_test_4;
+CREATE DATABASE libreviews_test_5;
+CREATE DATABASE libreviews_test_6;
+```
+
+**Note**: Each test file uses a specific `NODE_APP_INSTANCE` (e.g., `testing-1`, `testing-3`, etc.) which maps to these databases. The numbering ensures test isolation between concurrent AVA workers.
+
+### 2. Grant Permissions
+
+Grant full permissions to your PostgreSQL user (replace `libreviews_user` with your username):
+
+```sql
+-- Grant database-level permissions
+GRANT ALL PRIVILEGES ON DATABASE libreviews_test_1 TO libreviews_user;
+GRANT ALL PRIVILEGES ON DATABASE libreviews_test_2 TO libreviews_user;
+GRANT ALL PRIVILEGES ON DATABASE libreviews_test_3 TO libreviews_user;
+GRANT ALL PRIVILEGES ON DATABASE libreviews_test_4 TO libreviews_user;
+GRANT ALL PRIVILEGES ON DATABASE libreviews_test_5 TO libreviews_user;
+GRANT ALL PRIVILEGES ON DATABASE libreviews_test_6 TO libreviews_user;
+
+-- Grant schema-level permissions (connect to each database and run):
+\c libreviews_test_1
+GRANT ALL ON SCHEMA public TO libreviews_user;
+
+\c libreviews_test_2
+GRANT ALL ON SCHEMA public TO libreviews_user;
+
+\c libreviews_test_3
+GRANT ALL ON SCHEMA public TO libreviews_user;
+
+\c libreviews_test_4
+GRANT ALL ON SCHEMA public TO libreviews_user;
+
+\c libreviews_test_5
+GRANT ALL ON SCHEMA public TO libreviews_user;
+
+\c libreviews_test_6
+GRANT ALL ON SCHEMA public TO libreviews_user;
+```
+
+### 3. Install UUID Extensions
+
+Install UUID generation extensions in each test database:
+
+```sql
+-- Connect to each database and install extensions
+\c libreviews_test_1
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+\c libreviews_test_2
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+\c libreviews_test_3
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+\c libreviews_test_4
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+\c libreviews_test_5
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+\c libreviews_test_6
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+```
+
+**Note**: The fixture will attempt to enable extensions automatically, but may lack permissions on hosted services. Pre-installing them ensures tests run smoothly.
 
 ## Writing PostgreSQL Tests
 

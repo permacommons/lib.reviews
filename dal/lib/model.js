@@ -165,6 +165,29 @@ class Model {
   }
 
   /**
+   * Create query builder with date range filter
+   * @param {Date} startDate - Start date
+   * @param {Date} endDate - End date
+   * @param {Object} options - Options for the range
+   * @returns {QueryBuilder} Query builder
+   */
+  static between(startDate, endDate, options = {}) {
+    const query = new QueryBuilder(this, this.dal);
+    return query.between(startDate, endDate, options);
+  }
+
+  /**
+   * Create query builder with array contains filter
+   * @param {string} field - Field name
+   * @param {*} value - Value to check for
+   * @returns {QueryBuilder} Query builder
+   */
+  static contains(field, value) {
+    const query = new QueryBuilder(this, this.dal);
+    return query.contains(field, value);
+  }
+
+  /**
    * Filter records to exclude stale and deleted revisions
    * @returns {QueryBuilder} Query builder with revision filters
    */

@@ -198,7 +198,7 @@ function populateUserInfo(user) {
   }
 
   // Determine edit permissions
-  if (team.user_is_moderator || user.is_super_user) {
+  if (team.user_is_founder || team.user_is_moderator || user.is_super_user) {
     team.user_can_edit = true;
   }
 

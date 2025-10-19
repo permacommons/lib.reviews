@@ -99,16 +99,20 @@ npm install
 ### 6. Test the Setup
 
 ```bash
-npm run test-dual-db
+# Test PostgreSQL connection and basic functionality
+npm run test-postgres
 ```
 
 ## Expected Test Results
 
-The test script will check:
+The PostgreSQL test suite will verify:
 
-1. **RethinkDB Connection** - Should pass if RethinkDB is running
-2. **PostgreSQL Connection** - Should pass if PostgreSQL is configured correctly
-3. **PostgreSQL User Model** - May fail initially (tables not created yet)
+1. **Database Connection** - Should pass if PostgreSQL is configured correctly
+2. **Schema Creation** - Tests create their own tables with proper isolation
+3. **Model Functionality** - Tests exercise the full PostgreSQL DAL and models
+4. **Query Builder** - Tests verify RethinkDB-compatible query patterns work
+
+See `tests-postgres/README.md` for detailed information about the test setup and requirements.
 
 ## Troubleshooting
 
@@ -163,7 +167,7 @@ PGPASSWORD=libreviews_password psql -h localhost -U libreviews_user -d libreview
 
 # Install dependencies and test
 npm install
-npm run test-dual-db
+npm run test-postgres
 ```
 
 ## Next Steps
@@ -174,25 +178,28 @@ Once both databases are connected:
 2. You can start testing individual model migrations
 3. Compare data between RethinkDB and PostgreSQL implementations
 
-### Running PostgreSQL-only tests
+### Running PostgreSQL Tests
 
-When you want to exercise just the PostgreSQL DAL without bringing up RethinkDB,
-set `LIBREVIEWS_SKIP_RETHINK=1`. The harness in `tests-postgres/` does this
-automatically:
+The PostgreSQL test suite runs independently from RethinkDB tests and automatically
+sets `LIBREVIEWS_SKIP_RETHINK=1`:
 
 ```bash
-LIBREVIEWS_SKIP_RETHINK=1 npm run test-postgres
+npm run test-postgres
 ```
 
-With the flag set, `db-dual.js` skips Thinky initialisation entirely, making it
-safe to run on machines that only have PostgreSQL available.
+This makes it safe to run on machines that only have PostgreSQL available. The test
+harness in `tests-postgres/` provides comprehensive coverage of the PostgreSQL DAL
+and models with proper test isolation.
+
+For detailed information about test setup, database permissions, and troubleshooting,
+see `tests-postgres/README.md`.
 
 ## Files Created for Dual Setup
 
 - `config/development.json5` - Dual database configuration
 - `db-dual.js` - Dual database initialization
-- `models-postgres/user.js` - Test PostgreSQL User model
-- `test-dual-db.js` - Test script for both databases
+- `models-postgres/` - Complete PostgreSQL model implementations
+- `tests-postgres/` - PostgreSQL test suite with proper isolation
 - `dal/` - Complete PostgreSQL DAL implementation
 - `migrations/001_create_postgresql_schema.sql` - Database schema
 

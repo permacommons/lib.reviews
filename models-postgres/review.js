@@ -75,6 +75,7 @@ function initializeReviewModel(customDAL = null) {
     });
 
     // Add static methods
+    Review.createFirstRevision = revision.getFirstRevisionHandler(Review);
     Review.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(Review);
     Review.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(Review);
 
