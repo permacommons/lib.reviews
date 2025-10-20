@@ -7,7 +7,7 @@
  * maintaining compatibility with the existing RethinkDB Team model interface.
  */
 
-const { getPostgresDAL } = require('../db-dual');
+const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;
@@ -20,8 +20,8 @@ let Team = null;
  * Initialize the PostgreSQL Team model
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function initializeTeamModel(customDAL = null) {
-  const dal = customDAL || getPostgresDAL();
+async function initializeTeamModel(customDAL = null) {
+  const dal = customDAL || await getPostgresDAL();
   
   if (!dal) {
     debug.db('PostgreSQL DAL not available, skipping Team model initialization');
@@ -42,30 +42,30 @@ function initializeTeamModel(customDAL = null) {
       description: type.object().validator(_validateTextHtmlObject),
       rules: type.object().validator(_validateTextHtmlObject),
       
-      // Relational fields
-      mod_approval_to_join: type.boolean().default(false),
-      only_mods_can_blog: type.boolean().default(false),
-      created_by: type.string().uuid(4).required(true),
-      created_on: type.date().required(true),
-      canonical_slug_name: type.string(),
-      original_language: type.string().max(4).validator(isValidLanguage),
+      // CamelCase relational fields that map to snake_case database columns
+      modApprovalToJoin: type.boolean().default(false),
+      onlyModsCanBlog: type.boolean().default(false),
+      createdBy: type.string().uuid(4).required(true),
+      createdOn: type.date().required(true),
+      canonicalSlugName: type.string(),
+      originalLanguage: type.string().max(4).validator(isValidLanguage),
       
       // JSONB for permissions configuration
-      confers_permissions: type.object().validator(_validateConfersPermissions),
+      confersPermissions: type.object().validator(_validateConfersPermissions),
       
       // Virtual fields for feeds and permissions
-      review_offset_date: type.virtual().default(null),
-      user_is_founder: type.virtual().default(false),
-      user_is_member: type.virtual().default(false),
-      user_is_moderator: type.virtual().default(false),
-      user_can_blog: type.virtual().default(false),
-      user_can_join: type.virtual().default(false),
-      user_can_leave: type.virtual().default(false),
-      user_can_edit: type.virtual().default(false),
-      user_can_delete: type.virtual().default(false),
+      reviewOffsetDate: type.virtual().default(null),
+      userIsFounder: type.virtual().default(false),
+      userIsMember: type.virtual().default(false),
+      userIsModerator: type.virtual().default(false),
+      userCanBlog: type.virtual().default(false),
+      userCanJoin: type.virtual().default(false),
+      userCanLeave: type.virtual().default(false),
+      userCanEdit: type.virtual().default(false),
+      userCanDelete: type.virtual().default(false),
       
-      url_id: type.virtual().default(function() {
-        const slugName = this.getValue ? this.getValue('canonical_slug_name') : this.canonical_slug_name;
+      urlID: type.virtual().default(function() {
+        const slugName = this.getValue ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
         return slugName ? encodeURIComponent(slugName) : this.id;
       })
     };
@@ -74,6 +74,15 @@ function initializeTeamModel(customDAL = null) {
     Object.assign(teamSchema, revision.getSchema());
 
     Team = dal.createModel(tableName, teamSchema);
+
+    // Register camelCase to snake_case field mappings
+    Team._registerFieldMapping('modApprovalToJoin', 'mod_approval_to_join');
+    Team._registerFieldMapping('onlyModsCanBlog', 'only_mods_can_blog');
+    Team._registerFieldMapping('createdBy', 'created_by');
+    Team._registerFieldMapping('createdOn', 'created_on');
+    Team._registerFieldMapping('canonicalSlugName', 'canonical_slug_name');
+    Team._registerFieldMapping('originalLanguage', 'original_language');
+    Team._registerFieldMapping('confersPermissions', 'confers_permissions');
 
     // Add static methods
     Team.createFirstRevision = revision.getFirstRevisionHandler(Team);
@@ -173,43 +182,43 @@ function populateUserInfo(user) {
   
   // Check membership
   if (team.members && team.members.some(member => member.id === user.id)) {
-    team.user_is_member = true;
+    team.userIsMember = true;
   }
 
   // Check moderator status
   if (team.moderators && team.moderators.some(moderator => moderator.id === user.id)) {
-    team.user_is_moderator = true;
+    team.userIsModerator = true;
   }
 
   // Check founder status
-  if (user.id === team.created_by) {
-    team.user_is_founder = true;
+  if (user.id === team.createdBy) {
+    team.userIsFounder = true;
   }
 
   // Determine blogging permissions
-  if (team.user_is_member && (!team.only_mods_can_blog || team.user_is_moderator)) {
-    team.user_can_blog = true;
+  if (team.userIsMember && (!team.onlyModsCanBlog || team.userIsModerator)) {
+    team.userCanBlog = true;
   }
 
   // Determine join permissions (can't join if already member or has pending request)
-  if (!team.user_is_member && 
+  if (!team.userIsMember && 
       (!team.joinRequests || !team.joinRequests.some(request => request.userID === user.id))) {
-    team.user_can_join = true;
+    team.userCanJoin = true;
   }
 
   // Determine edit permissions
-  if (team.user_is_founder || team.user_is_moderator || user.is_super_user) {
-    team.user_can_edit = true;
+  if (team.userIsFounder || team.userIsModerator || user.isSuperUser) {
+    team.userCanEdit = true;
   }
 
   // Determine delete permissions (only site-wide mods for now)
-  if (user.is_super_user || user.is_site_moderator) {
-    team.user_can_delete = true;
+  if (user.isSuperUser || user.isSiteModerator) {
+    team.userCanDelete = true;
   }
 
   // Determine leave permissions (founders can't leave, must delete team)
-  if (!team.user_is_founder && team.user_is_member) {
-    team.user_can_leave = true;
+  if (!team.userIsFounder && team.userIsMember) {
+    team.userCanLeave = true;
   }
 }
 
@@ -424,9 +433,9 @@ function _validateConfersPermissions(value) {
  * Get the PostgreSQL Team model (initialize if needed)
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function getPostgresTeamModel(customDAL = null) {
+async function getPostgresTeamModel(customDAL = null) {
   if (!Team || customDAL) {
-    Team = initializeTeamModel(customDAL);
+    Team = await initializeTeamModel(customDAL);
   }
   return Team;
 }

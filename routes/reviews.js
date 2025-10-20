@@ -6,11 +6,11 @@ const config = require('config');
 // Internal dependencies
 const render = require('./helpers/render');
 const feeds = require('./helpers/feeds');
-const Team = require('../models/team');
-const Review = require('../models/review');
+const { getPostgresTeamModel } = require('../models-postgres/team');
+const { getPostgresReviewModel } = require('../models-postgres/review');
 const ReviewProvider = require('./handlers/review-provider');
 const reviewHandlers = require('./handlers/review-handlers');
-const BlogPost = require('../models/blog-post');
+const { getPostgresBlogPostModel } = require('../models-postgres/blog-post');
 
 // Standard routes
 
@@ -32,17 +32,22 @@ let router = ReviewProvider.bakeRoutes(null, routes);
 
 // We show two query results on the front-page, the team developers blog
 // and a feed of recent reviews, filtered to include only trusted ones.
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
 
+  const Review = await getPostgresReviewModel();
+  const Team = await getPostgresTeamModel();
   let queries = [
-    Review.getFeed({ onlyTrusted: true }),
-    Team.filterNotStaleOrDeleted().sample(3) // Random example teams
+    Review.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
+    // Temporarily disable team sampling until table is properly created
+    Promise.resolve([]) // Team.filterNotStaleOrDeleted().sample(3) // Random example teams
   ];
 
-  if (config.frontPageTeamBlog)
+  if (config.frontPageTeamBlog) {
+    const BlogPost = await getPostgresBlogPostModel();
     queries.push(BlogPost.getMostRecentBlogPostsBySlug(
       config.frontPageTeamBlog, { limit: 3 }
     ));
+  }
 
   Promise
     .all(queries)

@@ -7,7 +7,7 @@
  * maintaining compatibility with the existing RethinkDB User model interface.
  */
 
-const { getPostgresDAL } = require('../db-dual');
+const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const bcrypt = require('bcrypt');
 const ReportedError = require('../util/reported-error');
@@ -26,52 +26,70 @@ userOptions.illegalCharsReadable = userOptions.illegalChars.source.replace(/[\[\
 /* eslint-enable no-useless-escape */
 
 let User = null;
+let currentDAL = null;
 
 /**
  * Initialize the PostgreSQL User model
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function initializeUserModel(customDAL = null) {
-  const dal = customDAL || getPostgresDAL();
-  
-  if (!dal) {
-    debug.db('PostgreSQL DAL not available, skipping User model initialization');
-    return null;
-  }
-
+async function initializeUserModel(customDAL = null) {
   try {
+    debug.db('Starting User model initialization...');
+    const dal = customDAL || await getPostgresDAL();
+    
+    if (!dal) {
+      debug.db('PostgreSQL DAL not available, skipping User model initialization');
+      return null;
+    }
+
+    debug.db('DAL available, creating User model...');
     // Use table prefix if this is a test DAL
     const tableName = dal.tablePrefix ? `${dal.tablePrefix}users` : 'users';
     User = dal.createModel(tableName, {
       id: type.string().uuid(4),
-      display_name: type.string()
+      
+      // CamelCase schema fields that map to snake_case database columns
+      displayName: type.string()
         .max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
-      canonical_name: type.string()
+      canonicalName: type.string()
         .max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
       email: type.string().max(userOptions.maxChars).email(),
       password: type.string(),
-      user_meta_id: type.string().uuid(4),
-      invite_link_count: type.number().integer().default(0),
-      registration_date: type.date().default(() => new Date()),
-      show_error_details: type.boolean().default(false),
-      is_trusted: type.boolean().default(false),
-      is_site_moderator: type.boolean().default(false),
-      is_super_user: type.boolean().default(false),
-      suppressed_notices: type.array(type.string()),
-      prefers_rich_text_editor: type.boolean().default(false),
+      userMetaID: type.string().uuid(4),
+      inviteLinkCount: type.number().integer().default(0),
+      registrationDate: type.date().default(() => new Date()),
+      showErrorDetails: type.boolean().default(false),
+      isTrusted: type.boolean().default(false),
+      isSiteModerator: type.boolean().default(false),
+      isSuperUser: type.boolean().default(false),
+      suppressedNotices: type.array(type.string()),
+      prefersRichTextEditor: type.boolean().default(false),
       
       // Virtual fields for compatibility
-      url_name: type.virtual().default(function() {
-        const displayName = this.getValue ? this.getValue('display_name') : this.display_name;
+      urlName: type.virtual().default(function() {
+        const displayName = this.getValue ? this.getValue('displayName') : this.displayName;
         return displayName ? encodeURIComponent(displayName.replace(/ /g, '_')) : undefined;
       }),
-      user_can_edit_metadata: type.virtual().default(false),
-      user_can_upload_temp_files: type.virtual().default(function() {
-        const isTrusted = this.getValue ? this.getValue('is_trusted') : this.is_trusted;
-        const isSuperUser = this.getValue ? this.getValue('is_super_user') : this.is_super_user;
+      userCanEditMetadata: type.virtual().default(false),
+      userCanUploadTempFiles: type.virtual().default(function() {
+        const isTrusted = this.getValue ? this.getValue('isTrusted') : this.isTrusted;
+        const isSuperUser = this.getValue ? this.getValue('isSuperUser') : this.isSuperUser;
         return isTrusted || isSuperUser;
       })
     });
+
+    // Register camelCase to snake_case field mappings
+    User._registerFieldMapping('displayName', 'display_name');
+    User._registerFieldMapping('canonicalName', 'canonical_name');
+    User._registerFieldMapping('userMetaID', 'user_meta_id');
+    User._registerFieldMapping('inviteLinkCount', 'invite_link_count');
+    User._registerFieldMapping('registrationDate', 'registration_date');
+    User._registerFieldMapping('showErrorDetails', 'show_error_details');
+    User._registerFieldMapping('isTrusted', 'is_trusted');
+    User._registerFieldMapping('isSiteModerator', 'is_site_moderator');
+    User._registerFieldMapping('isSuperUser', 'is_super_user');
+    User._registerFieldMapping('suppressedNotices', 'suppressed_notices');
+    User._registerFieldMapping('prefersRichTextEditor', 'prefers_rich_text_editor');
 
     // Add static properties and methods
     Object.defineProperty(User, 'options', {
@@ -107,6 +125,7 @@ function initializeUserModel(customDAL = null) {
     };
 
     debug.db('PostgreSQL User model initialized with all methods');
+    currentDAL = dal;
     return User;
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL User model:', error);
@@ -189,7 +208,7 @@ async function ensureUnique(name) {
   }
 
   name = name.trim();
-  const users = await User.filter({ canonical_name: User.canonicalize(name) }).run();
+  const users = await User.filter({ canonicalName: User.canonicalize(name) }).run();
   if (users.length) {
     throw new NewUserError({
       message: 'A user named %s already exists.',
@@ -204,14 +223,12 @@ async function ensureUnique(name) {
  * Obtain user and all associated teams
  *
  * @param {String} id - user ID to look up
- * @returns {Query}
+ * @returns {Promise<User>} user with associated teams
  */
-function getWithTeams(id) {
-  return User
-    .get(id)
-    .getJoin({
-      teams: true
-    });
+async function getWithTeams(id) {
+  return User.get(id, {
+    teams: true
+  });
 }
 
 /**
@@ -234,7 +251,7 @@ async function findByURLName(name, {
 
   name = name.trim().replace(/_/g, ' ');
 
-  let query = User.filter({ canonical_name: User.canonicalize(name) });
+  let query = User.filter({ canonicalName: User.canonicalize(name) });
 
   if (withData) {
     query = query.getJoin({ meta: true });
@@ -281,8 +298,8 @@ async function createBio(user, bioObj) {
   const uuid = randomUUID();
   
   // This would need the UserMeta model to be implemented
-  // For now, we'll just update the user_meta_id
-  user.user_meta_id = uuid;
+  // For now, we'll just update the userMetaID
+  user.userMetaID = uuid;
   await user.save();
   return user;
 }
@@ -306,7 +323,7 @@ function populateUserInfo(user) {
   // For now, only the user may edit metadata like bio.
   // In future, translators may also be able to.
   if (user.id == this.id) {
-    this.user_can_edit_metadata = true;
+    this.userCanEditMetadata = true;
   }
 }
 
@@ -324,8 +341,8 @@ function setName(displayName) {
   }
 
   displayName = displayName.trim();
-  this.display_name = displayName;
-  this.canonical_name = User.canonicalize(displayName);
+  this.displayName = displayName;
+  this.canonicalName = User.canonicalize(displayName);
   // Regenerate virtual values after setting the name
   this.generateVirtualValues();
 }
@@ -421,9 +438,9 @@ function _containsOnlyLegalCharacters(name) {
  * Get the PostgreSQL User model (initialize if needed)
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function getPostgresUserModel(customDAL = null) {
-  if (!User || customDAL) {
-    User = initializeUserModel(customDAL);
+async function getPostgresUserModel(customDAL = null) {
+  if (!User || (customDAL && currentDAL !== customDAL)) {
+    User = await initializeUserModel(customDAL);
   }
   return User;
 }

@@ -149,10 +149,10 @@ test.serial('Thing model: create first revision with JSONB multilingual fields',
   thingRev.sync = {
     label: { active: true, source: 'wikidata', updated: new Date() }
   };
-  thingRev.original_language = 'en';
-  thingRev.canonical_slug_name = 'test-thing';
-  thingRev.created_on = new Date();
-  thingRev.created_by = creator.id;
+  thingRev.originalLanguage = 'en';
+  thingRev.canonicalSlugName = 'test-thing';
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = creator.id;
 
   const saved = await thingRev.save();
   
@@ -180,16 +180,16 @@ test.serial('Thing model: lookupByURL finds things by URL', async t => {
   const thing1Rev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   thing1Rev.urls = [url1];
   thing1Rev.label = { en: 'First Thing' };
-  thing1Rev.created_on = new Date();
-  thing1Rev.created_by = creator.id;
+  thing1Rev.createdOn = new Date();
+  thing1Rev.createdBy = creator.id;
   const thing1 = await thing1Rev.save();
 
   // Create second thing
   const thing2Rev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   thing2Rev.urls = [url2];
   thing2Rev.label = { en: 'Second Thing' };
-  thing2Rev.created_on = new Date();
-  thing2Rev.created_by = creator.id;
+  thing2Rev.createdOn = new Date();
+  thing2Rev.createdBy = creator.id;
   const thing2 = await thing2Rev.save();
 
   // Test lookup
@@ -213,7 +213,7 @@ test.serial('Thing model: populateUserInfo sets permission flags correctly', asy
     password: 'secret123',
     email: `thingcreator-${randomUUID()}@example.com`
   });
-  creator.is_trusted = true;
+  creator.isTrusted = true;
   await creator.save();
 
   const moderator = await User.create({
@@ -221,7 +221,7 @@ test.serial('Thing model: populateUserInfo sets permission flags correctly', asy
     password: 'secret123',
     email: `moderator-${randomUUID()}@example.com`
   });
-  moderator.is_site_moderator = true;
+  moderator.isSiteModerator = true;
   await moderator.save();
 
   const regularUser = await User.create({
@@ -233,32 +233,32 @@ test.serial('Thing model: populateUserInfo sets permission flags correctly', asy
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   thingRev.urls = ['https://example.com/permissions-test'];
   thingRev.label = { en: 'Permission Test Thing' };
-  thingRev.created_on = new Date();
-  thingRev.created_by = creator.id;
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = creator.id;
   const thing = await thingRev.save();
 
   // Test creator permissions
   thing.populateUserInfo(creator);
-  t.true(thing.user_is_creator, 'Creator recognized');
-  t.true(thing.user_can_edit, 'Creator can edit');
-  t.true(thing.user_can_upload, 'Trusted creator can upload');
-  t.false(thing.user_can_delete, 'Creator cannot delete (not moderator)');
+  t.true(thing.userIsCreator, 'Creator recognized');
+  t.true(thing.userCanEdit, 'Creator can edit');
+  t.true(thing.userCanUpload, 'Trusted creator can upload');
+  t.false(thing.userCanDelete, 'Creator cannot delete (not moderator)');
 
   // Test moderator permissions
   const moderatorView = await Thing.get(thing.id);
   moderatorView.populateUserInfo(moderator);
-  t.false(moderatorView.user_is_creator, 'Moderator not creator');
-  t.false(moderatorView.user_can_edit, 'Moderator cannot edit (not trusted)');
-  t.true(moderatorView.user_can_delete, 'Moderator can delete');
-  t.false(moderatorView.user_can_upload, 'Moderator cannot upload (not trusted)');
+  t.false(moderatorView.userIsCreator, 'Moderator not creator');
+  t.false(moderatorView.userCanEdit, 'Moderator cannot edit (not trusted)');
+  t.true(moderatorView.userCanDelete, 'Moderator can delete');
+  t.false(moderatorView.userCanUpload, 'Moderator cannot upload (not trusted)');
 
   // Test regular user permissions
   const regularView = await Thing.get(thing.id);
   regularView.populateUserInfo(regularUser);
-  t.false(regularView.user_is_creator, 'Regular user not creator');
-  t.false(regularView.user_can_edit, 'Regular user cannot edit');
-  t.false(regularView.user_can_delete, 'Regular user cannot delete');
-  t.false(regularView.user_can_upload, 'Regular user cannot upload');
+  t.false(regularView.userIsCreator, 'Regular user not creator');
+  t.false(regularView.userCanEdit, 'Regular user cannot edit');
+  t.false(regularView.userCanDelete, 'Regular user cannot delete');
+  t.false(regularView.userCanUpload, 'Regular user cannot upload');
 });
 
 test.serial('Thing model: revision system works correctly', async t => {
@@ -274,8 +274,8 @@ test.serial('Thing model: revision system works correctly', async t => {
   const firstRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   firstRev.urls = ['https://example.com/revision-test'];
   firstRev.label = { en: 'Original Label' };
-  firstRev.created_on = new Date();
-  firstRev.created_by = creator.id;
+  firstRev.createdOn = new Date();
+  firstRev.createdBy = creator.id;
   await firstRev.save();
 
   // Create second revision
@@ -319,51 +319,41 @@ test.serial('Review model: create review with JSONB multilingual content', async
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/reviewable-${randomUUID()}`];
   thingRev.label = { en: 'Reviewable Thing' };
-  thingRev.created_on = new Date();
-  thingRev.created_by = thingCreator.id;
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = thingCreator.id;
   const thing = await thingRev.save();
 
-  // Create review
-  const reviewData = {
-    thing_id: thing.id,
-    title: {
-      en: 'Great Product',
-      de: 'Tolles Produkt',
-      fr: 'Excellent Produit'
-    },
-    text: {
-      en: 'This is an excellent product that I highly recommend.',
-      de: 'Dies ist ein ausgezeichnetes Produkt, das ich sehr empfehle.',
-      fr: 'C\'est un excellent produit que je recommande vivement.'
-    },
-    html: {
-      en: '<p>This is an <strong>excellent</strong> product that I highly recommend.</p>',
-      de: '<p>Dies ist ein <strong>ausgezeichnetes</strong> Produkt, das ich sehr empfehle.</p>',
-      fr: '<p>C\'est un <strong>excellent</strong> produit que je recommande vivement.</p>'
-    },
-    star_rating: 5,
-    created_on: new Date(),
-    created_by: author.id,
-    original_language: 'en'
+  // Create review using createFirstRevision
+  const review = await Review.createFirstRevision(author, { tags: ['create'] });
+  review.thingID = thing.id;
+  review.title = {
+    en: 'Great Product',
+    de: 'Tolles Produkt',
+    fr: 'Excellent Produit'
   };
-
-  const { randomUUID: uuid } = require('crypto');
-  const review = new Review({
-    ...reviewData,
-    _rev_id: uuid(),
-    _rev_user: author.id,
-    _rev_date: reviewData.created_on,
-    _rev_tags: ['create']
-  });
+  review.text = {
+    en: 'This is an excellent product that I highly recommend.',
+    de: 'Dies ist ein ausgezeichnetes Produkt, das ich sehr empfehle.',
+    fr: 'C\'est un excellent produit que je recommande vivement.'
+  };
+  review.html = {
+    en: '<p>This is an <strong>excellent</strong> product that I highly recommend.</p>',
+    de: '<p>Dies ist ein <strong>ausgezeichnetes</strong> Produkt, das ich sehr empfehle.</p>',
+    fr: '<p>C\'est un <strong>excellent</strong> produit que je recommande vivement.</p>'
+  };
+  review.starRating = 5;
+  review.createdOn = new Date();
+  review.createdBy = author.id;
+  review.originalLanguage = 'en';
 
   const saved = await review.save();
   
   t.truthy(saved.id, 'Review saved with generated UUID');
-  t.deepEqual(saved.title, reviewData.title, 'Multilingual title stored correctly');
-  t.deepEqual(saved.text, reviewData.text, 'Multilingual text stored correctly');
-  t.deepEqual(saved.html, reviewData.html, 'Multilingual HTML stored correctly');
-  t.is(saved.star_rating, 5, 'Star rating stored correctly');
-  t.is(saved.thing_id, thing.id, 'Thing relationship stored correctly');
+  t.deepEqual(saved.title, review.title, 'Multilingual title stored correctly');
+  t.deepEqual(saved.text, review.text, 'Multilingual text stored correctly');
+  t.deepEqual(saved.html, review.html, 'Multilingual HTML stored correctly');
+  t.is(saved.starRating, 5, 'Star rating stored correctly');
+  t.is(saved.thingID, thing.id, 'Thing relationship stored correctly');
 });
 
 test.serial('Review model: populateUserInfo sets permission flags correctly', async t => {
@@ -380,7 +370,7 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
     password: 'secret123',
     email: `reviewmoderator-${randomUUID()}@example.com`
   });
-  moderator.is_site_moderator = true;
+  moderator.isSiteModerator = true;
   await moderator.save();
 
   const otherUser = await User.create({
@@ -399,8 +389,8 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/reviewable-${randomUUID()}`];
   thingRev.label = { en: 'Reviewable Thing' };
-  thingRev.created_on = new Date();
-  thingRev.created_by = thingCreator.id;
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = thingCreator.id;
   const thing = await thingRev.save();
 
   const { randomUUID: uuid } = require('crypto');
@@ -421,23 +411,23 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
 
   // Test author permissions
   review.populateUserInfo(author);
-  t.true(review.user_is_author, 'Author recognized');
-  t.true(review.user_can_edit, 'Author can edit');
-  t.true(review.user_can_delete, 'Author can delete');
+  t.true(review.userIsAuthor, 'Author recognized');
+  t.true(review.userCanEdit, 'Author can edit');
+  t.true(review.userCanDelete, 'Author can delete');
 
   // Test moderator permissions
   const moderatorView = await Review.get(review.id);
   moderatorView.populateUserInfo(moderator);
-  t.false(moderatorView.user_is_author, 'Moderator not author');
-  t.false(moderatorView.user_can_edit, 'Moderator cannot edit (not author)');
-  t.true(moderatorView.user_can_delete, 'Moderator can delete');
+  t.false(moderatorView.userIsAuthor, 'Moderator not author');
+  t.false(moderatorView.userCanEdit, 'Moderator cannot edit (not author)');
+  t.true(moderatorView.userCanDelete, 'Moderator can delete');
 
   // Test other user permissions
   const otherView = await Review.get(review.id);
   otherView.populateUserInfo(otherUser);
-  t.false(otherView.user_is_author, 'Other user not author');
-  t.false(otherView.user_can_edit, 'Other user cannot edit');
-  t.false(otherView.user_can_delete, 'Other user cannot delete');
+  t.false(otherView.userIsAuthor, 'Other user not author');
+  t.false(otherView.userCanEdit, 'Other user cannot edit');
+  t.false(otherView.userCanDelete, 'Other user cannot delete');
 });
 
 test.serial('Review model: star rating validation works', async t => {
@@ -458,8 +448,8 @@ test.serial('Review model: star rating validation works', async t => {
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/rating-test-${randomUUID()}`];
   thingRev.label = { en: 'Rating Test Thing' };
-  thingRev.created_on = new Date();
-  thingRev.created_by = thingCreator.id;
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = thingCreator.id;
   const thing = await thingRev.save();
 
   const { randomUUID: uuid } = require('crypto');
@@ -504,8 +494,55 @@ test.serial('Review model: star rating validation works', async t => {
     });
 
     const saved = await review.save();
-    t.is(saved.star_rating, rating, `Rating ${rating} should be valid`);
+    t.is(saved.starRating, rating, `Rating ${rating} should be valid`);
   }
+});
+
+test.serial('Review model: getFeed joins thing data', async t => {
+  if (skipIfNoModels(t)) return;
+
+  const author = await User.create({
+    name: `FeedAuthor-${randomUUID()}`,
+    password: 'secret123',
+    email: `feedauthor-${randomUUID()}@example.com`
+  });
+
+  const thingCreator = await User.create({
+    name: `FeedThingCreator-${randomUUID()}`,
+    password: 'secret123',
+    email: `feedthingcreator-${randomUUID()}@example.com`
+  });
+
+  const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
+  const reviewUrl = `https://example.com/reviewable-${randomUUID()}`;
+  const createdAt = new Date();
+
+  thingRev.urls = [reviewUrl];
+  thingRev.label = { en: 'Feed Thing' };
+  thingRev.createdOn = createdAt;
+  thingRev.createdBy = thingCreator.id;
+  const thing = await thingRev.save();
+
+  const reviewRev = await Review.createFirstRevision(author, { tags: ['create'] });
+  reviewRev.thingID = thing.id;
+  reviewRev.title = { en: 'Feed Review' };
+  reviewRev.text = { en: 'Feed review content' };
+  reviewRev.html = { en: '<p>Feed review content</p>' };
+  reviewRev.starRating = 4;
+  reviewRev.createdOn = createdAt;
+  reviewRev.createdBy = author.id;
+  reviewRev.originalLanguage = 'en';
+  await reviewRev.save();
+
+  const feed = await Review.getFeed({ limit: 5, withThing: true, withTeams: false });
+  t.true(Array.isArray(feed.feedItems), 'Feed items array returned');
+  t.true(feed.feedItems.length > 0, 'Feed includes created review');
+
+  const [firstItem] = feed.feedItems;
+  t.truthy(firstItem.thing, 'Thing join included in feed item');
+  t.is(firstItem.thing.id, thing.id, 'Thing join matches review thing ID');
+  t.is(firstItem.thing.label.en, 'Feed Thing', 'Thing label preserved in join');
+  t.is(firstItem.thing.urls[0], reviewUrl, 'Thing URLs included in join');
 });
 
 // ============================================================================
@@ -556,13 +593,13 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
       fr: '<p>Soyez <em>respectueux</em> et <em>collaboratif</em>.</p>'
     }
   };
-  teamRev.mod_approval_to_join = true;
-  teamRev.only_mods_can_blog = false;
-  teamRev.created_by = founder.id;
-  teamRev.created_on = new Date();
-  teamRev.canonical_slug_name = 'awesome-team';
-  teamRev.original_language = 'en';
-  teamRev.confers_permissions = {
+  teamRev.modApprovalToJoin = true;
+  teamRev.onlyModsCanBlog = false;
+  teamRev.createdBy = founder.id;
+  teamRev.createdOn = new Date();
+  teamRev.canonicalSlugName = 'awesome-team';
+  teamRev.originalLanguage = 'en';
+  teamRev.confersPermissions = {
     show_error_details: true,
     translate: false
   };
@@ -574,8 +611,8 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
   t.deepEqual(saved.motto, teamRev.motto, 'Multilingual motto stored correctly');
   t.deepEqual(saved.description, teamRev.description, 'Multilingual description stored correctly');
   t.deepEqual(saved.rules, teamRev.rules, 'Multilingual rules stored correctly');
-  t.deepEqual(saved.confers_permissions, teamRev.confers_permissions, 'Permissions config stored correctly');
-  t.true(saved.mod_approval_to_join, 'Moderation settings stored correctly');
+  t.deepEqual(saved.confersPermissions, teamRev.confersPermissions, 'Permissions config stored correctly');
+  t.true(saved.modApprovalToJoin, 'Moderation settings stored correctly');
 });
 
 test.serial('Team model: populateUserInfo sets permission flags correctly', async t => {
@@ -610,15 +647,15 @@ test.serial('Team model: populateUserInfo sets permission flags correctly', asyn
     password: 'secret123',
     email: `sitemoderator-${randomUUID()}@example.com`
   });
-  siteModerator.is_site_moderator = true;
+  siteModerator.isSiteModerator = true;
   await siteModerator.save();
 
   // Create team
   const teamRev = await Team.createFirstRevision(founder, { tags: ['create'] });
   teamRev.name = { en: 'Permission Test Team' };
-  teamRev.created_by = founder.id;
-  teamRev.created_on = new Date();
-  teamRev.only_mods_can_blog = true;
+  teamRev.createdBy = founder.id;
+  teamRev.createdOn = new Date();
+  teamRev.onlyModsCanBlog = true;
   const team = await teamRev.save();
 
   // Add members and moderators to team (simulate join table data)
@@ -627,52 +664,52 @@ test.serial('Team model: populateUserInfo sets permission flags correctly', asyn
 
   // Test founder permissions
   team.populateUserInfo(founder);
-  t.true(team.user_is_founder, 'Founder recognized');
-  t.true(team.user_can_edit, 'Founder can edit (via moderator status)');
-  t.false(team.user_can_leave, 'Founder cannot leave');
+  t.true(team.userIsFounder, 'Founder recognized');
+  t.true(team.userCanEdit, 'Founder can edit (via moderator status)');
+  t.false(team.userCanLeave, 'Founder cannot leave');
 
   // Test moderator permissions
   const moderatorView = await Team.get(team.id);
   moderatorView.members = [member, moderator];
   moderatorView.moderators = [moderator];
   moderatorView.populateUserInfo(moderator);
-  t.false(moderatorView.user_is_founder, 'Moderator not founder');
-  t.true(moderatorView.user_is_member, 'Moderator is member');
-  t.true(moderatorView.user_is_moderator, 'Moderator recognized');
-  t.true(moderatorView.user_can_blog, 'Moderator can blog');
-  t.true(moderatorView.user_can_edit, 'Moderator can edit');
-  t.true(moderatorView.user_can_leave, 'Moderator can leave');
+  t.false(moderatorView.userIsFounder, 'Moderator not founder');
+  t.true(moderatorView.userIsMember, 'Moderator is member');
+  t.true(moderatorView.userIsModerator, 'Moderator recognized');
+  t.true(moderatorView.userCanBlog, 'Moderator can blog');
+  t.true(moderatorView.userCanEdit, 'Moderator can edit');
+  t.true(moderatorView.userCanLeave, 'Moderator can leave');
 
   // Test regular member permissions
   const memberView = await Team.get(team.id);
   memberView.members = [member, moderator];
   memberView.moderators = [moderator];
   memberView.populateUserInfo(member);
-  t.false(memberView.user_is_founder, 'Member not founder');
-  t.true(memberView.user_is_member, 'Member recognized');
-  t.false(memberView.user_is_moderator, 'Member not moderator');
-  t.false(memberView.user_can_blog, 'Member cannot blog (only mods can blog)');
-  t.false(memberView.user_can_edit, 'Member cannot edit');
-  t.true(memberView.user_can_leave, 'Member can leave');
+  t.false(memberView.userIsFounder, 'Member not founder');
+  t.true(memberView.userIsMember, 'Member recognized');
+  t.false(memberView.userIsModerator, 'Member not moderator');
+  t.false(memberView.userCanBlog, 'Member cannot blog (only mods can blog)');
+  t.false(memberView.userCanEdit, 'Member cannot edit');
+  t.true(memberView.userCanLeave, 'Member can leave');
 
   // Test outsider permissions
   const outsiderView = await Team.get(team.id);
   outsiderView.members = [member, moderator];
   outsiderView.moderators = [moderator];
   outsiderView.populateUserInfo(outsider);
-  t.false(outsiderView.user_is_founder, 'Outsider not founder');
-  t.false(outsiderView.user_is_member, 'Outsider not member');
-  t.false(outsiderView.user_is_moderator, 'Outsider not moderator');
-  t.true(outsiderView.user_can_join, 'Outsider can join');
-  t.false(outsiderView.user_can_edit, 'Outsider cannot edit');
-  t.false(outsiderView.user_can_delete, 'Outsider cannot delete');
+  t.false(outsiderView.userIsFounder, 'Outsider not founder');
+  t.false(outsiderView.userIsMember, 'Outsider not member');
+  t.false(outsiderView.userIsModerator, 'Outsider not moderator');
+  t.true(outsiderView.userCanJoin, 'Outsider can join');
+  t.false(outsiderView.userCanEdit, 'Outsider cannot edit');
+  t.false(outsiderView.userCanDelete, 'Outsider cannot delete');
 
   // Test site moderator permissions
   const siteModView = await Team.get(team.id);
   siteModView.members = [member, moderator];
   siteModView.moderators = [moderator];
   siteModView.populateUserInfo(siteModerator);
-  t.true(siteModView.user_can_delete, 'Site moderator can delete team');
+  t.true(siteModView.userCanDelete, 'Site moderator can delete team');
 });
 
 // ============================================================================
@@ -704,8 +741,8 @@ test.serial('Integration: Thing-Review relationship and metrics', async t => {
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/integration-test-${randomUUID()}`];
   thingRev.label = { en: 'Integration Test Thing' };
-  thingRev.created_on = new Date();
-  thingRev.created_by = thingCreator.id;
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = thingCreator.id;
   const thing = await thingRev.save();
 
   // Create multiple reviews for the thing
@@ -750,8 +787,8 @@ test.serial('Integration: Thing-Review relationship and metrics', async t => {
 
   // Test populate review metrics
   await thing.populateReviewMetrics();
-  t.is(thing.average_star_rating, 4, 'Average rating populated correctly');
-  t.is(thing.number_of_reviews, 2, 'Review count populated correctly');
+  t.is(thing.averageStarRating, 4, 'Average rating populated correctly');
+  t.is(thing.numberOfReviews, 2, 'Review count populated correctly');
 });
 
 test.serial('Integration: Team-Review association', async t => {
@@ -778,16 +815,16 @@ test.serial('Integration: Team-Review association', async t => {
   // Create team
   const teamRev = await Team.createFirstRevision(teamFounder, { tags: ['create'] });
   teamRev.name = { en: 'Review Team' };
-  teamRev.created_by = teamFounder.id;
-  teamRev.created_on = new Date();
+  teamRev.createdBy = teamFounder.id;
+  teamRev.createdOn = new Date();
   const team = await teamRev.save();
 
   // Create thing
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/team-review-test-${randomUUID()}`];
   thingRev.label = { en: 'Team Review Test Thing' };
-  thingRev.created_on = new Date();
-  thingRev.created_by = thingCreator.id;
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = thingCreator.id;
   const thing = await thingRev.save();
 
   // Create review
@@ -840,8 +877,8 @@ test.serial('Integration: Revision system across all models', async t => {
   const thingRev1 = await Thing.createFirstRevision(user, { tags: ['create'] });
   thingRev1.urls = [`https://example.com/revision-integration-${randomUUID()}`];
   thingRev1.label = { en: 'Original Thing Label' };
-  thingRev1.created_on = new Date();
-  thingRev1.created_by = user.id;
+  thingRev1.createdOn = new Date();
+  thingRev1.createdBy = user.id;
   await thingRev1.save();
 
   const thingRev2 = await thingRev1.newRevision(user, { tags: ['edit'] });
@@ -851,8 +888,8 @@ test.serial('Integration: Revision system across all models', async t => {
   // Test Team revisions
   const teamRev1 = await Team.createFirstRevision(user, { tags: ['create'] });
   teamRev1.name = { en: 'Original Team Name' };
-  teamRev1.created_by = user.id;
-  teamRev1.created_on = new Date();
+  teamRev1.createdBy = user.id;
+  teamRev1.createdOn = new Date();
   await teamRev1.save();
 
   const teamRev2 = await teamRev1.newRevision(user, { tags: ['edit'] });

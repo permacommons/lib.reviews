@@ -7,7 +7,7 @@
  * maintaining compatibility with the existing RethinkDB Review model interface.
  */
 
-const { getPostgresDAL } = require('../db-dual');
+const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;
@@ -26,9 +26,9 @@ let Review = null;
  * Initialize the PostgreSQL Review model
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function initializeReviewModel(customDAL = null) {
-  const dal = customDAL || getPostgresDAL();
-  
+async function initializeReviewModel(customDAL = null) {
+  const dal = customDAL || await getPostgresDAL();
+
   if (!dal) {
     debug.db('PostgreSQL DAL not available, skipping Review model initialization');
     return null;
@@ -37,34 +37,44 @@ function initializeReviewModel(customDAL = null) {
   try {
     // Use table prefix if this is a test DAL
     const tableName = dal.tablePrefix ? `${dal.tablePrefix}reviews` : 'reviews';
-    
+
     // Create the schema with revision fields and JSONB columns
     const reviewSchema = {
       id: type.string().uuid(4),
-      thing_id: type.string().uuid(4).required(true),
       
+      // CamelCase schema fields that map to snake_case database columns
+      thingID: type.string().uuid(4).required(true),
+
       // JSONB multilingual content fields
       title: mlString.getSchema({ maxLength: reviewOptions.maxTitleLength }),
       text: mlString.getSchema(),
       html: mlString.getSchema(),
-      
+
       // Relational fields
-      star_rating: type.number().min(1).max(5).integer().required(true),
-      created_on: type.date().required(true),
-      created_by: type.string().uuid(4).required(true),
-      original_language: type.string().max(4).validator(isValidLanguage),
-      social_image_id: type.string().uuid(4),
-      
+      starRating: type.number().min(1).max(5).integer().required(true),
+      createdOn: type.date().required(true),
+      createdBy: type.string().uuid(4).required(true),
+      originalLanguage: type.string().max(4).validator(isValidLanguage),
+      socialImageID: type.string().uuid(4),
+
       // Virtual permission fields
-      user_can_delete: type.virtual().default(false),
-      user_can_edit: type.virtual().default(false),
-      user_is_author: type.virtual().default(false)
+      userCanDelete: type.virtual().default(false),
+      userCanEdit: type.virtual().default(false),
+      userIsAuthor: type.virtual().default(false)
     };
 
     // Add revision fields to schema
     Object.assign(reviewSchema, revision.getSchema());
 
     Review = dal.createModel(tableName, reviewSchema);
+
+    // Register camelCase to snake_case field mappings
+    Review._registerFieldMapping('thingID', 'thing_id');
+    Review._registerFieldMapping('starRating', 'star_rating');
+    Review._registerFieldMapping('createdOn', 'created_on');
+    Review._registerFieldMapping('createdBy', 'created_by');
+    Review._registerFieldMapping('originalLanguage', 'original_language');
+    Review._registerFieldMapping('socialImageID', 'social_image_id');
 
     // Add static properties
     Object.defineProperty(Review, 'options', {
@@ -92,6 +102,8 @@ function initializeReviewModel(customDAL = null) {
     Review.define("populateUserInfo", populateUserInfo);
     Review.define("deleteAllRevisionsWithThing", deleteAllRevisionsWithThing);
 
+    // Property aliases are now handled by the camelCase accessor pattern
+
     debug.db('PostgreSQL Review model initialized with all methods');
     return Review;
   } catch (error) {
@@ -110,15 +122,58 @@ function initializeReviewModel(customDAL = null) {
  * @returns {Review} the review and associated data
  */
 async function getWithData(id) {
-  const joinOptions = {
-    // These would need proper join implementation when models are available
-    // thing: { files: true },
-    // teams: true,
-    // socialImage: true,
-    // creator: { _apply: seq => seq.without('password') }
-  };
+  // Get the review first
+  const review = await Review.getNotStaleOrDeleted(id);
 
-  return await Review.getNotStaleOrDeleted(id, joinOptions);
+  if (!review) {
+    return null;
+  }
+
+  // Manually join creator data
+  if (review.createdBy) {
+    try {
+      const userQuery = `
+        SELECT id, display_name, canonical_name, email, registration_date, 
+               is_trusted, is_site_moderator, is_super_user
+        FROM users 
+        WHERE id = $1
+      `;
+
+      const userResult = await Review.dal.query(userQuery, [review.createdBy]);
+
+      if (userResult.rows.length > 0) {
+        const creator = userResult.rows[0];
+        // Map snake_case to camelCase for template compatibility
+        const safeCreator = {
+          ...creator,
+          displayName: creator.display_name,
+          urlName: creator.display_name ? encodeURIComponent(creator.display_name.replace(/ /g, '_')) : undefined
+        };
+        review.creator = safeCreator;
+      }
+    } catch (error) {
+      debug.db('Failed to fetch creator for review:', error.message);
+    }
+  }
+
+  // Manually join thing data
+  if (review.thingID) {
+    const { getPostgresThingModel } = require('./thing');
+    const Thing = getPostgresThingModel(Review.dal);
+
+    if (Thing) {
+      try {
+        const thing = await Thing.getNotStaleOrDeleted(review.thingID);
+        if (thing) {
+          review.thing = thing;
+        }
+      } catch (error) {
+        debug.db('Failed to fetch thing for review:', error);
+      }
+    }
+  }
+
+  return review;
 }
 
 /**
@@ -143,7 +198,7 @@ async function createReview(reviewObj, { tags, files } = {}) {
       AND (_rev_deleted IS NULL OR _rev_deleted = false)
     LIMIT 1
   `;
-  
+
   const existingResult = await Review.dal.query(existingQuery, [thing.id, reviewObj.createdBy]);
 
   if (existingResult.rows.length > 0) {
@@ -172,15 +227,15 @@ async function createReview(reviewObj, { tags, files } = {}) {
   // Create new review instance
   const { randomUUID } = require('crypto');
   const review = new Review({
-    thing_id: thing.id,
+    thingID: thing.id,
     title: reviewObj.title,
     text: reviewObj.text,
     html: reviewObj.html,
-    star_rating: reviewObj.starRating,
-    created_on: reviewObj.createdOn,
-    created_by: reviewObj.createdBy,
-    original_language: reviewObj.originalLanguage,
-    social_image_id: reviewObj.socialImageID,
+    starRating: reviewObj.starRating,
+    createdOn: reviewObj.createdOn,
+    createdBy: reviewObj.createdBy,
+    originalLanguage: reviewObj.originalLanguage,
+    socialImageID: reviewObj.socialImageID,
     _rev_id: randomUUID(),
     _rev_user: reviewObj.createdBy,
     _rev_date: reviewObj.createdOn,
@@ -189,13 +244,13 @@ async function createReview(reviewObj, { tags, files } = {}) {
 
   try {
     await review.save();
-    
+
     // Handle team associations if provided
     if (reviewObj.teams && Array.isArray(reviewObj.teams)) {
       // This would need proper team association implementation
       debug.db('Team associations not yet implemented in Review.create');
     }
-    
+
     return review;
   } catch (error) {
     if (error instanceof ReviewError) {
@@ -225,21 +280,21 @@ function validateSocialImage({
 } = {}) {
   if (socialImageID) {
     let isValidFile = false;
-    
+
     for (const file of fileObjects) {
       if (file.id === socialImageID) {
         isValidFile = true;
         break;
       }
     }
-    
+
     for (const fileID of newFileIDs) {
       if (fileID === socialImageID) {
         isValidFile = true;
         break;
       }
     }
-    
+
     if (!isValidFile) {
       throw new ReviewError({ userMessage: 'invalid image selected' });
     }
@@ -262,7 +317,7 @@ async function findOrCreateThing(reviewObj) {
   // Get Thing model
   const { getPostgresThingModel } = require('./thing');
   const Thing = getPostgresThingModel(Review.dal);
-  
+
   if (!Thing) {
     throw new Error('Thing model not available');
   }
@@ -276,7 +331,7 @@ async function findOrCreateThing(reviewObj) {
   // Create new thing
   const { randomUUID } = require('crypto');
   const date = new Date();
-  
+
   const thing = new Thing({
     urls: [reviewObj.url],
     created_on: date,
@@ -290,7 +345,7 @@ async function findOrCreateThing(reviewObj) {
   // Get adapter data for the URL
   const adapterPromises = adapters.getSupportedLookupsAsSafePromises(reviewObj.url);
   const results = await Promise.all(adapterPromises);
-  
+
   // Initialize fields from first adapter result
   const firstResult = adapters.getFirstResultWithData(results);
   if (firstResult) {
@@ -337,13 +392,13 @@ async function getFeed({
   withoutCreator = undefined,
   limit = 10
 } = {}) {
-  
+
   let query = `
     SELECT r.* FROM ${Review.tableName} r
     WHERE (_old_rev_of IS NULL)
       AND (_rev_deleted IS NULL OR _rev_deleted = false)
   `;
-  
+
   const params = [];
   let paramIndex = 1;
 
@@ -393,8 +448,94 @@ async function getFeed({
 
   // Add joins if requested
   if (withThing || withTeams) {
-    // This would need proper join implementation
-    debug.db('Thing and team joins not yet implemented in Review.getFeed');
+    // Populate creator information for each review using batch query
+    try {
+      // Get unique user IDs from reviews
+      const userIds = [...new Set(feedItems.map(review => review.createdBy).filter(Boolean))];
+
+      if (userIds.length > 0) {
+        debug.db(`Batch fetching ${userIds.length} unique creators...`);
+
+        // Batch query for all users at once
+        const userQuery = `
+          SELECT id, display_name, canonical_name, email, registration_date, 
+                 is_trusted, is_site_moderator, is_super_user
+          FROM users 
+          WHERE id = ANY($1)
+        `;
+
+        const userResult = await Review.dal.query(userQuery, [userIds]);
+
+        // Create a map of user ID to user data for fast lookup
+        const userMap = new Map();
+        userResult.rows.forEach(user => {
+          // Map snake_case to camelCase for template compatibility
+          const safeUser = {
+            ...user,
+            displayName: user.display_name,
+            urlName: user.display_name ? encodeURIComponent(user.display_name.replace(/ /g, '_')) : undefined
+          };
+          userMap.set(user.id, safeUser);
+        });
+
+        // Assign creators to reviews
+        feedItems.forEach(review => {
+          if (review.createdBy && userMap.has(review.createdBy)) {
+            review.creator = userMap.get(review.createdBy);
+          }
+        });
+
+        debug.db(`Successfully populated creators for ${userResult.rows.length} users`);
+      }
+    } catch (error) {
+      debug.error('Failed to batch fetch creators:', error.message);
+    }
+
+    if (withThing) {
+      try {
+        const thingIds = [...new Set(feedItems.map(review => review.thingID).filter(Boolean))];
+
+        if (thingIds.length > 0) {
+          const { getPostgresThingModel } = require('./thing');
+          let Thing = await getPostgresThingModel();
+          if (!Thing && Review.dal) {
+            Thing = await getPostgresThingModel(Review.dal);
+          }
+
+          if (!Thing) {
+            debug.db('Thing model not available for joins in Review.getFeed');
+          } else {
+            debug.db(`Batch fetching ${thingIds.length} things for review feed...`);
+
+            const placeholders = thingIds.map((_, index) => `$${index + 1}`).join(', ');
+            const thingQuery = `
+              SELECT * FROM ${Thing.tableName}
+              WHERE id IN (${placeholders})
+                AND (_old_rev_of IS NULL)
+                AND (_rev_deleted IS NULL OR _rev_deleted = false)
+            `;
+
+            const thingResult = await Thing.dal.query(thingQuery, thingIds);
+            const thingMap = new Map();
+
+            thingResult.rows.forEach(row => {
+              const thingInstance = Thing._createInstance(row);
+              thingMap.set(thingInstance.id, thingInstance);
+            });
+
+            feedItems.forEach(review => {
+              if (review.thingID && thingMap.has(review.thingID)) {
+                review.thing = thingMap.get(review.thingID);
+              }
+            });
+
+            debug.db(`Populated thing joins for ${thingMap.size} reviews in feed`);
+          }
+        }
+      } catch (error) {
+        debug.error('Failed to join things in Review.getFeed:', error.message);
+      }
+    }
   }
 
   feedResult.feedItems = feedItems;
@@ -415,16 +556,16 @@ function populateUserInfo(user) {
     return; // fields will be at their default value (false)
   }
 
-  if (user.is_super_user || user.is_site_moderator || user.id === this.created_by) {
-    this.user_can_delete = true;
+  if (user.isSuperUser || user.isSiteModerator || user.id === this.createdBy) {
+    this.userCanDelete = true;
   }
 
-  if (user.is_super_user || user.id === this.created_by) {
-    this.user_can_edit = true;
+  if (user.isSuperUser || user.id === this.createdBy) {
+    this.userCanEdit = true;
   }
 
-  if (user.id === this.created_by) {
-    this.user_is_author = true;
+  if (user.id === this.createdBy) {
+    this.userIsAuthor = true;
   }
 }
 
@@ -459,9 +600,9 @@ class ReviewError extends ReportedError {
   constructor(options) {
     if (typeof options === 'object' && options.parentError instanceof Error &&
       typeof options.payload?.review === 'object') {
-      
+
       const parentMessage = options.parentError.message;
-      
+
       if (parentMessage.includes('star_rating') && parentMessage.includes('greater than or equal to 1')) {
         options.userMessage = 'invalid star rating';
         options.userMessageParams = [String(options.payload.review.star_rating)];
@@ -486,9 +627,9 @@ class ReviewError extends ReportedError {
  * Get the PostgreSQL Review model (initialize if needed)
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function getPostgresReviewModel(customDAL = null) {
+async function getPostgresReviewModel(customDAL = null) {
   if (!Review || customDAL) {
-    Review = initializeReviewModel(customDAL);
+    Review = await initializeReviewModel(customDAL);
   }
   return Review;
 }

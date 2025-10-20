@@ -7,8 +7,8 @@ const url = require('url');
 const config = require('config');
 
 // Internal dependencies
-const Thing = require('../models/thing');
-const Review = require('../models/review');
+const Thing = require('../models-postgres/thing');
+const { getPostgresReviewModel } = require('../models-postgres/review');
 const render = require('./helpers/render');
 const getResourceErrorHandler = require('./handlers/resource-error-handler');
 const languages = require('../locales/languages');
@@ -131,10 +131,12 @@ router.get('/:id/atom/:language', function(req, res, next) {
       if (!languages.isValid(language))
         return res.redirect(`/${id}/atom/en`);
 
-      Review.getFeed({
+      getReviewModel()
+        .then(Review => Review.getFeed({
           thingID: thing.id,
-          withThing: false
-        })
+          withThing: false,
+          withTeams: true
+        }))
         .then(result => {
 
           let updatedDate;
@@ -184,41 +186,46 @@ router.get('/thing/:id/atom/:language', function(req, res) {
   return res.redirect(`/${id}/atom/${language}`);
 });
 
-function loadThingAndReviews(req, res, next, thing, offsetDate) {
+let reviewModelPromise;
+async function getReviewModel() {
+  if (!reviewModelPromise) {
+    reviewModelPromise = getPostgresReviewModel();
+  }
+  return reviewModelPromise;
+}
 
-  let p1, p2;
+async function loadThingAndReviews(req, res, next, thing, offsetDate) {
+  try {
+    const Review = await getReviewModel();
 
-  thing.populateUserInfo(req.user);
-  if (Array.isArray(thing.files))
-    thing.files.map(file => file.populateUserInfo(req.user));
+    thing.populateUserInfo(req.user);
+    if (Array.isArray(thing.files)) {
+      thing.files.forEach(file => file.populateUserInfo(req.user));
+    }
 
-  // We don't use a join so we can use the orderBy index on this query.
-  p1 = Review.getFeed({
-    thingID: thing.id,
-    withThing: false,
-    withoutCreator: req.user ? req.user.id : false, // Obtained separately below
-    offsetDate
-  });
+    const otherReviewsPromise = Review.getFeed({
+      thingID: thing.id,
+      withThing: false,
+      withTeams: true,
+      withoutCreator: req.user ? req.user.id : false,
+      offsetDate
+    });
 
-  // Separate query for any reviews by the user (might otherwise not be
-  // within the date range captured above). Populates with user info.
-  p2 = thing.getReviewsByUser(req.user);
+    const userReviewsPromise = thing.getReviewsByUser(req.user);
 
-  Promise
-    .all([p1, p2])
-    .then(result => {
+    const [otherReviews, userReviews] = await Promise.all([otherReviewsPromise, userReviewsPromise]);
 
-      result[0].feedItems.forEach(review => {
-        review.populateUserInfo(req.user);
+    otherReviews.feedItems.forEach(review => {
+      review.populateUserInfo(req.user);
+    });
 
-      });
-      sendThing(req, res, thing, {
-        otherReviews: result[0],
-        userReviews: result[1]
-      });
-    })
-    .catch(next);
-
+    sendThing(req, res, thing, {
+      otherReviews,
+      userReviews
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 function processTextFieldUpdate(req, res, next) {

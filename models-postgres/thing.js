@@ -7,7 +7,7 @@
  * maintaining compatibility with the existing RethinkDB Thing model interface.
  */
 
-const { getPostgresDAL } = require('../db-dual');
+const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;
@@ -24,8 +24,8 @@ let Thing = null;
  * Initialize the PostgreSQL Thing model
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function initializeThingModel(customDAL = null) {
-  const dal = customDAL || getPostgresDAL();
+async function initializeThingModel(customDAL = null) {
+  const dal = customDAL || await getPostgresDAL();
   
   if (!dal) {
     debug.db('PostgreSQL DAL not available, skipping Thing model initialization');
@@ -53,33 +53,39 @@ function initializeThingModel(customDAL = null) {
       // Complex sync data in JSONB
       sync: type.object(),
       
-      // Relational fields
-      original_language: type.string().max(4).validator(isValidLanguage),
-      canonical_slug_name: type.string(),
-      created_on: type.date().required(true),
-      created_by: type.string().uuid(4).required(true),
+      // CamelCase relational fields that map to snake_case database columns
+      originalLanguage: type.string().max(4).validator(isValidLanguage),
+      canonicalSlugName: type.string(),
+      createdOn: type.date().required(true),
+      createdBy: type.string().uuid(4).required(true),
       
       // Virtual fields for compatibility
-      url_id: type.virtual().default(function() {
-        const slugName = this.getValue ? this.getValue('canonical_slug_name') : this.canonical_slug_name;
+      urlID: type.virtual().default(function() {
+        const slugName = this.getValue ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
         return slugName ? encodeURIComponent(slugName) : this.id;
       }),
       
       // Permission virtual fields
-      user_can_delete: type.virtual().default(false),
-      user_can_edit: type.virtual().default(false),
-      user_can_upload: type.virtual().default(false),
-      user_is_creator: type.virtual().default(false),
+      userCanDelete: type.virtual().default(false),
+      userCanEdit: type.virtual().default(false),
+      userCanUpload: type.virtual().default(false),
+      userIsCreator: type.virtual().default(false),
       
       // Metrics virtual fields (populated asynchronously)
-      number_of_reviews: type.virtual().default(0),
-      average_star_rating: type.virtual().default(0)
+      numberOfReviews: type.virtual().default(0),
+      averageStarRating: type.virtual().default(0)
     };
 
     // Add revision fields to schema
     Object.assign(thingSchema, revision.getSchema());
 
     Thing = dal.createModel(tableName, thingSchema);
+
+    // Register camelCase to snake_case field mappings
+    Thing._registerFieldMapping('originalLanguage', 'original_language');
+    Thing._registerFieldMapping('canonicalSlugName', 'canonical_slug_name');
+    Thing._registerFieldMapping('createdOn', 'created_on');
+    Thing._registerFieldMapping('createdBy', 'created_by');
 
     // Add static methods
     Thing.createFirstRevision = revision.getFirstRevisionHandler(Thing);
@@ -261,10 +267,10 @@ function populateUserInfo(user) {
     return; // Permissions will be at their default value (false)
   }
 
-  this.user_can_delete = user.is_super_user || user.is_site_moderator || false;
-  this.user_can_edit = user.is_super_user || user.is_trusted || user.id === this.created_by;
-  this.user_can_upload = user.is_super_user || user.is_trusted;
-  this.user_is_creator = user.id === this.created_by;
+  this.userCanDelete = user.isSuperUser || user.isSiteModerator || false;
+  this.userCanEdit = user.isSuperUser || user.isTrusted || user.id === this.createdBy;
+  this.userCanUpload = user.isSuperUser || user.isTrusted;
+  this.userIsCreator = user.id === this.createdBy;
 }
 
 /**
@@ -279,8 +285,8 @@ async function populateReviewMetrics() {
     this.getAverageStarRating(),
     this.getReviewCount()
   ]);
-  this.average_star_rating = averageStarRating;
-  this.number_of_reviews = numberOfReviews;
+  this.averageStarRating = averageStarRating;
+  this.numberOfReviews = numberOfReviews;
   return this;
 }
 
@@ -621,14 +627,33 @@ function _validateMetadata(metadata) {
  * Get the PostgreSQL Thing model (initialize if needed)
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function getPostgresThingModel(customDAL = null) {
+async function getPostgresThingModel(customDAL = null) {
   if (!Thing || customDAL) {
-    Thing = initializeThingModel(customDAL);
+    Thing = await initializeThingModel(customDAL);
   }
   return Thing;
 }
 
+async function lookupByURLProxy(url, userID) {
+  const ThingModel = await getPostgresThingModel();
+  if (!ThingModel || typeof ThingModel.lookupByURL !== 'function') {
+    throw new Error('Thing model not available');
+  }
+  return ThingModel.lookupByURL(url, userID);
+}
+
+async function getWithDataProxy(id, options) {
+  const ThingModel = await getPostgresThingModel();
+  if (!ThingModel || typeof ThingModel.getWithData !== 'function') {
+    throw new Error('Thing model not available');
+  }
+  return ThingModel.getWithData(id, options);
+}
+
 module.exports = {
   initializeThingModel,
-  getPostgresThingModel
+  getPostgresThingModel,
+  lookupByURL: lookupByURLProxy,
+  getWithData: getWithDataProxy,
+  getLabel
 };

@@ -7,9 +7,9 @@ const i18n = require('i18n');
 
 // Internal deps
 const AbstractBREADProvider = require('./abstract-bread-provider');
-const Team = require('../../models/team');
-const mlString = require('../../models/helpers/ml-string');
-const BlogPost = require('../../models/blog-post');
+const Team = require('../../models-postgres/team');
+const mlString = require('../../dal/lib/ml-string');
+const { getPostgresBlogPostModel } = require('../../models-postgres/blog-post');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
 const { getEditorMessages } = require('../../util/frontend-messages');
@@ -248,7 +248,7 @@ class TeamProvider extends AbstractBREADProvider {
 
   }
 
-  read_GET(team) {
+  async read_GET(team) {
 
     team.populateUserInfo(this.req.user);
     if (Array.isArray(team.reviews))
@@ -291,6 +291,7 @@ class TeamProvider extends AbstractBREADProvider {
       [team.createdBy]: true
     };
 
+    const BlogPost = await getPostgresBlogPostModel();
     BlogPost.getMostRecentBlogPosts(team.id, {
         limit: 3
       })

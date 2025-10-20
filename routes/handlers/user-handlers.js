@@ -3,8 +3,8 @@ const escapeHTML = require('escape-html');
 
 const render = require('../helpers/render');
 const feeds = require('../helpers/feeds');
-const User = require('../../models/user');
-const Review = require('../../models/review');
+const { getPostgresUserModel } = require('../../models-postgres/user');
+const { getPostgresReviewModel } = require('../../models-postgres/review');
 const reviewHandlers = require('./review-handlers');
 const md = require('../../util/md');
 const { getEditorMessages } = require('../../util/frontend-messages');
@@ -14,6 +14,9 @@ let userHandlers = {
   processEdit(req, res, next) {
 
     const { name } = req.params;
+    const User = getPostgresUserModel();
+    if (!User) return next(new Error('User model not available'));
+    
     User
       .findByURLName(name, {
         withData: true,
@@ -79,13 +82,15 @@ let userHandlers = {
 
     return function(req, res, next) {
       const { name } = req.params;
+      const User = getPostgresUserModel();
+      if (!User) return next(new Error('User model not available'));
 
       User
         .findByURLName(name, {
           withData: true,
           withTeams: true
         })
-        .then(user => {
+        .then(async user => {
 
           user.populateUserInfo(req.user);
 
@@ -95,10 +100,15 @@ let userHandlers = {
           if (decodeURIComponent(user.urlName) !== name) // Redirect to chosen display name form (with spaces as underscores)
             return res.redirect(`/user/${user.urlName}`);
 
+          const Review = await getPostgresReviewModel();
+          if (!Review) return next(new Error('Review model not available'));
+          
           Review
             .getFeed({
               createdBy: user.id,
-              limit: 3
+              limit: 3,
+              withThing: true,
+              withTeams: true
             })
             .then(result => {
               let feedItems = result.feedItems;
@@ -180,6 +190,9 @@ let userHandlers = {
           offsetDate = null;
       }
 
+      const User = getPostgresUserModel();
+      if (!User) return next(new Error('User model not available'));
+      
       User
         .findByURLName(name)
         .then(user => {

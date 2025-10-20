@@ -17,7 +17,7 @@ function getClient() {
     client = createClient();
   return client;
 }
-const mlString = require('./models/helpers/ml-string');
+const mlString = require('./dal/lib/ml-string');
 const languages = require('./locales/languages');
 
 // All supported stemmers as of ElasticSearch 5.2.0

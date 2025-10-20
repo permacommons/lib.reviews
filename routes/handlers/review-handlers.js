@@ -5,7 +5,7 @@ const config = require('config');
 const i18n = require('i18n');
 
 // Internal dependencies
-const Review = require('../../models/review.js');
+const { getPostgresReviewModel } = require('../../models-postgres/review.js');
 const render = require('../helpers/render');
 const feeds = require('../helpers/feeds');
 const languages = require('../../locales/languages');
@@ -34,7 +34,7 @@ let reviewHandlers = {
       htmlURL: '/feed'
     }, options);
 
-    return function(req, res, next) {
+    return async function(req, res, next) {
 
       let language, offsetDate;
       if (req.params.utcisodate) {
@@ -51,12 +51,15 @@ let reviewHandlers = {
           language = 'en';
       }
 
+      const Review = await getPostgresReviewModel();
       Review
         .getFeed({
           onlyTrusted: options.onlyTrusted,
           limit: options.limit,
           offsetDate,
-          createdBy: options.createdBy
+          createdBy: options.createdBy,
+          withThing: true,
+          withTeams: true
         })
         .then(result => {
 

@@ -1,7 +1,7 @@
 // Generate/update human-readable identifier strings ('slugs') for all 'things'
 // (review subjects) in the database.
 'use strict';
-const Thing = require('../models/thing');
+const Thing = require('../models-postgres/thing');
 
 Thing
   .filter({

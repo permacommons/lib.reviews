@@ -7,7 +7,7 @@ const fs = require('fs');
 const https = require('https');
 
 const getApp = require('../app');
-const getDB = require('../db').getDB;
+const getDB = require('../db-postgres').getDB;
 
 async function runWebsite() {
   const db = await getDB();

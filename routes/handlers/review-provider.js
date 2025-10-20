@@ -3,12 +3,12 @@
 const config = require('config');
 
 // Internal dependencies
-const Review = require('../../models/review');
-const Team = require('../../models/team');
-const User = require('../../models/user');
-const File = require('../../models/file');
+const { getPostgresReviewModel } = require('../../models-postgres/review');
+const Team = require('../../models-postgres/team');
+const User = require('../../models-postgres/user');
+const File = require('../../models-postgres/file');
 const AbstractBREADProvider = require('./abstract-bread-provider');
-const mlString = require('../../models/helpers/ml-string.js');
+const mlString = require('../../dal/lib/ml-string.js');
 const urlUtils = require('../../util/url-utils');
 const ReportedError = require('../../util/reported-error.js');
 const md = require('../../util/md');
@@ -237,6 +237,7 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
   async loadData() {
+    const Review = await getPostgresReviewModel();
     const review = await Review.getWithData(this.id);
     // For permission checks on associated thing
     review.thing.populateUserInfo(this.req.user);
@@ -312,9 +313,10 @@ class ReviewProvider extends AbstractBREADProvider {
           .newRevision(this.req.user, {
             tags: ['edit-via-form']
           })
-          .then(newRev => {
+          .then(async newRev => {
             let f = formData.formValues;
 
+            const Review = await getPostgresReviewModel();
             Review.validateSocialImage({
               socialImageID: f.socialImageID,
               newFileIDs: f.files,

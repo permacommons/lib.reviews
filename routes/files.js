@@ -8,7 +8,7 @@ const path = require('path');
 const util = require('util');
 
 // Internal dependencies
-const File = require('../models/file');
+const File = require('../models-postgres/file');
 const getResourceErrorHandler = require('./handlers/resource-error-handler');
 const render = require('./helpers/render');
 

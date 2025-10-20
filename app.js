@@ -20,7 +20,7 @@ const i18n = require('i18n');
 const hbs = require('hbs'); // handlebars templating
 const hbsutils = require('hbs-utils')(hbs);
 const session = require('express-session');
-const RDBStore = require('session-rethinkdb')(session);
+const pgSession = require('connect-pg-simple')(session);
 const useragent = require('express-useragent');
 const passport = require('passport');
 const csrf = require('csurf'); // protect against request forgery using tokens
@@ -31,21 +31,10 @@ const WebHookDispatcher = require('./util/webhooks');
 
 // Internal dependencies
 const languages = require('./locales/languages');
-const reviews = require('./routes/reviews');
-const actions = require('./routes/actions');
-const users = require('./routes/users');
-const teams = require('./routes/teams');
-const pages = require('./routes/pages');
-const files = require('./routes/files');
-const uploads = require('./routes/uploads');
-const blogPosts = require('./routes/blog-posts');
-const api = require('./routes/api');
 const apiHelper = require('./routes/helpers/api');
 const flashHelper = require('./routes/helpers/flash');
-const things = require('./routes/things');
 const ErrorProvider = require('./routes/errors');
 const debug = require('./util/debug');
-const apitest = require('./routes/apitest');
 const clientAssets = require('./util/client-assets');
 const flashStore = require('./util/flash-store');
 
@@ -63,7 +52,7 @@ let initializedApp;
  *  an Express app
  * @memberof App
  */
-async function getApp(db = require('./db')) {
+async function getApp(db = require('./db-postgres')) {
   if (initializedApp)
     return initializedApp;
 
@@ -113,23 +102,47 @@ async function getApp(db = require('./db')) {
   app.use(i18n.init); // Requires cookie parser!
   app.use(useragent.express()); // expose UA object to req.useragent
 
-  const store = new RDBStore(db.r, {
-    table: 'sessions'
+  // Wait for database to be ready
+  const dbInstance = await db;
+  
+  // Load routes after database is ready
+  const reviews = require('./routes/reviews');
+  const actions = require('./routes/actions');
+  const users = require('./routes/users');
+  const teams = require('./routes/teams');
+  const pages = require('./routes/pages');
+  const files = require('./routes/files');
+  const blogPosts = require('./routes/blog-posts');
+  const api = require('./routes/api');
+  const things = require('./routes/things');
+  const apitest = require('./routes/apitest');
+  
+  const store = new pgSession({
+    pool: dbInstance.pool,
+    tableName: 'session'
   });
 
-  // We do not get an error event from this module, so this is a potential
-  // cause of hangs during the initialization. Set DEBUG=session to debug.
-  asyncJobs.push(new Promise((resolve, reject) => {
-    debug.app('Awaiting session store initialization.');
-    store.on('connect', function() {
+  // Create session table if it doesn't exist
+  asyncJobs.push((async () => {
+    debug.app('Initializing session store.');
+    try {
+      await dbInstance.query(`
+        CREATE TABLE IF NOT EXISTS session (
+          sid VARCHAR NOT NULL COLLATE "default",
+          sess JSON NOT NULL,
+          expire TIMESTAMP(6) NOT NULL
+        )
+        WITH (OIDS=FALSE);
+        
+        ALTER TABLE session ADD CONSTRAINT session_pkey PRIMARY KEY (sid) NOT DEFERRABLE INITIALLY IMMEDIATE;
+        
+        CREATE INDEX IF NOT EXISTS IDX_session_expire ON session(expire);
+      `);
       debug.app('Session store initialized.');
-      db.r
-        .table('sessions')
-        .wait({ timeout: 5 })
-        .then(resolve)
-        .catch(reject);
-    });
-  }));
+    } catch (error) {
+      debug.app('Session store initialization error (may be expected):', error.message);
+    }
+  })());
 
   app.use(session({
     key: 'libreviews_session',
@@ -247,6 +260,7 @@ async function getApp(db = require('./db')) {
   app.use('/api', api);
 
   // Upload processing has to be done before CSRF middleware kicks in
+  const uploads = require('./routes/uploads');
   app.use('/', uploads.stage1Router);
 
   app.use(csrf());

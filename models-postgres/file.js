@@ -7,7 +7,7 @@
  * maintaining compatibility with the existing RethinkDB File model interface.
  */
 
-const { getPostgresDAL } = require('../db-dual');
+const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;
@@ -21,8 +21,8 @@ let File = null;
  * Initialize the PostgreSQL File model
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function initializeFileModel(customDAL = null) {
-  const dal = customDAL || getPostgresDAL();
+async function initializeFileModel(customDAL = null) {
+  const dal = customDAL || await getPostgresDAL();
   
   if (!dal) {
     debug.db('PostgreSQL DAL not available, skipping File model initialization');
@@ -38,10 +38,13 @@ function initializeFileModel(customDAL = null) {
       id: type.string().uuid(4),
       name: type.string().max(512),
       description: mlString.getSchema(),
-      uploaded_by: type.string().uuid(4),
-      uploaded_on: type.date(),
-      mime_type: type.string(),
+      
+      // CamelCase fields that map to snake_case database columns
+      uploadedBy: type.string().uuid(4),
+      uploadedOn: type.date(),
+      mimeType: type.string(),
       license: type.string().enum(validLicenses),
+      
       // Provided by uploader: if not the author, who is?
       creator: mlString.getSchema(),
       // Provided by uploader: where does this file come from?
@@ -50,14 +53,19 @@ function initializeFileModel(customDAL = null) {
       completed: type.boolean().default(false),
       
       // Virtual permission fields
-      user_can_delete: type.virtual().default(false),
-      user_is_creator: type.virtual().default(false)
+      userCanDelete: type.virtual().default(false),
+      userIsCreator: type.virtual().default(false)
     };
 
     // Add revision fields to schema
     Object.assign(fileSchema, revision.getSchema());
 
     File = dal.createModel(tableName, fileSchema);
+
+    // Register camelCase to snake_case field mappings
+    File._registerFieldMapping('uploadedBy', 'uploaded_by');
+    File._registerFieldMapping('uploadedOn', 'uploaded_on');
+    File._registerFieldMapping('mimeType', 'mime_type');
 
     // Add static methods
     File.createFirstRevision = revision.getFirstRevisionHandler(File);
@@ -191,17 +199,17 @@ function populateUserInfo(user) {
     return; // Permissions will be at their default value (false)
   }
 
-  this.user_is_creator = user.id === this.uploaded_by;
-  this.user_can_delete = this.user_is_creator || user.is_super_user || user.is_site_moderator || false;
+  this.userIsCreator = user.id === this.uploadedBy;
+  this.userCanDelete = this.userIsCreator || user.isSuperUser || user.isSiteModerator || false;
 }
 
 /**
  * Get the PostgreSQL File model (initialize if needed)
  * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
  */
-function getPostgresFileModel(customDAL = null) {
+async function getPostgresFileModel(customDAL = null) {
   if (!File || customDAL) {
-    File = initializeFileModel(customDAL);
+    File = await initializeFileModel(customDAL);
   }
   return File;
 }

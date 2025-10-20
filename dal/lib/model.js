@@ -32,6 +32,33 @@ class Model {
   }
 
   /**
+   * Field mappings registry for camelCase to snake_case conversion
+   * @type {Map<string, string>}
+   * @static
+   */
+  static _fieldMappings = new Map();
+
+  /**
+   * Register a camelCase to snake_case field mapping
+   * @param {string} camelCase - camelCase property name
+   * @param {string} snakeCase - snake_case database column name
+   * @static
+   */
+  static _registerFieldMapping(camelCase, snakeCase) {
+    this._fieldMappings.set(camelCase, snakeCase);
+  }
+
+  /**
+   * Get the database field name for a given property name
+   * @param {string} propertyName - Property name (camelCase or snake_case)
+   * @returns {string} Database field name (snake_case)
+   * @static
+   */
+  static _getDbFieldName(propertyName) {
+    return this._fieldMappings.get(propertyName) || propertyName;
+  }
+
+  /**
    * Create a new model class
    * @param {string} tableName - Database table name
    * @param {Object} schema - Model schema definition
@@ -215,7 +242,10 @@ class Model {
    * @private
    */
   static _createInstance(data) {
-    const instance = new this(data);
+    // If data is already a Model instance, extract the raw database data
+    const rawData = data && data._data && typeof data._data === 'object' ? data._data : data;
+    
+    const instance = new this(rawData);
     instance._isNew = false;
     instance._changed.clear();
     instance._setupPropertyAccessors();
@@ -358,8 +388,17 @@ class Model {
     
     for (const [fieldName, fieldDef] of Object.entries(schema)) {
       if (fieldDef && !fieldDef.isVirtual) {
-        const value = this._data[fieldName];
-        this._data[fieldName] = fieldDef.validate(value, fieldName);
+        // Revision fields (starting with _) are internal database fields
+        // that don't use the camelCase accessor system
+        if (fieldName.startsWith('_')) {
+          const value = this._data[fieldName];
+          this._data[fieldName] = fieldDef.validate(value, fieldName);
+        } else {
+          // Regular fields use the camelCase property accessor
+          const value = this.getValue(fieldName);
+          const validatedValue = fieldDef.validate(value, fieldName);
+          this.setValue(fieldName, validatedValue);
+        }
       }
     }
   }
@@ -426,19 +465,24 @@ class Model {
 
   /**
    * Get property value (data or virtual)
-   * @param {string} key - Property name
+   * @param {string} key - Property name (camelCase or snake_case)
    * @returns {*} Property value
    */
   getValue(key) {
+    const schema = this.constructor.schema;
+    
     if (this._virtualFields.hasOwnProperty(key)) {
       return this._virtualFields[key];
     }
-    return this._data[key];
+    
+    // Get the actual database field name
+    const dbFieldName = this.constructor._getDbFieldName(key);
+    return this._data[dbFieldName];
   }
 
   /**
    * Set property value
-   * @param {string} key - Property name
+   * @param {string} key - Property name (camelCase or snake_case)
    * @param {*} value - Property value
    */
   setValue(key, value) {
@@ -447,8 +491,10 @@ class Model {
     if (schema[key] && schema[key].isVirtual) {
       this._virtualFields[key] = value;
     } else {
-      this._data[key] = value;
-      this._changed.add(key);
+      // Get the actual database field name
+      const dbFieldName = this.constructor._getDbFieldName(key);
+      this._data[dbFieldName] = value;
+      this._changed.add(dbFieldName);
     }
   }
 }

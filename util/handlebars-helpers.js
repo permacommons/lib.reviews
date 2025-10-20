@@ -8,9 +8,9 @@ const stripTags = require('striptags');
 const linkifyHTML = require('linkify-html');
 
 // Internal dependencies
-const mlString = require('../models/helpers/ml-string');
+const mlString = require('../dal/lib/ml-string');
 const languages = require('../locales/languages');
-const Thing = require('../models/thing');
+const { getLabel: getThingLabelFn } = require('../models-postgres/thing');
 const urlUtils = require('./url-utils');
 const adapters = require('../adapters/adapters');
 const getLicenseURL = require('./get-license-url');
@@ -111,8 +111,12 @@ hbs.registerHelper('getLang', function(str, options) {
   return mlRv ? mlRv.lang : undefined;
 });
 
-hbs.registerHelper('getThingLabel', (thing, options) =>
-  Thing.getLabel(thing, options.data.root.locale));
+hbs.registerHelper('getThingLabel', (thing, options) => {
+  if (!thing) {
+    return '';
+  }
+  return getThingLabelFn(thing, options.data.root.locale) || '';
+});
 
 // Just a simple %1, %2 substitution function for various purposes
 hbs.registerHelper('substitute', function(...args) {
@@ -129,8 +133,11 @@ hbs.registerHelper('substitute', function(...args) {
 });
 
 hbs.registerHelper('getThingLink', (thing, options) => {
-  let label = Thing.getLabel(thing, options.data.root.locale);
-  return `<a href="/${thing.urlID}">${label}</a>`;
+  if (!thing) {
+    return '';
+  }
+  const label = getThingLabelFn(thing, options.data.root.locale);
+  return `<a href="/${thing.urlID}">${label || ''}</a>`;
 });
 
 // Filenames cannot contain HTML metacharacters, so URL encoding is sufficient here

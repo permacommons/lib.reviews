@@ -78,10 +78,10 @@ test('Thing model: create first revision and lookup by URL', async t => {
   thingRev.aliases = { en: ['Sample Thing'] };
   thingRev.metadata = { en: { description: 'Metadata description' } };
   thingRev.sync = {};
-  thingRev.original_language = 'en';
-  thingRev.canonical_slug_name = 'Test Thing';
-  thingRev.created_on = new Date();
-  thingRev.created_by = creator.id;
+  thingRev.originalLanguage = 'en';
+  thingRev.canonicalSlugName = 'Test Thing';
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = creator.id;
 
   const saved = await thingRev.save();
   t.truthy(saved.id, 'Thing saved with generated UUID');
@@ -94,26 +94,39 @@ test('Thing model: create first revision and lookup by URL', async t => {
 test('Thing model: populateUserInfo sets permission flags', async t => {
   if (skipIfNoThing(t)) return;
 
-  const { actor: creator } = await dalFixture.createTestUser('Thing Creator');
-  const { actor: otherUser } = await dalFixture.createTestUser('Thing Moderator');
+  const { actor: creatorActor } = await dalFixture.createTestUser('Thing Creator');
+  const { actor: otherUserActor } = await dalFixture.createTestUser('Thing Moderator');
+  
+  // Convert actor objects to have camelCase properties for populateUserInfo
+  const creator = {
+    id: creatorActor.id,
+    isTrusted: creatorActor.is_trusted,
+    isSuperUser: creatorActor.is_super_user,
+    isSiteModerator: false
+  };
+  
+  const otherUser = {
+    id: otherUserActor.id,
+    isTrusted: false,
+    isSuperUser: otherUserActor.is_super_user,
+    isSiteModerator: true
+  };
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   thingRev.urls = ['https://example.com/thing'];
   thingRev.label = { en: 'Permission Thing' };
-  thingRev.created_on = new Date();
-  thingRev.created_by = creator.id;
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = creator.id;
   const thing = await thingRev.save();
 
   thing.populateUserInfo(creator);
-  t.true(thing.user_is_creator, 'Creator recognized');
-  t.true(thing.user_can_edit, 'Creator can edit');
-  t.true(thing.user_can_upload, 'Trusted creator can upload');
+  t.true(thing.userIsCreator, 'Creator recognized');
+  t.true(thing.userCanEdit, 'Creator can edit');
+  t.true(thing.userCanUpload, 'Trusted creator can upload');
 
   const moderatorView = await Thing.get(thing.id);
-  otherUser.is_site_moderator = true;
-  otherUser.is_trusted = false;
   moderatorView.populateUserInfo(otherUser);
-  t.false(moderatorView.user_is_creator, 'Moderator not creator');
-  t.true(moderatorView.user_can_delete, 'Moderator can delete');
-  t.false(moderatorView.user_can_upload, 'Moderator cannot upload without trust');
+  t.false(moderatorView.userIsCreator, 'Moderator not creator');
+  t.true(moderatorView.userCanDelete, 'Moderator can delete');
+  t.false(moderatorView.userCanUpload, 'Moderator cannot upload without trust');
 });

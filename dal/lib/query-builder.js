@@ -41,7 +41,11 @@ class QueryBuilder {
     
     if (typeof criteria === 'object' && criteria !== null) {
       for (const [key, value] of Object.entries(criteria)) {
-        this._addWhereCondition(key, '=', value);
+        // Convert camelCase property names to snake_case database field names
+        // Fallback to original key if _getDbFieldName is not available (for tests)
+        const dbFieldName = this.modelClass._getDbFieldName ? 
+          this.modelClass._getDbFieldName(key) : key;
+        this._addWhereCondition(dbFieldName, '=', value);
       }
     }
     
@@ -860,6 +864,21 @@ class QueryBuilder {
     }
     
     return query;
+  }
+
+  /**
+   * Get a random sample of records
+   * 
+   * @param {Number} count - Number of records to sample
+   * @returns {Promise<Array>} Array of sampled records
+   */
+  async sample(count = 1) {
+    // Add ORDER BY RANDOM() and LIMIT to get random sample
+    this._orderBy = ['RANDOM()'];
+    this._limit = count;
+    
+    const results = await this.run();
+    return results;
   }
 }
 

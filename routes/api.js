@@ -5,8 +5,8 @@ const express = require('express');
 const router = express.Router();
 
 // Internal dependencies
-const User = require('../models/user');
-const Thing = require('../models/thing');
+const User = require('../models-postgres/user');
+const Thing = require('../models-postgres/thing');
 const actionHandler = require('./handlers/action-handler');
 const search = require('../search');
 const urlUtils = require('../util/url-utils');

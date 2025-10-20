@@ -135,8 +135,8 @@ test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', as
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://www.wikidata.org/wiki/Q42'];
   thing.label = { en: 'Test Item' };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
   // Mock adapter result with description (should go to metadata)
   const adapterResult = {
@@ -176,8 +176,8 @@ test.serial('Thing model setURLs functionality', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/old'];
   thing.label = { en: 'Test Item' };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
   // Set new URLs including Wikidata URL
   const newURLs = [
@@ -219,8 +219,8 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
       source: 'wikidata'
     }
   };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
   // Mock the Wikidata adapter lookup to avoid external API calls
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
@@ -294,13 +294,13 @@ test.serial('search indexing with PostgreSQL metadata structure', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/test'];
   thing.label = { en: 'Test Item' };
-  thing.canonical_slug_name = 'test-item';
+  thing.canonicalSlugName = 'test-item';
   thing.metadata = {
     description: { en: 'Test description in metadata' },
     subtitle: { en: 'Test subtitle' }
   };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
 
   
@@ -310,9 +310,9 @@ test.serial('search indexing with PostgreSQL metadata structure', async t => {
   t.deepEqual(thing.metadata.description, { en: 'Test description in metadata' }, 'Description should match');
   
   // Test field name compatibility
-  t.truthy(thing.created_on, 'Thing should have created_on field');
-  t.truthy(thing.canonical_slug_name, 'Thing should have canonical_slug_name field');
+  t.truthy(thing.createdOn, 'Thing should have created_on field');
+  t.truthy(thing.canonicalSlugName, 'Thing should have canonical_slug_name field');
   
   // Test that the metadata structure is correct for search indexing
-  t.is(thing.canonical_slug_name, 'test-item', 'canonical_slug_name should be set correctly');
+  t.is(thing.canonicalSlugName, 'test-item', 'canonical_slug_name should be set correctly');
 });

@@ -52,17 +52,12 @@ test.before(async t => {
   try {
     await dalFixture.bootstrap();
 
-    // Ensure UUID generation helper exists (ignore permission errors)
+    // Ensure pgcrypto UUID helper exists (ignore permission errors)
     try {
       await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
     } catch (extensionError) {
-      // Try alternative UUID extension
-      try {
-        await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
-      } catch (altExtensionError) {
-        t.log('UUID extensions not available:', extensionError.message);
-        // Continue without extensions - gen_random_uuid() might still work
-      }
+      t.log('pgcrypto extension not available:', extensionError.message);
+      t.log('Tests may fail if gen_random_uuid() is unavailable.');
     }
 
     const models = await dalFixture.initializeModels([
@@ -114,7 +109,7 @@ test.serial('QueryBuilder supports simple boolean joins', async t => {
     password: 'secret123',
     email: `test-${randomUUID()}@example.com`
   });
-  await ensureUserExists(testUser.id, testUser.display_name);
+  await ensureUserExists(testUser.id, testUser.displayName);
   
   // Test simple join syntax: { teams: true }
   // This should not fail even if no team associations exist
@@ -137,8 +132,8 @@ test.serial('QueryBuilder handles revision-aware joins', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Test join with revision filtering
@@ -161,18 +156,18 @@ test.serial('QueryBuilder supports complex joins with _apply', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create a review
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thing_id = thing.id;
+  review.thingID = thing.id;
   review.title = { en: 'Test Review' };
   review.text = { en: 'This is a test review' };
-  review.star_rating = 5;
-  review.created_on = new Date();
-  review.created_by = testUser.id;
+  review.starRating = 5;
+  review.createdOn = new Date();
+  review.createdBy = testUser.id;
   await review.save();
   
   // Test complex join with _apply transformation
@@ -200,18 +195,18 @@ test.serial('QueryBuilder supports multiple joins', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create a review
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thing_id = thing.id;
+  review.thingID = thing.id;
   review.title = { en: 'Test Review' };
   review.text = { en: 'This is a test review' };
-  review.star_rating = 4;
-  review.created_on = new Date();
-  review.created_by = testUser.id;
+  review.starRating = 4;
+  review.createdOn = new Date();
+  review.createdBy = testUser.id;
   await review.save();
   
   // Test multiple joins
@@ -236,19 +231,19 @@ test.serial('QueryBuilder supports between date ranges', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create a review with a specific date
   const reviewDate = new Date('2024-06-15');
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thing_id = thing.id;
+  review.thingID = thing.id;
   review.title = { en: 'Test Review' };
   review.text = { en: 'This is a test review' };
-  review.star_rating = 3;
-  review.created_on = reviewDate;
-  review.created_by = testUser.id;
+  review.starRating = 3;
+  review.createdOn = reviewDate;
+  review.createdBy = testUser.id;
   await review.save();
   
   const startDate = new Date('2024-01-01');
@@ -260,8 +255,8 @@ test.serial('QueryBuilder supports between date ranges', async t => {
   t.true(reviews.length >= 1);
   // All reviews should be within the date range
   for (const reviewResult of reviews) {
-    t.true(reviewResult.created_on >= startDate);
-    t.true(reviewResult.created_on <= endDate);
+    t.true(reviewResult.createdOn >= startDate);
+    t.true(reviewResult.createdOn <= endDate);
   }
 });
 
@@ -288,8 +283,8 @@ test.serial('QueryBuilder supports revision filtering', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Test revision filtering
@@ -313,18 +308,18 @@ test.serial('QueryBuilder supports revision tag filtering', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create a review with specific tags
   const review = await Review.createFirstRevision(testUser, { tags: ['create', 'test-tag'] });
-  review.thing_id = thing.id;
+  review.thingID = thing.id;
   review.title = { en: 'Test Review' };
   review.text = { en: 'This is a test review' };
-  review.star_rating = 5;
-  review.created_on = new Date();
-  review.created_by = testUser.id;
+  review.starRating = 5;
+  review.createdOn = new Date();
+  review.createdBy = testUser.id;
   await review.save();
   
   // Test revision tag filtering
@@ -352,20 +347,20 @@ test.serial('QueryBuilder supports ordering and limiting', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create multiple reviews with different dates
   const reviews = [];
   for (let i = 0; i < 3; i++) {
     const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-    review.thing_id = thing.id;
+    review.thingID = thing.id;
     review.title = { en: `Test Review ${i}` };
     review.text = { en: `This is test review ${i}` };
-    review.star_rating = 3 + i;
-    review.created_on = new Date(Date.now() + i * 1000); // Different timestamps
-    review.created_by = testUser.id;
+    review.starRating = 3 + i;
+    review.createdOn = new Date(Date.now() + i * 1000); // Different timestamps
+    review.createdBy = testUser.id;
     await review.save();
     reviews.push(review);
   }
@@ -382,7 +377,7 @@ test.serial('QueryBuilder supports ordering and limiting', async t => {
   
   // Check ordering
   for (let i = 1; i < orderedReviews.length; i++) {
-    t.true(orderedReviews[i-1].created_on >= orderedReviews[i].created_on);
+    t.true(orderedReviews[i-1].createdOn >= orderedReviews[i].createdOn);
   }
 });
 
@@ -395,20 +390,20 @@ test.serial('QueryBuilder supports offset for pagination', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create multiple reviews for pagination testing
   const reviews = [];
   for (let i = 0; i < 5; i++) {
     const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-    review.thing_id = thing.id;
+    review.thingID = thing.id;
     review.title = { en: `Pagination Review ${i}` };
     review.text = { en: `This is pagination test review ${i}` };
-    review.star_rating = 3;
-    review.created_on = new Date(Date.now() + i * 1000); // Different timestamps
-    review.created_by = testUser.id;
+    review.starRating = 3;
+    review.createdOn = new Date(Date.now() + i * 1000); // Different timestamps
+    review.createdBy = testUser.id;
     await review.save();
     reviews.push(review);
   }
@@ -448,18 +443,18 @@ test.serial('QueryBuilder supports count operations', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create a review
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thing_id = thing.id;
+  review.thingID = thing.id;
   review.title = { en: 'Count Test Review' };
   review.text = { en: 'This is a count test review' };
-  review.star_rating = 4;
-  review.created_on = new Date();
-  review.created_by = testUser.id;
+  review.starRating = 4;
+  review.createdOn = new Date();
+  review.createdBy = testUser.id;
   await review.save();
   
   // Test count

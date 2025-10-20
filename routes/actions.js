@@ -10,8 +10,8 @@ const i18n = require('i18n');
 // Internal dependencies
 const render = require('./helpers/render');
 const forms = require('./helpers/forms');
-const User = require('../models/user');
-const InviteLink = require('../models/invite-link');
+const { getPostgresUserModel } = require('../models-postgres/user');
+const { getPostgresInviteLinkModel } = require('../models-postgres/invite-link');
 const debug = require('../util/debug');
 const actionHandler = require('./handlers/action-handler.js');
 const signinRequiredRoute = require('./handlers/signin-required-route');
@@ -74,53 +74,55 @@ router.post('/actions/invite', signinRequiredRoute('invite users', function(req,
   if (!req.user.inviteLinkCount) {
     req.flash('pageErrors', res.__('out of links'));
     return renderInviteLinkPage(req, res, next);
-  } else {
-    let inviteLink = new InviteLink({});
-    inviteLink.createdOn = new Date();
-    inviteLink.createdBy = req.user.id;
-    let p1 = inviteLink.save();
-
-    req.user.inviteLinkCount--;
-    let p2 = req.user.save();
-
-    Promise.all([p1, p2])
-      .then(() => {
-        req.flash('pageMessages', res.__('link generated'));
-        return renderInviteLinkPage(req, res, next);
-      })
-      .catch(next);
   }
 
+  getPostgresInviteLinkModel()
+    .then(InviteLink => {
+      if (!InviteLink) {
+        throw new Error('InviteLink model not available');
+      }
+
+      let inviteLink = new InviteLink({});
+      inviteLink.createdOn = new Date();
+      inviteLink.createdBy = req.user.id;
+      let p1 = inviteLink.save();
+
+      req.user.inviteLinkCount--;
+      let p2 = req.user.save();
+
+      return Promise.all([p1, p2]);
+    })
+    .then(() => {
+      req.flash('pageMessages', res.__('link generated'));
+      return renderInviteLinkPage(req, res, next);
+    })
+    .catch(next);
 }));
 
 
 function renderInviteLinkPage(req, res, next) {
+  getPostgresInviteLinkModel()
+    .then(InviteLink => {
+      if (!InviteLink) {
+        throw new Error('InviteLink model not available');
+      }
 
-  // Links that have been generated but not used
-  let p1 = InviteLink.getAvailable(req.user);
-
-  // Links that have been generated and used
-  let p2 = InviteLink.getUsed(req.user);
-
-  Promise
-    .all([p1, p2])
-    .then(results => {
-
-      let pendingInviteLinks = results[0];
-      let usedInviteLinks = results[1];
-
-      render.template(req, res, 'invite', {
-        titleKey: res.locals.titleKey,
-        invitePage: true, // to tell template not to show call-to-action again
-        pendingInviteLinks,
-        usedInviteLinks,
-        pageErrors: req.flash('pageErrors'),
-        pageMessages: req.flash('pageMessages')
-      });
-
+      return Promise.all([
+        InviteLink.getAvailable(req.user),
+        InviteLink.getUsed(req.user)
+      ])
+        .then(([pendingInviteLinks, usedInviteLinks]) => {
+          render.template(req, res, 'invite', {
+            titleKey: res.locals.titleKey,
+            invitePage: true, // to tell template not to show call-to-action again
+            pendingInviteLinks,
+            usedInviteLinks,
+            pageErrors: req.flash('pageErrors'),
+            pageMessages: req.flash('pageMessages')
+          });
+        });
     })
     .catch(next);
-
 }
 
 router.post('/actions/suppress-notice', actionHandler.suppressNotice);
@@ -203,21 +205,26 @@ router.get('/new/user', function(req, res) {
   res.redirect('/register');
 });
 
-router.get('/register', function(req, res) {
+router.get('/register', function(req, res, next) {
   viewInSignupLanguage(req);
   if (config.requireInviteLinks)
     return render.template(req, res, 'invite-needed', {
       titleKey: 'register'
     });
   else
-    return sendRegistrationForm(req, res);
+    return sendRegistrationForm(req, res).catch(next);
 });
 
 router.get('/register/:code', function(req, res, next) {
   viewInSignupLanguage(req);
   const { code } = req.params;
-  InviteLink
-    .get(code)
+  getPostgresInviteLinkModel()
+    .then(InviteLink => {
+      if (!InviteLink) {
+        throw new Error('InviteLink model not available');
+      }
+      return InviteLink.get(code);
+    })
     .then(inviteLink => {
       if (inviteLink.usedBy)
         return render.permissionError(req, res, {
@@ -225,7 +232,7 @@ router.get('/register/:code', function(req, res, next) {
           detailsKey: 'invite link already used'
         });
       else
-        return sendRegistrationForm(req, res);
+        return sendRegistrationForm(req, res).catch(next);
     })
     .catch(error => {
       if (error.name === 'DocumentNotFoundError')
@@ -243,7 +250,7 @@ router.post('/signout', function(req, res) {
 });
 
 if (!config.requireInviteLinks) {
-  router.post('/register', function(req, res) {
+  router.post('/register', async function(req, res, next) {
     viewInSignupLanguage(req);
 
     let formInfo = forms.parseSubmission(req, {
@@ -251,93 +258,122 @@ if (!config.requireInviteLinks) {
       formKey: 'register'
     });
 
-    if (req.flashHas('pageErrors'))
-      return sendRegistrationForm(req, res, formInfo);
+    if (req.flashHas('pageErrors')) {
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (error) {
+        return next(error);
+      }
+      return;
+    }
 
-    User.create({
+    try {
+      const User = await getPostgresUserModel();
+      if (!User) {
+        return next(new Error('User model not available'));
+      }
+
+      const user = await User.create({
         name: req.body.username,
         password: req.body.password,
         email: req.body.email
-      })
-      .then(user => {
-        setSignupLanguage(req, res);
-        req.login(user, error => {
-          if (error) {
-            debug.error({ req, error });
-          }
-          req.flash('siteMessages', res.__('welcome new user', user.displayName));
-          returnToPath(req, res);
-        });
-      })
-      .catch(error => { // Problem creating user
-        req.flashError(error);
-        return sendRegistrationForm(req, res, formInfo);
       });
 
+      setSignupLanguage(req, res);
+      req.login(user, error => {
+        if (error) {
+          debug.error({ req, error });
+        }
+        req.flash('siteMessages', res.__('welcome new user', user.displayName));
+        returnToPath(req, res);
+      });
+    } catch (error) {
+      req.flashError(error);
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (formError) {
+        return next(formError);
+      }
+      return;
+    }
   });
 }
 
 
-router.post('/register/:code', function(req, res, next) {
+router.post('/register/:code', async function(req, res, next) {
   viewInSignupLanguage(req);
 
   const { code } = req.params;
 
-  InviteLink
-    .get(code)
-    .then(inviteLink => {
+  try {
+    const InviteLink = await getPostgresInviteLinkModel();
+    if (!InviteLink) {
+      return next(new Error('InviteLink model not available'));
+    }
 
-      if (inviteLink.usedBy)
-        return render.permissionError(req, res, {
-          titleKey: 'invite link already used title',
-          detailsKey: 'invite link already used'
-        });
+    const inviteLink = await InviteLink.get(code);
 
-      let formInfo = forms.parseSubmission(req, {
-        formDef: formDefs.register,
-        formKey: 'register'
+    if (inviteLink.usedBy)
+      return render.permissionError(req, res, {
+        titleKey: 'invite link already used title',
+        detailsKey: 'invite link already used'
       });
 
-      if (req.flashHas('pageErrors'))
-        return sendRegistrationForm(req, res, formInfo);
-
-
-      User.create({
-          name: req.body.username,
-          password: req.body.password,
-          email: req.body.email
-        })
-        .then(user => {
-          inviteLink.usedBy = user.id;
-          inviteLink.save().then(() => {
-              setSignupLanguage(req, res);
-              req.login(user, error => {
-                if (error) {
-                  debug.error({ req, error });
-                }
-                req.flash('siteMessages', res.__('welcome new user', user.displayName));
-                returnToPath(req, res);
-              });
-            })
-            .catch(next); // Problem updating invite code
-        })
-        .catch(error => { // Problem creating user
-          req.flashError(error);
-          return sendRegistrationForm(req, res, formInfo);
-        });
-
-    })
-    .catch(error => { // Invite link lookup problem
-      if (error.name === 'DocumentNotFoundError')
-        return render.permissionError(req, res, {
-          titleKey: 'invite link invalid title',
-          detailsKey: 'invite link invalid'
-        });
-      else
-        return next(error);
+    let formInfo = forms.parseSubmission(req, {
+      formDef: formDefs.register,
+      formKey: 'register'
     });
 
+    if (req.flashHas('pageErrors')) {
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (error) {
+        return next(error);
+      }
+      return;
+    }
 
+    const User = await getPostgresUserModel();
+    if (!User) {
+      return next(new Error('User model not available'));
+    }
+
+    try {
+      const user = await User.create({
+        name: req.body.username,
+        password: req.body.password,
+        email: req.body.email
+      });
+
+      inviteLink.usedBy = user.id;
+      await inviteLink.save();
+
+      setSignupLanguage(req, res);
+      req.login(user, error => {
+        if (error) {
+          debug.error({ req, error });
+        }
+        req.flash('siteMessages', res.__('welcome new user', user.displayName));
+        returnToPath(req, res);
+      });
+    } catch (error) {
+      req.flashError(error);
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (formError) {
+        return next(formError);
+      }
+      return;
+    }
+  } catch (error) { // Invite link lookup problem
+    if (error.name === 'DocumentNotFoundError')
+      return render.permissionError(req, res, {
+        titleKey: 'invite link invalid title',
+        detailsKey: 'invite link invalid'
+      });
+    else
+      return next(error);
+  }
 });
 
 function sendRegistrationForm(req, res, formInfo) {
@@ -346,18 +382,25 @@ function sendRegistrationForm(req, res, formInfo) {
   const { code } = req.params;
   const body = req.body || {};
 
-  render.template(req, res, 'register', {
-    titleKey: 'register',
-    pageErrors,
-    formValues: formInfo ? formInfo.formValues : undefined,
-    questionCaptcha: forms.getQuestionCaptcha('register'),
-    illegalUsernameCharactersReadable: User.options.illegalCharsReadable,
-    scripts: ['register'],
-    inviteCode: code,
-    signupLanguage: req.query.signupLanguage || body.signupLanguage
-  }, {
-    illegalUsernameCharacters: User.options.illegalChars.source
-  });
+  return getPostgresUserModel()
+    .then(User => {
+      if (!User) {
+        throw new Error('User model not available');
+      }
+
+      render.template(req, res, 'register', {
+        titleKey: 'register',
+        pageErrors,
+        formValues: formInfo ? formInfo.formValues : undefined,
+        questionCaptcha: forms.getQuestionCaptcha('register'),
+        illegalUsernameCharactersReadable: User.options.illegalCharsReadable,
+        scripts: ['register'],
+        inviteCode: code,
+        signupLanguage: req.query.signupLanguage || body.signupLanguage
+      }, {
+        illegalUsernameCharacters: User.options.illegalChars.source
+      });
+    });
 }
 
 // Check for external redirect in returnTo. If present, redirect to /, otherwise

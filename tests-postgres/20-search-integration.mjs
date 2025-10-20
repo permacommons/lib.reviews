@@ -175,19 +175,19 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
       { en: 'Integration Author', de: 'Integrations-Autor' }
     ]
   };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
   await thing.save();
   
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thing_id = thing.id;
+  review.thingID = thing.id;
   review.title = { en: 'Integration Test Review', de: 'Integrations-Test-Bewertung' };
   review.text = { en: 'Integration test review text', de: 'Integrations-Test-Bewertungstext' };
   review.html = { en: '<p>Integration test review text</p>', de: '<p>Integrations-Test-Bewertungstext</p>' };
-  review.star_rating = 4;
-  review.created_on = new Date();
-  review.created_by = testUserId;
+  review.starRating = 4;
+  review.createdOn = new Date();
+  review.createdBy = testUserId;
   
   await review.save();
   
@@ -211,7 +211,7 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   
   // Verify review indexing
   t.is(indexedReview.data.id, review.id, 'Indexed review should have correct ID');
-  t.is(indexedReview.data.thing_id, thing.id, 'Indexed review should have correct thing_id');
+  t.is(indexedReview.data.thingID, thing.id, 'Indexed review should have correct thing_id');
   t.deepEqual(indexedReview.data.title, review.title, 'Indexed review should have correct title');
 });
 
@@ -236,20 +236,20 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
     thing.metadata = {
       description: { en: `Bulk test description ${i}` }
     };
-    thing.created_on = new Date();
-    thing.created_by = testUserId;
+    thing.createdOn = new Date();
+    thing.createdBy = testUserId;
     
     await thing.save();
     things.push(thing);
     
     const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-    review.thing_id = thing.id;
+    review.thingID = thing.id;
     review.title = { en: `Bulk Test Review ${i}` };
     review.text = { en: `Bulk test review text ${i}` };
     review.html = { en: `<p>Bulk test review text ${i}</p>` };
-    review.star_rating = (i % 5) + 1;
-    review.created_on = new Date();
-    review.created_by = testUserId;
+    review.starRating = (i % 5) + 1;
+    review.createdOn = new Date();
+    review.createdBy = testUserId;
     
     await review.save();
     reviews.push(review);
@@ -288,7 +288,7 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   
   for (const indexedReview of indexedReviews) {
     t.truthy(indexedReview.data.id, 'Indexed review should have ID');
-    t.truthy(indexedReview.data.thing_id, 'Indexed review should have thing_id');
+    t.truthy(indexedReview.data.thingID, 'Indexed review should have thing_id');
     t.truthy(indexedReview.data.title, 'Indexed review should have title');
     t.falsy(indexedReview.data._old_rev_of, 'Indexed review should not be old revision');
     t.falsy(indexedReview.data._rev_deleted, 'Indexed review should not be deleted');
@@ -309,8 +309,8 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   const originalThing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   originalThing.urls = ['https://example.com/revision-test'];
   originalThing.label = { en: 'Original Version' };
-  originalThing.created_on = new Date();
-  originalThing.created_by = testUserId;
+  originalThing.createdOn = new Date();
+  originalThing.createdBy = testUserId;
   
   await originalThing.save();
   

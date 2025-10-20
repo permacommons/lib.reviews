@@ -260,8 +260,8 @@ test.serial('search queries include new PostgreSQL fields', async t => {
       { en: 'Test Author', de: 'Test Autor' }
     ]
   };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
   await thing.save();
   
@@ -293,30 +293,30 @@ test.serial('search indexing handles PostgreSQL vs RethinkDB field name compatib
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/compatibility-test'];
   thing.label = { en: 'Compatibility Test' };
-  thing.created_on = new Date(); // PostgreSQL field name
-  thing.created_by = testUserId;
-  thing.canonical_slug_name = 'compatibility-test';
+  thing.createdOn = new Date(); // PostgreSQL field name
+  thing.createdBy = testUserId;
+  thing.canonicalSlugName = 'compatibility-test';
   
   await thing.save();
   
   // Create a review with PostgreSQL field names
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thing_id = thing.id; // PostgreSQL field name
+  review.thingID = thing.id; // PostgreSQL field name
   review.title = { en: 'Test Review' };
   review.text = { en: 'Test review text' };
   review.html = { en: '<p>Test review text</p>' };
-  review.star_rating = 5; // PostgreSQL field name
-  review.created_on = new Date(); // PostgreSQL field name
-  review.created_by = testUserId;
+  review.starRating = 5; // PostgreSQL field name
+  review.createdOn = new Date(); // PostgreSQL field name
+  review.createdBy = testUserId;
   
   await review.save();
   
   // Verify field name compatibility
-  t.truthy(thing.created_on, 'Thing should have created_on field (PostgreSQL)');
-  t.truthy(thing.canonical_slug_name, 'Thing should have canonical_slug_name field');
-  t.truthy(review.thing_id, 'Review should have thing_id field (PostgreSQL)');
-  t.truthy(review.star_rating, 'Review should have star_rating field (PostgreSQL)');
-  t.truthy(review.created_on, 'Review should have created_on field (PostgreSQL)');
+  t.truthy(thing.createdOn, 'Thing should have created_on field (PostgreSQL)');
+  t.truthy(thing.canonicalSlugName, 'Thing should have canonical_slug_name field');
+  t.truthy(review.thingID, 'Review should have thing_id field (PostgreSQL)');
+  t.truthy(review.starRating, 'Review should have star_rating field (PostgreSQL)');
+  t.truthy(review.createdOn, 'Review should have created_on field (PostgreSQL)');
   
   // The search indexing functions should handle both field name formats
   // This is tested by the fact that the models can be created and saved successfully
@@ -366,8 +366,8 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
         }
       ]
     };
-    thing.created_on = new Date();
-    thing.created_by = testUserId;
+    thing.createdOn = new Date();
+    thing.createdBy = testUserId;
     
     await thing.save();
     things.push(thing);

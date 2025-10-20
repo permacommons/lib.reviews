@@ -2,10 +2,10 @@
 const escapeHTML = require('escape-html');
 
 const TeamProvider = require('./handlers/team-provider');
-const TeamJoinRequest = require('../models/team-join-request');
+const TeamJoinRequest = require('../models-postgres/team-join-request');
 const getResourceErrorHandler = require('./handlers/resource-error-handler');
 const render = require('./helpers/render');
-const mlString = require('../models/helpers/ml-string');
+const mlString = require('../dal/lib/ml-string');
 const languages = require('../locales/languages');
 const slugs = require('./helpers/slugs');
 

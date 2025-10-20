@@ -28,6 +28,7 @@
     "cldr-localenames-full": "^29.0.0",
     "compression": "^1.8.1",
     "config": "^4.1.1",
+    "connect-pg-simple": "^10.0.0",
     "cookie-parser": "~1.4.7",
     "csurf": "^1.11.0",
     "debug": "^4.4.3",

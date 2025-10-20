@@ -77,8 +77,8 @@ test.serial('User model: create hashes password and canonicalizes name', async t
   });
 
   t.truthy(user.id, 'User persisted with generated UUID');
-  t.is(user.display_name, uniqueName, 'Display name stored');
-  t.is(user.canonical_name, uniqueName.toUpperCase(), 'Canonical name uppercases input');
+  t.is(user.displayName, uniqueName, 'Display name stored');
+  t.is(user.canonicalName, uniqueName.toUpperCase(), 'Canonical name uppercases input');
   t.true(user.password.startsWith('$2b$'), 'Password stored as bcrypt hash');
 });
 
@@ -133,7 +133,7 @@ test.serial('User model: increaseInviteLinkCount increments atomically', async t
   t.is(second, 2);
 
   const reloaded = await User.get(user.id);
-  t.is(reloaded.invite_link_count, 2, 'Invite count persisted');
+  t.is(reloaded.inviteLinkCount, 2, 'Invite count persisted');
 });
 
 test.serial('File model: create first revision and retrieve stashed upload', async t => {
@@ -148,9 +148,9 @@ test.serial('File model: create first revision and retrieve stashed upload', asy
 
   const draft = await File.createFirstRevision(uploader, { tags: ['upload'] });
   draft.name = 'example.png';
-  draft.uploaded_by = uploader.id;
-  draft.uploaded_on = new Date();
-  draft.mime_type = 'image/png';
+  draft.uploadedBy = uploader.id;
+  draft.uploadedOn = new Date();
+  draft.mimeType = 'image/png';
   draft.license = 'cc-by';
   draft.description = { en: 'Sample description' };
   draft.creator = { en: 'Sample Creator' };
@@ -162,7 +162,7 @@ test.serial('File model: create first revision and retrieve stashed upload', asy
 
   const stashed = await File.getStashedUpload(uploader.id, 'example.png');
   t.truthy(stashed, 'Stashed upload retrieved');
-  t.is(stashed.uploaded_by, uploader.id);
+  t.is(stashed.uploadedBy, uploader.id);
 
   stashed.completed = true;
   await stashed.save();
@@ -188,23 +188,23 @@ test.serial('File model: populateUserInfo reflects permissions', async t => {
     password: 'secret123',
     email: `${otherName.toLowerCase()}@example.com`
   });
-  moderator.is_site_moderator = true;
+  moderator.isSiteModerator = true;
   await moderator.save();
 
   const draft = await File.createFirstRevision(uploader, { tags: ['upload'] });
   draft.name = 'permissions.txt';
-  draft.uploaded_by = uploader.id;
-  draft.uploaded_on = new Date();
-  draft.mime_type = 'text/plain';
+  draft.uploadedBy = uploader.id;
+  draft.uploadedOn = new Date();
+  draft.mimeType = 'text/plain';
   draft.license = 'cc-0';
   const file = await draft.save();
 
   file.populateUserInfo(uploader);
-  t.true(file.user_is_creator, 'Uploader is creator');
-  t.true(file.user_can_delete, 'Uploader can delete');
+  t.true(file.userIsCreator, 'Uploader is creator');
+  t.true(file.userCanDelete, 'Uploader can delete');
 
   const viewer = await File.get(file.id);
   viewer.populateUserInfo(moderator);
-  t.false(viewer.user_is_creator, 'Moderator is not creator');
-  t.true(viewer.user_can_delete, 'Moderator can delete via elevated role');
+  t.false(viewer.userIsCreator, 'Moderator is not creator');
+  t.true(viewer.userCanDelete, 'Moderator can delete via elevated role');
 });

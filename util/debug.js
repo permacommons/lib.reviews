@@ -1,6 +1,35 @@
 'use strict';
 const debugModule = require('debug');
 
+const SENSITIVE_LOG_KEYS = new Set([
+  'password',
+  'newPassword',
+  'currentPassword',
+  'confirmPassword',
+  'token',
+  'accessToken'
+]);
+
+function sanitizeForLogging(value) {
+  if (!value || typeof value != 'object') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeForLogging(item));
+  }
+
+  let sanitized = {};
+  for (let [key, val] of Object.entries(value)) {
+    if (SENSITIVE_LOG_KEYS.has(key)) {
+      sanitized[key] = '<redacted>';
+    } else {
+      sanitized[key] = sanitizeForLogging(val);
+    }
+  }
+  return sanitized;
+}
+
 /**
  * @namespace Debug
  */
@@ -40,11 +69,12 @@ const debug = {
 
       log(`Request method: ${error.req.method} - URL: ${error.req.originalUrl}`);
       if (error.req.method !== 'GET' && error.req.body !== undefined) {
-        log('Request body:');
-        if (typeof error.req.body == 'object')
-          log(JSON.stringify(error.req.body, null, 2));
-        else
-          log(error.req.body.toString());
+      log('Request body:');
+      if (typeof error.req.body == 'object') {
+        log(JSON.stringify(sanitizeForLogging(error.req.body), null, 2));
+      } else {
+        log('<omitted>');
+      }
       }
     }
     if (error && error.error) {

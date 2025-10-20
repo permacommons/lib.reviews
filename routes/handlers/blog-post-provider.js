@@ -7,8 +7,8 @@ const i18n = require('i18n');
 
 // Internal dependencies
 const AbstractBREADProvider = require('./abstract-bread-provider');
-const BlogPost = require('../../models/blog-post');
-const mlString = require('../../models/helpers/ml-string.js');
+const { getPostgresBlogPostModel } = require('../../models-postgres/blog-post');
+const mlString = require('../../dal/lib/ml-string.js');
 const languages = require('../../locales/languages');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
@@ -42,7 +42,7 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  browse_GET(team) {
+  async browse_GET(team) {
 
     if (this.action == 'browseAtomDetectLanguage')
       return this.res.redirect(`/team/${team.urlID}/blog/atom/${this.req.locale}`);
@@ -62,6 +62,7 @@ class BlogPostProvider extends AbstractBREADProvider {
     if (!offsetDate || offsetDate == 'Invalid Date')
       offsetDate = null;
 
+    const BlogPost = await getPostgresBlogPostModel();
     BlogPost.getMostRecentBlogPosts(team.id, {
         limit: 10,
         offsetDate
@@ -114,7 +115,8 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.next);
   }
 
-  read_GET(team) {
+  async read_GET(team) {
+    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -153,7 +155,8 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  edit_GET(team) {
+  async edit_GET(team) {
+    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -168,7 +171,8 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.getResourceErrorHandler('post', this.postID));
   }
 
-  edit_POST(team) {
+  async edit_POST(team) {
+    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -255,7 +259,8 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.next); // Problem getting revision metadata
   }
 
-  delete_GET(team) {
+  async delete_GET(team) {
+    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -273,8 +278,9 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  delete_POST() {
+  async delete_POST() {
 
+    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {

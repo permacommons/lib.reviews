@@ -117,8 +117,8 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
       source: 'wikidata'
     }
   };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
   await thing.save();
   
@@ -157,8 +157,8 @@ test.serial('sync functionality works with metadata grouping', async t => {
       source: 'wikidata'
     }
   };
-  thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.createdOn = new Date();
+  thing.createdBy = testUserId;
   
   await thing.save();
   

@@ -43,6 +43,21 @@ Any pull requests must be under the [CC-0 License](./LICENSE). This project has 
 
 Use `npm run test` to execute the AVA suite. The helper script automatically ensures a production Vite manifest exists, running `npm run build` on your behalf when necessary before starting the tests.
 
+# Database Models
+
+lib.reviews supports both RethinkDB and PostgreSQL as database backends. The PostgreSQL models use a camelCase accessor pattern to maintain compatibility with existing application code while using snake_case database columns.
+
+## CamelCase Accessor Pattern
+
+PostgreSQL models expose camelCase properties (e.g., `user.displayName`, `review.starRating`) that internally map to snake_case database columns (e.g., `display_name`, `star_rating`). This design provides:
+
+- **Interface Compatibility**: Application code uses the same camelCase properties as RethinkDB models
+- **Database Abstraction**: Snake_case database implementation is hidden from application code  
+- **No Breaking Changes**: Existing code works unchanged when switching database backends
+- **Performance**: Minimal overhead through efficient property descriptors and field mapping caches
+
+The mapping is handled automatically by the Model base class using property descriptors and field mapping registries. Virtual fields (computed properties like `urlName`, `userCanEdit`) work identically to RethinkDB models.
+
 # Code style
 
 - We generally use `// single-line comments` because they're more easy to add/remove in bulk.

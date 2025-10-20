@@ -20,9 +20,9 @@ async function updateIndices() {
     Thing = getPostgresThingModel();
     Review = getPostgresReviewModel();
   } else {
-    debug.util('Using RethinkDB models for indexing');
-    Thing = require('../models/thing');
-    Review = require('../models/review');
+    debug.util('Using PostgreSQL models for indexing');
+    Thing = require('../models-postgres/thing');
+    Review = require('../models-postgres/review');
   }
 
   if (!Thing || !Review) {

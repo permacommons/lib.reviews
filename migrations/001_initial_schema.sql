@@ -3,13 +3,11 @@
 -- - Relational columns for IDs, timestamps, booleans, integers, simple strings, foreign keys, revision fields
 -- - JSONB columns for multilingual strings, complex nested objects, flexible metadata
 
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Users table (mostly relational, no multilingual fields in current schema)
 CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   display_name VARCHAR(128) NOT NULL,
   canonical_name VARCHAR(128) NOT NULL,
   email VARCHAR(128),
@@ -32,7 +30,7 @@ CREATE TABLE users (
 
 -- User metadata table (versioned, multilingual content)
 CREATE TABLE user_metas (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   bio JSONB, -- multilingual bio content
   original_language VARCHAR(4), -- original language of the content
 
@@ -51,7 +49,7 @@ CREATE TABLE user_metas (
 
 -- Teams table (hybrid - relational structure with JSONB for multilingual fields)
 CREATE TABLE teams (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Relational columns
   mod_approval_to_join BOOLEAN DEFAULT FALSE,
@@ -84,7 +82,7 @@ CREATE TABLE teams (
 
 -- Files table (hybrid - relational metadata with JSONB for multilingual fields)
 CREATE TABLE files (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Relational columns
   name VARCHAR(512),
@@ -115,7 +113,7 @@ CREATE TABLE files (
 
 -- Things table (heavy JSONB usage - relational IDs/timestamps but JSONB for complex data)
 CREATE TABLE things (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Relational columns
   urls TEXT[],
@@ -146,7 +144,7 @@ CREATE TABLE things (
 
 -- Reviews table (heavy JSONB usage - relational structure with JSONB for multilingual content)
 CREATE TABLE reviews (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Relational columns
   thing_id UUID NOT NULL,
@@ -180,7 +178,7 @@ CREATE TABLE reviews (
 
 -- Blog posts table (similar to reviews, multilingual content)
 CREATE TABLE blog_posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Relational columns
   team_id UUID,
@@ -210,7 +208,7 @@ CREATE TABLE blog_posts (
 
 -- Invite links table (simple relational, matching RethinkDB structure)
 CREATE TABLE invite_links (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_by UUID NOT NULL,
   created_on TIMESTAMP WITH TIME ZONE NOT NULL,
   used_by UUID, -- nullable, references user who used the link
@@ -222,7 +220,7 @@ CREATE TABLE invite_links (
 
 -- Team join requests table (simple relational)
 CREATE TABLE team_join_requests (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL,
   user_id UUID NOT NULL,
   created_on TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -240,7 +238,7 @@ CREATE TABLE team_join_requests (
 
 -- Slug tables for SEO-friendly URLs
 CREATE TABLE team_slugs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL,
   slug VARCHAR(255) NOT NULL,
   created_on TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -254,7 +252,7 @@ CREATE TABLE team_slugs (
 );
 
 CREATE TABLE thing_slugs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   thing_id UUID NOT NULL,
   slug VARCHAR(255) NOT NULL,
   created_on TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

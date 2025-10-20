@@ -5,51 +5,59 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 
 // Internal deps
-const User = require('./models/user');
+const { getPostgresUserModel } = require('./models-postgres/user');
 
 passport.serializeUser(function(user, done) {
   done(null, user.id);
 });
 
-passport.deserializeUser(function(id, done) {
-  User
-    .getWithTeams(id)
-    .then(user => done(null, user))
-    .catch(done);
+passport.deserializeUser(async function(id, done) {
+  try {
+    const User = await getPostgresUserModel();
+    if (!User) {
+      return done(new Error('User model not available'));
+    }
+
+    const user = await User.getWithTeams(id);
+    return done(null, user);
+  } catch (error) {
+    return done(error);
+  }
 });
 
 passport.use(new LocalStrategy(
-  function(username, password, done) {
-    User
-      .filter({
-        canonicalName: User.canonicalize(username)
-      })
-      .limit(1)
-      .then(users => {
-        if (!users.length)
-          return done(null, false, {
-            message: 'bad username'
-          });
+  async function(username, password, done) {
+    try {
+      const User = await getPostgresUserModel();
+      if (!User) {
+        return done(new Error('User model not available'));
+      }
 
-        let user = users[0];
+      const users = await User
+        .filter({
+          canonicalName: User.canonicalize(username)
+        })
+        .limit(1)
+        .run();
 
-        user
-          .checkPassword(password)
-          .then(result => {
+      if (!users.length) {
+        return done(null, false, {
+          message: 'bad username'
+        });
+      }
 
-            if (!result)
-              return done(null, false, {
-                message: 'bad password'
-              });
-            else
-              return done(null, user);
-          })
-          .catch(error => { // Problem with password check
-            done(error);
-          });
-      })
-      .catch(error => { // Problem with query
-        done(error);
-      });
+      const user = users[0];
+      const passwordMatches = await user.checkPassword(password);
+
+      if (!passwordMatches) {
+        return done(null, false, {
+          message: 'bad password'
+        });
+      }
+
+      return done(null, user);
+    } catch (error) {
+      return done(error);
+    }
   }
 ));

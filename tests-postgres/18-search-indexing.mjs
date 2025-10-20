@@ -168,9 +168,9 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
     ]
   };
   
-  thing.canonical_slug_name = 'test-book';
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.canonicalSlugName = 'test-book';
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
 
   await thing.save();
 
@@ -201,8 +201,8 @@ test.serial('indexThing skips old and deleted revisions', async t => {
   const currentThing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   currentThing.urls = ['https://example.com/current'];
   currentThing.label = { en: 'Current Thing' };
-  currentThing.created_on = new Date();
-  currentThing.created_by = testUser.id;
+  currentThing.createdOn = new Date();
+  currentThing.createdBy = testUser.id;
   
   // Create an old revision (simulated)
   const oldThing = Object.assign(Object.create(Object.getPrototypeOf(currentThing)), {
@@ -272,19 +272,19 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/review-subject'];
   thing.label = { en: 'Review Subject' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create a review with PostgreSQL structure
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thing_id = thing.id; // PostgreSQL field name
+  review.thingID = thing.id; // PostgreSQL field name
   review.title = { en: 'Great Book!', de: 'Tolles Buch!' };
   review.text = { en: 'This is a wonderful book.', de: 'Das ist ein wunderbares Buch.' };
   review.html = { en: '<p>This is a wonderful book.</p>', de: '<p>Das ist ein wunderbares Buch.</p>' };
-  review.star_rating = 5; // PostgreSQL field name
-  review.created_on = new Date();
-  review.created_by = testUser.id;
+  review.starRating = 5; // PostgreSQL field name
+  review.createdOn = new Date();
+  review.createdBy = testUser.id;
   
   await review.save();
   
@@ -296,11 +296,11 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
   
   const indexedReview = testIndexedReviews[0];
   t.is(indexedReview.id, review.id, 'Indexed review should have correct ID');
-  t.is(indexedReview.thing_id, thing.id, 'Should have correct thing_id');
+  t.is(indexedReview.thingID, thing.id, 'Should have correct thing_id');
   t.deepEqual(indexedReview.title, review.title, 'Title should be preserved');
   t.deepEqual(indexedReview.text, review.text, 'Text should be preserved');
   t.deepEqual(indexedReview.html, review.html, 'HTML should be preserved');
-  t.is(indexedReview.star_rating, 5, 'Star rating should be preserved');
+  t.is(indexedReview.starRating, 5, 'Star rating should be preserved');
 });
 
 test.serial('indexReview skips old and deleted revisions', async t => {
@@ -315,19 +315,19 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/review-subject-2'];
   thing.label = { en: 'Review Subject 2' };
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   await thing.save();
   
   // Create a current review
   const currentReview = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  currentReview.thing_id = thing.id;
+  currentReview.thingID = thing.id;
   currentReview.title = { en: 'Current Review' };
   currentReview.text = { en: 'Current review text' };
   currentReview.html = { en: '<p>Current review text</p>' };
-  currentReview.star_rating = 4;
-  currentReview.created_on = new Date();
-  currentReview.created_by = testUser.id;
+  currentReview.starRating = 4;
+  currentReview.createdOn = new Date();
+  currentReview.createdBy = testUser.id;
   
   // Create an old revision (simulated)
   const oldReview = Object.assign(Object.create(Object.getPrototypeOf(currentReview)), {
@@ -463,8 +463,8 @@ test.serial('search indexing extracts multilingual content correctly', async t =
     ]
   };
   
-  thing.created_on = new Date();
-  thing.created_by = testUser.id;
+  thing.createdOn = new Date();
+  thing.createdBy = testUser.id;
   
   await thing.save();
   

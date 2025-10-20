@@ -97,12 +97,6 @@ class DALFixtureAVA {
         });
       }
 
-      try {
-        await this.dal.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
-      } catch (error) {
-        logNotice(`Unable to create uuid-ossp extension (${error.message}). Ensure the test role has CREATE privilege or pre-create the extension.`);
-      }
-
       await this.dal.migrate(path.resolve(process.cwd(), 'migrations'));
 
       this.connected = true;
@@ -341,7 +335,7 @@ class DALFixtureAVA {
 
     if (!this.userModel) {
       const { initializeUserModel } = require('../../models-postgres/user');
-      this.userModel = initializeUserModel(this.dal);
+      this.userModel = await initializeUserModel(this.dal);
       if (!this.userModel) {
         throw new Error('Unable to initialize user model');
       }
