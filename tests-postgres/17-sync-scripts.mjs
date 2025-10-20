@@ -2,10 +2,6 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
-import { 
-  userTableDefinition, 
-  thingTableDefinition
-} from './helpers/table-definitions.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -20,6 +16,17 @@ if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
 const dalFixture = createDALFixtureAVA('testing-6', { tableSuffix: 'sync_scripts' });
 
 let Thing;
+const ensureUserExists = async (id, name = 'Test User') => {
+  const usersTable = dalFixture.getTableName('users');
+  const displayName = name;
+  const canonicalName = name.toUpperCase();
+  await dalFixture.query(
+    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [id, displayName, canonicalName, `${id}@example.com`]
+  );
+};
 
 test.before(async t => {
   // Stub search module to avoid starting Elasticsearch clients during tests
@@ -48,11 +55,6 @@ test.before(async t => {
     } catch (extensionError) {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
-
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      thingTableDefinition()
-    ]);
 
     // Initialize models using the proper pattern
     const models = await dalFixture.initializeModels([
@@ -84,6 +86,10 @@ test.after.always(async t => {
   }
 });
 
+test.beforeEach(async () => {
+  await dalFixture.cleanupTables(['things', 'users']);
+});
+
 function skipIfNoModels(t) {
   if (!Thing) {
     const reason = dalFixture.getSkipReason() || 'PostgreSQL setup may have failed';
@@ -94,12 +100,13 @@ function skipIfNoModels(t) {
   return false;
 }
 
-test('sync scripts can be imported and work with PostgreSQL Thing model', async t => {
+test.serial('sync scripts can be imported and work with PostgreSQL Thing model', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a test thing with Wikidata URL
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Sync Creator');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://www.wikidata.org/wiki/Q42'];
@@ -133,12 +140,13 @@ test('sync scripts can be imported and work with PostgreSQL Thing model', async 
   t.is(foundThing.sync.description.source, 'wikidata', 'Description sync source should be wikidata');
 });
 
-test('sync functionality works with metadata grouping', async t => {
+test.serial('sync functionality works with metadata grouping', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a test thing
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Sync Updater');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://www.wikidata.org/wiki/Q123'];
@@ -187,7 +195,7 @@ test('sync functionality works with metadata grouping', async t => {
   }
 });
 
-test('adapter integration with PostgreSQL Thing model', async t => {
+test.serial('adapter integration with PostgreSQL Thing model', async t => {
   if (skipIfNoModels(t)) return;
   
   // Test that adapters can work with the PostgreSQL Thing model

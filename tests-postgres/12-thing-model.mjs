@@ -2,7 +2,6 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
-import { thingTableDefinition } from './helpers/table-definitions.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -37,10 +36,6 @@ test.before(async t => {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
 
-    await dalFixture.createTestTables([
-      thingTableDefinition()
-    ]);
-
     const models = await dalFixture.initializeModels([
       {
         key: 'things',
@@ -56,11 +51,10 @@ test.before(async t => {
 });
 
 test.beforeEach(async () => {
-  await dalFixture.cleanupTables(['things']);
+  await dalFixture.cleanupTables(['things', 'users']);
 });
 
 test.after.always(async () => {
-  await dalFixture.dropTestTables(['things']);
   await dalFixture.cleanup();
 });
 
@@ -75,7 +69,7 @@ function skipIfNoThing(t) {
 test('Thing model: create first revision and lookup by URL', async t => {
   if (skipIfNoThing(t)) return;
 
-  const creator = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  const { actor: creator } = await dalFixture.createTestUser('Thing Creator');
   const url = `https://example.com/${randomUUID()}`;
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
@@ -100,8 +94,8 @@ test('Thing model: create first revision and lookup by URL', async t => {
 test('Thing model: populateUserInfo sets permission flags', async t => {
   if (skipIfNoThing(t)) return;
 
-  const creator = { id: randomUUID(), is_super_user: false, is_trusted: true };
-  const otherUser = { id: randomUUID(), is_super_user: false, is_trusted: false, is_site_moderator: true };
+  const { actor: creator } = await dalFixture.createTestUser('Thing Creator');
+  const { actor: otherUser } = await dalFixture.createTestUser('Thing Moderator');
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   thingRev.urls = ['https://example.com/thing'];
@@ -116,6 +110,8 @@ test('Thing model: populateUserInfo sets permission flags', async t => {
   t.true(thing.user_can_upload, 'Trusted creator can upload');
 
   const moderatorView = await Thing.get(thing.id);
+  otherUser.is_site_moderator = true;
+  otherUser.is_trusted = false;
   moderatorView.populateUserInfo(otherUser);
   t.false(moderatorView.user_is_creator, 'Moderator not creator');
   t.true(moderatorView.user_can_delete, 'Moderator can delete');

@@ -2,7 +2,6 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
-import { userTableDefinition, fileTableDefinition } from './helpers/table-definitions.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -31,11 +30,6 @@ test.before(async t => {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
 
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      fileTableDefinition()
-    ]);
-
     const { users, files } = await dalFixture.initializeModels([
       {
         key: 'users',
@@ -61,7 +55,6 @@ test.beforeEach(async () => {
 });
 
 test.after.always(async () => {
-  await dalFixture.dropTestTables(['files', 'users']);
   await dalFixture.cleanup();
 });
 
@@ -73,7 +66,7 @@ function skipIfNoModels(t) {
   return false;
 }
 
-test('User model: create hashes password and canonicalizes name', async t => {
+test.serial('User model: create hashes password and canonicalizes name', async t => {
   if (skipIfNoModels(t)) return;
 
   const uniqueName = `TestUser-${randomUUID()}`;
@@ -89,7 +82,7 @@ test('User model: create hashes password and canonicalizes name', async t => {
   t.true(user.password.startsWith('$2b$'), 'Password stored as bcrypt hash');
 });
 
-test('User model: ensureUnique rejects duplicate usernames', async t => {
+test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
   if (skipIfNoModels(t)) return;
 
   const name = `Duplicate-${randomUUID()}`;
@@ -109,7 +102,7 @@ test('User model: ensureUnique rejects duplicate usernames', async t => {
   t.is(error.userMessage, 'username exists');
 });
 
-test('User model: checkPassword validates bcrypt hash', async t => {
+test.serial('User model: checkPassword validates bcrypt hash', async t => {
   if (skipIfNoModels(t)) return;
 
   const name = `Password-${randomUUID()}`;
@@ -123,7 +116,7 @@ test('User model: checkPassword validates bcrypt hash', async t => {
   t.false(await storedUser.checkPassword('incorrect'), 'Wrong password fails');
 });
 
-test('User model: increaseInviteLinkCount increments atomically', async t => {
+test.serial('User model: increaseInviteLinkCount increments atomically', async t => {
   if (skipIfNoModels(t)) return;
 
   const name = `Invites-${randomUUID()}`;
@@ -143,7 +136,7 @@ test('User model: increaseInviteLinkCount increments atomically', async t => {
   t.is(reloaded.invite_link_count, 2, 'Invite count persisted');
 });
 
-test('File model: create first revision and retrieve stashed upload', async t => {
+test.serial('File model: create first revision and retrieve stashed upload', async t => {
   if (skipIfNoModels(t)) return;
 
   const uploaderName = `Uploader-${randomUUID()}`;
@@ -178,7 +171,7 @@ test('File model: create first revision and retrieve stashed upload', async t =>
   t.is(afterComplete, undefined, 'Completed uploads no longer count as stashed');
 });
 
-test('File model: populateUserInfo reflects permissions', async t => {
+test.serial('File model: populateUserInfo reflects permissions', async t => {
   if (skipIfNoModels(t)) return;
 
   const uploaderName = `Perms-${randomUUID()}`;

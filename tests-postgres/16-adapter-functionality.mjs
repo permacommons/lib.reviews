@@ -2,10 +2,6 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
-import { 
-  userTableDefinition, 
-  thingTableDefinition
-} from './helpers/table-definitions.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -21,6 +17,17 @@ const dalFixture = createDALFixtureAVA('testing-4', { tableSuffix: 'adapter_func
 
 let Thing;
 let adapters, WikidataBackendAdapter, OpenLibraryBackendAdapter;
+const ensureUserExists = async (id, name = 'Test User') => {
+  const usersTable = dalFixture.getTableName('users');
+  const displayName = name;
+  const canonicalName = name.toUpperCase();
+  await dalFixture.query(
+    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [id, displayName, canonicalName, `${id}@example.com`]
+  );
+};
 
 test.before(async t => {
   // Stub search module to avoid starting Elasticsearch clients during tests
@@ -49,11 +56,6 @@ test.before(async t => {
     } catch (extensionError) {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
-
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      thingTableDefinition()
-    ]);
 
     // Initialize models using the proper pattern
     const models = await dalFixture.initializeModels([
@@ -90,6 +92,10 @@ test.after.always(async t => {
   }
 });
 
+test.beforeEach(async () => {
+  await dalFixture.cleanupTables(['things', 'users']);
+});
+
 function skipIfNoModels(t) {
   if (!Thing) {
     const reason = dalFixture.getSkipReason() || 'PostgreSQL setup may have failed';
@@ -101,7 +107,7 @@ function skipIfNoModels(t) {
 }
 
 // Test adapter functionality with PostgreSQL Thing model
-test('adapter initialization and basic functionality', async t => {
+test.serial('adapter initialization and basic functionality', async t => {
   if (skipIfNoModels(t)) return;
   
   // Test that adapters are properly initialized
@@ -118,12 +124,13 @@ test('adapter initialization and basic functionality', async t => {
   t.is(wikidataAdapter.sourceID, 'wikidata', 'Should have correct source ID');
 });
 
-test('Thing model initializeFieldsFromAdapter with metadata grouping', async t => {
+test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a new thing
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Thing Creator');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://www.wikidata.org/wiki/Q42'];
@@ -158,12 +165,13 @@ test('Thing model initializeFieldsFromAdapter with metadata grouping', async t =
   t.is(thing.sync.description.source, 'wikidata', 'Description sync source should be wikidata');
 });
 
-test('Thing model setURLs functionality', async t => {
+test.serial('Thing model setURLs functionality', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a new thing
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'URL Creator');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/old'];
@@ -194,12 +202,13 @@ test('Thing model setURLs functionality', async t => {
   t.is(thing.sync.description.source, 'wikidata', 'Description sync source should be wikidata');
 });
 
-test('Thing model updateActiveSyncs with metadata handling', async t => {
+test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a thing with Wikidata URL and sync settings
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Sync Creator');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://www.wikidata.org/wiki/Q42'];
@@ -226,7 +235,7 @@ test('Thing model updateActiveSyncs with metadata handling', async t => {
   
   try {
     // Update active syncs
-    const updatedThing = await thing.updateActiveSyncs('test-user-id');
+    const updatedThing = await thing.updateActiveSyncs(testUserId);
     
     // Verify description was updated in metadata
     t.truthy(updatedThing.metadata, 'Metadata should be created');
@@ -241,7 +250,7 @@ test('Thing model updateActiveSyncs with metadata handling', async t => {
   }
 });
 
-test('adapter URL pattern matching', async t => {
+test.serial('adapter URL pattern matching', async t => {
   if (skipIfNoModels(t)) return;
   const wikidataAdapter = new WikidataBackendAdapter();
   const openLibraryAdapter = new OpenLibraryBackendAdapter();
@@ -257,7 +266,7 @@ test('adapter URL pattern matching', async t => {
   t.false(openLibraryAdapter.ask('https://example.com'), 'Should not match non-OpenLibrary URL');
 });
 
-test('adapter supported fields configuration', async t => {
+test.serial('adapter supported fields configuration', async t => {
   if (skipIfNoModels(t)) return;
   const wikidataAdapter = new WikidataBackendAdapter();
   const openLibraryAdapter = new OpenLibraryBackendAdapter();
@@ -274,12 +283,13 @@ test('adapter supported fields configuration', async t => {
   t.true(openLibraryFields.includes('subtitle'), 'OpenLibrary should support subtitle field');
 });
 
-test('search indexing with PostgreSQL metadata structure', async t => {
+test.serial('search indexing with PostgreSQL metadata structure', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a thing with metadata
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Metadata Creator');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/test'];

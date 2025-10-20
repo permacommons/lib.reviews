@@ -1,4 +1,6 @@
 import { createRequire } from 'module';
+import { randomUUID } from 'crypto';
+import path from 'path';
 import { logNotice, logOK } from '../helpers/test-helpers.mjs';
 
 const require = createRequire(import.meta.url);
@@ -28,11 +30,12 @@ class DALFixtureAVA {
     const suffixKey = sanitizeIdentifier(tableSuffix);
     this.instanceKey = instanceKey;
     this.namespace = suffixKey ? `${instanceKey}_${suffixKey}` : instanceKey;
+    this.schemaName = `test_${this.namespace}`;
     this.dal = null;
     this.models = {};
     this.loaded = false;
     this.testInstance = testInstance;
-    this.tablePrefix = `test_${this.namespace}_`;
+    this.tablePrefix = `${this.schemaName}.`;
     this.connected = false;
     this.bootstrapError = null;
     this.skipReason = null;
@@ -84,6 +87,24 @@ class DALFixtureAVA {
     this.dal.tablePrefix = this.tablePrefix;
     try {
       await this.dal.connect();
+
+      await this.dal.query(`CREATE SCHEMA IF NOT EXISTS ${this.schemaName}`);
+      await this.dal.query(`SET search_path TO ${this.schemaName}, public`);
+
+      if (this.dal.pool?.on) {
+        this.dal.pool.on('connect', client => {
+          client.query(`SET search_path TO ${this.schemaName}, public`).catch(() => {});
+        });
+      }
+
+      try {
+        await this.dal.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+      } catch (error) {
+        logNotice(`Unable to create uuid-ossp extension (${error.message}). Ensure the test role has CREATE privilege or pre-create the extension.`);
+      }
+
+      await this.dal.migrate(path.resolve(process.cwd(), 'migrations'));
+
       this.connected = true;
       logOK('PostgreSQL DAL connected for AVA tests.');
     } catch (error) {
@@ -140,20 +161,16 @@ class DALFixtureAVA {
   async cleanupTables(tableNames = []) {
     if (!this.dal || !this.connected) return;
     
-    // Use a transaction to ensure cleanup is atomic
-    await this.dal.transaction(async (client) => {
-      for (const tableName of tableNames) {
-        const fullTableName = this.tablePrefix + tableName;
-        try {
-          await client.query(`DELETE FROM ${fullTableName}`);
-        } catch (error) {
-          // Table might not exist, which is fine
-          if (!error.message.includes('does not exist')) {
-            console.warn(`Warning: Failed to clean table ${fullTableName}:`, error.message);
-          }
-        }
-      }
-    });
+    if (!Array.isArray(tableNames) || tableNames.length === 0) return;
+
+    const qualifiedTables = tableNames.map(name => `${this.tablePrefix}${name}`);
+    try {
+      await this.dal.query(
+        `TRUNCATE ${qualifiedTables.join(', ')} RESTART IDENTITY CASCADE`
+      );
+    } catch (error) {
+      console.warn(`Warning: Failed to truncate tables ${qualifiedTables.join(', ')}:`, error.message);
+    }
   }
 
   /**
@@ -162,28 +179,25 @@ class DALFixtureAVA {
    */
   async createTestTables(tableDefinitions = []) {
     if (!this.dal || !this.connected) return;
-    
+    if (!Array.isArray(tableDefinitions) || tableDefinitions.length === 0) return;
+
     for (const tableDef of tableDefinitions) {
-      const fullTableName = this.tablePrefix + tableDef.name;
+      const baseName = tableDef.name;
+      const fullTableName = `${this.tablePrefix}${baseName}`;
       try {
-        // Replace table name in SQL
-        const sql = tableDef.sql.replace(
-          new RegExp(`\\b${tableDef.name}\\b`, 'g'), 
-          fullTableName
-        );
-        await this.dal.query(sql);
-        
+        const tableRegex = new RegExp(`\\b${baseName}\\b`, 'g');
+        const createSql = tableDef.sql.replace(tableRegex, fullTableName);
+        await this.dal.query(createSql);
+
         if (tableDef.indexes) {
           for (const indexSql of tableDef.indexes) {
-            // Replace table name and index name in index SQL
             const prefixedIndexSql = indexSql
-              .replace(new RegExp(`\\b${tableDef.name}\\b`, 'g'), fullTableName)
+              .replace(tableRegex, fullTableName)
               .replace(/idx_([a-zA-Z0-9_]+)/g, `idx_${this.namespace}_$1`);
             await this.dal.query(prefixedIndexSql);
           }
         }
       } catch (error) {
-        // Ignore "already exists" errors
         if (!error.message.includes('already exists')) {
           throw error;
         }
@@ -216,6 +230,13 @@ class DALFixtureAVA {
     const targetPort = this.dal?.config?.port || 5432;
     if (this.dal) {
       logNotice('Cleaning up PostgreSQL DAL for AVA tests.');
+      if (this.connected) {
+        try {
+          await this.dal.query(`DROP SCHEMA IF EXISTS ${this.schemaName} CASCADE`);
+        } catch (error) {
+          console.error(`Failed to drop schema ${this.schemaName}:`, error);
+        }
+      }
       try {
         await this.dal.disconnect();
         logOK('PostgreSQL DAL disconnected for AVA tests.');
@@ -306,6 +327,43 @@ class DALFixtureAVA {
    */
   getTableName(tableName) {
     return this.tablePrefix + tableName;
+  }
+
+  /**
+   * Create a barebones test user directly in the schema
+   * @param {string} namePrefix
+   * @returns {{id: string, is_super_user: boolean, is_trusted: boolean}}
+   */
+  async createTestUser(namePrefix = 'Test User') {
+    if (!this.dal || !this.connected) {
+      throw new Error('DAL not initialized');
+    }
+
+    if (!this.userModel) {
+      const { initializeUserModel } = require('../../models-postgres/user');
+      this.userModel = initializeUserModel(this.dal);
+      if (!this.userModel) {
+        throw new Error('Unable to initialize user model');
+      }
+    }
+
+    const uuid = randomUUID();
+    const name = `${namePrefix} ${uuid.slice(0, 8)}`;
+
+    const user = await this.userModel.create({
+      name,
+      password: 'secret123',
+      email: `${uuid}@example.com`
+    });
+
+    return {
+      id: user.id,
+      actor: {
+        id: user.id,
+        is_super_user: false,
+        is_trusted: true
+      }
+    };
   }
 
   /**

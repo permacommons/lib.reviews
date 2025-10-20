@@ -2,15 +2,6 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
-import { 
-  userTableDefinition, 
-  thingTableDefinition, 
-  reviewTableDefinition,
-  teamTableDefinition,
-  teamMembersTableDefinition,
-  teamModeratorsTableDefinition,
-  reviewTeamsTableDefinition
-} from './helpers/table-definitions.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -35,6 +26,17 @@ if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
 const dalFixture = createDALFixtureAVA('testing-6', { tableSuffix: 'query_builder_joins' });
 
 let User, Thing, Review;
+const ensureUserExists = async (id, name = 'Test User') => {
+  const usersTable = dalFixture.getTableName('users');
+  const displayName = name;
+  const canonicalName = name.toUpperCase();
+  await dalFixture.query(
+    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [id, displayName, canonicalName, `${id}@example.com`]
+  );
+};
 
 test.before(async t => {
   // Stub search module to avoid starting Elasticsearch clients during tests
@@ -62,16 +64,6 @@ test.before(async t => {
         // Continue without extensions - gen_random_uuid() might still work
       }
     }
-
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      thingTableDefinition(),
-      reviewTableDefinition(),
-      teamTableDefinition(),
-      teamMembersTableDefinition(),
-      teamModeratorsTableDefinition(),
-      reviewTeamsTableDefinition()
-    ]);
 
     const models = await dalFixture.initializeModels([
       {
@@ -102,7 +94,6 @@ test.beforeEach(async () => {
 });
 
 test.after.always(async () => {
-  await dalFixture.dropTestTables(['review_teams', 'team_moderators', 'team_members', 'reviews', 'teams', 'things', 'users']);
   await dalFixture.cleanup();
 });
 
@@ -123,6 +114,7 @@ test.serial('QueryBuilder supports simple boolean joins', async t => {
     password: 'secret123',
     email: `test-${randomUUID()}@example.com`
   });
+  await ensureUserExists(testUser.id, testUser.display_name);
   
   // Test simple join syntax: { teams: true }
   // This should not fail even if no team associations exist
@@ -140,6 +132,8 @@ test.serial('QueryBuilder handles revision-aware joins', async t => {
   
   // Create a test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Between Join User');
+  await ensureUserExists(testUser.id, 'Revision Join User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -162,6 +156,8 @@ test.serial('QueryBuilder supports complex joins with _apply', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Array Contains User');
+  await ensureUserExists(testUser.id, 'Complex Join User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -199,6 +195,8 @@ test.serial('QueryBuilder supports multiple joins', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Revision Filter User');
+  await ensureUserExists(testUser.id, 'Multiple Join User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -234,6 +232,7 @@ test.serial('QueryBuilder supports between date ranges', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Revision Tag User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -285,6 +284,7 @@ test.serial('QueryBuilder supports revision filtering', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Ordering User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -309,6 +309,7 @@ test.serial('QueryBuilder supports revision tag filtering', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Pagination User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -347,6 +348,7 @@ test.serial('QueryBuilder supports ordering and limiting', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Count User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -389,6 +391,7 @@ test.serial('QueryBuilder supports offset for pagination', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Count User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };
@@ -441,6 +444,7 @@ test.serial('QueryBuilder supports count operations', async t => {
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'Between Join User');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = [`https://example.com/${randomUUID()}`];
   thing.label = { en: 'Test Thing' };

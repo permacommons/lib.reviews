@@ -19,6 +19,17 @@ const dalFixture = createDALFixtureAVA('testing-2', { tableSuffix: 'search_integ
 
 // Track indexing operations
 let indexedItems = [];
+const ensureUserExists = async (id, name = 'Test User') => {
+  const usersTable = dalFixture.getTableName('users');
+  const displayName = name;
+  const canonicalName = name.toUpperCase();
+  await dalFixture.query(
+    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [id, displayName, canonicalName, `${id}@example.com`]
+  );
+};
 
 test.before(async t => {
   // Mock search module to capture indexing operations
@@ -58,19 +69,6 @@ test.before(async t => {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
 
-    // Import table definitions
-    const { 
-      userTableDefinition, 
-      thingTableDefinition, 
-      reviewTableDefinition 
-    } = await import('./helpers/table-definitions.mjs');
-
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      thingTableDefinition(),
-      reviewTableDefinition()
-    ]);
-
     const models = await dalFixture.initializeModels([
       {
         key: 'things',
@@ -102,7 +100,6 @@ test.beforeEach(async t => {
 test.after.always(async () => {
   const searchPath = require.resolve('../search');
   delete require.cache[searchPath];
-  await dalFixture.dropTestTables(['users', 'things', 'reviews']);
   await dalFixture.cleanup();
 });
 
@@ -158,6 +155,7 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Integration User');
   
   // Create test data
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
@@ -225,6 +223,7 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Bulk Index User');
   
   // Create multiple things and reviews
   const things = [];
@@ -304,6 +303,7 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Revision Filter User');
   
   // Create a thing and then create a new revision (making the first one old)
   const originalThing = await Thing.createFirstRevision(testUser, { tags: ['create'] });

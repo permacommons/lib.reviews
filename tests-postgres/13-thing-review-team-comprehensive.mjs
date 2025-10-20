@@ -2,15 +2,6 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
-import { 
-  userTableDefinition, 
-  thingTableDefinition, 
-  reviewTableDefinition, 
-  teamTableDefinition,
-  teamMembersTableDefinition,
-  teamModeratorsTableDefinition,
-  reviewTeamsTableDefinition
-} from './helpers/table-definitions.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -47,16 +38,6 @@ test.before(async t => {
     } catch (extensionError) {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
-
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      thingTableDefinition(),
-      reviewTableDefinition(),
-      teamTableDefinition(),
-      teamMembersTableDefinition(),
-      teamModeratorsTableDefinition(),
-      reviewTeamsTableDefinition()
-    ]);
 
     const models = await dalFixture.initializeModels([
       {
@@ -98,10 +79,6 @@ test.beforeEach(async () => {
 });
 
 test.after.always(async () => {
-  await dalFixture.dropTestTables([
-    'review_teams', 'team_moderators', 'team_members', 
-    'reviews', 'teams', 'things', 'users'
-  ]);
   await dalFixture.cleanup();
 });
 

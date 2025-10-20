@@ -63,19 +63,6 @@ test.before(async t => {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
 
-    // Import table definitions
-    const { 
-      userTableDefinition, 
-      thingTableDefinition, 
-      reviewTableDefinition 
-    } = await import('./helpers/table-definitions.mjs');
-
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      thingTableDefinition(),
-      reviewTableDefinition()
-    ]);
-
     const models = await dalFixture.initializeModels([
       {
         key: 'things',
@@ -111,7 +98,6 @@ test.after.always(async t => {
   const searchPath = require.resolve('../search');
   delete require.cache[searchPath];
   
-  await dalFixture.dropTestTables(['users', 'things', 'reviews']);
   await dalFixture.cleanup();
 });
 
@@ -123,7 +109,7 @@ function skipIfNoModels(t) {
   return false;
 }
 
-test('indexThing handles PostgreSQL JSONB metadata structure', async t => {
+test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t => {
   if (skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
@@ -155,9 +141,12 @@ test('indexThing handles PostgreSQL JSONB metadata structure', async t => {
   };
   
   // Create a thing with PostgreSQL JSONB metadata structure
-  const testUserId = randomUUID();
-  const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  
+  const { actor: testUser } = await dalFixture.createTestUser('Index Thing User');
+  const preCheck = await dalFixture.query(
+    `SELECT id FROM ${dalFixture.getTableName('users')} WHERE id = $1`,
+    [testUser.id]
+  );
+  t.is(preCheck.rows.length, 1, 'Created user should exist before creating thing');
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/test-book'];
   thing.label = { en: 'Test Book', de: 'Testbuch' };
@@ -181,10 +170,10 @@ test('indexThing handles PostgreSQL JSONB metadata structure', async t => {
   
   thing.canonical_slug_name = 'test-book';
   thing.created_on = new Date();
-  thing.created_by = testUserId;
-  
+  thing.created_by = testUser.id;
+
   await thing.save();
-  
+
   // Test indexing
   await search.indexThing(thing);
   
@@ -200,21 +189,20 @@ test('indexThing handles PostgreSQL JSONB metadata structure', async t => {
   t.deepEqual(indexedThing.metadata.authors, thing.metadata.authors, 'Authors should be extracted from metadata');
 });
 
-test('indexThing skips old and deleted revisions', async t => {
+test.serial('indexThing skips old and deleted revisions', async t => {
   if (skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   const search = require('../search');
   
-  const testUserId = randomUUID();
-  const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
   
   // Create a current revision
   const currentThing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   currentThing.urls = ['https://example.com/current'];
   currentThing.label = { en: 'Current Thing' };
   currentThing.created_on = new Date();
-  currentThing.created_by = testUserId;
+  currentThing.created_by = testUser.id;
   
   // Create an old revision (simulated)
   const oldThing = Object.assign(Object.create(Object.getPrototypeOf(currentThing)), {
@@ -247,7 +235,7 @@ test('indexThing skips old and deleted revisions', async t => {
   t.is(indexedThings.length, 1, 'Should skip deleted revision');
 });
 
-test('indexReview handles PostgreSQL JSONB structure', async t => {
+test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
   if (skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
@@ -278,15 +266,14 @@ test('indexReview handles PostgreSQL JSONB structure', async t => {
     }
   };
   
-  const testUserId = randomUUID();
-  const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  const { actor: testUser } = await dalFixture.createTestUser('Metadata User');
   
   // Create a thing first
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/review-subject'];
   thing.label = { en: 'Review Subject' };
   thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.created_by = testUser.id;
   await thing.save();
   
   // Create a review with PostgreSQL structure
@@ -297,7 +284,7 @@ test('indexReview handles PostgreSQL JSONB structure', async t => {
   review.html = { en: '<p>This is a wonderful book.</p>', de: '<p>Das ist ein wunderbares Buch.</p>' };
   review.star_rating = 5; // PostgreSQL field name
   review.created_on = new Date();
-  review.created_by = testUserId;
+  review.created_by = testUser.id;
   
   await review.save();
   
@@ -316,21 +303,20 @@ test('indexReview handles PostgreSQL JSONB structure', async t => {
   t.is(indexedReview.star_rating, 5, 'Star rating should be preserved');
 });
 
-test('indexReview skips old and deleted revisions', async t => {
+test.serial('indexReview skips old and deleted revisions', async t => {
   if (skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   const search = require('../search');
   
-  const testUserId = randomUUID();
-  const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
   
   // Create a thing first
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/review-subject-2'];
   thing.label = { en: 'Review Subject 2' };
   thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.created_by = testUser.id;
   await thing.save();
   
   // Create a current review
@@ -341,7 +327,7 @@ test('indexReview skips old and deleted revisions', async t => {
   currentReview.html = { en: '<p>Current review text</p>' };
   currentReview.star_rating = 4;
   currentReview.created_on = new Date();
-  currentReview.created_by = testUserId;
+  currentReview.created_by = testUser.id;
   
   // Create an old revision (simulated)
   const oldReview = Object.assign(Object.create(Object.getPrototypeOf(currentReview)), {
@@ -374,7 +360,7 @@ test('indexReview skips old and deleted revisions', async t => {
   t.is(indexedReviews.length, 1, 'Should skip deleted revision');
 });
 
-test('maintenance script uses correct models based on database mode', async t => {
+test.serial('maintenance script uses correct models based on database mode', async t => {
   // This test verifies that the maintenance script logic works correctly
   // We can't easily test the full script execution, but we can test the model selection logic
   
@@ -401,7 +387,7 @@ test('maintenance script uses correct models based on database mode', async t =>
   }
 });
 
-test('search indexing extracts multilingual content correctly', async t => {
+test.serial('search indexing extracts multilingual content correctly', async t => {
   if (skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
@@ -432,8 +418,12 @@ test('search indexing extracts multilingual content correctly', async t => {
     }
   };
   
-  const testUserId = randomUUID();
-  const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  const { actor: testUser } = await dalFixture.createTestUser('Multilingual Index User');
+  const userCheck = await dalFixture.query(
+    `SELECT id FROM ${dalFixture.getTableName('users')} WHERE id = $1`,
+    [testUser.id]
+  );
+  t.is(userCheck.rows.length, 1, 'Created user should exist before creating thing');
   
   // Create a thing with complex multilingual metadata
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
@@ -474,7 +464,7 @@ test('search indexing extracts multilingual content correctly', async t => {
   };
   
   thing.created_on = new Date();
-  thing.created_by = testUserId;
+  thing.created_by = testUser.id;
   
   await thing.save();
   

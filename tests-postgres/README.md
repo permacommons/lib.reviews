@@ -94,15 +94,15 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
    const dalFixture = createDALFixtureAVA('testing-X');
    ```
 
-2. **Bootstrap and create tables**
+2. **Bootstrap (schema is auto-provisioned)**
    ```js
-   await dalFixture.bootstrap(); // establishes the pool
-   await dalFixture.createTestTables([tableDefinition()]);
+   await dalFixture.bootstrap(); // establishes the pool and runs migrations in an isolated schema
    ```
 
-   Table helpers live in `./helpers/table-definitions.mjs`. Each helper builds
-   a statement that the fixture rewrites with its test-specific prefix so
-   parallel AVA workers never touch the same physical tables.
+   The fixture creates a dedicated schema per test worker (e.g. `test_testing_4_adapter_functionality`), runs the real migrations from
+   `migrations/`, and sets the connection `search_path` so the DAL interacts with that schema transparently.
+   Use `dalFixture.createTestTables([...])` only when you need ad-hoc tables that are not part of the migration set (for example, bespoke revision
+   fixtures in `tests-postgres/10-dal-revision-system.mjs`).
 
 3. **Load real models**
    ```js
@@ -118,7 +118,6 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
    ```js
    test.beforeEach(() => dalFixture.cleanupTables(['users']));
    test.after.always(() => {
-     await dalFixture.dropTestTables(['users']);
      await dalFixture.cleanup();
    });
    ```
@@ -139,9 +138,9 @@ PostgreSQL-only (`LIBREVIEWS_SKIP_RETHINK=1` by default).
 
 ### Concurrency & teardown gotchas
 
-- Test files share AVA workers; anything that touches the same table names needs either unique prefixes (via `createDALFixtureAVA('slot', { tableSuffix: 'feature' })`) **or** to run serially (`test.serial`). Mixing parallel tests with shared fixture state is the fastest way to get intermittent “missing row” failures.
-- Always call `dalFixture.cleanupTables()` in `beforeEach` and `dalFixture.dropTestTables()` + `dalFixture.cleanup()` in `after.always`; skipping even one cleanup leaves connections open and can block the AVA worker from exiting (manifests as “Failed to exit” timeouts).
+- Test files share AVA workers; anything that touches the same tables needs either unique schema suffixes (`createDALFixtureAVA('slot', { tableSuffix: 'feature' })`) **or** to run serially (`test.serial`). Mixing parallel tests with shared fixture state is the fastest way to get intermittent “missing row” failures.
+- Always call `dalFixture.cleanupTables()` in `beforeEach` and `dalFixture.cleanup()` in `after.always`; skipping even one cleanup leaves connections open and can block the AVA worker from exiting (manifests as “Failed to exit” timeouts).
 - If a suite performs asynchronous teardown beyond the fixture cleanup (e.g., awaiting mock servers), register an AVA `registerCompletionHandler` so the worker exits only after your teardown finishes.
 - When stubbing modules such as `../search`, remember to delete them from `require.cache` in `after.always` so following tests see the real implementation.
 - For PostgreSQL model tests that mutate shared tables (e.g. comprehensive integration suites), prefer serial tests (`test.serial(...)`) to avoid racing `cleanupTables()` calls across concurrent workers.
-- Avoid reusing the same `NODE_APP_INSTANCE` across different files unless every file uses a distinct `tableSuffix`; the fixture now derives prefixes from both pieces, so both must be unique for genuine isolation.
+- Avoid reusing the same `NODE_APP_INSTANCE` across different files unless every file uses a distinct `tableSuffix`; the fixture now derives schema names from both pieces, so both must be unique for genuine isolation.

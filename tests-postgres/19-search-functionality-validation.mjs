@@ -31,6 +31,17 @@ let mockSearchResponse = {
     total: { value: 0 }
   }
 };
+const ensureUserExists = async (id, name = 'Test User') => {
+  const usersTable = dalFixture.getTableName('users');
+  const displayName = name;
+  const canonicalName = name.toUpperCase();
+  await dalFixture.query(
+    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [id, displayName, canonicalName, `${id}@example.com`]
+  );
+};
 
 test.before(async t => {
   // Prepare mocked search module to capture search operations
@@ -82,19 +93,6 @@ test.before(async t => {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
 
-    // Import table definitions
-    const { 
-      userTableDefinition, 
-      thingTableDefinition, 
-      reviewTableDefinition 
-    } = await import('./helpers/table-definitions.mjs');
-
-    await dalFixture.createTestTables([
-      userTableDefinition(),
-      thingTableDefinition(),
-      reviewTableDefinition()
-    ]);
-
     const models = await dalFixture.initializeModels([
       {
         key: 'things',
@@ -143,7 +141,6 @@ test.after.always(async t => {
     }
   }
   
-  await dalFixture.dropTestTables(['users', 'things', 'reviews']);
   await dalFixture.cleanup();
 });
 
@@ -244,6 +241,7 @@ test.serial('search queries include new PostgreSQL fields', async t => {
   // Create test data with PostgreSQL structure
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Search Validation User');
   
   const thing = await dalFixture.Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/test-search'];
@@ -289,6 +287,7 @@ test.serial('search indexing handles PostgreSQL vs RethinkDB field name compatib
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Compatibility User');
   
   // Create a thing with PostgreSQL field names
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
@@ -331,6 +330,7 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUserId, 'Performance User');
   
   // Create multiple things with complex JSONB data
   const things = [];
