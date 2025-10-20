@@ -100,9 +100,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
    ```
 
    The fixture creates a dedicated schema per test worker (e.g. `test_testing_4_adapter_functionality`), runs the real migrations from
-   `migrations/`, and sets the connection `search_path` so the DAL interacts with that schema transparently.
-   Use `dalFixture.createTestTables([...])` only when you need ad-hoc tables that are not part of the migration set (for example, bespoke revision
-   fixtures in `tests-postgres/10-dal-revision-system.mjs`).
+   `migrations/`, and sets the connection `search_path` so the DAL interacts with that schema transparently. Tables are created
+   automatically from migrations.
 
 3. **Load real models**
    ```js
@@ -114,15 +113,24 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
    The fixture sets `dal.tablePrefix` before invoking initializers, so the model
    automatically binds to names like `test_testing_3_users`.
 
-4. **Clean up aggressively**
+4. **Create test data using helpers**
    ```js
-   test.beforeEach(() => dalFixture.cleanupTables(['users']));
-   test.after.always(() => {
+   // Use the fixture helper to create test users
+   const { actor: testUser } = await dalFixture.createTestUser('Test User Name');
+   ```
+
+5. **Clean up aggressively**
+   ```js
+   test.beforeEach(async () => {
+     await dalFixture.cleanupTables(['users', 'things', 'reviews']);
+   });
+
+   test.after.always(async () => {
      await dalFixture.cleanup();
    });
    ```
 
-5. **Skip gracefully when PostgreSQL is unavailable**
+6. **Skip gracefully when PostgreSQL is unavailable**
    Wrap the setup in a `try/catch` and `t.pass()` with a message so local runs
    without PostgreSQL do not fail noisily.
 
