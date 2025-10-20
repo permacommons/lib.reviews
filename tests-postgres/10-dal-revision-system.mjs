@@ -33,7 +33,7 @@ process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
 // Use testing-1 slot for DAL tests to avoid conflicts with other AVA tests
 process.env.NODE_APP_INSTANCE = 'testing-1';
 
-const dalFixture = createDALFixtureAVA('testing-1');
+const dalFixture = createDALFixtureAVA('testing-1', { tableSuffix: 'revision_system' });
 const testUser = getTestUserDataAVA();
 
 test.before(async t => {

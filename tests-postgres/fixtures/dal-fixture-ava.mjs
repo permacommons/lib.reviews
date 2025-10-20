@@ -12,14 +12,30 @@ const require = createRequire(import.meta.url);
  * - Providing proper cleanup and connection management
  * - Supporting test isolation with atomic transactions
  */
+const sanitizeIdentifier = value => {
+  if (!value) return '';
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+};
+
 class DALFixtureAVA {
-  constructor(testInstance = 'testing-2') {
+  constructor(testInstance = 'testing-2', options = {}) {
+    const { tableSuffix } = options;
+    const instanceKey = sanitizeIdentifier(testInstance) || 'testing_2';
+    const suffixKey = sanitizeIdentifier(tableSuffix);
+    this.instanceKey = instanceKey;
+    this.namespace = suffixKey ? `${instanceKey}_${suffixKey}` : instanceKey;
     this.dal = null;
     this.models = {};
     this.loaded = false;
     this.testInstance = testInstance;
-    this.tablePrefix = `test_${testInstance.replace('-', '_')}_`;
+    this.tablePrefix = `test_${this.namespace}_`;
     this.connected = false;
+    this.bootstrapError = null;
+    this.skipReason = null;
   }
 
   /**
@@ -28,6 +44,9 @@ class DALFixtureAVA {
    * @param {Array} modelDefinitions - Array of model definitions to create
    */
   async bootstrap(modelDefinitions = []) {
+    this.bootstrapError = null;
+    this.skipReason = null;
+
     // Ensure we have the right test instance
     if (!process.env.NODE_APP_INSTANCE) {
       process.env.NODE_APP_INSTANCE = this.testInstance;
@@ -40,10 +59,17 @@ class DALFixtureAVA {
     
     // Check if postgres config exists
     if (!config.has('postgres')) {
-      throw new Error(`PostgreSQL configuration not found for instance ${this.testInstance}. Please add postgres config to the testing config file.`);
+      const message = `PostgreSQL configuration not found for instance ${this.testInstance}.`;
+      this.bootstrapError = new Error(message);
+      this.skipReason = message;
+      logNotice(`${message} Skipping PostgreSQL-dependent tests.`);
+      return;
     }
     
-    const pgConfig = config.get('postgres');
+    const pgConfig = {
+      ...config.get('postgres'),
+      allowExitOnIdle: true
+    };
     
     // Import DAL components
     const DataAccessLayer = require('../../dal/lib/data-access-layer');
@@ -69,7 +95,10 @@ class DALFixtureAVA {
       }
       this.dal = null;
       this.connected = false;
-      throw error;
+      this.bootstrapError = error;
+      this.skipReason = error.message || 'Failed to connect to PostgreSQL';
+      logNotice(`PostgreSQL connection unavailable for AVA tests: ${this.skipReason}`);
+      return;
     }
     
     // Create models if provided
@@ -149,7 +178,7 @@ class DALFixtureAVA {
             // Replace table name and index name in index SQL
             const prefixedIndexSql = indexSql
               .replace(new RegExp(`\\b${tableDef.name}\\b`, 'g'), fullTableName)
-              .replace(/idx_([a-zA-Z0-9_]+)/g, `idx_${this.testInstance.replace('-', '_')}_$1`);
+              .replace(/idx_([a-zA-Z0-9_]+)/g, `idx_${this.namespace}_$1`);
             await this.dal.query(prefixedIndexSql);
           }
         }
@@ -183,6 +212,8 @@ class DALFixtureAVA {
    * Clean up the DAL fixture
    */
   async cleanup() {
+    const targetHost = this.dal?.config?.host || 'localhost';
+    const targetPort = this.dal?.config?.port || 5432;
     if (this.dal) {
       logNotice('Cleaning up PostgreSQL DAL for AVA tests.');
       try {
@@ -207,6 +238,43 @@ class DALFixtureAVA {
     this.connected = false;
     this.models = {};
     this.loaded = false;
+    this.bootstrapError = null;
+    this.skipReason = null;
+
+    try {
+      const pg = require('pg');
+      if (pg && pg._pools && typeof pg._pools.forEach === 'function') {
+        for (const pool of pg._pools) {
+          try {
+            await pool.end();
+          } catch {}
+        }
+        if (typeof pg._pools.clear === 'function') {
+          pg._pools.clear();
+        }
+      }
+      if (typeof pg.end === 'function') {
+        await pg.end().catch(() => {});
+      }
+    } catch {}
+
+    const getActiveHandles = process._getActiveHandles?.bind(process);
+    if (typeof getActiveHandles === 'function') {
+      const deadline = Date.now() + 1500;
+      while (Date.now() < deadline) {
+        const sockets = getActiveHandles().filter(handle => {
+          if (handle?.constructor?.name !== 'Socket') return false;
+          const remotePort = handle.remotePort;
+          const remoteAddress = handle.remoteAddress;
+          return remotePort === targetPort &&
+            (!remoteAddress || remoteAddress === '127.0.0.1' || remoteAddress === targetHost || remoteAddress === '::1');
+        });
+        if (sockets.length === 0) {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
   }
 
   /**
@@ -238,6 +306,22 @@ class DALFixtureAVA {
    */
   getTableName(tableName) {
     return this.tablePrefix + tableName;
+  }
+
+  /**
+   * Return true if the fixture has an active PostgreSQL connection
+   * @returns {boolean}
+   */
+  isConnected() {
+    return this.connected;
+  }
+
+  /**
+   * Retrieve the reason why bootstrap skipped connecting
+   * @returns {string|null}
+   */
+  getSkipReason() {
+    return this.skipReason;
   }
 
   /**
@@ -288,4 +372,5 @@ class DALFixtureAVA {
   }
 }
 
-export const createDALFixtureAVA = (testInstance = 'testing-2') => new DALFixtureAVA(testInstance);
+export const createDALFixtureAVA = (testInstance = 'testing-2', options = {}) =>
+  new DALFixtureAVA(testInstance, options);

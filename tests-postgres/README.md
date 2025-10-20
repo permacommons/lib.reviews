@@ -136,3 +136,12 @@ npm run test-postgres
 The command mirrors the RethinkDB runner: it compiles assets if needed, then
 executes `ava` with the `tests-postgres/*-*.mjs` pattern while keeping the run
 PostgreSQL-only (`LIBREVIEWS_SKIP_RETHINK=1` by default).
+
+### Concurrency & teardown gotchas
+
+- Test files share AVA workers; anything that touches the same table names needs either unique prefixes (via `createDALFixtureAVA('slot', { tableSuffix: 'feature' })`) **or** to run serially (`test.serial`). Mixing parallel tests with shared fixture state is the fastest way to get intermittent “missing row” failures.
+- Always call `dalFixture.cleanupTables()` in `beforeEach` and `dalFixture.dropTestTables()` + `dalFixture.cleanup()` in `after.always`; skipping even one cleanup leaves connections open and can block the AVA worker from exiting (manifests as “Failed to exit” timeouts).
+- If a suite performs asynchronous teardown beyond the fixture cleanup (e.g., awaiting mock servers), register an AVA `registerCompletionHandler` so the worker exits only after your teardown finishes.
+- When stubbing modules such as `../search`, remember to delete them from `require.cache` in `after.always` so following tests see the real implementation.
+- For PostgreSQL model tests that mutate shared tables (e.g. comprehensive integration suites), prefer serial tests (`test.serial(...)`) to avoid racing `cleanupTables()` calls across concurrent workers.
+- Avoid reusing the same `NODE_APP_INSTANCE` across different files unless every file uses a distinct `tableSuffix`; the fixture now derives prefixes from both pieces, so both must be unique for genuine isolation.

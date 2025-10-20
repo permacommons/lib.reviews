@@ -72,8 +72,21 @@ let search = {
   searchThings(query, lang = 'en') {
     let options = search.getSearchOptions('label', lang);
     let descriptionOptions = search.getSearchOptions('description', lang);
-    options.fields = options.fields.concat(descriptionOptions.fields);
-    Object.assign(options.highlight.fields, descriptionOptions.highlight.fields);
+    let subtitleOptions = search.getSearchOptions('subtitle', lang);
+    let authorsOptions = search.getSearchOptions('authors', lang);
+    
+    // Combine all search fields
+    options.fields = options.fields
+      .concat(descriptionOptions.fields)
+      .concat(subtitleOptions.fields)
+      .concat(authorsOptions.fields);
+    
+    // Combine all highlight fields
+    Object.assign(options.highlight.fields, 
+      descriptionOptions.highlight.fields,
+      subtitleOptions.highlight.fields,
+      authorsOptions.highlight.fields
+    );
 
     return getClient().search({
       index: 'libreviews',
@@ -213,19 +226,25 @@ let search = {
 
   // Index a new review. Returns a promise; logs errors
   indexReview(review) {
+    // Skip indexing if this is an old or deleted revision
+    if (review._old_rev_of || review._rev_deleted) {
+      debug.util(`Skipping indexing of review ${review.id} - old or deleted revision`);
+      return Promise.resolve();
+    }
+
     return getClient().index({
         index: 'libreviews',
         id: review.id,
-        routing: review.thingID,
+        routing: review.thing_id || review.thingID, // Support both PostgreSQL and RethinkDB field names
         body: {
-          createdOn: review.createdOn,
+          createdOn: review.created_on || review.createdOn, // Support both field names
           title: mlString.stripHTML(review.title),
           text: mlString.stripHTML(review.html),
-          starRating: review.starRating,
+          starRating: review.star_rating || review.starRating, // Support both field names
           type: 'review',
           joined: {
             name: 'review',
-            parent: review.thingID
+            parent: review.thing_id || review.thingID // Support both field names
           }
         }
       })
@@ -236,9 +255,26 @@ let search = {
 
   // Index a new review subject (thing). Returns a promise; logs errors
   indexThing(thing) {
-    // Extract description from metadata for PostgreSQL structure
-    const description = thing.metadata && thing.metadata.description ? 
-      thing.metadata.description : thing.description;
+    // Skip indexing if this is an old or deleted revision
+    if (thing._old_rev_of || thing._rev_deleted) {
+      debug.util(`Skipping indexing of thing ${thing.id} - old or deleted revision`);
+      return Promise.resolve();
+    }
+
+    // Extract multilingual content from PostgreSQL JSONB structure
+    let description, subtitle, authors;
+    
+    if (thing.metadata && typeof thing.metadata === 'object') {
+      // PostgreSQL structure: metadata is grouped in JSONB
+      description = thing.metadata.description;
+      subtitle = thing.metadata.subtitle;
+      authors = thing.metadata.authors;
+    } else {
+      // RethinkDB structure: fields are separate
+      description = thing.description;
+      subtitle = thing.subtitle;
+      authors = thing.authors;
+    }
     
     return getClient().index({
         index: 'libreviews',
@@ -248,6 +284,8 @@ let search = {
           label: mlString.stripHTML(thing.label),
           aliases: mlString.stripHTMLFromArray(thing.aliases),
           description: mlString.stripHTML(description),
+          subtitle: mlString.stripHTML(subtitle),
+          authors: mlString.stripHTMLFromArray(authors),
           joined: 'thing',
           type: 'thing',
           urls: thing.urls,
@@ -318,6 +356,8 @@ let search = {
               label: search.getMultilingualTextProperties(true),
               aliases: search.getMultilingualTextProperties(true),
               description: search.getMultilingualTextProperties(),
+              subtitle: search.getMultilingualTextProperties(),
+              authors: search.getMultilingualTextProperties(),
               type: {
                 type: 'keyword'
               }

@@ -13,7 +13,7 @@ if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
   process.env.LIBREVIEWS_SKIP_RETHINK = '1';
 }
 
-const dalFixture = createDALFixtureAVA('testing-4');
+const dalFixture = createDALFixtureAVA('testing-4', { tableSuffix: 'thing_model' });
 
 let Thing;
 

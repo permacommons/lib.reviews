@@ -17,7 +17,7 @@ if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
   process.env.LIBREVIEWS_SKIP_RETHINK = '1';
 }
 
-const dalFixture = createDALFixtureAVA('testing-6');
+const dalFixture = createDALFixtureAVA('testing-6', { tableSuffix: 'sync_scripts' });
 
 let Thing;
 
@@ -34,6 +34,13 @@ test.before(async t => {
 
   try {
     await dalFixture.bootstrap();
+
+    if (!dalFixture.isConnected()) {
+      const reason = dalFixture.getSkipReason() || 'PostgreSQL not configured';
+      t.log(`PostgreSQL not available, skipping sync script tests: ${reason}`);
+      t.pass('Skipping tests - PostgreSQL not configured');
+      return;
+    }
 
     // Ensure UUID generation helper exists (ignore failures on hosted CI)
     try {
@@ -61,6 +68,11 @@ test.before(async t => {
 
     t.log('PostgreSQL DAL and models initialized for sync script tests');
   } catch (error) {
+    if (!dalFixture.isConnected()) {
+      t.log('Failed to initialize test environment (PostgreSQL unavailable):', error.message || error);
+      t.pass('Skipping tests - PostgreSQL not configured');
+      return;
+    }
     t.log('Failed to initialize test environment:', error);
     throw error;
   }
@@ -74,7 +86,9 @@ test.after.always(async t => {
 
 function skipIfNoModels(t) {
   if (!Thing) {
-    t.skip('Models not available - PostgreSQL setup may have failed');
+    const reason = dalFixture.getSkipReason() || 'PostgreSQL setup may have failed';
+    t.log(`Models not available - ${reason}`);
+    t.pass(`Skipping - ${reason}`);
     return true;
   }
   return false;

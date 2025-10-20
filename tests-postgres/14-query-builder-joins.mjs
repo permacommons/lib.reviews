@@ -32,7 +32,7 @@ if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
   process.env.LIBREVIEWS_SKIP_RETHINK = '1';
 }
 
-const dalFixture = createDALFixtureAVA('testing-6');
+const dalFixture = createDALFixtureAVA('testing-6', { tableSuffix: 'query_builder_joins' });
 
 let User, Thing, Review;
 
@@ -114,7 +114,7 @@ function skipIfNoModels(t) {
   return false;
 }
 
-test('QueryBuilder supports simple boolean joins', async t => {
+test.serial('QueryBuilder supports simple boolean joins', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a test user
@@ -135,7 +135,7 @@ test('QueryBuilder supports simple boolean joins', async t => {
   // Note: teams join would be populated if team associations existed
 });
 
-test('QueryBuilder handles revision-aware joins', async t => {
+test.serial('QueryBuilder handles revision-aware joins', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a test user and thing
@@ -157,7 +157,7 @@ test('QueryBuilder handles revision-aware joins', async t => {
   // Reviews would be populated if review associations existed
 });
 
-test('QueryBuilder supports complex joins with _apply', async t => {
+test.serial('QueryBuilder supports complex joins with _apply', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -194,7 +194,7 @@ test('QueryBuilder supports complex joins with _apply', async t => {
   // Creator would be populated without password field
 });
 
-test('QueryBuilder supports multiple joins', async t => {
+test.serial('QueryBuilder supports multiple joins', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -229,7 +229,7 @@ test('QueryBuilder supports multiple joins', async t => {
   t.is(reviews[0].id, review.id);
 });
 
-test('QueryBuilder supports between date ranges', async t => {
+test.serial('QueryBuilder supports between date ranges', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -266,7 +266,7 @@ test('QueryBuilder supports between date ranges', async t => {
   }
 });
 
-test('QueryBuilder supports array contains operations', async t => {
+test.serial('QueryBuilder supports array contains operations', async t => {
   if (skipIfNoModels(t)) return;
   
   // Test that the contains method exists and can be called
@@ -280,7 +280,7 @@ test('QueryBuilder supports array contains operations', async t => {
   t.pass('Array contains query method works and executes without error');
 });
 
-test('QueryBuilder supports revision filtering', async t => {
+test.serial('QueryBuilder supports revision filtering', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -304,7 +304,7 @@ test('QueryBuilder supports revision filtering', async t => {
   }
 });
 
-test('QueryBuilder supports revision tag filtering', async t => {
+test.serial('QueryBuilder supports revision tag filtering', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -342,7 +342,7 @@ test('QueryBuilder supports revision tag filtering', async t => {
   }
 });
 
-test('QueryBuilder supports ordering and limiting', async t => {
+test.serial('QueryBuilder supports ordering and limiting', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -384,7 +384,7 @@ test('QueryBuilder supports ordering and limiting', async t => {
   }
 });
 
-test('QueryBuilder supports offset for pagination', async t => {
+test.serial('QueryBuilder supports offset for pagination', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -436,7 +436,7 @@ test('QueryBuilder supports offset for pagination', async t => {
   }
 });
 
-test('QueryBuilder supports count operations', async t => {
+test.serial('QueryBuilder supports count operations', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create test user and thing
@@ -465,7 +465,7 @@ test('QueryBuilder supports count operations', async t => {
   t.true(count >= 1);
 });
 
-test('QueryBuilder supports first() operation', async t => {
+test.serial('QueryBuilder supports first() operation', async t => {
   if (skipIfNoModels(t)) return;
   
   // Create a test user
