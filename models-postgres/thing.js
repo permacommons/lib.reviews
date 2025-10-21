@@ -17,6 +17,7 @@ const ReportedError = require('../util/reported-error');
 const adapters = require('../adapters/adapters');
 const search = require('../search');
 const isValidLanguage = require('../locales/languages').isValid;
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 let Thing = null;
 
@@ -79,7 +80,12 @@ async function initializeThingModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(thingSchema, revision.getSchema());
 
-    Thing = dal.createModel(tableName, thingSchema);
+    const { model, isNew } = getOrCreateModel(dal, tableName, thingSchema);
+    Thing = model;
+
+    if (!isNew) {
+      return Thing;
+    }
 
     // Register camelCase to snake_case field mappings
     Thing._registerFieldMapping('originalLanguage', 'original_language');
@@ -650,10 +656,15 @@ async function getWithDataProxy(id, options) {
   return ThingModel.getWithData(id, options);
 }
 
-module.exports = {
-  initializeThingModel,
-  getPostgresThingModel,
-  lookupByURL: lookupByURLProxy,
-  getWithData: getWithDataProxy,
-  getLabel
-};
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const ThingHandle = createAutoModelHandle('things', initializeThingModel);
+
+module.exports = ThingHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeThingModel;
+module.exports.initializeThingModel = initializeThingModel; // Backward compatibility
+module.exports.getPostgresThingModel = getPostgresThingModel;

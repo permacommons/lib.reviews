@@ -16,6 +16,7 @@ const debug = require('../util/debug');
 const { DocumentNotFound } = require('../dal/lib/errors');
 const TeamSlug = require('./team-slug');
 const { getPostgresUserModel } = require('./user');
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 let BlogPost = null;
 
@@ -49,7 +50,12 @@ async function initializeBlogPostModel(customDAL = null) {
 
     Object.assign(schema, revision.getSchema());
 
-    BlogPost = dal.createModel(tableName, schema);
+    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
+    BlogPost = model;
+
+    if (!isNew) {
+      return BlogPost;
+    }
 
     BlogPost._registerFieldMapping('teamID', 'team_id');
     BlogPost._registerFieldMapping('createdOn', 'created_on');
@@ -202,7 +208,14 @@ async function _attachCreator(post) {
   return post;
 }
 
-module.exports = {
-  initializeBlogPostModel,
-  getPostgresBlogPostModel
-};
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const BlogPostHandle = createAutoModelHandle('blog_posts', initializeBlogPostModel);
+
+module.exports = BlogPostHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeBlogPostModel;
+module.exports.getPostgresBlogPostModel = getPostgresBlogPostModel;

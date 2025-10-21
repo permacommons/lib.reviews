@@ -28,6 +28,10 @@ test.before(async t => {
       {
         key: 'things',
         loader: dal => require('../models-postgres/thing').initializeThingModel(dal)
+      },
+      {
+        key: 'thingSlugs',
+        loader: dal => require('../models-postgres/thing-slug').initializeModel(dal)
       }
     ]);
 

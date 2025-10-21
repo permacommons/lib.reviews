@@ -1,15 +1,16 @@
 'use strict';
 
 /**
- * PostgreSQL TeamJoinRequest model implementation
+ * PostgreSQL TeamJoinRequest model implementation (stub)
  * 
- * This is the PostgreSQL implementation of the TeamJoinRequest model using the DAL,
- * maintaining compatibility with the existing RethinkDB TeamJoinRequest model interface.
+ * This is a minimal stub implementation for the TeamJoinRequest model.
+ * Full implementation will be added as needed.
  */
 
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const debug = require('../util/debug');
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 let TeamJoinRequest = null;
 
@@ -26,40 +27,42 @@ async function initializeTeamJoinRequestModel(customDAL = null) {
   }
 
   try {
-    // Use table prefix if this is a test DAL
     const tableName = dal.tablePrefix ? `${dal.tablePrefix}team_join_requests` : 'team_join_requests';
-    TeamJoinRequest = dal.createModel(tableName, {
+    
+    const schema = {
       id: type.string().uuid(4),
-      team_id: type.string().uuid(4).required(),
-      user_id: type.string().uuid(4).required(),
-      request_message: type.string(),
-      request_date: type.date().default(() => new Date()),
-      rejected_by: type.string().uuid(4),
-      rejection_date: type.date(),
-      rejection_message: type.string(),
-      rejected_until: type.date()
-    });
+      teamID: type.string().uuid(4).required(true),
+      userID: type.string().uuid(4).required(true),
+      requestedOn: type.date().default(() => new Date()),
+      message: type.string().max(500)
+    };
 
-    debug.db('PostgreSQL TeamJoinRequest model initialized');
+    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
+    TeamJoinRequest = model;
+
+    if (!isNew) {
+      return TeamJoinRequest;
+    }
+
+    TeamJoinRequest._registerFieldMapping('teamID', 'team_id');
+    TeamJoinRequest._registerFieldMapping('userID', 'user_id');
+    TeamJoinRequest._registerFieldMapping('requestedOn', 'requested_on');
+
+    debug.db('PostgreSQL TeamJoinRequest model initialized (stub)');
     return TeamJoinRequest;
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL TeamJoinRequest model:', error);
-    throw error;
+    return null;
   }
 }
 
-/**
- * Get the PostgreSQL TeamJoinRequest model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
- */
-async function getPostgresTeamJoinRequestModel(customDAL = null) {
-  if (!TeamJoinRequest || customDAL) {
-    TeamJoinRequest = await initializeTeamJoinRequestModel(customDAL);
-  }
-  return TeamJoinRequest;
-}
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
 
-module.exports = {
-  initializeTeamJoinRequestModel,
-  getPostgresTeamJoinRequestModel
-};
+const TeamJoinRequestHandle = createAutoModelHandle('team_join_requests', initializeTeamJoinRequestModel);
+
+module.exports = TeamJoinRequestHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeTeamJoinRequestModel;

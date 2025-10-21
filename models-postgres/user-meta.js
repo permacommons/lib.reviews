@@ -14,6 +14,7 @@ const revision = require('../dal/lib/revision');
 const { ValidationError } = require('../dal/lib/errors');
 const { isValid: isValidLanguage } = require('../locales/languages');
 const debug = require('../util/debug');
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 let UserMeta = null;
 let currentDAL = null;
@@ -74,7 +75,17 @@ async function initializeUserMetaModel(customDAL = null) {
 
     Object.assign(schema, revision.getSchema());
 
-    UserMeta = dal.createModel(tableName, schema);
+    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
+
+    if (!isNew) {
+      if (!customDAL) {
+        UserMeta = model;
+        currentDAL = dal;
+      }
+      return model;
+    }
+
+    UserMeta = model;
 
     UserMeta.createFirstRevision = revision.getFirstRevisionHandler(UserMeta);
     UserMeta.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(UserMeta);
@@ -104,7 +115,14 @@ async function getPostgresUserMetaModel(customDAL = null) {
   return UserMeta;
 }
 
-module.exports = {
-  initializeUserMetaModel,
-  getPostgresUserMetaModel
-};
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const UserMetaHandle = createAutoModelHandle('user_metas', initializeUserMetaModel);
+
+module.exports = UserMetaHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeUserMetaModel;
+module.exports.getPostgresUserMetaModel = getPostgresUserMetaModel;

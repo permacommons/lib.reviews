@@ -45,14 +45,11 @@ let initializedApp;
 
 /**
  * Initialize an instance of the app and provide it when it is ready for use.
- * @param {Thinky} [db=default database instance]
- *  a reference to an ODM instance with an active connection pool. If not
- *  provided, we will attempt to acquire the configured instance.
  * @returns {Function}
  *  an Express app
  * @memberof App
  */
-async function getApp(db = require('./db-postgres')) {
+async function getApp() {
   if (initializedApp)
     return initializedApp;
 
@@ -62,6 +59,11 @@ async function getApp(db = require('./db-postgres')) {
 
   // Create directories for uploads and deleted files if needed
   asyncJobs.push(...['deleted', 'static/uploads', 'static/downloads'].map(setupDirectory));
+
+  // Initialize DAL and all models using the centralized bootstrap
+  const { initializeDAL } = require('./bootstrap/dal');
+  const dalPromise = initializeDAL();
+  asyncJobs.push(dalPromise);
 
   // Auth setup
   require('./auth');
@@ -102,8 +104,8 @@ async function getApp(db = require('./db-postgres')) {
   app.use(i18n.init); // Requires cookie parser!
   app.use(useragent.express()); // expose UA object to req.useragent
 
-  // Wait for database to be ready
-  const dbInstance = await db;
+  // Get the initialized DAL instance
+  const dal = await dalPromise;
   
   // Load routes after database is ready
   const reviews = require('./routes/reviews');
@@ -118,7 +120,7 @@ async function getApp(db = require('./db-postgres')) {
   const apitest = require('./routes/apitest');
   
   const store = new pgSession({
-    pool: dbInstance.pool,
+    pool: dal.pool,
     tableName: 'session'
   });
 
@@ -126,7 +128,7 @@ async function getApp(db = require('./db-postgres')) {
   asyncJobs.push((async () => {
     debug.app('Initializing session store.');
     try {
-      await dbInstance.query(`
+      await dal.query(`
         CREATE TABLE IF NOT EXISTS session (
           sid VARCHAR NOT NULL COLLATE "default",
           sess JSON NOT NULL,

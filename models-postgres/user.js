@@ -14,6 +14,7 @@ const ReportedError = require('../util/reported-error');
 const debug = require('../util/debug');
 const { getPostgresUserMetaModel } = require('./user-meta');
 const { DocumentNotFound } = require('../dal/lib/errors');
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 const userOptions = {
   maxChars: 128,
@@ -47,7 +48,7 @@ async function initializeUserModel(customDAL = null) {
     debug.db('DAL available, creating User model...');
     // Use table prefix if this is a test DAL
     const tableName = dal.tablePrefix ? `${dal.tablePrefix}users` : 'users';
-    User = dal.createModel(tableName, {
+    const userSchema = {
       id: type.string().uuid(4),
       
       // CamelCase schema fields that map to snake_case database columns
@@ -78,7 +79,17 @@ async function initializeUserModel(customDAL = null) {
         const isSuperUser = this.getValue ? this.getValue('isSuperUser') : this.isSuperUser;
         return isTrusted || isSuperUser;
       })
-    });
+    };
+
+    const { model, isNew } = getOrCreateModel(dal, tableName, userSchema);
+
+    if (!isNew) {
+      User = model;
+      currentDAL = dal;
+      return User;
+    }
+
+    User = model;
 
     // Register camelCase to snake_case field mappings
     User._registerFieldMapping('displayName', 'display_name');
@@ -589,8 +600,20 @@ class NewUserError extends ReportedError {
   }
 }
 
-module.exports = {
-  initializeUserModel,
-  getPostgresUserModel,
-  NewUserError
-};
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const UserHandle = createAutoModelHandle('users', initializeUserModel, {
+  staticProperties: {
+    options: userOptions
+  }
+});
+
+module.exports = UserHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeUserModel;
+module.exports.initializeUserModel = initializeUserModel; // Backward compatibility
+module.exports.getPostgresUserModel = getPostgresUserModel;
+module.exports.NewUserError = NewUserError;

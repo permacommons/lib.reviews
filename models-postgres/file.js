@@ -12,6 +12,7 @@ const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;
 const debug = require('../util/debug');
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 const validLicenses = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'];
 
@@ -60,7 +61,12 @@ async function initializeFileModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(fileSchema, revision.getSchema());
 
-    File = dal.createModel(tableName, fileSchema);
+    const { model, isNew } = getOrCreateModel(dal, tableName, fileSchema);
+    File = model;
+
+    if (!isNew) {
+      return File;
+    }
 
     // Register camelCase to snake_case field mappings
     File._registerFieldMapping('uploadedBy', 'uploaded_by');
@@ -214,7 +220,15 @@ async function getPostgresFileModel(customDAL = null) {
   return File;
 }
 
-module.exports = {
-  initializeFileModel,
-  getPostgresFileModel
-};
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const FileHandle = createAutoModelHandle('files', initializeFileModel);
+
+module.exports = FileHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeFileModel;
+module.exports.initializeFileModel = initializeFileModel; // Backward compatibility
+module.exports.getPostgresFileModel = getPostgresFileModel;

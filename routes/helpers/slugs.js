@@ -5,9 +5,9 @@ const isUUID = require('is-uuid');
 // Internal dependencies
 const { DocumentNotFound } = require('../../dal/lib/errors');
 const { getPostgresTeamModel } = require('../../models-postgres/team');
-const TeamSlug = require('../../models-postgres/team-slug');
+const { getPostgresTeamSlugModel } = require('../../models-postgres/team-slug');
 const { getPostgresThingModel } = require('../../models-postgres/thing');
-const ThingSlug = require('../../models-postgres/thing-slug');
+const { getPostgresThingSlugModel } = require('../../models-postgres/thing-slug');
 
 const slugs = {
 
@@ -28,9 +28,21 @@ const slugs = {
         if (!dal) {
           return null;
         }
+        const TeamSlugModel = await getPostgresTeamSlugModel(dal);
+        if (!TeamSlugModel) {
+          return null;
+        }
         const tableName = dal.tablePrefix ? `${dal.tablePrefix}team_slugs` : 'team_slugs';
         const result = await dal.query(`SELECT * FROM ${tableName} WHERE name = $1`, [slugName]);
-        return result.rows.length ? new TeamSlug(result.rows[0]) : null;
+        if (!result.rows.length) {
+          return null;
+        }
+
+        const row = result.rows[0];
+        if (TeamSlugModel && typeof TeamSlugModel._createInstance === 'function') {
+          return TeamSlugModel._createInstance(row);
+        }
+        return new TeamSlugModel(row);
       },
       slugLabel: 'team'
     });
@@ -49,9 +61,21 @@ const slugs = {
         if (!dal) {
           return null;
         }
+        const ThingSlugModel = await getPostgresThingSlugModel(dal);
+        if (!ThingSlugModel) {
+          return null;
+        }
         const tableName = dal.tablePrefix ? `${dal.tablePrefix}thing_slugs` : 'thing_slugs';
         const result = await dal.query(`SELECT * FROM ${tableName} WHERE name = $1`, [slugName]);
-        return result.rows.length ? new ThingSlug(result.rows[0]) : null;
+        if (!result.rows.length) {
+          return null;
+        }
+
+        const row = result.rows[0];
+        if (ThingSlugModel && typeof ThingSlugModel._createInstance === 'function') {
+          return ThingSlugModel._createInstance(row);
+        }
+        return new ThingSlugModel(row);
       },
       slugLabel: 'thing'
     });

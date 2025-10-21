@@ -15,6 +15,7 @@ const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
 const { getPostgresUserModel } = require('./user');
 const { getPostgresReviewModel } = require('./review');
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 let Team = null;
 
@@ -75,7 +76,12 @@ async function initializeTeamModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(teamSchema, revision.getSchema());
 
-    Team = dal.createModel(tableName, teamSchema);
+    const { model, isNew } = getOrCreateModel(dal, tableName, teamSchema);
+    Team = model;
+
+    if (!isNew) {
+      return Team;
+    }
 
     // Register camelCase to snake_case field mappings
     Team._registerFieldMapping('modApprovalToJoin', 'mod_approval_to_join');
@@ -467,7 +473,15 @@ async function getPostgresTeamModel(customDAL = null) {
   return Team;
 }
 
-module.exports = {
-  initializeTeamModel,
-  getPostgresTeamModel
-};
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const TeamHandle = createAutoModelHandle('teams', initializeTeamModel);
+
+module.exports = TeamHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeTeamModel;
+module.exports.initializeTeamModel = initializeTeamModel; // Backward compatibility
+module.exports.getPostgresTeamModel = getPostgresTeamModel;

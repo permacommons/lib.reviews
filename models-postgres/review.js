@@ -15,6 +15,7 @@ const debug = require('../util/debug');
 const ReportedError = require('../util/reported-error');
 const isValidLanguage = require('../locales/languages').isValid;
 const adapters = require('../adapters/adapters');
+const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 const reviewOptions = {
   maxTitleLength: 255
@@ -66,7 +67,12 @@ async function initializeReviewModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(reviewSchema, revision.getSchema());
 
-    Review = dal.createModel(tableName, reviewSchema);
+    const { model, isNew } = getOrCreateModel(dal, tableName, reviewSchema);
+    Review = model;
+
+    if (!isNew) {
+      return Review;
+    }
 
     // Register camelCase to snake_case field mappings
     Review._registerFieldMapping('thingID', 'thing_id');
@@ -634,8 +640,20 @@ async function getPostgresReviewModel(customDAL = null) {
   return Review;
 }
 
-module.exports = {
-  initializeReviewModel,
-  getPostgresReviewModel,
-  ReviewError
-};
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const ReviewHandle = createAutoModelHandle('reviews', initializeReviewModel, {
+  staticProperties: {
+    options: reviewOptions
+  }
+});
+
+module.exports = ReviewHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeReviewModel;
+module.exports.initializeReviewModel = initializeReviewModel; // Backward compatibility
+module.exports.getPostgresReviewModel = getPostgresReviewModel;
+module.exports.ReviewError = ReviewError;
