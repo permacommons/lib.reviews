@@ -4,64 +4,52 @@ lib.reviews is in the middle of retiring its legacy RethinkDB stack in favor of 
 
 ## Guiding Principles
 
-- **Single source of truth** – treat the DAL as the authoritative interface to persistence; app code should never couple directly to a specific backend.
-- **Stateless factories** – model factories must be pure functions that accept a DAL instance and return a model bound to that instance; avoid module-level singletons.
-- **Explicit lifetimes** – the DAL owns its models (e.g., `dal.getModel('user')`) so request handlers can safely access backend-specific functionality without racing reinitialization.
-- **Backend portability** – the DAL interface needs well-defined capabilities (query builder, migrations, UUID generation, transactions) so future backends can swap in by implementing the same contract.
-- **Test ergonomics** – tests instantiate their own DAL instance (fixtures or in-memory backends) using the same factory path as production code—no special-case branches.
+- **Postgres first, RethinkDB last** – finish the migration by deleting every remaining RethinkDB dependency before we attempt bigger architectural moves.
+- **Friendly ergonomics** – production code must keep the simple `const User = require(...); User.filter(...)` experience. DAL plumbing belongs behind the scenes.
+- **Centralised bootstrap** – the app should initialise the database and models exactly once during startup; models shouldn’t re-run heavy setup when merely imported.
+- **Lean model modules** – each model file should focus on schema and custom behaviour, not bespoke export boilerplate.
+- **Fixture-aware tests** – test helpers can spin up isolated DAL instances, but that wiring should never leak into production code.
 
-## Target Architecture
+## Target Architecture (updated)
 
-1. `createDAL(config)` returns a DAL instance that exposes:
-   - Connection lifecycle (`connect`, `disconnect`, `migrate`).
-   - Query builder / raw query helpers.
-   - Model registry (`dal.models.user` or `dal.getModel('user')`).
-   - Capability hooks (e.g., `dal.generateUUID()`).
-2. Model modules export pure factories, e.g.:
-
-   ```js
-   // models-postgres/user.js
-   module.exports = function createUserModel(dal) { ... }
-   ```
-
-   The factory builds schema definitions, registers field mappings, and returns the model bound to the injected DAL without mutating module-level state.
-
-3. Application code receives a DAL instance via an initialization step (or per-request context) and pulls models from it. This eliminates the need for global singletons and makes multi-backend support explicit.
+1. A single bootstrap module creates the DAL, runs migrations, and registers every model exactly once during application start-up.
+2. Model modules export synchronous handles that proxy to the registered models, while also exposing a factory for fixtures (`initializeModel(dal)`).
+3. Tests obtain models by calling the factory with their fixture DAL; production code keeps using the synchronous handle.
+4. Once RethinkDB code is gone, revisiting multi-backend support becomes optional rather than a blocker.
 
 ## Roadmap Phases
 
-### Phase 1 – Stabilize Postgres DAL (current)
+### Phase 1 – Finish the Postgres Cutover (current)
 
-- ✅ Ensure all routes that are already migrated to PostgreSQL use the new DAL without crashing on repeat initialization (e.g., invite flow fixes).
-- ✅ Remove eager attempts to reinitialize models with different DAL instances from within application code.
-- 🔄 Document and ticket any remaining hotspots where routes still require legacy Thinky models.
+- ✅ Keep the Postgres DAL stable for routes already migrated.
+- ✅ Document remaining RethinkDB hot spots so nothing is migrated blindly.
+- 🔄 Remove any fresh regressions that make model imports harder to use.
+- [ ] Fix all routes and functionality to work with Postgres DAL
 
-### Phase 2 – Remove Dual Setup & Legacy Models
+### Phase 2 – Delete the RethinkDB Path
 
-- [ ] Audit all code paths still touching `db-dual.js`, `db.js`, and `models/` (Thinky). Track remaining features that depend on RethinkDB.
-- [ ] Migrate outstanding routes and workers to PostgreSQL equivalents, ensuring parity through tests and/or fixtures.
-- [ ] Delete dual-database toggles, the legacy RethinkDB models, and the bridging code once all features are confirmed on Postgres.
-- [ ] Update ops/docs/scripts to reflect a single-database deployment story (Postgres only).
+- [ ] Audit and remove code that still references `db-dual.js`, `db.js`, or legacy Thinky models.
+- [ ] Migrate the last routes/workers/tests to Postgres equivalents with parity checks.
+- [ ] Drop dual-database toggles, legacy models, and bridging logic once parity is verified.
+- [ ] Update deployment docs to state Postgres-only support.
 
-### Phase 3 – Introduce DAL Factory Pattern
+### Phase 3 – Centralised DAL Bootstrap & Ergonomics
 
-- [ ] Refactor each `models-postgres/*.js` module into a stateless factory (no shared globals).
-- [ ] Implement a DAL model registry to cache factories per DAL instance (`dal.models.user`, etc.).
-- [ ] Update route, worker, and CLI entry points to receive a DAL instance (e.g., through dependency injection or a bootstrap module) instead of requiring models directly.
-- [ ] Adjust test fixtures to construct DAL instances via the same entry point, removing custom “inject DAL” pathways.
+- [ ] Introduce a single bootstrap (`bootstrap/dal.js`) that connects, migrates, and registers all models on startup.
+- [ ] Make each `models-postgres/*.js` export a thin synchronous handle plus an `initializeModel(dal)` helper for fixtures.
+- [ ] Ensure production code no longer calls `getPostgres*` helpers directly—everything comes from the bootstrap.
+- [ ] Update fixtures to rely on the same factories while keeping the ergonomics invisible to application code.
 
 ### Phase 4 – Generalize DAL for Future Backends
 
-- [ ] Define a backend capability contract (query interface, migrations, UUID generator, transaction semantics).
-- [ ] Formalize helper APIs that model factories can rely on (e.g., `dal.uuid.v4()`) so backend differences are abstracted through the DAL.
-- [ ] Extract Postgres-specific logic (camelCase ↔ snake_case mappings, JSONB helpers) into pluggable adapters where it improves clarity.
-- [ ] Evaluate potential secondary backends (SQLite for testing, read-only replicas, etc.) to validate the abstraction.
+- [ ] Optional: Define a backend capability contract if we ever add a secondary datastore.
+- [ ] Optional: Extract Postgres-specific helpers (camelCase ↔ snake_case, JSONB utilities) into modules that another backend could reuse.
+- [ ] Optional: Explore lightweight alternatives (e.g., SQLite for tests) only after the Postgres path is ergonomic and RethinkDB is gone.
 
 ## Open Questions / To-Do
 
-- How should request-scoped DAL instances be surfaced (Express middleware vs. global service container)?
-- What metrics/logging hooks should the DAL expose to standardize monitoring across backends?
-- Do we need migration tooling that understands multiple backends (e.g., Prisma-style providers) or is SQL migration per backend sufficient?
+- Where should the startup bootstrap live so both the web server and CLI workers share it cleanly?
+- What’s the lightest-weight way to expose DAL access in request handlers (global singleton vs. dependency injection)?
+- How do we keep fixture ergonomics while guaranteeing production never re-initializes models on demand?
 
 Document updates belong in the repository alongside implementation PRs so the roadmap stays current. Feel free to expand with deeper design proposals, code sketches, or lessons learned as migration continues.
-
