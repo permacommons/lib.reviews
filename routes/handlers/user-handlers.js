@@ -11,68 +11,60 @@ const { getEditorMessages } = require('../../util/frontend-messages');
 
 let userHandlers = {
 
-  processEdit(req, res, next) {
-
+  async processEdit(req, res, next) {
     const { name } = req.params;
-    const User = getPostgresUserModel();
-    if (!User) return next(new Error('User model not available'));
-    
-    User
-      .findByURLName(name, {
+
+    try {
+      const User = await getPostgresUserModel();
+      if (!User) return next(new Error('User model not available'));
+
+      const user = await User.findByURLName(name, {
         withData: true,
         withPassword: true // Since user needs to be updated
-      })
-      .then(user => {
-        user.populateUserInfo(req.user);
-        if (!user.userCanEditMetadata)
-          return render.permissionError(req, res, next);
+      });
 
-        let bio = req.body['bio-text'];
-        let bioLanguage = req.body['bio-language'];
-        if (bio === undefined || bioLanguage === undefined) {
-          req.flash('pageErrors', req.__('data missing'));
-          return res.redirect(`/user/${user.urlName}/edit/bio`);
-        }
+      user.populateUserInfo(req.user);
+      if (!user.userCanEditMetadata)
+        return render.permissionError(req, res, next);
 
-        if (user.meta === undefined || user.meta.bio === undefined) {
-          let bioObj = {
-            bio: {
-              text: {},
-              html: {}
-            },
-            originalLanguage: bioLanguage
-          };
-          bioObj.bio.text[bioLanguage] = escapeHTML(bio);
-          bioObj.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
-          bioObj.originalLanguage = bioLanguage;
-          User
-            .createBio(user, bioObj)
-            .then(() => {
-              res.redirect(`/user/${user.urlName}`);
-            })
-            .catch(next);
-        } else {
-          user.meta
-            .newRevision(req.user, {
-              tags: ['update-bio-via-user']
-            })
-            .then(metaRev => {
-              if (metaRev.bio === undefined)
-                metaRev.bio = {};
+      let bio = req.body['bio-text'];
+      let bioLanguage = req.body['bio-language'];
+      if (bio === undefined || bioLanguage === undefined) {
+        req.flash('pageErrors', req.__('data missing'));
+        return res.redirect(`/user/${user.urlName}/edit/bio`);
+      }
 
-              metaRev.bio.text[bioLanguage] = escapeHTML(bio);
-              metaRev.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
-              metaRev
-                .save()
-                .then(() => {
-                  res.redirect(`/user/${user.urlName}`);
-                })
-                .catch(next); // Problem saving metadata
-            })
-            .catch(next); // Problem creating metadata revision
-        }
-      })
-      .catch(userHandlers.getUserNotFoundHandler(req, res, next, name));
+      if (user.meta === undefined || user.meta.bio === undefined) {
+        let bioObj = {
+          bio: {
+            text: {},
+            html: {}
+          },
+          originalLanguage: bioLanguage
+        };
+        bioObj.bio.text[bioLanguage] = escapeHTML(bio);
+        bioObj.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
+        bioObj.originalLanguage = bioLanguage;
+
+        await User.createBio(user, bioObj);
+        res.redirect(`/user/${user.urlName}`);
+      } else {
+        let metaRev = await user.meta.newRevision(req.user, {
+          tags: ['update-bio-via-user']
+        });
+
+        if (metaRev.bio === undefined)
+          metaRev.bio = {};
+
+        metaRev.bio.text[bioLanguage] = escapeHTML(bio);
+        metaRev.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
+
+        await metaRev.save();
+        res.redirect(`/user/${user.urlName}`);
+      }
+    } catch (error) {
+      return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
+    }
   },
 
   getUserHandler(options) {
@@ -80,97 +72,93 @@ let userHandlers = {
       editBio: false
     }, options);
 
-    return function(req, res, next) {
+    return async function(req, res, next) {
       const { name } = req.params;
-      const User = getPostgresUserModel();
-      if (!User) return next(new Error('User model not available'));
+      try {
+        const User = await getPostgresUserModel();
+        if (!User) return next(new Error('User model not available'));
 
-      User
-        .findByURLName(name, {
+        const user = await User.findByURLName(name, {
           withData: true,
           withTeams: true
-        })
-        .then(async user => {
+        });
 
-          user.populateUserInfo(req.user);
+        user.populateUserInfo(req.user);
 
-          if (options.editBio && !user.userCanEditMetadata)
-            return render.permissionError(req, res, next);
+        if (options.editBio && !user.userCanEditMetadata)
+          return render.permissionError(req, res, next);
 
-          if (decodeURIComponent(user.urlName) !== name) // Redirect to chosen display name form (with spaces as underscores)
-            return res.redirect(`/user/${user.urlName}`);
+        if (decodeURIComponent(user.urlName) !== name)
+          return res.redirect(`/user/${user.urlName}`);
 
-          const Review = await getPostgresReviewModel();
-          if (!Review) return next(new Error('Review model not available'));
-          
-          Review
-            .getFeed({
-              createdBy: user.id,
-              limit: 3,
-              withThing: true,
-              withTeams: true
-            })
-            .then(result => {
-              let feedItems = result.feedItems;
-              let offsetDate = result.offsetDate;
+        const Review = await getPostgresReviewModel();
+        if (!Review) return next(new Error('Review model not available'));
 
-              for (let item of feedItems) {
-                item.populateUserInfo(req.user);
-                if (item.thing) {
-                  item.thing.populateUserInfo(req.user);
-                }
-              }
+        const result = await Review.getFeed({
+          createdBy: user.id,
+          limit: 3,
+          withThing: true,
+          withTeams: true
+        });
 
-              let edit = {
-                bio: options.editBio
-              };
+        let feedItems = result.feedItems;
+        let offsetDate = result.offsetDate;
 
-              let loadEditor = options.editBio;
+        for (let item of feedItems) {
+          item.populateUserInfo(req.user);
+          if (item.thing) {
+            item.thing.populateUserInfo(req.user);
+          }
+        }
 
-              // For easy lookup in template
-              let modOf = {};
-              user.moderatorOf.forEach(t => (modOf[t.id] = true));
+        let edit = {
+          bio: options.editBio
+        };
 
-              let founderOf = {};
-              user.teams.forEach(t => {
-                if (t.createdBy && t.createdBy == user.id)
-                  founderOf[t.id] = true;
-              });
+        let loadEditor = options.editBio;
 
-              let pageErrors = req.flash('pageErrors');
+        // For easy lookup in template
+        let modOf = {};
+        user.moderatorOf.forEach(t => (modOf[t.id] = true));
 
-              let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
-                atomURLPrefix: `/user/${user.urlName}/feed/atom`,
-                atomURLTitleKey: `atom feed of reviews by this user`,
-              });
+        let founderOf = {};
+        user.teams.forEach(t => {
+          if (t.createdBy && t.createdBy == user.id)
+            founderOf[t.id] = true;
+        });
+
+        let pageErrors = req.flash('pageErrors');
+
+        let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
+          atomURLPrefix: `/user/${user.urlName}/feed/atom`,
+          atomURLTitleKey: `atom feed of reviews by this user`,
+        });
 
 
-              let paginationURL;
-              if (offsetDate)
-                paginationURL = `/user/${user.urlName}/feed/before/${offsetDate.toISOString()}`;
+        let paginationURL;
+        if (offsetDate)
+          paginationURL = `/user/${user.urlName}/feed/before/${offsetDate.toISOString()}`;
 
-              render.template(req, res, 'user', {
-                titleKey: 'user',
-                titleParam: user.displayName,
-                deferPageHeader: true, // two-col layout
-                userInfo: user,
-                feedItems,
-                edit,
-                scripts: loadEditor ? ['user', 'editor'] : ['user'],
-                pageErrors,
-                teams: user.teams,
-                modOf,
-                founderOf,
-                paginationURL,
-                embeddedFeeds
-              }, {
-                messages: loadEditor ? getEditorMessages(req.locale) : {}
-              }
-            );
-            })
-            .catch(next);
-        })
-        .catch(userHandlers.getUserNotFoundHandler(req, res, next, name));
+        render.template(req, res, 'user', {
+          titleKey: 'user',
+          titleParam: user.displayName,
+          deferPageHeader: true, // two-col layout
+          userInfo: user,
+          feedItems,
+          edit,
+          scripts: loadEditor ? ['user', 'editor'] : ['user'],
+          pageErrors,
+          teams: user.teams,
+          modOf,
+          founderOf,
+          paginationURL,
+          embeddedFeeds
+        }, {
+          messages: loadEditor ? getEditorMessages(req.locale) : {}
+        });
+      } catch (error) {
+        return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
+      }
     };
   },
 
@@ -180,7 +168,7 @@ let userHandlers = {
       format: undefined
     }, options);
 
-    return function(req, res, next) {
+    return async function(req, res, next) {
 
       const { name } = req.params;
       let offsetDate;
@@ -190,37 +178,36 @@ let userHandlers = {
           offsetDate = null;
       }
 
-      const User = getPostgresUserModel();
-      if (!User) return next(new Error('User model not available'));
-      
-      User
-        .findByURLName(name)
-        .then(user => {
+      try {
+        const User = await getPostgresUserModel();
+        if (!User) return next(new Error('User model not available'));
 
-          if (decodeURIComponent(user.urlName) !== name) {
-            // Redirect to chosen display form
-            return res.redirect(`/user/${user.urlName}/feed` + (offsetDate ?
-              `/before/${offsetDate.toISOString()}` : ''));
+        const user = await User.findByURLName(name);
+
+        if (decodeURIComponent(user.urlName) !== name) {
+          // Redirect to chosen display form
+          return res.redirect(`/user/${user.urlName}/feed` + (offsetDate ?
+            `/before/${offsetDate.toISOString()}` : ''));
+        }
+
+        reviewHandlers.getFeedHandler({
+          format: options.format,
+          titleKey: 'user feed',
+          titleParam: user.displayName,
+          createdBy: user.id,
+          paginationURL: `/user/${user.urlName}/feed/before/%isodate`,
+          deferPageHeader: true,
+          atomURLPrefix: `/user/${user.urlName}/feed/atom`,
+          atomURLTitleKey: `atom feed of reviews by this user`,
+          htmlURL: `/user/${user.urlName}/feed`,
+          extraVars: {
+            userURL: `/user/${user.urlName}`,
+            userInfo: user
           }
-
-          reviewHandlers.getFeedHandler({
-            format: options.format,
-            titleKey: 'user feed',
-            titleParam: user.displayName,
-            createdBy: user.id,
-            paginationURL: `/user/${user.urlName}/feed/before/%isodate`,
-            deferPageHeader: true,
-            atomURLPrefix: `/user/${user.urlName}/feed/atom`,
-            atomURLTitleKey: `atom feed of reviews by this user`,
-            htmlURL: `/user/${user.urlName}/feed`,
-            extraVars: {
-              userURL: `/user/${user.urlName}`,
-              userInfo: user
-            }
-          })(req, res, next);
-
-        }) // No user
-        .catch(userHandlers.getUserNotFoundHandler(req, res, next, name));
+        })(req, res, next);
+      } catch (error) {
+        return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
+      }
     };
   },
 

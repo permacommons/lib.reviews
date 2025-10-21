@@ -12,6 +12,8 @@ const type = require('../dal').type;
 const bcrypt = require('bcrypt');
 const ReportedError = require('../util/reported-error');
 const debug = require('../util/debug');
+const { getPostgresUserMetaModel } = require('./user-meta');
+const { DocumentNotFound } = require('../dal/lib/errors');
 
 const userOptions = {
   maxChars: 128,
@@ -253,25 +255,30 @@ async function findByURLName(name, {
 
   let query = User.filter({ canonicalName: User.canonicalize(name) });
 
-  if (withData) {
-    query = query.getJoin({ meta: true });
-  }
-
-  if (withTeams) {
-    query = query.getJoin({ teams: true }).getJoin({ moderatorOf: true });
-  }
-
   const users = await query.run();
   if (users.length) {
     const user = users[0];
+
+    if (withData) {
+      await attachUserMeta(user);
+    }
+
+    if (withTeams) {
+      await attachUserTeams(user);
+    }
+
     if (!withPassword) {
       // Remove password from result
       delete user._data.password;
     }
+
     return user;
-  } else {
-    throw new Error('User not found');
   }
+
+  const notFoundError = new DocumentNotFound('User not found');
+  // Maintain legacy Thinky error name for compatibility with existing handlers
+  notFoundError.name = 'DocumentNotFoundError';
+  throw notFoundError;
 }
 
 /**
@@ -294,14 +301,118 @@ function canonicalize(name) {
  * @async
  */
 async function createBio(user, bioObj) {
-  const { randomUUID } = require('crypto');
-  const uuid = randomUUID();
-  
-  // This would need the UserMeta model to be implemented
-  // For now, we'll just update the userMetaID
-  user.userMetaID = uuid;
+  const UserMeta = await getPostgresUserMetaModel(currentDAL);
+  if (!UserMeta) {
+    throw new Error('UserMeta model not available');
+  }
+
+  const metaRev = await UserMeta.createFirstRevision(user, {
+    tags: ['create-bio-via-user']
+  });
+
+  metaRev.bio = bioObj.bio;
+  metaRev.originalLanguage = bioObj.originalLanguage;
+
+  await metaRev.save();
+
+  user.userMetaID = metaRev.id;
+  user.meta = metaRev;
   await user.save();
   return user;
+}
+
+/**
+ * Attach the associated UserMeta record to the given user instance
+ *
+ * @param {User} user - user instance to enrich with metadata
+ * @returns {Promise<void>}
+ * @async
+ */
+async function attachUserMeta(user) {
+  if (!user || !user.userMetaID) {
+    user.meta = undefined;
+    return;
+  }
+
+  const UserMeta = await getPostgresUserMetaModel(currentDAL);
+  if (!UserMeta) {
+    user.meta = undefined;
+    return;
+  }
+
+  try {
+    const meta = await UserMeta.getNotStaleOrDeleted(user.userMetaID);
+    user.meta = meta;
+  } catch (error) {
+    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError') {
+      user.meta = undefined;
+    } else {
+      throw error;
+    }
+  }
+}
+
+/**
+ * Attach team membership and moderator data to the user instance
+ *
+ * @param {User} user - user instance to enrich with team data
+ * @returns {Promise<void>}
+ * @async
+ */
+async function attachUserTeams(user) {
+  user.teams = [];
+  user.moderatorOf = [];
+
+  const { getPostgresTeamModel } = require('./team');
+  const Team = await getPostgresTeamModel(currentDAL);
+  if (!Team) {
+    return;
+  }
+
+  const dal = Team.dal;
+  const teamTable = Team.tableName;
+  const prefix = dal.tablePrefix || '';
+  const memberTable = `${prefix}team_members`;
+  const moderatorTable = `${prefix}team_moderators`;
+
+  const currentRevisionFilter = `
+    AND (t._old_rev_of IS NULL)
+    AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
+  `;
+
+  const mapRowsToTeams = rows => rows.map(row => Team._createInstance(row));
+
+  try {
+    const memberResult = await dal.query(
+      `
+        SELECT t.*
+        FROM ${teamTable} t
+        JOIN ${memberTable} tm ON t.id = tm.team_id
+        WHERE tm.user_id = $1
+        ${currentRevisionFilter}
+      `,
+      [user.id]
+    );
+    user.teams = mapRowsToTeams(memberResult.rows);
+  } catch (error) {
+    debug.error('Error attaching team memberships to user:', error);
+  }
+
+  try {
+    const moderatorResult = await dal.query(
+      `
+        SELECT t.*
+        FROM ${teamTable} t
+        JOIN ${moderatorTable} tm ON t.id = tm.team_id
+        WHERE tm.user_id = $1
+        ${currentRevisionFilter}
+      `,
+      [user.id]
+    );
+    user.moderatorOf = mapRowsToTeams(moderatorResult.rows);
+  } catch (error) {
+    debug.error('Error attaching moderation teams to user:', error);
+  }
 }
 
 // NOTE: INSTANCE METHODS ------------------------------------------------------

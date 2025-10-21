@@ -404,8 +404,8 @@ class QueryBuilder {
         requiresJoinTable: 'team_moderators'
       },
       meta: {
-        table: this._getTableName('user_meta'),
-        condition: `${this.tableName}.user_meta_id = ${this._getTableName('user_meta')}.id`,
+        table: this._getTableName('user_metas'),
+        condition: `${this.tableName}.user_meta_id = ${this._getTableName('user_metas')}.id`,
         hasRevisions: false
       },
       
