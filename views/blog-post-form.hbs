@@ -4,7 +4,7 @@
 <div id="preview-contents">
 <h2 id="preview-header">{{{__ "preview title"}}}</h2>
 <h3>{{{mlString formValues.title false}}}</h3>
-{{{mlString formValues.post.html false}}}
+{{{mlString formValues.html false}}}
 <div id="preview-blog-post-byline">{{{__ "byline" (userLink formValues.creator) (longDate formValues.createdOn)}}}</div>
 </div>
 {{/if}}
@@ -26,7 +26,7 @@
     <div class="pure-u-1 pure-u-md-2-3">
       <div class="pure-control-group">
         <label for="post-text">{{{__ "blog post text"}}} <span class="required">*</span></label>
-        <textarea id="post-text" name="post-text" class="pure-input-1 blog-post-textarea" data-markdown data-required placeholder="{{{__ "enter blog post"}}}">{{{mlString formValues.post.text false}}}</textarea>
+        <textarea id="post-text" name="post-text" class="pure-input-1 blog-post-textarea" data-markdown data-required placeholder="{{{__ "enter blog post"}}}">{{{mlString formValues.text false}}}</textarea>
         {{>editor_switcher}}
       </div>
       <br>

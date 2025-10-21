@@ -13,6 +13,8 @@ const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;
 const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
+const { getPostgresUserModel } = require('./user');
+const { getPostgresReviewModel } = require('./review');
 
 let Team = null;
 
@@ -152,11 +154,14 @@ async function getWithData(id, {
     const reviewData = await _getTeamReviews(id, reviewLimit, reviewOffsetDate);
     team.reviews = reviewData.reviews;
     team.reviewCount = reviewData.totalCount;
-    
-    // Set pagination offset if there are more reviews
-    if (reviewData.reviews.length === reviewLimit + 1) {
-      team.reviews.pop();
-      team.review_offset_date = team.reviews[team.reviews.length - 1].created_on;
+
+    if (reviewData.hasMore && team.reviews.length > 0) {
+      const lastReview = team.reviews[team.reviews.length - 1];
+      const offsetDate = lastReview?.createdOn || lastReview?.created_on;
+      if (offsetDate) {
+        team.reviewOffsetDate = offsetDate;
+        team.review_offset_date = offsetDate;
+      }
     }
   }
 
@@ -243,10 +248,11 @@ async function _getTeamMembers(teamId) {
     `;
     
     const result = await Team.dal.query(query, [teamId]);
+    const User = await getPostgresUserModel(Team.dal);
+
     return result.rows.map(row => {
-      // Remove password from user data
       delete row.password;
-      return row;
+      return User._createInstance(row);
     });
   } catch (error) {
     debug.error('Error getting team members:', error);
@@ -273,10 +279,11 @@ async function _getTeamModerators(teamId) {
     `;
     
     const result = await Team.dal.query(query, [teamId]);
+    const User = await getPostgresUserModel(Team.dal);
+
     return result.rows.map(row => {
-      // Remove password from user data
       delete row.password;
-      return row;
+      return User._createInstance(row);
     });
   } catch (error) {
     debug.error('Error getting team moderators:', error);
@@ -329,9 +336,10 @@ async function _getTeamReviews(teamId, limit, offsetDate) {
       `${Team.dal.tablePrefix}review_teams` : 'review_teams';
     const reviewTableName = Team.dal.tablePrefix ? 
       `${Team.dal.tablePrefix}reviews` : 'reviews';
+    const Review = await getPostgresReviewModel(Team.dal);
     
     let query = `
-      SELECT r.* FROM ${reviewTableName} r
+      SELECT r.id, r.created_on FROM ${reviewTableName} r
       JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id
       WHERE rt.team_id = $1
         AND (r._old_rev_of IS NULL)
@@ -352,6 +360,24 @@ async function _getTeamReviews(teamId, limit, offsetDate) {
     
     // Get reviews
     const reviewResult = await Team.dal.query(query, params);
+    const reviewIDs = reviewResult.rows.map(row => row.id);
+    const reviews = [];
+    const hasMoreRows = reviewResult.rows.length > limit;
+
+    for (const id of reviewIDs) {
+      try {
+        const review = await Review.getWithData(id);
+        if (review) {
+          reviews.push(review);
+        }
+      } catch (error) {
+        debug.error('Error loading review for team:', error);
+      }
+    }
+    
+    if (hasMoreRows && reviews.length > limit) {
+      reviews.length = limit;
+    }
     
     // Get total count
     const countQuery = `
@@ -365,12 +391,13 @@ async function _getTeamReviews(teamId, limit, offsetDate) {
     const countResult = await Team.dal.query(countQuery, [teamId]);
     
     return {
-      reviews: reviewResult.rows,
-      totalCount: parseInt(countResult.rows[0]?.total || 0)
+      reviews,
+      totalCount: parseInt(countResult.rows[0]?.total || 0, 10),
+      hasMore: hasMoreRows && reviews.length === limit
     };
   } catch (error) {
     debug.error('Error getting team reviews:', error);
-    return { reviews: [], totalCount: 0 };
+    return { reviews: [], totalCount: 0, hasMore: false };
   }
 }
 

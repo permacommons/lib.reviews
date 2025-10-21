@@ -206,8 +206,8 @@ class BlogPostProvider extends AbstractBREADProvider {
           })
           .then(newRev => {
             newRev.title[language] = formValues.title[language];
-            newRev.post.text[language] = formValues.post.text[language];
-            newRev.post.html[language] = formValues.post.html[language];
+            newRev.text[language] = formValues.text[language];
+            newRev.html[language] = formValues.html[language];
             newRev.save().then(() => {
                 this.req.flash('pageMessages', this.req.__('edit saved'));
                 this.res.redirect(`/team/${team.urlID}/post/${newRev.id}`);
@@ -353,7 +353,9 @@ BlogPostProvider.formDefs = {
     name: 'post-text',
     required: true,
     type: 'markdown',
-    key: 'post'
+    key: 'text',
+    flat: true,
+    htmlKey: 'html'
   }, {
     name: 'post-language',
     required: true,

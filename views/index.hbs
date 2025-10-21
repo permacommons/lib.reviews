@@ -18,7 +18,7 @@
 <table class="blog-table">
 {{#each blogPosts}}
 <tr>
-<td>{{shortDate this.createdOn}}</td><td><a href="/team/{{../team.id}}/post/{{this.id}}" title="{{{summarize (mlString this.post.html false) 150}}}">{{{mlString this.title}}}</a>
+<td>{{shortDate this.createdOn}}</td><td><a href="/team/{{../team.id}}/post/{{this.id}}" title="{{{summarize (mlString this.html false) 150}}}">{{{mlString this.title}}}</a>
 </td>
 </tr>
 {{/each}}

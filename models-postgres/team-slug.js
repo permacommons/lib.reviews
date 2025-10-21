@@ -1,30 +1,50 @@
 'use strict';
 
 /**
- * PostgreSQL model for storing short human-readable identifier (slugs) for a given team
- * 
+ * PostgreSQL representation of a team's human-readable identifier (slug).
+ *
+ * This is intentionally lighter than the full DAL-backed models, but it still
+ * follows the same camelCase↔snake_case mapping conventions.
+ *
  * @namespace TeamSlug
  */
 
 const { getPostgresDAL } = require('../db-postgres');
+const ModelHelper = require('./model-helper');
 
-class TeamSlug {
+class TeamSlug extends ModelHelper {
+  static get columnMappings() {
+    return {
+      name: 'name',
+      teamID: 'team_id',
+      createdOn: 'created_on',
+      createdBy: 'created_by'
+    };
+  }
+
   constructor(data = {}) {
-    this.name = data.name;
-    this.teamID = data.teamID;
-    this.createdOn = data.createdOn || new Date();
-    this.createdBy = data.createdBy;
+    super();
+    const normalized = TeamSlug.normalizeData(data);
+
+    this.name = normalized.name;
+    this.teamID = normalized.teamID;
+    this.createdOn = normalized.createdOn || new Date();
+    this.createdBy = normalized.createdBy;
   }
 
   static async create(data) {
     const dal = await getPostgresDAL();
     const slug = new TeamSlug(data);
+    const insertProps = ['name', 'teamID', 'createdOn', 'createdBy'];
+    const columnList = insertProps
+      .map(property => TeamSlug.getColumnName(property))
+      .join(', ');
     
     const result = await dal.query(`
-      INSERT INTO team_slugs (name, team_id, created_on, created_by)
+      INSERT INTO team_slugs (${columnList})
       VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `, [slug.name, slug.teamID, slug.createdOn, slug.createdBy]);
+      RETURNING ${TeamSlug.getSelectColumns()}
+    `, TeamSlug.mapValues(slug, insertProps));
     
     return new TeamSlug(result.rows[0]);
   }
@@ -32,7 +52,9 @@ class TeamSlug {
   static async get(name) {
     const dal = await getPostgresDAL();
     const result = await dal.query(`
-      SELECT * FROM team_slugs WHERE name = $1
+      SELECT ${TeamSlug.getSelectColumns()}
+      FROM team_slugs
+      WHERE name = $1
     `, [name]);
     
     if (result.rows.length === 0) {
@@ -44,19 +66,26 @@ class TeamSlug {
 
   async save() {
     const dal = await getPostgresDAL();
+    const insertProps = ['name', 'teamID', 'createdOn', 'createdBy'];
+    const columnList = insertProps
+      .map(property => TeamSlug.getColumnName(property))
+      .join(', ');
+    const teamIDColumn = TeamSlug.getColumnName('teamID');
+    const createdOnColumn = TeamSlug.getColumnName('createdOn');
+    const createdByColumn = TeamSlug.getColumnName('createdBy');
     
     try {
       const result = await dal.query(`
-        INSERT INTO team_slugs (name, team_id, created_on, created_by)
+        INSERT INTO team_slugs (${columnList})
         VALUES ($1, $2, $3, $4)
         ON CONFLICT (name) DO UPDATE SET
-          team_id = EXCLUDED.team_id,
-          created_on = EXCLUDED.created_on,
-          created_by = EXCLUDED.created_by
-        RETURNING *
-      `, [this.name, this.teamID, this.createdOn, this.createdBy]);
+          ${teamIDColumn} = EXCLUDED.${teamIDColumn},
+          ${createdOnColumn} = EXCLUDED.${createdOnColumn},
+          ${createdByColumn} = EXCLUDED.${createdByColumn}
+        RETURNING ${TeamSlug.getSelectColumns()}
+      `, TeamSlug.mapValues(this, insertProps));
       
-      Object.assign(this, result.rows[0]);
+      Object.assign(this, TeamSlug.normalizeData(result.rows[0]));
       return this;
     } catch (error) {
       throw error;

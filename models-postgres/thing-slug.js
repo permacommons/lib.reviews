@@ -10,30 +10,49 @@
  */
 
 const { getPostgresDAL } = require('../db-postgres');
+const ModelHelper = require('./model-helper');
 
 // You can use these slugs, but they'll be automatically be qualified with a number
 const reservedSlugs = ['register', 'actions', 'signin', 'login', 'teams', 'user', 'new', 'signout', 'logout', 'api', 'faq', 'static', 'terms'];
 
-class ThingSlug {
+class ThingSlug extends ModelHelper {
+
+  static get columnMappings() {
+    return {
+      name: 'name',
+      baseName: 'base_name',
+      qualifierPart: 'qualifier_part',
+      thingID: 'thing_id',
+      createdOn: 'created_on',
+      createdBy: 'created_by'
+    };
+  }
+
   constructor(data = {}) {
-    this.name = data.name;
-    // Handle both camelCase and snake_case input for compatibility
-    this.baseName = data.baseName || data.base_name;
-    this.qualifierPart = data.qualifierPart || data.qualifier_part;
-    this.thingID = data.thingID || data.thing_id;
-    this.createdOn = data.createdOn || data.created_on || new Date();
-    this.createdBy = data.createdBy || data.created_by;
+    super();
+    const normalized = ThingSlug.normalizeData(data);
+
+    this.name = normalized.name;
+    this.baseName = normalized.baseName;
+    this.qualifierPart = normalized.qualifierPart;
+    this.thingID = normalized.thingID;
+    this.createdOn = normalized.createdOn || new Date();
+    this.createdBy = normalized.createdBy;
   }
 
   static async create(data) {
     const dal = await getPostgresDAL();
     const slug = new ThingSlug(data);
+    const insertProps = ['name', 'baseName', 'qualifierPart', 'thingID', 'createdOn', 'createdBy'];
+    const columnList = insertProps
+      .map(property => ThingSlug.getColumnName(property))
+      .join(', ');
     
     const result = await dal.query(`
-      INSERT INTO thing_slugs (name, base_name, qualifier_part, thing_id, created_on, created_by)
+      INSERT INTO thing_slugs (${columnList})
       VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
-    `, [slug.name, slug.baseName, slug.qualifierPart, slug.thingID, slug.createdOn, slug.createdBy]);
+      RETURNING ${ThingSlug.getSelectColumns()}
+    `, ThingSlug.mapValues(slug, insertProps));
     
     return new ThingSlug(result.rows[0]);
   }
@@ -41,7 +60,7 @@ class ThingSlug {
   static async get(name) {
     const dal = await getPostgresDAL();
     const result = await dal.query(`
-      SELECT * FROM thing_slugs WHERE name = $1
+      SELECT ${ThingSlug.getSelectColumns()} FROM thing_slugs WHERE name = $1
     `, [name]);
     
     if (result.rows.length === 0) {
@@ -53,25 +72,26 @@ class ThingSlug {
 
   static async filter(criteria) {
     const dal = await getPostgresDAL();
-    let whereClause = 'WHERE 1=1';
+    const clauses = ['1=1'];
     const params = [];
     let paramIndex = 1;
 
     if (criteria.baseName) {
-      whereClause += ` AND base_name = $${paramIndex}`;
+      clauses.push(`${ThingSlug.getColumnName('baseName')} = $${paramIndex}`);
       params.push(criteria.baseName);
       paramIndex++;
     }
 
     if (criteria.thingID) {
-      whereClause += ` AND thing_id = $${paramIndex}`;
+      clauses.push(`${ThingSlug.getColumnName('thingID')} = $${paramIndex}`);
       params.push(criteria.thingID);
       paramIndex++;
     }
 
     const result = await dal.query(`
-      SELECT * FROM thing_slugs ${whereClause}
-      ORDER BY created_on DESC
+      SELECT ${ThingSlug.getSelectColumns()} FROM thing_slugs
+      WHERE ${clauses.join(' AND ')}
+      ORDER BY ${ThingSlug.getColumnName('createdOn')} DESC
     `, params);
     
     return result.rows.map(row => new ThingSlug(row));
@@ -79,21 +99,30 @@ class ThingSlug {
 
   async save() {
     const dal = await getPostgresDAL();
+    const insertProps = ['name', 'baseName', 'qualifierPart', 'thingID', 'createdOn', 'createdBy'];
+    const columnList = insertProps
+      .map(property => ThingSlug.getColumnName(property))
+      .join(', ');
+    const baseNameColumn = ThingSlug.getColumnName('baseName');
+    const qualifierColumn = ThingSlug.getColumnName('qualifierPart');
+    const thingIdColumn = ThingSlug.getColumnName('thingID');
+    const createdOnColumn = ThingSlug.getColumnName('createdOn');
+    const createdByColumn = ThingSlug.getColumnName('createdBy');
     
     try {
       const result = await dal.query(`
-        INSERT INTO thing_slugs (name, base_name, qualifier_part, thing_id, created_on, created_by)
+        INSERT INTO thing_slugs (${columnList})
         VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (name) DO UPDATE SET
-          base_name = EXCLUDED.base_name,
-          qualifier_part = EXCLUDED.qualifier_part,
-          thing_id = EXCLUDED.thing_id,
-          created_on = EXCLUDED.created_on,
-          created_by = EXCLUDED.created_by
-        RETURNING *
-      `, [this.name, this.baseName, this.qualifierPart, this.thingID, this.createdOn, this.createdBy]);
+          ${baseNameColumn} = EXCLUDED.${baseNameColumn},
+          ${qualifierColumn} = EXCLUDED.${qualifierColumn},
+          ${thingIdColumn} = EXCLUDED.${thingIdColumn},
+          ${createdOnColumn} = EXCLUDED.${createdOnColumn},
+          ${createdByColumn} = EXCLUDED.${createdByColumn}
+        RETURNING ${ThingSlug.getSelectColumns()}
+      `, ThingSlug.mapValues(this, insertProps));
       
-      Object.assign(this, result.rows[0]);
+      Object.assign(this, ThingSlug.normalizeData(result.rows[0]));
       return this;
     } catch (error) {
       throw error;

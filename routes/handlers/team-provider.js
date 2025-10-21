@@ -56,16 +56,11 @@ class TeamProvider extends AbstractBREADProvider {
   browse_GET() {
 
     Team
-      .filter({
-        _oldRevOf: false
-      }, {
-        // Also include documents where _oldRevOf is undefined, but none where it has a value
-        default: true
-      })
-      .filter({
-        _revDeleted: false
-      }, {
-        default: true
+      .getPostgresTeamModel()
+      .then(model => {
+        if (!model || typeof model.filterNotStaleOrDeleted !== 'function')
+          throw new Error('PostgreSQL Team model not initialized');
+        return model.filterNotStaleOrDeleted().run();
       })
       .then(teams => {
 
@@ -75,7 +70,8 @@ class TeamProvider extends AbstractBREADProvider {
           deferPageHeader: true
         });
 
-      });
+      })
+      .catch(this.next);
 
   }
 
