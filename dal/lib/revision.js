@@ -18,6 +18,51 @@ const debug = require('../../util/debug');
 const revision = {
 
   /**
+   * Apply revision metadata to a model instance
+   * 
+   * Ensures revision fields (_rev_id, _rev_user, _rev_date, _rev_tags) are
+   * populated and tracked via the model's change set.
+   * 
+   * @param {Model} instance - Model instance to stamp
+   * @param {Object} options - Metadata options
+   * @param {Object} [options.user] - User object providing the ID
+   * @param {string} [options.userId] - Explicit user ID (if user object omitted)
+   * @param {Date|string} [options.date] - Revision timestamp (defaults to now)
+   * @param {string[]|string} [options.tags] - Revision tags
+   * @param {string} [options.revId] - Explicit revision ID (generated if absent)
+   * @returns {Model} The same model instance for chaining
+   */
+  applyRevisionMetadata(instance, {
+    user = null,
+    userId = null,
+    date = new Date(),
+    tags = [],
+    revId = null
+  } = {}) {
+    const resolvedUserId = user && user.id ? user.id : userId;
+    if (!resolvedUserId) {
+      throw new ValidationError('Revision metadata requires a user ID');
+    }
+
+    const timestamp = date instanceof Date ? date : new Date(date);
+    if (!(timestamp instanceof Date) || isNaN(timestamp.getTime())) {
+      throw new ValidationError('Revision metadata requires a valid date');
+    }
+
+    const resolvedTags = tags == null
+      ? []
+      : (Array.isArray(tags) ? tags.slice() : [tags]);
+    const resolvedRevId = revId || randomUUID();
+
+    instance._rev_id = resolvedRevId;
+    instance._rev_user = resolvedUserId;
+    instance._rev_date = timestamp;
+    instance._rev_tags = resolvedTags;
+
+    return instance;
+  },
+
+  /**
    * Get a function that creates a new revision handler for PostgreSQL
    * 
    * @param {Function} ModelClass - The model class
@@ -54,17 +99,13 @@ const revision = {
       await ModelClass.dal.query(insertQuery, insertValues);
       
       // Update current revision with new metadata
-      const revId = randomUUID();
-      currentRev._data._rev_id = revId;
-      currentRev._data._rev_user = user.id;
-      currentRev._data._rev_date = new Date();
-      currentRev._data._rev_tags = tags || [];
-      
-      // Mark fields as changed
-      currentRev._changed.add('_rev_id');
-      currentRev._changed.add('_rev_user');
-      currentRev._changed.add('_rev_date');
-      currentRev._changed.add('_rev_tags');
+      const metadataDate = new Date();
+      revision.applyRevisionMetadata(currentRev, {
+        user,
+        userId: user && user.id,
+        date: metadataDate,
+        tags
+      });
       
       return currentRev;
     };
@@ -183,15 +224,15 @@ const revision = {
      * @param {string[]} options.tags - Tags to associate with revision
      * @returns {Promise<Model>} First revision instance
      */
-    const createFirstRevision = async function(user, { tags } = {}) {
+    const createFirstRevision = async function(user, { tags, date = new Date() } = {}) {
       const firstRev = new ModelClass({});
-      
-      const revId = randomUUID();
-      firstRev._data._rev_id = revId;
-      firstRev._data._rev_user = user.id;
-      firstRev._data._rev_date = new Date();
-      firstRev._data._rev_tags = tags || [];
-      
+      revision.applyRevisionMetadata(firstRev, {
+        user,
+        userId: user && user.id,
+        date,
+        tags
+      });
+
       return firstRev;
     };
     

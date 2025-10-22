@@ -11,6 +11,7 @@ const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const { ConstraintError } = require('../dal/lib/errors');
 const { getOrCreateModel } = require('../dal/lib/model-factory');
+const debug = require('../util/debug');
 
 let ThingSlug = null;
 

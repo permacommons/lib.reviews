@@ -231,7 +231,6 @@ async function createReview(reviewObj, { tags, files } = {}) {
   }
 
   // Create new review instance
-  const { randomUUID } = require('crypto');
   const review = new Review();
   review.thingID = thing.id;
   review.title = reviewObj.title;
@@ -242,10 +241,11 @@ async function createReview(reviewObj, { tags, files } = {}) {
   review.createdBy = reviewObj.createdBy;
   review.originalLanguage = reviewObj.originalLanguage;
   review.socialImageID = reviewObj.socialImageID;
-  review._rev_id = randomUUID();
-  review._rev_user = reviewObj.createdBy;
-  review._rev_date = reviewObj.createdOn;
-  review._rev_tags = tags || [];
+  revision.applyRevisionMetadata(review, {
+    userId: reviewObj.createdBy,
+    date: reviewObj.createdOn,
+    tags
+  });
 
   try {
     await review.save();
@@ -340,7 +340,10 @@ async function findOrCreateThing(reviewObj) {
   const { randomUUID } = require('crypto');
   const date = new Date();
 
-  const thing = await ThingModel.createFirstRevision({ id: reviewObj.createdBy }, { tags: ['create-via-review'] });
+  const thing = await ThingModel.createFirstRevision(
+    { id: reviewObj.createdBy },
+    { tags: ['create-via-review'], date }
+  );
   debug.db('Review.findOrCreateThing: created first revision', { provisionalThingID: thing.id });
 
   if (!thing.id) {
@@ -353,13 +356,12 @@ async function findOrCreateThing(reviewObj) {
   thing.createdBy = reviewObj.createdBy;
   thing.originalLanguage = reviewObj.originalLanguage;
 
-  // Ensure revision metadata is present
-  thing._rev_date = date;
-  thing._rev_user = reviewObj.createdBy;
-  thing._rev_id = randomUUID();
-  thing._changed.add('_rev_date');
-  thing._changed.add('_rev_user');
-  thing._changed.add('_rev_id');
+  // Ensure revision metadata is aligned with the created review
+  revision.applyRevisionMetadata(thing, {
+    userId: reviewObj.createdBy,
+    date,
+    tags: ['create-via-review']
+  });
 
   // Get adapter data for the URL
   const adapterPromises = adapters.getSupportedLookupsAsSafePromises(reviewObj.url);
