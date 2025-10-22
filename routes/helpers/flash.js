@@ -6,21 +6,18 @@ const ReportedError = require('../../util/reported-error');
 const debug = require('../../util/debug');
 
 module.exports = function(req, res, next) {
-  let flashExists = req.session && req.session.flash;
   req.flashHas = key => {
-    if (flashExists && Array.isArray(req.session.flash[key]))
-      return req.session.flash[key].length > 0;
-    else
-      return false;
+    const flash = req.session && req.session.flash;
+    return Array.isArray(flash?.[key]) && flash[key].length > 0;
   };
 
   // Add localized error message to pageErrors key, or log the error if
   // no such message is provided and display it as 'unknown error' to the
   // user. This is primarily used for form submissions.
   req.flashError = error => {
-    if (flashExists && error instanceof ReportedError && error.userMessage)
+    if (error instanceof ReportedError && error.userMessage) {
       req.flash('pageErrors', Reflect.apply(req.__, this, error.getEscapedUserMessageArray()));
-    else {
+    } else {
       req.flash('pageErrors', req.__('unknown error'));
       debug.error({ req, error });
     }

@@ -164,18 +164,17 @@ async function getWithData(id) {
 
   // Manually join thing data
   if (review.thingID) {
-    const { getPostgresThingModel } = require('./thing');
-    const Thing = getPostgresThingModel(Review.dal);
-
-    if (Thing) {
-      try {
-        const thing = await Thing.getNotStaleOrDeleted(review.thingID);
+    try {
+      const { getPostgresThingModel } = require('./thing');
+      const ThingModel = await getPostgresThingModel(Review.dal);
+      if (ThingModel) {
+        const thing = await ThingModel.getNotStaleOrDeleted(review.thingID);
         if (thing) {
           review.thing = thing;
         }
-      } catch (error) {
-        debug.db('Failed to fetch thing for review:', error);
       }
+    } catch (error) {
+      debug.db('Failed to fetch thing for review:', error);
     }
   }
 
@@ -194,6 +193,7 @@ async function getWithData(id) {
  */
 async function createReview(reviewObj, { tags, files } = {}) {
   const thing = await Review.findOrCreateThing(reviewObj);
+  const reviewId = reviewObj.id || undefined;
 
   // Check for existing reviews by this user for this thing
   const existingQuery = `
@@ -232,21 +232,20 @@ async function createReview(reviewObj, { tags, files } = {}) {
 
   // Create new review instance
   const { randomUUID } = require('crypto');
-  const review = new Review({
-    thingID: thing.id,
-    title: reviewObj.title,
-    text: reviewObj.text,
-    html: reviewObj.html,
-    starRating: reviewObj.starRating,
-    createdOn: reviewObj.createdOn,
-    createdBy: reviewObj.createdBy,
-    originalLanguage: reviewObj.originalLanguage,
-    socialImageID: reviewObj.socialImageID,
-    _rev_id: randomUUID(),
-    _rev_user: reviewObj.createdBy,
-    _rev_date: reviewObj.createdOn,
-    _rev_tags: tags || []
-  });
+  const review = new Review();
+  review.thingID = thing.id;
+  review.title = reviewObj.title;
+  review.text = reviewObj.text;
+  review.html = reviewObj.html;
+  review.starRating = reviewObj.starRating;
+  review.createdOn = reviewObj.createdOn;
+  review.createdBy = reviewObj.createdBy;
+  review.originalLanguage = reviewObj.originalLanguage;
+  review.socialImageID = reviewObj.socialImageID;
+  review._rev_id = randomUUID();
+  review._rev_user = reviewObj.createdBy;
+  review._rev_date = reviewObj.createdOn;
+  review._rev_tags = tags || [];
 
   try {
     await review.save();
@@ -256,6 +255,8 @@ async function createReview(reviewObj, { tags, files } = {}) {
       // This would need proper team association implementation
       debug.db('Team associations not yet implemented in Review.create');
     }
+
+    review.thing = thing;
 
     return review;
   } catch (error) {
@@ -320,17 +321,18 @@ async function findOrCreateThing(reviewObj) {
     return reviewObj.thing;
   }
 
-  // Get Thing model
   const { getPostgresThingModel } = require('./thing');
-  const Thing = getPostgresThingModel(Review.dal);
+  const ThingModel = await getPostgresThingModel(Review.dal);
 
-  if (!Thing) {
+  if (!ThingModel || typeof ThingModel.createFirstRevision !== 'function') {
     throw new Error('Thing model not available');
   }
 
   // Look up existing thing by URL
-  const existingThings = await Thing.lookupByURL(reviewObj.url);
+  debug.db('Review.findOrCreateThing: lookup by URL', { url: reviewObj.url });
+  const existingThings = await ThingModel.lookupByURL(reviewObj.url);
   if (existingThings.length) {
+    debug.db('Review.findOrCreateThing: existing thing found', { thingID: existingThings[0].id });
     return existingThings[0];
   }
 
@@ -338,15 +340,26 @@ async function findOrCreateThing(reviewObj) {
   const { randomUUID } = require('crypto');
   const date = new Date();
 
-  const thing = new Thing({
-    urls: [reviewObj.url],
-    created_on: date,
-    created_by: reviewObj.createdBy,
-    _rev_date: date,
-    _rev_user: reviewObj.createdBy,
-    _rev_id: randomUUID(),
-    original_language: reviewObj.originalLanguage
-  });
+  const thing = await ThingModel.createFirstRevision({ id: reviewObj.createdBy }, { tags: ['create-via-review'] });
+  debug.db('Review.findOrCreateThing: created first revision', { provisionalThingID: thing.id });
+
+  if (!thing.id) {
+    thing.id = randomUUID();
+    debug.db('Review.findOrCreateThing: generated new thing ID', { thingID: thing.id });
+  }
+
+  thing.urls = [reviewObj.url];
+  thing.createdOn = date;
+  thing.createdBy = reviewObj.createdBy;
+  thing.originalLanguage = reviewObj.originalLanguage;
+
+  // Ensure revision metadata is present
+  thing._rev_date = date;
+  thing._rev_user = reviewObj.createdBy;
+  thing._rev_id = randomUUID();
+  thing._changed.add('_rev_date');
+  thing._changed.add('_rev_user');
+  thing._changed.add('_rev_id');
 
   // Get adapter data for the URL
   const adapterPromises = adapters.getSupportedLookupsAsSafePromises(reviewObj.url);
@@ -363,13 +376,15 @@ async function findOrCreateThing(reviewObj) {
     thing.label = reviewObj.label;
   }
 
-  // Set slug if we have a label
-  if (thing.label) {
-    // Slug update would need to be implemented
-    debug.db('Slug update not yet implemented in Review.findOrCreateThing');
-  }
-
   await thing.save();
+
+  // Set slug if we have a label (after initial save to satisfy FK constraint)
+  if (thing.label) {
+    await thing.updateSlug(reviewObj.createdBy, reviewObj.originalLanguage || 'en');
+    if (thing._changed.size) {
+      await thing.save();
+    }
+  }
   return thing;
 }
 
@@ -442,8 +457,14 @@ async function getFeed({
   const feedResult = {};
 
   // Check for pagination
-  if (result.rows.length === limit + 1) {
-    feedResult.offsetDate = feedItems[limit - 1].created_on;
+  if (result.rows.length === limit + 1 && feedItems.length > 0) {
+    const lastVisible = feedItems[feedItems.length - 1];
+    const offsetCandidate = lastVisible.createdOn || lastVisible.created_on;
+    if (offsetCandidate instanceof Date) {
+      feedResult.offsetDate = offsetCandidate;
+    } else if (offsetCandidate) {
+      feedResult.offsetDate = new Date(offsetCandidate);
+    }
   }
 
   // Filter by trusted users if requested (after limit for performance)
@@ -503,29 +524,29 @@ async function getFeed({
 
         if (thingIds.length > 0) {
           const { getPostgresThingModel } = require('./thing');
-          let Thing = await getPostgresThingModel();
-          if (!Thing && Review.dal) {
-            Thing = await getPostgresThingModel(Review.dal);
+          let ThingModel = await getPostgresThingModel(Review.dal);
+          if (!ThingModel) {
+            ThingModel = await getPostgresThingModel();
           }
 
-          if (!Thing) {
+          if (!ThingModel) {
             debug.db('Thing model not available for joins in Review.getFeed');
           } else {
             debug.db(`Batch fetching ${thingIds.length} things for review feed...`);
 
             const placeholders = thingIds.map((_, index) => `$${index + 1}`).join(', ');
             const thingQuery = `
-              SELECT * FROM ${Thing.tableName}
+              SELECT * FROM ${ThingModel.tableName}
               WHERE id IN (${placeholders})
                 AND (_old_rev_of IS NULL)
                 AND (_rev_deleted IS NULL OR _rev_deleted = false)
             `;
 
-            const thingResult = await Thing.dal.query(thingQuery, thingIds);
+            const thingResult = await ThingModel.dal.query(thingQuery, thingIds);
             const thingMap = new Map();
 
             thingResult.rows.forEach(row => {
-              const thingInstance = Thing._createInstance(row);
+              const thingInstance = ThingModel._createInstance(row);
               thingMap.set(thingInstance.id, thingInstance);
             });
 

@@ -10,10 +10,52 @@ const linkifyHTML = require('linkify-html');
 // Internal dependencies
 const mlString = require('../dal/lib/ml-string');
 const languages = require('../locales/languages');
-const { getLabel: getThingLabelFn } = require('../models-postgres/thing');
+const thingModelHandle = require('../models-postgres/thing');
 const urlUtils = require('./url-utils');
 const adapters = require('../adapters/adapters');
 const getLicenseURL = require('./get-license-url');
+const debug = require('./debug');
+
+/**
+ * Resolve a thing's display label in the current locale, with safe fallbacks.
+ *
+ * @param {Object} thing - Thing object or plain data used by the template
+ * @param {string} locale - Active locale for rendering
+ * @returns {string} Localized label, prettified URL, or an empty string
+ */
+function getThingLabel(thing, locale) {
+  if (!thing) {
+    return '';
+  }
+
+  const modelGetLabel = thingModelHandle && thingModelHandle.getLabel;
+
+  if (typeof modelGetLabel === 'function') {
+    try {
+      const label = modelGetLabel(thing, locale);
+      if (label) {
+        return label;
+      }
+    } catch (err) {
+      debug && debug.error && debug.error('Failed to resolve thing label via model handle', err);
+    }
+  }
+
+  // Manual fallback mirrors Thing.getLabel behaviour without relying on the model
+  let resolved;
+  if (thing.label) {
+    resolved = mlString.resolve(locale, thing.label);
+    if (resolved && resolved.str) {
+      return resolved.str;
+    }
+  }
+
+  if (thing.urls && thing.urls.length) {
+    return urlUtils.prettify(thing.urls[0]);
+  }
+
+  return '';
+}
 
 // Current iteration value will be passed as {{this}} into the block,
 // starts at 1 for more human-readable counts. First and last set @first, @last
@@ -111,12 +153,7 @@ hbs.registerHelper('getLang', function(str, options) {
   return mlRv ? mlRv.lang : undefined;
 });
 
-hbs.registerHelper('getThingLabel', (thing, options) => {
-  if (!thing) {
-    return '';
-  }
-  return getThingLabelFn(thing, options.data.root.locale) || '';
-});
+hbs.registerHelper('getThingLabel', (thing, options) => getThingLabel(thing, options.data.root.locale));
 
 // Just a simple %1, %2 substitution function for various purposes
 hbs.registerHelper('substitute', function(...args) {
@@ -136,7 +173,7 @@ hbs.registerHelper('getThingLink', (thing, options) => {
   if (!thing) {
     return '';
   }
-  const label = getThingLabelFn(thing, options.data.root.locale);
+  const label = getThingLabel(thing, options.data.root.locale);
   return `<a href="/${thing.urlID}">${label || ''}</a>`;
 });
 

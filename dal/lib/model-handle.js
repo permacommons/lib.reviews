@@ -125,7 +125,10 @@ function createModelHandle(tableName, staticMethods = {}, staticProperties = {})
  * @returns {Object} Synchronous handle with auto-detected methods
  */
 function createAutoModelHandle(tableName, initializeModel, options = {}) {
-    const { staticProperties = {} } = options;
+    const {
+        staticProperties = {},
+        staticMethods = {}
+    } = options;
 
     // Helper to get the registered model
     function getRegisteredModel() {
@@ -163,6 +166,17 @@ function createAutoModelHandle(tableName, initializeModel, options = {}) {
     // Create a proxy that forwards everything to the registered model
     return new Proxy(ModelHandle, {
         get(target, prop, receiver) {
+            if (prop in staticMethods) {
+                return function (...args) {
+                    const model = getRegisteredModel();
+                    const method = typeof model[prop] === 'function' ? model[prop] : staticMethods[prop];
+                    if (typeof method !== 'function') {
+                        throw new Error(`Method ${prop} not available on ${tableName} model`);
+                    }
+                    return method.apply(model, args);
+                };
+            }
+
             // If the property exists on our handle, use it
             if (prop in target) {
                 return Reflect.get(target, prop, receiver);

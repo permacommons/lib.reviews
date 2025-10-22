@@ -3,7 +3,7 @@
 const config = require('config');
 
 // Internal dependencies
-const { getPostgresReviewModel } = require('../../models-postgres/review');
+const Review = require('../../models-postgres/review');
 const Team = require('../../models-postgres/team');
 const User = require('../../models-postgres/user');
 const File = require('../../models-postgres/file');
@@ -237,7 +237,6 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
   async loadData() {
-    const Review = await getPostgresReviewModel();
     const review = await Review.getWithData(this.id);
     // For permission checks on associated thing
     review.thing.populateUserInfo(this.req.user);
@@ -316,7 +315,6 @@ class ReviewProvider extends AbstractBREADProvider {
           .then(async newRev => {
             let f = formData.formValues;
 
-            const Review = await getPostgresReviewModel();
             Review.validateSocialImage({
               socialImageID: f.socialImageID,
               newFileIDs: f.files,

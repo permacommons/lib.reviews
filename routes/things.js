@@ -342,7 +342,7 @@ function sendThing(req, res, thing, options) {
 
   let paginationURL;
   if (offsetDate)
-    paginationURL = `/before/${offsetDate.toISOString()}`;
+    paginationURL = `/${thing.urlID}/before/${offsetDate.toISOString()}`;
 
   // If there are URLs beyond the main URL, we show them in categorized form
   let taggedURLs = Array.isArray(thing.urls) && thing.urls.length > 1 ?

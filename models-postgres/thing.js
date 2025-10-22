@@ -18,6 +18,10 @@ const adapters = require('../adapters/adapters');
 const search = require('../search');
 const isValidLanguage = require('../locales/languages').isValid;
 const { getOrCreateModel } = require('../dal/lib/model-factory');
+const ThingSlug = require('./thing-slug');
+const File = require('./file');
+const isUUID = require('is-uuid');
+const decodeHTML = require('entities').decodeHTML;
 
 let Thing = null;
 
@@ -80,12 +84,8 @@ async function initializeThingModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(thingSchema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, thingSchema);
+    const { model } = getOrCreateModel(dal, tableName, thingSchema);
     Thing = model;
-
-    if (!isNew) {
-      return Thing;
-    }
 
     // Register camelCase to snake_case field mappings
     Thing._registerFieldMapping('originalLanguage', 'original_language');
@@ -113,6 +113,7 @@ async function initializeThingModel(customDAL = null) {
     Thing.define("setURLs", setURLs);
     Thing.define("updateActiveSyncs", updateActiveSyncs);
     Thing.define("getSourceIDsOfActiveSyncs", getSourceIDsOfActiveSyncs);
+    Thing.define("updateSlug", updateSlug);
     Thing.define("getReviewsByUser", getReviewsByUser);
     Thing.define("getAverageStarRating", getAverageStarRating);
     Thing.define("getReviewCount", getReviewCount);
@@ -475,21 +476,52 @@ function getSourceIDsOfActiveSyncs() {
 }
 
 /**
- * Get all reviews by the given user for this thing.
+ * Fetch up to 50 reviews authored by the given user for this thing.
  *
- * @param {User} user - the user whose reviews we're looking up for this thing
- * @returns {Array} array of the reviews
+ * Uses the PostgreSQL review feed to reuse join logic and populates
+ * permission flags on each returned review.
+ *
+ * @param {Object} user - Current user performing the lookup
+ * @param {string} user.id - User identifier used to filter reviews
+ * @returns {Promise<Object[]>} Reviews authored by the user (empty array if none)
  * @instance
  * @memberof Thing
  */
 async function getReviewsByUser(user) {
-  if (!user) {
+  if (!user || !user.id) {
     return [];
   }
 
-  // This would need the Review model to be implemented
-  debug.db('Review lookup not yet implemented in Thing.getReviewsByUser');
-  return [];
+  try {
+    const { getPostgresReviewModel } = require('./review');
+    const ReviewModel = await getPostgresReviewModel(Thing.dal);
+
+    if (!ReviewModel || typeof ReviewModel.getFeed !== 'function') {
+      debug.db('Review model not available in Thing.getReviewsByUser');
+      return [];
+    }
+
+    const feed = await ReviewModel.getFeed({
+      thingID: this.id,
+      createdBy: user.id,
+      withThing: false,
+      withTeams: true,
+      limit: 50
+    });
+
+    const reviews = Array.isArray(feed.feedItems) ? feed.feedItems : [];
+
+    reviews.forEach(review => {
+      if (typeof review.populateUserInfo === 'function') {
+        review.populateUserInfo(user);
+      }
+    });
+
+    return reviews;
+  } catch (error) {
+    debug.db('Failed to fetch user reviews in Thing.getReviewsByUser:', error.message);
+    return [];
+  }
 }
 
 /**
@@ -559,6 +591,75 @@ function addFile(file) {
 }
 
 /**
+ * Create or update the canonical slug for this Thing.
+ *
+ * @param {String} userID - User ID responsible for the slug change
+ * @param {String} [language] - Preferred language for slug generation
+ * @returns {Thing} the updated Thing instance
+ * @memberof Thing
+ * @instance
+ */
+async function updateSlug(userID, language) {
+  const originalLanguage = this.originalLanguage || 'en';
+  const slugLanguage = language || originalLanguage;
+
+  if (slugLanguage !== originalLanguage) {
+    return this;
+  }
+
+  if (!this.label) {
+    return this;
+  }
+
+  const resolved = mlString.resolve(slugLanguage, this.label);
+  if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) {
+    return this;
+  }
+
+  let baseSlug;
+  try {
+    baseSlug = _generateSlugName(resolved.str);
+  } catch (error) {
+    return this;
+  }
+
+  if (!baseSlug || baseSlug === this.canonicalSlugName) {
+    return this;
+  }
+
+  if (!this.id) {
+    const { randomUUID } = require('crypto');
+    this.id = randomUUID();
+  }
+
+  const ThingSlugModel = await ThingSlug.initializeModel(Thing.dal);
+  if (!ThingSlugModel) {
+    debug.db('ThingSlug model not available; skipping slug update');
+    return this;
+  }
+
+  const slug = new ThingSlugModel({});
+  slug.slug = baseSlug;
+  slug.name = baseSlug;
+  slug.baseName = baseSlug;
+  slug.thingID = this.id;
+  slug.createdOn = new Date();
+  slug.createdBy = userID;
+
+  try {
+    const savedSlug = await slug.qualifiedSave();
+    if (savedSlug && savedSlug.name) {
+      this.canonicalSlugName = savedSlug.name;
+      this._changed.add(Thing._getDbFieldName('canonicalSlugName'));
+    }
+  } catch (error) {
+    debug.error('Failed to update Thing slug:', error);
+  }
+
+  return this;
+}
+
+/**
  * Obtain file objects for an array of file IDs, and associate them with this thing.
  *
  * @param {String[]} files - IDs of the files to add
@@ -567,8 +668,73 @@ function addFile(file) {
  * @instance
  */
 async function addFilesByIDsAndSave(files, userID) {
-  // This would need proper File model integration
-  debug.db('File association not yet implemented in Thing.addFilesByIDsAndSave');
+  if (!Array.isArray(files) || files.length === 0) {
+    return this;
+  }
+
+  const uniqueIDs = [...new Set(files.filter(id => typeof id === 'string' && id.length))];
+  if (uniqueIDs.length === 0) {
+    return this;
+  }
+
+  const FileModel = await File.initializeModel(Thing.dal);
+  if (!FileModel) {
+    debug.db('File model not available; skipping file association');
+    return this;
+  }
+
+  try {
+    const placeholders = uniqueIDs.map((_, index) => `$${index + 1}`).join(', ');
+    const query = `
+      SELECT *
+      FROM ${FileModel.tableName}
+      WHERE id IN (${placeholders})
+        AND (_old_rev_of IS NULL)
+        AND (_rev_deleted IS NULL OR _rev_deleted = false)
+    `;
+
+    const result = await FileModel.dal.query(query, uniqueIDs);
+    const validFiles = result.rows
+      .map(row => FileModel._createInstance(row))
+      .filter(file => !userID || file.uploadedBy === userID);
+
+    if (!validFiles.length) {
+      return this;
+    }
+
+    const junctionTable = Thing.dal.tablePrefix ? `${Thing.dal.tablePrefix}thing_files` : 'thing_files';
+    const insertValues = [];
+    const valueClauses = [];
+    let paramIndex = 1;
+
+    validFiles.forEach(file => {
+      valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
+      insertValues.push(this.id, file.id);
+      paramIndex += 2;
+    });
+
+    if (valueClauses.length) {
+      const insertQuery = `
+        INSERT INTO ${junctionTable} (thing_id, file_id)
+        VALUES ${valueClauses.join(', ')}
+        ON CONFLICT DO NOTHING
+      `;
+      await Thing.dal.query(insertQuery, insertValues);
+    }
+
+    const existingIDs = new Set((this.files || []).map(file => file.id));
+    validFiles.forEach(file => {
+      if (!existingIDs.has(file.id)) {
+        this.addFile(file);
+        existingIDs.add(file.id);
+      }
+    });
+  } catch (error) {
+    debug.error('Failed to associate files with Thing:', error);
+    throw error;
+  }
+
+  return this;
 }
 
 // Helper functions
@@ -590,6 +756,32 @@ function _isValidURL(url) {
       userMessageParams: []
     });
   }
+}
+
+function _generateSlugName(str) {
+  if (typeof str !== 'string') {
+    throw new Error('Source string is undefined or not a string.');
+  }
+
+  let slug = decodeHTML(str)
+    .trim()
+    .toLowerCase()
+    .replace(/[?&"″'`’<>:]/g, '')
+    .replace(/[ _/]/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  slug = slug.replace(/[^a-z0-9-]/g, '-').replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
+
+  if (!slug) {
+    throw new Error('Source string cannot be converted to a valid slug.');
+  }
+
+  if (isUUID.v4(slug)) {
+    throw new Error('Source string cannot be a UUID.');
+  }
+
+  return slug;
 }
 
 /**
@@ -660,7 +852,13 @@ async function getWithDataProxy(id, options) {
 // Create synchronous handle using the model handle factory
 const { createAutoModelHandle } = require('../dal/lib/model-handle');
 
-const ThingHandle = createAutoModelHandle('things', initializeThingModel);
+const ThingHandle = createAutoModelHandle('things', initializeThingModel, {
+  staticMethods: {
+    lookupByURL,
+    getWithData,
+    getLabel
+  }
+});
 
 module.exports = ThingHandle;
 

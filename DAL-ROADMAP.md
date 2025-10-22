@@ -67,6 +67,9 @@ coverage and tightening ergonomics.
    DAL interfaces (`DataAccessLayer`, `Model`, `QueryBuilder`, helpers).
 3. **Dedicated test harness** – provide a fixture that spins up an isolated DAL
    via the bootstrap, allowing model files to drop `customDAL` branches.
+4. **Constructor ergonomics** – ensure passing an object into `new Model({...})`
+   automatically routes through accessors so `_changed` is tracked without
+   manual reassignments.
 
 ### Phase 4 – Optional Backend Generalisation
 
