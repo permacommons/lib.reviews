@@ -88,7 +88,31 @@ async function initializeTeamModel(dal = null) {
       },
       instanceMethods: {
         populateUserInfo
-      }
+      },
+      relations: [
+        {
+          name: 'members',
+          targetTable: 'users',
+          sourceKey: 'id',
+          hasRevisions: false,
+          through: {
+            table: 'team_members',
+            sourceForeignKey: 'team_id',
+            targetForeignKey: 'user_id'
+          }
+        },
+        {
+          name: 'moderators',
+          targetTable: 'users',
+          sourceKey: 'id',
+          hasRevisions: false,
+          through: {
+            table: 'team_moderators',
+            sourceForeignKey: 'team_id',
+            targetForeignKey: 'user_id'
+          }
+        }
+      ]
     });
     Team = model;
 

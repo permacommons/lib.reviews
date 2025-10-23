@@ -84,7 +84,7 @@ function skipIfNoModels(t) {
 
 test.serial('QueryBuilder supports simple boolean joins', async t => {
   if (skipIfNoModels(t)) return;
-  
+
   // Create a test user
   const testUser = await User.create({
     name: `TestUser-${randomUUID()}`,
@@ -102,6 +102,40 @@ test.serial('QueryBuilder supports simple boolean joins', async t => {
   t.is(users.length, 1);
   t.is(users[0].id, testUser.id);
   // Note: teams join would be populated if team associations existed
+});
+
+test.serial('QueryBuilder builds join SQL using model metadata', t => {
+  if (skipIfNoModels(t)) return;
+
+  const userQuery = User.getJoin({ teams: true });
+  const userSql = userQuery._buildSelectQuery();
+
+  const usersTable = dalFixture.getTableName('users');
+  const teamMembersTable = dalFixture.getTableName('team_members');
+  const teamsTable = dalFixture.getTableName('teams');
+
+  t.true(
+    userSql.includes(`LEFT JOIN ${teamMembersTable} ON ${usersTable}.id = ${teamMembersTable}.user_id`),
+    'User join should include metadata-defined join table'
+  );
+  t.true(
+    userSql.includes(`LEFT JOIN ${teamsTable} ON ${teamMembersTable}.team_id = ${teamsTable}.id AND ${teamsTable}._old_rev_of IS NULL AND (${teamsTable}._rev_deleted IS NULL OR ${teamsTable}._rev_deleted = false)`),
+    'User join should include revision-aware join condition from metadata'
+  );
+
+  const reviewQuery = Review.getJoin({ thing: true, creator: true });
+  const reviewSql = reviewQuery._buildSelectQuery();
+  const reviewsTable = dalFixture.getTableName('reviews');
+  const thingsTable = dalFixture.getTableName('things');
+
+  t.true(
+    reviewSql.includes(`LEFT JOIN ${thingsTable} ON ${reviewsTable}.thing_id = ${thingsTable}.id AND ${thingsTable}._old_rev_of IS NULL AND (${thingsTable}._rev_deleted IS NULL OR ${thingsTable}._rev_deleted = false)`),
+    'Review join should include revision-aware target join'
+  );
+  t.true(
+    reviewSql.includes(`LEFT JOIN ${usersTable} ON ${reviewsTable}.created_by = ${usersTable}.id`),
+    'Review join should include creator join from metadata'
+  );
 });
 
 test.serial('QueryBuilder handles revision-aware joins', async t => {

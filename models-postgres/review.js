@@ -80,7 +80,27 @@ async function initializeReviewModel(dal = null) {
       instanceMethods: {
         populateUserInfo,
         deleteAllRevisionsWithThing
-      }
+      },
+      relations: [
+        {
+          name: 'thing',
+          targetTable: 'things',
+          sourceKey: 'thing_id',
+          hasRevisions: true
+        },
+        {
+          name: 'creator',
+          targetTable: 'users',
+          sourceKey: 'created_by',
+          hasRevisions: false
+        },
+        {
+          name: 'socialImage',
+          targetTable: 'files',
+          sourceKey: 'social_image_id',
+          hasRevisions: true
+        }
+      ]
     });
     Review = model;
 

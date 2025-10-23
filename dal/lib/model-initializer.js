@@ -20,13 +20,22 @@ function initializeModel({
   withRevision = false,
   staticMethods = {},
   instanceMethods = {},
-  registryKey
+  registryKey,
+  relations
 }) {
   if (!dal) throw new Error('Model initialization requires a DAL instance');
   if (!baseTable) throw new Error('Model initialization requires a base table name');
 
   const tableName = dal.tablePrefix ? `${dal.tablePrefix}${baseTable}` : baseTable;
   const { model, isNew } = getOrCreateModel(dal, tableName, schema, { registryKey: registryKey || baseTable });
+  const relationDefs = normalizeRelationDefinitions(relations);
+
+  if (relationDefs.length > 0 && typeof model?.defineRelation === 'function') {
+    for (const { name, config } of relationDefs) {
+      model.defineRelation(name, config);
+    }
+  }
+
   if (!isNew) return { model, isNew, tableName };
   for (const [camel, snake] of Object.entries(camelToSnake)) model._registerFieldMapping(camel, snake);
   if (withRevision) attachRevisionHandlers(model, normalizeRevisionConfig(withRevision));
@@ -57,6 +66,33 @@ function attachRevisionHandlers(model, config) {
     if (typeof factory !== 'function') continue;
     if (typeof model.define === 'function') model.define(name, factory(model)); else model.prototype[name] = factory(model);
   }
+}
+
+function normalizeRelationDefinitions(relations) {
+  if (!relations) return [];
+
+  if (Array.isArray(relations)) {
+    return relations
+      .map(entry => {
+        if (!entry || typeof entry !== 'object') return null;
+        const { name, ...config } = entry;
+        if (!name || typeof name !== 'string') return null;
+        return { name, config };
+      })
+      .filter(Boolean);
+  }
+
+  if (typeof relations === 'object') {
+    return Object.entries(relations)
+      .map(([name, config]) => {
+        if (!name || typeof name !== 'string') return null;
+        const normalizedConfig = config && typeof config === 'object' ? { ...config } : {};
+        return { name, config: normalizedConfig };
+      })
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 module.exports = {

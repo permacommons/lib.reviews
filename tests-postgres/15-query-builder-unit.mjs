@@ -213,22 +213,40 @@ test('QueryBuilder builds DELETE queries correctly', t => {
 
 test('QueryBuilder handles join information lookup', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'reviews' };
-  const mockDAL = { tablePrefix: '', _getTableName: (name) => name };
-  
+  const relationMap = new Map([
+    ['thing', {
+      targetTable: 'things',
+      sourceKey: 'thing_id',
+      hasRevisions: true
+    }],
+    ['creator', {
+      targetTable: 'users',
+      sourceKey: 'created_by',
+      hasRevisions: false
+    }]
+  ]);
+
+  const mockModel = {
+    tableName: 'reviews',
+    getRelation: name => relationMap.get(name) || null
+  };
+  const mockDAL = { tablePrefix: '' };
+
   const qb = new QueryBuilder(mockModel, mockDAL);
-  
-  // Test known join mappings
+
+  // Test known join mappings coming from model metadata
   const thingJoin = qb._getJoinInfo('thing');
   t.truthy(thingJoin);
   t.is(thingJoin.table, 'things');
   t.true(thingJoin.hasRevisions);
-  
+  t.is(thingJoin.condition, 'reviews.thing_id = things.id');
+
   const creatorJoin = qb._getJoinInfo('creator');
   t.truthy(creatorJoin);
   t.is(creatorJoin.table, 'users');
   t.false(creatorJoin.hasRevisions);
-  
+  t.is(creatorJoin.condition, 'reviews.created_by = users.id');
+
   // Test unknown join
   const unknownJoin = qb._getJoinInfo('unknown');
   t.is(unknownJoin, null);

@@ -76,7 +76,26 @@ async function initializeFileModel(dal = null) {
       },
       instanceMethods: {
         populateUserInfo
-      }
+      },
+      relations: [
+        {
+          name: 'uploader',
+          targetTable: 'users',
+          sourceKey: 'uploaded_by',
+          hasRevisions: false
+        },
+        {
+          name: 'things',
+          targetTable: 'things',
+          sourceKey: 'id',
+          hasRevisions: true,
+          through: {
+            table: 'thing_files',
+            sourceForeignKey: 'file_id',
+            targetForeignKey: 'thing_id'
+          }
+        }
+      ]
     });
     File = model;
 

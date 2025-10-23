@@ -309,26 +309,20 @@ class QueryBuilder {
       debug.db(`Warning: Unknown relation '${relationName}' for table '${this.tableName}'`);
       return;
     }
-    
-    // Handle joins that require intermediate join tables
-    if (joinInfo.requiresJoinTable) {
-      const joinTableName = this._getTableName(joinInfo.requiresJoinTable);
-      // Add the intermediate join table first
-      if (relationName === 'teams' && this.tableName.includes('users')) {
-        this._joins.push(`LEFT JOIN ${joinTableName} ON ${this.tableName}.id = ${joinTableName}.user_id`);
-        this._joins.push(`LEFT JOIN ${joinInfo.table} ON ${joinTableName}.team_id = ${joinInfo.table}.id`);
-      } else if (relationName === 'members' && this.tableName.includes('teams')) {
-        this._joins.push(`LEFT JOIN ${joinTableName} ON ${this.tableName}.id = ${joinTableName}.team_id`);
-        this._joins.push(`LEFT JOIN ${joinInfo.table} ON ${joinTableName}.user_id = ${joinInfo.table}.id`);
-      } else {
-        // Generic case
-        this._joins.push(`LEFT JOIN ${joinTableName} ON ${this._buildJoinTableCondition(joinInfo, joinTableName)}`);
-        this._joins.push(`LEFT JOIN ${joinInfo.table} ON ${joinInfo.condition}`);
+
+    if (joinInfo.joinTable && joinInfo.joinTableOn) {
+      this._joins.push(`LEFT JOIN ${joinInfo.joinTable} ON ${joinInfo.joinTableOn}`);
+
+      let targetJoin = `LEFT JOIN ${joinInfo.table} ON ${joinInfo.condition}`;
+      if (joinInfo.hasRevisions) {
+        targetJoin += ` AND ${joinInfo.table}._old_rev_of IS NULL AND (${joinInfo.table}._rev_deleted IS NULL OR ${joinInfo.table}._rev_deleted = false)`;
       }
+
+      this._joins.push(targetJoin);
     } else {
       // Direct join
       let joinClause = `LEFT JOIN ${joinInfo.table} ON ${joinInfo.condition}`;
-      
+
       // Add revision filtering for joined table if it has revision fields
       if (joinInfo.hasRevisions) {
         joinClause += ` AND ${joinInfo.table}._old_rev_of IS NULL AND (${joinInfo.table}._rev_deleted IS NULL OR ${joinInfo.table}._rev_deleted = false)`;
@@ -369,105 +363,81 @@ class QueryBuilder {
   }
 
   /**
-   * Build join table condition for many-to-many relationships
-   * @param {Object} joinInfo - Join information
-   * @param {string} joinTableName - Name of the join table
-   * @returns {string} Join condition
-   * @private
-   */
-  _buildJoinTableCondition(joinInfo, joinTableName) {
-    // Extract the main table part from the full condition
-    const parts = joinInfo.condition.split(' AND ');
-    return parts[0]; // Return the first part which should be the join table condition
-  }
-
-  /**
    * Get join information for a relation name
    * @param {string} relationName - Name of the relation
    * @returns {Object|null} Join information
    * @private
    */
   _getJoinInfo(relationName) {
-    // Define common join patterns based on model relationships
-    const joinMappings = {
-      // User relations
-      teams: {
-        table: this._getTableName('teams'),
-        condition: `${this.tableName}.id = team_members.user_id AND team_members.team_id = ${this._getTableName('teams')}.id`,
-        hasRevisions: true,
-        requiresJoinTable: 'team_members'
-      },
-      moderatorOf: {
-        table: this._getTableName('teams'),
-        condition: `${this.tableName}.id = team_moderators.user_id AND team_moderators.team_id = ${this._getTableName('teams')}.id`,
-        hasRevisions: true,
-        requiresJoinTable: 'team_moderators'
-      },
-      meta: {
-        table: this._getTableName('user_metas'),
-        condition: `${this.tableName}.user_meta_id = ${this._getTableName('user_metas')}.id`,
-        hasRevisions: false
-      },
-      
-      // Thing relations
-      reviews: {
-        table: this._getTableName('reviews'),
-        condition: `${this.tableName}.id = ${this._getTableName('reviews')}.thing_id`,
-        hasRevisions: true
-      },
-      files: {
-        table: this._getTableName('files'),
-        condition: `${this.tableName}.id = thing_files.thing_id AND thing_files.file_id = ${this._getTableName('files')}.id`,
-        hasRevisions: true,
-        requiresJoinTable: 'thing_files'
-      },
-      
-      // Review relations
-      thing: {
-        table: this._getTableName('things'),
-        condition: `${this.tableName}.thing_id = ${this._getTableName('things')}.id`,
-        hasRevisions: true
-      },
-      creator: {
-        table: this._getTableName('users'),
-        condition: `${this.tableName}.created_by = ${this._getTableName('users')}.id`,
-        hasRevisions: false
-      },
-      socialImage: {
-        table: this._getTableName('files'),
-        condition: `${this.tableName}.social_image_id = ${this._getTableName('files')}.id`,
-        hasRevisions: true
-      },
-      
-      // Team relations
-      members: {
-        table: this._getTableName('users'),
-        condition: `${this.tableName}.id = team_members.team_id AND team_members.user_id = ${this._getTableName('users')}.id`,
-        hasRevisions: false,
-        requiresJoinTable: 'team_members'
-      },
-      moderators: {
-        table: this._getTableName('users'),
-        condition: `${this.tableName}.id = team_moderators.team_id AND team_moderators.user_id = ${this._getTableName('users')}.id`,
-        hasRevisions: false,
-        requiresJoinTable: 'team_moderators'
-      },
-      
-      // File relations
-      uploader: {
-        table: this._getTableName('users'),
-        condition: `${this.tableName}.uploaded_by = ${this._getTableName('users')}.id`,
-        hasRevisions: false
-      },
-      things: {
-        table: this._getTableName('things'),
-        condition: `${this.tableName}.id = thing_files.file_id AND thing_files.thing_id = ${this._getTableName('things')}.id`,
-        hasRevisions: true,
-        requiresJoinTable: 'thing_files'
+    if (!this.modelClass || typeof this.modelClass.getRelation !== 'function') {
+      return null;
+    }
+
+    const relationConfig = this.modelClass.getRelation(relationName);
+    if (!relationConfig) {
+      return null;
+    }
+
+    const targetTableName = this._resolveTableReference(relationConfig.targetTable || relationConfig.table);
+    if (!targetTableName) {
+      debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing a target table definition`);
+      return null;
+    }
+
+    const hasRevisions = Boolean(relationConfig.hasRevisions);
+    const sourceKey = relationConfig.sourceKey || relationConfig.sourceColumn || 'id';
+    const targetKey = relationConfig.targetKey || relationConfig.targetColumn || 'id';
+
+    if (relationConfig.through && typeof relationConfig.through === 'object') {
+      const joinTableName = this._resolveTableReference(relationConfig.through.table || relationConfig.joinTable);
+      if (!joinTableName) {
+        debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing a join table definition`);
+        return null;
       }
+
+      const throughSourceKey = relationConfig.through.sourceForeignKey || relationConfig.through.sourceKey;
+      const throughTargetKey = relationConfig.through.targetForeignKey || relationConfig.through.targetKey;
+
+      if (!throughSourceKey || !throughTargetKey) {
+        debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing join column metadata`);
+        return null;
+      }
+
+      const joinTableOn = relationConfig.through.sourceCondition
+        || `${this.tableName}.${sourceKey} = ${joinTableName}.${throughSourceKey}`;
+      const targetCondition = relationConfig.condition
+        || relationConfig.through.targetCondition
+        || `${joinTableName}.${throughTargetKey} = ${targetTableName}.${targetKey}`;
+
+      return {
+        table: targetTableName,
+        hasRevisions,
+        joinTable: joinTableName,
+        joinTableOn,
+        condition: targetCondition
+      };
+    }
+
+    const directCondition = relationConfig.condition
+      || `${this.tableName}.${sourceKey} = ${targetTableName}.${targetKey}`;
+
+    return {
+      table: targetTableName,
+      hasRevisions,
+      condition: directCondition
     };
-    
-    return joinMappings[relationName] || null;
+  }
+
+  _resolveTableReference(tableRef) {
+    if (!tableRef || typeof tableRef !== 'string') {
+      return null;
+    }
+
+    if (tableRef.includes('.')) {
+      return tableRef;
+    }
+
+    return this._getTableName(tableRef);
   }
 
   /**

@@ -47,6 +47,13 @@ class Model {
   static _fieldMappings = new Map();
 
   /**
+   * Relation metadata registry keyed by relation name
+   * @type {Map<string, Object>}
+   * @static
+   */
+  static _relations = new Map();
+
+  /**
    * Register a camelCase to snake_case field mapping
    * @param {string} camelCase - camelCase property name
    * @param {string} snakeCase - snake_case database column name
@@ -54,6 +61,65 @@ class Model {
    */
   static _registerFieldMapping(camelCase, snakeCase) {
     this._fieldMappings.set(camelCase, snakeCase);
+  }
+
+  /**
+   * Register relation metadata for the model
+   * @param {string} name - Relation name
+   * @param {Object} config - Relation configuration
+   * @static
+   */
+  static defineRelation(name, config) {
+    if (!name || typeof name !== 'string') {
+      throw new Error('Relation name must be a non-empty string');
+    }
+
+    if (!config || typeof config !== 'object') {
+      throw new Error(`Relation '${name}' configuration must be an object`);
+    }
+
+    if (!this._relations || !(this._relations instanceof Map)) {
+      this._relations = new Map();
+    }
+
+    const normalizedConfig = { ...config };
+    if (normalizedConfig.through && typeof normalizedConfig.through === 'object') {
+      normalizedConfig.through = { ...normalizedConfig.through };
+      Object.freeze(normalizedConfig.through);
+    }
+
+    Object.freeze(normalizedConfig);
+    this._relations.set(name, normalizedConfig);
+  }
+
+  /**
+   * Retrieve relation metadata by name
+   * @param {string} name - Relation name
+   * @returns {Object|null} Stored relation configuration
+   * @static
+   */
+  static getRelation(name) {
+    if (!this._relations || !(this._relations instanceof Map)) {
+      return null;
+    }
+
+    return this._relations.get(name) || null;
+  }
+
+  /**
+   * Retrieve all registered relation metadata
+   * @returns {Object[]} Array of relation configurations with names
+   * @static
+   */
+  static getRelations() {
+    if (!this._relations || !(this._relations instanceof Map)) {
+      return [];
+    }
+
+    return Array.from(this._relations.entries()).map(([name, config]) => ({
+      name,
+      config
+    }));
   }
 
   /**
@@ -77,6 +143,8 @@ class Model {
   static createModel(tableName, schema, options = {}, dal) {
     // Create the model constructor
     class DynamicModel extends Model {
+      static _fieldMappings = new Map();
+      static _relations = new Map();
       static get tableName() { return tableName; }
       static get schema() { return schema; }
       static get options() { return options; }

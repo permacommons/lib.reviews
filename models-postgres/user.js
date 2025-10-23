@@ -106,7 +106,37 @@ async function initializeUserModel(dal = null) {
         setPassword,
         checkPassword,
         getValidPreferences
-      }
+      },
+      relations: [
+        {
+          name: 'teams',
+          targetTable: 'teams',
+          sourceKey: 'id',
+          hasRevisions: true,
+          through: {
+            table: 'team_members',
+            sourceForeignKey: 'user_id',
+            targetForeignKey: 'team_id'
+          }
+        },
+        {
+          name: 'moderatorOf',
+          targetTable: 'teams',
+          sourceKey: 'id',
+          hasRevisions: true,
+          through: {
+            table: 'team_moderators',
+            sourceForeignKey: 'user_id',
+            targetForeignKey: 'team_id'
+          }
+        },
+        {
+          name: 'meta',
+          targetTable: 'user_metas',
+          sourceKey: 'user_meta_id',
+          hasRevisions: true
+        }
+      ]
     });
 
     User = model;

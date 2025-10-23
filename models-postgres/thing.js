@@ -111,7 +111,27 @@ async function initializeThingModel(dal = null) {
         getReviewCount,
         addFile,
         addFilesByIDsAndSave
-      }
+      },
+      relations: [
+        {
+          name: 'reviews',
+          targetTable: 'reviews',
+          sourceKey: 'id',
+          targetKey: 'thing_id',
+          hasRevisions: true
+        },
+        {
+          name: 'files',
+          targetTable: 'files',
+          sourceKey: 'id',
+          hasRevisions: true,
+          through: {
+            table: 'thing_files',
+            sourceForeignKey: 'thing_id',
+            targetForeignKey: 'file_id'
+          }
+        }
+      ]
     });
     Thing = model;
 
