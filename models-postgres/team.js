@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * PostgreSQL Team model implementation
- * 
- * This is the full PostgreSQL implementation of the Team model using the DAL,
- * maintaining compatibility with the existing RethinkDB Team model interface.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
@@ -15,7 +8,7 @@ const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
 const { getPostgresUserModel } = require('./user');
 const { getPostgresReviewModel } = require('./review');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 let Team = null;
 
@@ -32,9 +25,6 @@ async function initializeTeamModel(dal = null) {
   }
 
   try {
-    // Use table prefix if this is a test DAL
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}teams` : 'teams';
-    
     // Create the schema with revision fields and JSONB columns
     const teamSchema = {
       id: type.string().uuid(4),
@@ -76,35 +66,35 @@ async function initializeTeamModel(dal = null) {
     // Add revision fields to schema
     Object.assign(teamSchema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, teamSchema, {
-      registryKey: 'teams'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'teams',
+      schema: teamSchema,
+      camelToSnake: {
+        modApprovalToJoin: 'mod_approval_to_join',
+        onlyModsCanBlog: 'only_mods_can_blog',
+        createdBy: 'created_by',
+        createdOn: 'created_on',
+        canonicalSlugName: 'canonical_slug_name',
+        originalLanguage: 'original_language',
+        confersPermissions: 'confers_permissions'
+      },
+      withRevision: {
+        static: ['createFirstRevision', 'getNotStaleOrDeleted', 'filterNotStaleOrDeleted'],
+        instance: ['deleteAllRevisions']
+      },
+      staticMethods: {
+        getWithData
+      },
+      instanceMethods: {
+        populateUserInfo
+      }
     });
     Team = model;
 
     if (!isNew) {
       return Team;
     }
-
-    // Register camelCase to snake_case field mappings
-    Team._registerFieldMapping('modApprovalToJoin', 'mod_approval_to_join');
-    Team._registerFieldMapping('onlyModsCanBlog', 'only_mods_can_blog');
-    Team._registerFieldMapping('createdBy', 'created_by');
-    Team._registerFieldMapping('createdOn', 'created_on');
-    Team._registerFieldMapping('canonicalSlugName', 'canonical_slug_name');
-    Team._registerFieldMapping('originalLanguage', 'original_language');
-    Team._registerFieldMapping('confersPermissions', 'confers_permissions');
-
-    // Add static methods
-    Team.createFirstRevision = revision.getFirstRevisionHandler(Team);
-    Team.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(Team);
-    Team.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(Team);
-
-    // Custom static methods
-    Team.getWithData = getWithData;
-
-    // Add instance methods
-    Team.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(Team));
-    Team.define("populateUserInfo", populateUserInfo);
 
     debug.db('PostgreSQL Team model initialized with all methods');
     return Team;

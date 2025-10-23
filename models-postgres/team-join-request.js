@@ -1,16 +1,9 @@
 'use strict';
 
-/**
- * PostgreSQL TeamJoinRequest model implementation (stub)
- * 
- * This is a minimal stub implementation for the TeamJoinRequest model.
- * Full implementation will be added as needed.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const debug = require('../util/debug');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 let TeamJoinRequest = null;
 
@@ -27,8 +20,6 @@ async function initializeTeamJoinRequestModel(dal = null) {
   }
 
   try {
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}team_join_requests` : 'team_join_requests';
-    
     const schema = {
       id: type.string().uuid(4),
       teamID: type.string().uuid(4).required(true),
@@ -37,18 +28,21 @@ async function initializeTeamJoinRequestModel(dal = null) {
       message: type.string().max(500)
     };
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
-      registryKey: 'team_join_requests'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'team_join_requests',
+      schema,
+      camelToSnake: {
+        teamID: 'team_id',
+        userID: 'user_id',
+        requestedOn: 'requested_on'
+      }
     });
     TeamJoinRequest = model;
 
     if (!isNew) {
       return TeamJoinRequest;
     }
-
-    TeamJoinRequest._registerFieldMapping('teamID', 'team_id');
-    TeamJoinRequest._registerFieldMapping('userID', 'user_id');
-    TeamJoinRequest._registerFieldMapping('requestedOn', 'requested_on');
 
     debug.db('PostgreSQL TeamJoinRequest model initialized (stub)');
     return TeamJoinRequest;

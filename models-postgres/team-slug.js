@@ -1,16 +1,9 @@
 'use strict';
 
-/**
- * PostgreSQL TeamSlug model implementation (stub)
- * 
- * This is a minimal stub implementation for the TeamSlug model.
- * Full implementation will be added as needed.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const debug = require('../util/debug');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 let TeamSlug = null;
 
@@ -27,8 +20,6 @@ async function initializeTeamSlugModel(dal = null) {
   }
 
   try {
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}team_slugs` : 'team_slugs';
-
     const schema = {
       id: type.string().uuid(4),
       teamID: type.string().uuid(4).required(true),
@@ -38,8 +29,15 @@ async function initializeTeamSlugModel(dal = null) {
       name: type.string().max(255)
     };
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
-      registryKey: 'team_slugs'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'team_slugs',
+      schema,
+      camelToSnake: {
+        teamID: 'team_id',
+        createdOn: 'created_on',
+        createdBy: 'created_by'
+      }
     });
 
     TeamSlug = model;
@@ -47,10 +45,6 @@ async function initializeTeamSlugModel(dal = null) {
     if (!isNew) {
       return TeamSlug;
     }
-
-    model._registerFieldMapping('teamID', 'team_id');
-    model._registerFieldMapping('createdOn', 'created_on');
-    model._registerFieldMapping('createdBy', 'created_by');
 
     debug.db('PostgreSQL TeamSlug model initialized (stub)');
     return TeamSlug;

@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * PostgreSQL BlogPost model implementation
- * 
- * This is the PostgreSQL implementation of the BlogPost model using the DAL,
- * maintaining compatibility with the existing RethinkDB BlogPost model interface.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal/lib/ml-string');
@@ -16,7 +9,7 @@ const debug = require('../util/debug');
 const { DocumentNotFound } = require('../dal/lib/errors');
 const TeamSlug = require('./team-slug');
 const { getPostgresUserModel } = require('./user');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 let BlogPost = null;
 
@@ -33,8 +26,6 @@ async function initializeBlogPostModel(dal = null) {
   }
 
   try {
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}blog_posts` : 'blog_posts';
-    
     const schema = {
       id: type.string().uuid(4),
       teamID: type.string().uuid(4).required(true),
@@ -50,29 +41,34 @@ async function initializeBlogPostModel(dal = null) {
 
     Object.assign(schema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
-      registryKey: 'blog_posts'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'blog_posts',
+      schema,
+      camelToSnake: {
+        teamID: 'team_id',
+        createdOn: 'created_on',
+        createdBy: 'created_by',
+        originalLanguage: 'original_language'
+      },
+      withRevision: {
+        static: ['createFirstRevision', 'getNotStaleOrDeleted'],
+        instance: ['deleteAllRevisions']
+      },
+      staticMethods: {
+        getWithCreator,
+        getMostRecentBlogPosts,
+        getMostRecentBlogPostsBySlug
+      },
+      instanceMethods: {
+        populateUserInfo
+      }
     });
     BlogPost = model;
 
     if (!isNew) {
       return BlogPost;
     }
-
-    BlogPost._registerFieldMapping('teamID', 'team_id');
-    BlogPost._registerFieldMapping('createdOn', 'created_on');
-    BlogPost._registerFieldMapping('createdBy', 'created_by');
-    BlogPost._registerFieldMapping('originalLanguage', 'original_language');
-
-    BlogPost.createFirstRevision = revision.getFirstRevisionHandler(BlogPost);
-    BlogPost.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(BlogPost);
-
-    BlogPost.getWithCreator = getWithCreator;
-    BlogPost.getMostRecentBlogPosts = getMostRecentBlogPosts;
-    BlogPost.getMostRecentBlogPostsBySlug = getMostRecentBlogPostsBySlug;
-
-    BlogPost.define('deleteAllRevisions', revision.getDeleteAllRevisionsHandler(BlogPost));
-    BlogPost.define('populateUserInfo', populateUserInfo);
 
     debug.db('PostgreSQL BlogPost model initialized');
     return BlogPost;

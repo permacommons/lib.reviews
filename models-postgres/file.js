@@ -1,18 +1,11 @@
 'use strict';
 
-/**
- * PostgreSQL File model implementation
- * 
- * This is the full PostgreSQL implementation of the File model using the DAL,
- * maintaining compatibility with the existing RethinkDB File model interface.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;
 const debug = require('../util/debug');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 const validLicenses = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'];
 
@@ -31,9 +24,6 @@ async function initializeFileModel(dal = null) {
   }
 
   try {
-    // Use table prefix if this is a test DAL
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}files` : 'files';
-    
     // Create the schema with revision fields
     const fileSchema = {
       id: type.string().uuid(4),
@@ -61,34 +51,38 @@ async function initializeFileModel(dal = null) {
     // Add revision fields to schema
     Object.assign(fileSchema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, fileSchema, {
-      registryKey: 'files'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'files',
+      schema: fileSchema,
+      camelToSnake: {
+        uploadedBy: 'uploaded_by',
+        uploadedOn: 'uploaded_on',
+        mimeType: 'mime_type'
+      },
+      withRevision: {
+        static: [
+          'createFirstRevision',
+          'getNotStaleOrDeleted',
+          'filterNotStaleOrDeleted',
+          'getMultipleNotStaleOrDeleted'
+        ],
+        instance: ['deleteAllRevisions']
+      },
+      staticMethods: {
+        getStashedUpload,
+        getValidLicenses,
+        getFileFeed
+      },
+      instanceMethods: {
+        populateUserInfo
+      }
     });
     File = model;
 
     if (!isNew) {
       return File;
     }
-
-    // Register camelCase to snake_case field mappings
-    File._registerFieldMapping('uploadedBy', 'uploaded_by');
-    File._registerFieldMapping('uploadedOn', 'uploaded_on');
-    File._registerFieldMapping('mimeType', 'mime_type');
-
-    // Add static methods
-    File.createFirstRevision = revision.getFirstRevisionHandler(File);
-    File.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(File);
-    File.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(File);
-    File.getMultipleNotStaleOrDeleted = revision.getMultipleNotStaleOrDeletedHandler(File);
-
-    // Custom static methods
-    File.getStashedUpload = getStashedUpload;
-    File.getValidLicenses = getValidLicenses;
-    File.getFileFeed = getFileFeed;
-
-    // Add instance methods
-    File.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(File));
-    File.define("populateUserInfo", populateUserInfo);
 
     debug.db('PostgreSQL File model initialized with all methods');
     return File;

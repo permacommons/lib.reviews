@@ -1,16 +1,9 @@
 'use strict';
 
-/**
- * PostgreSQL ThingSlug model implementation (stub)
- * 
- * This is a minimal stub implementation for the ThingSlug model.
- * Full implementation will be added as needed.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const { ConstraintError } = require('../dal/lib/errors');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 const debug = require('../util/debug');
 
 let ThingSlug = null;
@@ -34,8 +27,6 @@ async function initializeThingSlugModel(dal = null) {
   }
 
   try {
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}thing_slugs` : 'thing_slugs';
-
     const schema = {
       id: type.string().uuid(4),
       thingID: type.string().uuid(4).required(true),
@@ -47,18 +38,23 @@ async function initializeThingSlugModel(dal = null) {
       qualifierPart: type.string().max(255)
     };
 
-    const { model } = getOrCreateModel(activeDAL, tableName, schema, {
-      registryKey: 'thing_slugs'
+    const { model } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'thing_slugs',
+      schema,
+      camelToSnake: {
+        thingID: 'thing_id',
+        createdOn: 'created_on',
+        createdBy: 'created_by',
+        baseName: 'base_name',
+        qualifierPart: 'qualifier_part'
+      },
+      instanceMethods: {
+        qualifiedSave
+      }
     });
 
     ThingSlug = model;
-
-    ThingSlug._registerFieldMapping('thingID', 'thing_id');
-    ThingSlug._registerFieldMapping('createdOn', 'created_on');
-    ThingSlug._registerFieldMapping('createdBy', 'created_by');
-    ThingSlug._registerFieldMapping('baseName', 'base_name');
-    ThingSlug._registerFieldMapping('qualifierPart', 'qualifier_part');
-    ThingSlug.define('qualifiedSave', qualifiedSave);
     ThingSlug.reservedSlugs = reservedSlugs;
 
     debug.db('PostgreSQL ThingSlug model initialized');

@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * PostgreSQL Thing model implementation
- * 
- * This is the full PostgreSQL implementation of the Thing model using the DAL,
- * maintaining compatibility with the existing RethinkDB Thing model interface.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
@@ -17,7 +10,7 @@ const ReportedError = require('../util/reported-error');
 const adapters = require('../adapters/adapters');
 const search = require('../search');
 const isValidLanguage = require('../locales/languages').isValid;
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 const ThingSlug = require('./thing-slug');
 const File = require('./file');
 const isUUID = require('is-uuid');
@@ -38,9 +31,6 @@ async function initializeThingModel(dal = null) {
   }
 
   try {
-    // Use table prefix if this is a test DAL
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}things` : 'things';
-    
     // Create the schema with revision fields
     const thingSchema = {
       id: type.string().uuid(4),
@@ -84,42 +74,46 @@ async function initializeThingModel(dal = null) {
     // Add revision fields to schema
     Object.assign(thingSchema, revision.getSchema());
 
-    const { model } = getOrCreateModel(activeDAL, tableName, thingSchema, {
-      registryKey: 'things'
+    const { model } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'things',
+      schema: thingSchema,
+      camelToSnake: {
+        originalLanguage: 'original_language',
+        canonicalSlugName: 'canonical_slug_name',
+        createdOn: 'created_on',
+        createdBy: 'created_by'
+      },
+      withRevision: {
+        static: [
+          'createFirstRevision',
+          'getNotStaleOrDeleted',
+          'filterNotStaleOrDeleted',
+          'getMultipleNotStaleOrDeleted'
+        ],
+        instance: ['deleteAllRevisions']
+      },
+      staticMethods: {
+        lookupByURL,
+        getWithData,
+        getLabel
+      },
+      instanceMethods: {
+        initializeFieldsFromAdapter,
+        populateUserInfo,
+        populateReviewMetrics,
+        setURLs,
+        updateActiveSyncs,
+        getSourceIDsOfActiveSyncs,
+        updateSlug,
+        getReviewsByUser,
+        getAverageStarRating,
+        getReviewCount,
+        addFile,
+        addFilesByIDsAndSave
+      }
     });
     Thing = model;
-
-    // Register camelCase to snake_case field mappings
-    Thing._registerFieldMapping('originalLanguage', 'original_language');
-    Thing._registerFieldMapping('canonicalSlugName', 'canonical_slug_name');
-    Thing._registerFieldMapping('createdOn', 'created_on');
-    Thing._registerFieldMapping('createdBy', 'created_by');
-
-    // Add static methods
-    Thing.createFirstRevision = revision.getFirstRevisionHandler(Thing);
-    Thing.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(Thing);
-    Thing.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(Thing);
-    Thing.getMultipleNotStaleOrDeleted = revision.getMultipleNotStaleOrDeletedHandler(Thing);
-
-    // Custom static methods
-    Thing.lookupByURL = lookupByURL;
-    Thing.getWithData = getWithData;
-    Thing.getLabel = getLabel;
-
-    // Add instance methods
-    Thing.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(Thing));
-    Thing.define("initializeFieldsFromAdapter", initializeFieldsFromAdapter);
-    Thing.define("populateUserInfo", populateUserInfo);
-    Thing.define("populateReviewMetrics", populateReviewMetrics);
-    Thing.define("setURLs", setURLs);
-    Thing.define("updateActiveSyncs", updateActiveSyncs);
-    Thing.define("getSourceIDsOfActiveSyncs", getSourceIDsOfActiveSyncs);
-    Thing.define("updateSlug", updateSlug);
-    Thing.define("getReviewsByUser", getReviewsByUser);
-    Thing.define("getAverageStarRating", getAverageStarRating);
-    Thing.define("getReviewCount", getReviewCount);
-    Thing.define("addFile", addFile);
-    Thing.define("addFilesByIDsAndSave", addFilesByIDsAndSave);
 
     debug.db('PostgreSQL Thing model initialized with all methods');
     return Thing;

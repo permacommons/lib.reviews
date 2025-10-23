@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * PostgreSQL InviteLink model implementation (stub)
- * 
- * This is a minimal stub implementation for the InviteLink model.
- * Full implementation will be added as needed.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const debug = require('../util/debug');
@@ -14,7 +7,7 @@ const config = require('config');
 const isUUID = require('is-uuid');
 const { randomUUID } = require('crypto');
 const { DocumentNotFound } = require('../dal/lib/errors');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 let InviteLink = null;
 
@@ -31,8 +24,6 @@ async function initializeInviteLinkModel(dal = null) {
   }
 
   try {
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}invite_links` : 'invite_links';
-    
     const schema = {
       id: type.string().uuid(4).default(() => randomUUID()),
       createdBy: type.string().uuid(4).required(true),
@@ -44,25 +35,30 @@ async function initializeInviteLinkModel(dal = null) {
       })
     };
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
-      registryKey: 'invite_links'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'invite_links',
+      schema,
+      camelToSnake: {
+        createdBy: 'created_by',
+        createdOn: 'created_on',
+        usedBy: 'used_by'
+      },
+      staticMethods: {
+        getAvailable,
+        getUsed,
+        get: getInviteByID
+      }
     });
     InviteLink = model;
 
     if (isNew) {
-      InviteLink._registerFieldMapping('createdBy', 'created_by');
-      InviteLink._registerFieldMapping('createdOn', 'created_on');
-      InviteLink._registerFieldMapping('usedBy', 'used_by');
       debug.db('PostgreSQL InviteLink model initialized');
     }
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL InviteLink model:', error);
     return null;
   }
-
-  InviteLink.getAvailable = getAvailable;
-  InviteLink.getUsed = getUsed;
-  InviteLink.get = getInviteByID;
 
   return InviteLink;
 }

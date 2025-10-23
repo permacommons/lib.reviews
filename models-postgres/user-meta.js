@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * PostgreSQL UserMeta model implementation
- *
- * Provides a versioned metadata store for user profiles (bios),
- * maintaining compatibility with the legacy RethinkDB UserMeta model.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal/lib/ml-string');
@@ -14,7 +7,7 @@ const revision = require('../dal/lib/revision');
 const { ValidationError } = require('../dal/lib/errors');
 const { isValid: isValidLanguage } = require('../locales/languages');
 const debug = require('../util/debug');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 let UserMeta = null;
 
@@ -32,8 +25,6 @@ async function initializeUserMetaModel(dal = null) {
   }
 
   try {
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}user_metas` : 'user_metas';
-
     const multilingualStringSchema = mlString.getSchema({ maxLength: 1000 });
 
     const bioType = type.object()
@@ -70,8 +61,19 @@ async function initializeUserMetaModel(dal = null) {
 
     Object.assign(schema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
-      registryKey: 'user_metas'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'user_metas',
+      schema,
+      withRevision: {
+        static: [
+          'createFirstRevision',
+          'getNotStaleOrDeleted',
+          'filterNotStaleOrDeleted',
+          'getMultipleNotStaleOrDeleted'
+        ],
+        instance: ['deleteAllRevisions']
+      }
     });
 
     UserMeta = model;
@@ -79,13 +81,6 @@ async function initializeUserMetaModel(dal = null) {
     if (!isNew) {
       return UserMeta;
     }
-
-    UserMeta.createFirstRevision = revision.getFirstRevisionHandler(UserMeta);
-    UserMeta.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(UserMeta);
-    UserMeta.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(UserMeta);
-    UserMeta.getMultipleNotStaleOrDeleted = revision.getMultipleNotStaleOrDeletedHandler(UserMeta);
-
-    UserMeta.define('deleteAllRevisions', revision.getDeleteAllRevisionsHandler(UserMeta));
 
     return UserMeta;
   } catch (error) {

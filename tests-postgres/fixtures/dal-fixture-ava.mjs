@@ -105,25 +105,31 @@ class DALFixtureAVA {
       : [];
 
     if (modelDefinitions.length > 0) {
-      const revision = require('../../dal/lib/revision');
-      const { getOrCreateModel } = require('../../dal/lib/model-factory');
+      const { initializeModel } = require('../../dal/lib/model-initializer');
 
       logNotice('Creating DAL models for AVA tests.');
 
       for (const modelDef of modelDefinitions) {
-        const tableName = `${this.tablePrefix}${modelDef.name}`;
-        const { model } = getOrCreateModel(this.dal, tableName, modelDef.schema, {
-          registryKey: modelDef.name
+        const { model } = initializeModel({
+          dal: this.dal,
+          baseTable: modelDef.name,
+          schema: modelDef.schema,
+          camelToSnake: modelDef.camelToSnake,
+          withRevision: modelDef.hasRevisions
+            ? {
+              static: [
+                'createFirstRevision',
+                'getNotStaleOrDeleted',
+                'filterNotStaleOrDeleted',
+                'getMultipleNotStaleOrDeleted'
+              ],
+              instance: ['newRevision', 'deleteAllRevisions']
+            }
+            : false,
+          staticMethods: modelDef.staticMethods,
+          instanceMethods: modelDef.instanceMethods,
+          registryKey: modelDef.registryKey || modelDef.name
         });
-
-        if (modelDef.hasRevisions) {
-          model.createFirstRevision = revision.getFirstRevisionHandler(model);
-          model.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(model);
-          model.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(model);
-          model.getMultipleNotStaleOrDeleted = revision.getMultipleNotStaleOrDeletedHandler(model);
-          model.define('newRevision', revision.getNewRevisionHandler(model));
-          model.define('deleteAllRevisions', revision.getDeleteAllRevisionsHandler(model));
-        }
 
         this.customModels.set(modelDef.name, model);
         this.models[modelDef.name] = model;

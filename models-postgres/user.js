@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * PostgreSQL User model implementation
- * 
- * This is the full PostgreSQL implementation of the User model using the DAL,
- * maintaining compatibility with the existing RethinkDB User model interface.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const bcrypt = require('bcrypt');
@@ -14,7 +7,7 @@ const ReportedError = require('../util/reported-error');
 const debug = require('../util/debug');
 const { getPostgresUserMetaModel } = require('./user-meta');
 const { DocumentNotFound } = require('../dal/lib/errors');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 const userOptions = {
   maxChars: 128,
@@ -48,8 +41,6 @@ async function initializeUserModel(dal = null) {
     currentDAL = activeDAL;
 
     debug.db('DAL available, creating User model...');
-    // Use table prefix if this is a test DAL
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}users` : 'users';
     const userSchema = {
       id: type.string().uuid(4),
       
@@ -83,8 +74,39 @@ async function initializeUserModel(dal = null) {
       })
     };
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, userSchema, {
-      registryKey: 'users'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'users',
+      schema: userSchema,
+      camelToSnake: {
+        displayName: 'display_name',
+        canonicalName: 'canonical_name',
+        userMetaID: 'user_meta_id',
+        inviteLinkCount: 'invite_link_count',
+        registrationDate: 'registration_date',
+        showErrorDetails: 'show_error_details',
+        isTrusted: 'is_trusted',
+        isSiteModerator: 'is_site_moderator',
+        isSuperUser: 'is_super_user',
+        suppressedNotices: 'suppressed_notices',
+        prefersRichTextEditor: 'prefers_rich_text_editor'
+      },
+      staticMethods: {
+        increaseInviteLinkCount,
+        create: createUser,
+        ensureUnique,
+        getWithTeams,
+        findByURLName,
+        canonicalize,
+        createBio
+      },
+      instanceMethods: {
+        populateUserInfo,
+        setName,
+        setPassword,
+        checkPassword,
+        getValidPreferences
+      }
     });
 
     User = model;
@@ -93,42 +115,12 @@ async function initializeUserModel(dal = null) {
       return User;
     }
 
-    // Register camelCase to snake_case field mappings
-    User._registerFieldMapping('displayName', 'display_name');
-    User._registerFieldMapping('canonicalName', 'canonical_name');
-    User._registerFieldMapping('userMetaID', 'user_meta_id');
-    User._registerFieldMapping('inviteLinkCount', 'invite_link_count');
-    User._registerFieldMapping('registrationDate', 'registration_date');
-    User._registerFieldMapping('showErrorDetails', 'show_error_details');
-    User._registerFieldMapping('isTrusted', 'is_trusted');
-    User._registerFieldMapping('isSiteModerator', 'is_site_moderator');
-    User._registerFieldMapping('isSuperUser', 'is_super_user');
-    User._registerFieldMapping('suppressedNotices', 'suppressed_notices');
-    User._registerFieldMapping('prefersRichTextEditor', 'prefers_rich_text_editor');
-
-    // Add static properties and methods
     Object.defineProperty(User, 'options', {
       value: userOptions,
       writable: false,
       enumerable: true,
       configurable: false
     });
-
-    // Static methods
-    User.increaseInviteLinkCount = increaseInviteLinkCount;
-    User.create = createUser;
-    User.ensureUnique = ensureUnique;
-    User.getWithTeams = getWithTeams;
-    User.findByURLName = findByURLName;
-    User.canonicalize = canonicalize;
-    User.createBio = createBio;
-
-    // Instance methods
-    User.define("populateUserInfo", populateUserInfo);
-    User.define("setName", setName);
-    User.define("setPassword", setPassword);
-    User.define("checkPassword", checkPassword);
-    User.define("getValidPreferences", getValidPreferences);
 
     // Pre-save validation
     User.prototype._originalValidate = User.prototype._validate;

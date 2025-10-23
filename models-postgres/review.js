@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * PostgreSQL Review model implementation
- * 
- * This is the full PostgreSQL implementation of the Review model using the DAL,
- * maintaining compatibility with the existing RethinkDB Review model interface.
- */
-
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
@@ -15,7 +8,7 @@ const debug = require('../util/debug');
 const ReportedError = require('../util/reported-error');
 const isValidLanguage = require('../locales/languages').isValid;
 const adapters = require('../adapters/adapters');
-const { getOrCreateModel } = require('../dal/lib/model-factory');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
 const reviewOptions = {
   maxTitleLength: 255
@@ -36,9 +29,6 @@ async function initializeReviewModel(dal = null) {
   }
 
   try {
-    // Use table prefix if this is a test DAL
-    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}reviews` : 'reviews';
-
     // Create the schema with revision fields and JSONB columns
     const reviewSchema = {
       id: type.string().uuid(4),
@@ -67,8 +57,30 @@ async function initializeReviewModel(dal = null) {
     // Add revision fields to schema
     Object.assign(reviewSchema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(activeDAL, tableName, reviewSchema, {
-      registryKey: 'reviews'
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'reviews',
+      schema: reviewSchema,
+      camelToSnake: {
+        thingID: 'thing_id',
+        starRating: 'star_rating',
+        createdOn: 'created_on',
+        createdBy: 'created_by',
+        originalLanguage: 'original_language',
+        socialImageID: 'social_image_id'
+      },
+      withRevision: true,
+      staticMethods: {
+        getWithData,
+        create: createReview,
+        validateSocialImage,
+        findOrCreateThing,
+        getFeed
+      },
+      instanceMethods: {
+        populateUserInfo,
+        deleteAllRevisionsWithThing
+      }
     });
     Review = model;
 
@@ -76,40 +88,12 @@ async function initializeReviewModel(dal = null) {
       return Review;
     }
 
-    // Register camelCase to snake_case field mappings
-    Review._registerFieldMapping('thingID', 'thing_id');
-    Review._registerFieldMapping('starRating', 'star_rating');
-    Review._registerFieldMapping('createdOn', 'created_on');
-    Review._registerFieldMapping('createdBy', 'created_by');
-    Review._registerFieldMapping('originalLanguage', 'original_language');
-    Review._registerFieldMapping('socialImageID', 'social_image_id');
-
-    // Add static properties
     Object.defineProperty(Review, 'options', {
       value: reviewOptions,
       writable: false,
       enumerable: true,
       configurable: false
     });
-
-    // Add static methods
-    Review.createFirstRevision = revision.getFirstRevisionHandler(Review);
-    Review.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(Review);
-    Review.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(Review);
-
-    // Custom static methods
-    Review.getWithData = getWithData;
-    Review.create = createReview;
-    Review.validateSocialImage = validateSocialImage;
-    Review.findOrCreateThing = findOrCreateThing;
-    Review.getFeed = getFeed;
-
-    // Add instance methods
-    Review.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(Review));
-    Review.define("populateUserInfo", populateUserInfo);
-    Review.define("deleteAllRevisionsWithThing", deleteAllRevisionsWithThing);
-
-    // Property aliases are now handled by the camelCase accessor pattern
 
     debug.db('PostgreSQL Review model initialized with all methods');
     return Review;
