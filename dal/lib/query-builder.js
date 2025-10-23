@@ -82,12 +82,10 @@ class QueryBuilder {
    */
   filterByRevisionTags(tags) {
     const tagArray = Array.isArray(tags) ? tags : [tags];
-    
+
     // Use PostgreSQL array overlap operator
-    const placeholder = `$${this._paramIndex++}`;
-    this._where.push(`_rev_tags && ${placeholder}`);
-    this._params.push(tagArray);
-    
+    this._addWhereCondition('_rev_tags', '&&', tagArray);
+
     return this;
   }
 
@@ -131,9 +129,10 @@ class QueryBuilder {
    * @returns {QueryBuilder} This instance for chaining
    */
   contains(field, value) {
-    const placeholder = `$${this._paramIndex++}`;
-    this._where.push(`${field} @> ARRAY[${placeholder}]::text[]`);
-    this._params.push(value);
+    const values = Array.isArray(value) ? value : [value];
+    this._addWhereCondition(field, '@>', values, {
+      cast: 'text[]'
+    });
     return this;
   }
 
@@ -144,9 +143,10 @@ class QueryBuilder {
    * @returns {QueryBuilder} This instance for chaining
    */
   containsJsonb(field, value) {
-    const placeholder = `$${this._paramIndex++}`;
-    this._where.push(`${field} @> ${placeholder}`);
-    this._params.push(JSON.stringify(value));
+    this._addWhereCondition(field, '@>', value, {
+      cast: 'jsonb',
+      serializeValue: JSON.stringify
+    });
     return this;
   }
 
@@ -157,9 +157,25 @@ class QueryBuilder {
    * @returns {QueryBuilder} This instance for chaining
    */
   hasFields(field, key) {
-    const placeholder = `$${this._paramIndex++}`;
-    this._where.push(`${field} ? ${placeholder}`);
-    this._params.push(key);
+    this._addWhereCondition(field, '?', key);
+    return this;
+  }
+
+  /**
+   * Filter by membership in a list of values using PostgreSQL ANY
+   * @param {string} field - Field name
+   * @param {Array} values - Values to match
+   * @param {Object} [options] - Additional options
+   * @param {string} [options.cast] - Optional cast to apply to the parameter (e.g., 'uuid[]')
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  whereIn(field, values, { cast } = {}) {
+    if (!Array.isArray(values) || values.length === 0) {
+      return this;
+    }
+
+    const valueTransform = placeholder => `(${placeholder}${cast ? `::${cast}` : ''})`;
+    this._addWhereCondition(field, '= ANY', values, { valueTransform });
     return this;
   }
 
@@ -210,16 +226,17 @@ class QueryBuilder {
    */
   getAllRevisions(documentId) {
     // Clear any existing revision filters
-    this._where = this._where.filter(condition => 
-      !condition.includes('_old_rev_of') && !condition.includes('_rev_deleted')
-    );
-    
+    this._where = this._where.filter(predicate => !this._isRevisionFilterPredicate(predicate));
+
     // Add condition to get all revisions of the document
-    const placeholder1 = `$${this._paramIndex++}`;
-    const placeholder2 = `$${this._paramIndex++}`;
-    this._where.push(`(id = ${placeholder1} OR _old_rev_of = ${placeholder2})`);
-    this._params.push(documentId, documentId);
-    
+    const idPredicate = this._createPredicate('id', '=', documentId);
+    const oldRevPredicate = this._createPredicate('_old_rev_of', '=', documentId);
+    this._where.push({
+      type: 'group',
+      conjunction: 'OR',
+      predicates: [idPredicate, oldRevPredicate]
+    });
+
     return this;
   }
 
@@ -484,9 +501,9 @@ class QueryBuilder {
       if (this._complexJoins && Object.keys(this._complexJoins).length > 0) {
         return await this._runWithComplexJoins();
       }
-      
-      const query = this._buildSelectQuery();
-      const result = await this.dal.query(query, this._params);
+
+      const { sql, params } = this._buildSelectQuery();
+      const result = await this.dal.query(sql, params);
       
       // Process results with simple joins
       return await this._processResults(result.rows);
@@ -503,7 +520,7 @@ class QueryBuilder {
   async _runWithComplexJoins() {
     // First get the main results
     const mainQuery = this._buildSelectQuery();
-    const mainResult = await this.dal.query(mainQuery, this._params);
+    const mainResult = await this.dal.query(mainQuery.sql, mainQuery.params);
     const mainRows = await this._processResults(mainResult.rows);
     
     // Process each complex join
@@ -954,8 +971,8 @@ class QueryBuilder {
    */
   async count() {
     try {
-      const query = this._buildCountQuery();
-      const result = await this.dal.query(query, this._params);
+      const { sql, params } = this._buildCountQuery();
+      const result = await this.dal.query(sql, params);
       
       return parseInt(result.rows[0].count, 10);
     } catch (error) {
@@ -969,8 +986,8 @@ class QueryBuilder {
    */
   async delete() {
     try {
-      const query = this._buildDeleteQuery();
-      return await this.dal.query(query, this._params);
+      const { sql, params } = this._buildDeleteQuery();
+      return await this.dal.query(sql, params);
     } catch (error) {
       throw convertPostgreSQLError(error);
     }
@@ -988,111 +1005,292 @@ class QueryBuilder {
     } catch (error) {
       throw convertPostgreSQLError(error);
     }
-  }  /**
-   
-* Add a WHERE condition
+  }
+
+  /**
+   * Add a WHERE condition
    * @param {string} field - Field name
    * @param {string} operator - Comparison operator
    * @param {*} value - Comparison value
+   * @param {Object} [options] - Predicate options
+   * @returns {Object} Predicate descriptor
    * @private
    */
-  _addWhereCondition(field, operator, value) {
-    if (operator === 'IS' && value === null) {
-      this._where.push(`${field} IS NULL`);
-    } else if (operator === 'IS NOT' && value === null) {
-      this._where.push(`${field} IS NOT NULL`);
-    } else {
-      const placeholder = `$${this._paramIndex++}`;
-      this._where.push(`${field} ${operator} ${placeholder}`);
-      this._params.push(value);
+  _addWhereCondition(field, operator, value, options = {}) {
+    let effectiveOperator = operator;
+    if (value === null) {
+      if (operator === '=') {
+        effectiveOperator = 'IS';
+      } else if (operator === '!=') {
+        effectiveOperator = 'IS NOT';
+      }
     }
+
+    const predicate = this._createPredicate(field, effectiveOperator, value, options);
+    this._where.push(predicate);
+    return predicate;
+  }
+
+  /**
+   * Create a predicate descriptor without mutating the WHERE clause
+   * @param {string} field - Field reference (optionally qualified)
+   * @param {string} operator - Comparison operator
+   * @param {*} value - Comparison value
+   * @param {Object} options - Predicate options
+   * @param {Function} [options.serializeValue] - Serializer for stored value
+   * @param {string} [options.cast] - Cast to append to placeholder (e.g., 'jsonb')
+   * @param {Function} [options.valueTransform] - Custom placeholder transformer
+   * @returns {Object} Predicate descriptor
+   * @private
+   */
+  _createPredicate(field, operator, value, options = {}) {
+    const { table: explicitTable, column } = this._splitFieldReference(field);
+    const predicate = {
+      type: 'basic',
+      column,
+      operator
+    };
+
+    if (explicitTable) {
+      predicate.table = explicitTable;
+    }
+    if (options.table) {
+      predicate.table = options.table;
+    }
+
+    const serializer = typeof options.serializeValue === 'function' ? options.serializeValue : null;
+    const storedValue = serializer ? serializer(value) : value;
+
+    if ((operator === 'IS' || operator === 'IS NOT') && storedValue === null) {
+      predicate.value = null;
+      return predicate;
+    }
+
+    if (storedValue !== undefined) {
+      predicate.value = storedValue;
+      if (typeof options.valueTransform === 'function') {
+        predicate.valueTransform = options.valueTransform;
+      } else if (options.cast) {
+        predicate.valueTransform = placeholder => `${placeholder}::${options.cast}`;
+      } else {
+        predicate.valueTransform = placeholder => placeholder;
+      }
+    }
+
+    return predicate;
+  }
+
+  _splitFieldReference(field) {
+    if (typeof field !== 'string') {
+      return { table: null, column: field };
+    }
+
+    const dotIndex = field.indexOf('.');
+    if (dotIndex === -1) {
+      return { table: null, column: field };
+    }
+
+    const table = field.slice(0, dotIndex);
+    const column = field.slice(dotIndex + 1);
+    return { table, column };
+  }
+
+  _buildWhereClause({ qualifyColumns = false } = {}) {
+    if (!Array.isArray(this._where) || this._where.length === 0) {
+      this._params = [];
+      this._paramIndex = 1;
+      return { sql: '', params: [] };
+    }
+
+    const params = [];
+    let nextIndex = 1;
+
+    const context = {
+      qualifyColumns,
+      defaultTable: this.tableName,
+      getNextPlaceholder: () => `$${nextIndex++}`,
+      params
+    };
+
+    const fragments = [];
+    for (const predicate of this._where) {
+      const fragment = this._renderPredicate(predicate, context);
+      if (fragment) {
+        fragments.push(fragment);
+      }
+    }
+
+    this._params = params;
+    this._paramIndex = nextIndex;
+
+    return {
+      sql: fragments.join(' AND '),
+      params
+    };
+  }
+
+  _renderPredicate(predicate, context) {
+    if (!predicate) {
+      return '';
+    }
+
+    if (predicate.type === 'group') {
+      const conjunction = predicate.conjunction || 'AND';
+      const inner = [];
+      for (const child of predicate.predicates || []) {
+        const rendered = this._renderPredicate(child, context);
+        if (rendered) {
+          inner.push(rendered);
+        }
+      }
+      if (inner.length === 0) {
+        return '';
+      }
+      return `(${inner.join(` ${conjunction} `)})`;
+    }
+
+    if (predicate.type === 'raw' && predicate.sql) {
+      // Raw predicates may contribute their own parameters
+      if (Array.isArray(predicate.values)) {
+        for (const value of predicate.values) {
+          context.params.push(value);
+        }
+      }
+      return predicate.sql;
+    }
+
+    return this._renderBasicPredicate(predicate, context);
+  }
+
+  _renderBasicPredicate(predicate, context) {
+    const columnSql = this._qualifyColumn(predicate, context);
+    const { operator } = predicate;
+
+    if ((operator === 'IS' || operator === 'IS NOT') && predicate.value === null) {
+      return `${columnSql} ${operator} NULL`;
+    }
+
+    if (predicate.value === undefined) {
+      return `${columnSql} ${operator}`;
+    }
+
+    const placeholder = context.getNextPlaceholder();
+    context.params.push(predicate.value);
+
+    const transform = typeof predicate.valueTransform === 'function'
+      ? predicate.valueTransform
+      : (value => value);
+    const valueSql = transform(placeholder);
+
+    return `${columnSql} ${operator} ${valueSql}`;
+  }
+
+  _qualifyColumn(predicate, context) {
+    const { column } = predicate;
+    if (!column || typeof column !== 'string') {
+      return column;
+    }
+
+    if (predicate.table) {
+      return `${predicate.table}.${column}`;
+    }
+
+    if (!context.qualifyColumns) {
+      return column;
+    }
+
+    if (column.includes('.') || column.includes('(')) {
+      return column;
+    }
+
+    return `${context.defaultTable}.${column}`;
+  }
+
+  _isRevisionFilterPredicate(predicate) {
+    if (!predicate) {
+      return false;
+    }
+
+    if (predicate.type === 'basic') {
+      return predicate.column === '_old_rev_of' || predicate.column === '_rev_deleted';
+    }
+
+    return false;
   }
 
   /**
    * Build SELECT query
-   * @returns {string} SQL query
+   * @returns {{ sql: string, params: Array }} SQL query and parameters
    * @private
    */
   _buildSelectQuery() {
-    // Use qualified column names when we have joins
     let selectClause = this._select.join(', ');
     if (this._joins.length > 0 && this._select.includes('*')) {
-      // Replace * with qualified main table columns to avoid ambiguity
       selectClause = `${this.tableName}.*`;
     }
-    
+
     let query = `SELECT ${selectClause} FROM ${this.tableName}`;
-    
-    // Add JOINs
+
     if (this._joins.length > 0) {
       query += ' ' + this._joins.join(' ');
     }
-    
-    // Add WHERE clause with qualified column names
-    if (this._where.length > 0) {
-      const qualifiedWhere = this._where.map(condition => {
-        // Qualify column names that don't already have table prefixes
-        if (!condition.includes('.') && !condition.includes('(')) {
-          // Simple column references - qualify with main table name
-          return condition.replace(/^(\w+)/, `${this.tableName}.$1`);
-        }
-        return condition;
-      });
-      query += ' WHERE ' + qualifiedWhere.join(' AND ');
+
+    const where = this._buildWhereClause({ qualifyColumns: true });
+    if (where.sql) {
+      query += ' WHERE ' + where.sql;
     }
-    
-    // Add ORDER BY with qualified column names
+
     if (this._orderBy.length > 0) {
       const qualifiedOrderBy = this._orderBy.map(orderClause => {
-        // Qualify column names in ORDER BY
+        if (orderClause.includes('.') || orderClause.includes('(')) {
+          return orderClause;
+        }
         return orderClause.replace(/^(\w+)/, `${this.tableName}.$1`);
       });
       query += ' ORDER BY ' + qualifiedOrderBy.join(', ');
     }
-    
-    // Add LIMIT
+
     if (this._limit !== null) {
       query += ` LIMIT ${this._limit}`;
     }
-    
-    // Add OFFSET
+
     if (this._offset !== null) {
       query += ` OFFSET ${this._offset}`;
     }
-    
-    return query;
+
+    return { sql: query, params: where.params };
   }
 
   /**
    * Build COUNT query
-   * @returns {string} SQL query
+   * @returns {{ sql: string, params: Array }} SQL query and parameters
    * @private
    */
   _buildCountQuery() {
     let query = `SELECT COUNT(*) as count FROM ${this.tableName}`;
-    
-    // Add WHERE clause
-    if (this._where.length > 0) {
-      query += ' WHERE ' + this._where.join(' AND ');
+
+    const where = this._buildWhereClause();
+    if (where.sql) {
+      query += ' WHERE ' + where.sql;
     }
-    
-    return query;
+
+    return { sql: query, params: where.params };
   }
 
   /**
    * Build DELETE query
-   * @returns {string} SQL query
+   * @returns {{ sql: string, params: Array }} SQL query and parameters
    * @private
    */
   _buildDeleteQuery() {
     let query = `DELETE FROM ${this.tableName}`;
-    
-    // Add WHERE clause
-    if (this._where.length > 0) {
-      query += ' WHERE ' + this._where.join(' AND ');
+
+    const where = this._buildWhereClause();
+    if (where.sql) {
+      query += ' WHERE ' + where.sql;
     }
-    
-    return query;
+
+    return { sql: query, params: where.params };
   }
 
   /**

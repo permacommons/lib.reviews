@@ -76,12 +76,17 @@ test('QueryBuilder supports revision filtering', t => {
   
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filterNotStaleOrDeleted();
-  
+
   t.is(result, qb); // Should return self for chaining
   t.true(qb._where.length > 0);
-  // Should have conditions for _old_rev_of IS NULL and _rev_deleted = false
-  t.true(qb._where.some(condition => condition.includes('_old_rev_of IS NULL')));
-  t.true(qb._where.some(condition => condition.includes('_rev_deleted')));
+  const oldRevisionPredicate = qb._where.find(predicate => predicate.column === '_old_rev_of');
+  t.truthy(oldRevisionPredicate);
+  t.is(oldRevisionPredicate.operator, 'IS');
+
+  const deletedPredicate = qb._where.find(predicate => predicate.column === '_rev_deleted');
+  t.truthy(deletedPredicate);
+  t.is(deletedPredicate.operator, '=');
+  t.false(deletedPredicate.value);
 });
 
 test('QueryBuilder supports revision tag filtering', t => {
@@ -91,11 +96,15 @@ test('QueryBuilder supports revision tag filtering', t => {
   
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filterByRevisionTags(['test-tag']);
-  
+
   t.is(result, qb); // Should return self for chaining
   t.true(qb._where.length > 0);
-  t.true(qb._params.length > 0);
-  t.deepEqual(qb._params[0], ['test-tag']);
+  const tagPredicate = qb._where[0];
+  t.is(tagPredicate.operator, '&&');
+  t.deepEqual(tagPredicate.value, ['test-tag']);
+
+  const { params } = qb._buildSelectQuery();
+  t.deepEqual(params, [['test-tag']]);
 });
 
 test('QueryBuilder supports between date ranges', t => {
@@ -108,11 +117,12 @@ test('QueryBuilder supports between date ranges', t => {
   
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.between(startDate, endDate);
-  
+
   t.is(result, qb); // Should return self for chaining
   t.true(qb._where.length >= 2); // Should have start and end conditions
-  t.true(qb._params.includes(startDate));
-  t.true(qb._params.includes(endDate));
+  const { params: betweenParams } = qb._buildSelectQuery();
+  t.true(betweenParams.includes(startDate));
+  t.true(betweenParams.includes(endDate));
 });
 
 test('QueryBuilder supports array contains operations', t => {
@@ -122,11 +132,16 @@ test('QueryBuilder supports array contains operations', t => {
   
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.contains('urls', 'https://example.com');
-  
+
   t.is(result, qb); // Should return self for chaining
   t.true(qb._where.length > 0);
-  t.true(qb._params.includes('https://example.com'));
-  t.true(qb._where.some(condition => condition.includes('@>')));
+  const containsPredicate = qb._where[0];
+  t.is(containsPredicate.operator, '@>');
+  t.deepEqual(containsPredicate.value, ['https://example.com']);
+
+  const { sql, params } = qb._buildSelectQuery();
+  t.true(sql.includes('::text[]'));
+  t.deepEqual(params, [['https://example.com']]);
 });
 
 test('QueryBuilder supports simple joins', t => {
@@ -172,14 +187,15 @@ test('QueryBuilder builds SELECT queries correctly', t => {
   qb.limit(10);
   qb.offset(5);
   
-  const query = qb._buildSelectQuery();
-  
-  t.true(query.includes('SELECT'));
-  t.true(query.includes('FROM test_table'));
-  t.true(query.includes('WHERE'));
-  t.true(query.includes('ORDER BY test_table.created_on DESC'));
-  t.true(query.includes('LIMIT 10'));
-  t.true(query.includes('OFFSET 5'));
+  const { sql: selectSql, params: selectParams } = qb._buildSelectQuery();
+
+  t.true(selectSql.includes('SELECT'));
+  t.true(selectSql.includes('FROM test_table'));
+  t.true(selectSql.includes('WHERE'));
+  t.true(selectSql.includes('ORDER BY test_table.created_on DESC'));
+  t.true(selectSql.includes('LIMIT 10'));
+  t.true(selectSql.includes('OFFSET 5'));
+  t.deepEqual(selectParams, ['test-id']);
 });
 
 test('QueryBuilder builds COUNT queries correctly', t => {
@@ -190,11 +206,12 @@ test('QueryBuilder builds COUNT queries correctly', t => {
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
   
-  const query = qb._buildCountQuery();
-  
-  t.true(query.includes('SELECT COUNT(*)'));
-  t.true(query.includes('FROM test_table'));
-  t.true(query.includes('WHERE'));
+  const { sql: countSql, params: countParams } = qb._buildCountQuery();
+
+  t.true(countSql.includes('SELECT COUNT(*)'));
+  t.true(countSql.includes('FROM test_table'));
+  t.true(countSql.includes('WHERE'));
+  t.deepEqual(countParams, ['test-id']);
 });
 
 test('QueryBuilder builds DELETE queries correctly', t => {
@@ -205,10 +222,11 @@ test('QueryBuilder builds DELETE queries correctly', t => {
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
   
-  const query = qb._buildDeleteQuery();
-  
-  t.true(query.includes('DELETE FROM test_table'));
-  t.true(query.includes('WHERE'));
+  const { sql: deleteSql, params: deleteParams } = qb._buildDeleteQuery();
+
+  t.true(deleteSql.includes('DELETE FROM test_table'));
+  t.true(deleteSql.includes('WHERE'));
+  t.deepEqual(deleteParams, ['test-id']);
 });
 
 test('QueryBuilder handles join information lookup', t => {

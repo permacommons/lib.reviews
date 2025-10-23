@@ -110,7 +110,7 @@ test.serial('QueryBuilder builds join SQL using model metadata', t => {
   if (skipIfNoModels(t)) return;
 
   const userQuery = User.getJoin({ teams: true });
-  const userSql = userQuery._buildSelectQuery();
+  const { sql: userSql } = userQuery._buildSelectQuery();
 
   const usersTable = dalFixture.getTableName('users');
   const teamMembersTable = dalFixture.getTableName('team_members');
@@ -126,7 +126,7 @@ test.serial('QueryBuilder builds join SQL using model metadata', t => {
   );
 
   const reviewQuery = Review.getJoin({ thing: true, creator: true });
-  const reviewSql = reviewQuery._buildSelectQuery();
+  const { sql: reviewSql } = reviewQuery._buildSelectQuery();
   const reviewsTable = dalFixture.getTableName('reviews');
   const thingsTable = dalFixture.getTableName('things');
 

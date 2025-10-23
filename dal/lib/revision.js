@@ -279,12 +279,9 @@ const revision = {
       
       // Add condition for multiple IDs
       if (idArray.length > 0) {
-        const placeholders = idArray.map((_, index) => `$${index + 1}`).join(', ');
-        query._where.push(`id IN (${placeholders})`);
-        query._params.push(...idArray);
-        query._paramIndex = idArray.length + 1;
+        query.whereIn('id', idArray, { cast: 'uuid[]' });
       }
-      
+
       return query.filterNotStaleOrDeleted();
     };
     
