@@ -20,19 +20,6 @@ work with.
 - **Test isolation without pollution** – fixtures may create isolated DALs, but
   that wiring must remain outside production paths.
 
-## Current Architecture Snapshot
-
-- `bootstrap/dal.js` owns connection setup, migrations, model registration, and
-  shutdown.
-- Models export synchronous handles backed by the registered model plus an
-  `initializeModel(dal)` helper for fixtures.
-- `dal/lib/model-factory.js` ensures every initializer reuses an existing model
-  when the DAL already knows about the table, preventing duplicate
-  registrations.
-
-This baseline is in place; the remaining work focuses on completing feature
-coverage and tightening ergonomics.
-
 ## Roadmap Phases
 
 ### Phase 1 – Finish the PostgreSQL Cutover
@@ -59,14 +46,6 @@ coverage and tightening ergonomics.
 - ✅ `getOrCreateModel` prevents duplicate registrations across production and
      test DALs.
 
-### Phase 3.5 – DAL Ergonomics & Test Harness (planned)
-
-- **Documented contracts** – publish JSDoc or TypeScript definitions for core
-  DAL interfaces (`DataAccessLayer`, `Model`, `QueryBuilder`, helpers).
-- **Constructor ergonomics** – ensure passing an object into `new Model({...})`
-  automatically routes through accessors so `_changed` is tracked without
-  manual reassignments.
-
 ### Phase 4 – Optional Backend Generalisation
 
 - Define a capability contract if additional backends ever matter.
@@ -74,14 +53,3 @@ coverage and tightening ergonomics.
   abstractions.
 - Explore lightweight secondary backends (e.g., SQLite for tests) only if the
   primary Postgres path remains simple.
-
-## Open Questions
-
-- Which pieces of the public DAL API need documentation or typing to reduce
-  onboarding friction?
-- What is the minimum surface area a future model registry should expose
-  (lookup, list, metrics, etc.)?
-- How do we package the forthcoming test harness so CLI tools, scripts, and
-  AVA fixtures can share it without leaking into production code?
-
-Keep this document up to date when phases progress or priorities shift.
