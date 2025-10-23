@@ -105,7 +105,6 @@ async function initializeThingModel(customDAL = null) {
     Thing.getLabel = getLabel;
 
     // Add instance methods
-    Thing.define("newRevision", revision.getNewRevisionHandler(Thing));
     Thing.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(Thing));
     Thing.define("initializeFieldsFromAdapter", initializeFieldsFromAdapter);
     Thing.define("populateUserInfo", populateUserInfo);

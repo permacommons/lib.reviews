@@ -92,7 +92,6 @@ async function initializeUserMetaModel(customDAL = null) {
     UserMeta.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(UserMeta);
     UserMeta.getMultipleNotStaleOrDeleted = revision.getMultipleNotStaleOrDeletedHandler(UserMeta);
 
-    UserMeta.define('newRevision', revision.getNewRevisionHandler(UserMeta));
     UserMeta.define('deleteAllRevisions', revision.getDeleteAllRevisionsHandler(UserMeta));
 
     currentDAL = dal;

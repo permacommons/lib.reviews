@@ -69,7 +69,6 @@ async function initializeBlogPostModel(customDAL = null) {
     BlogPost.getMostRecentBlogPosts = getMostRecentBlogPosts;
     BlogPost.getMostRecentBlogPostsBySlug = getMostRecentBlogPostsBySlug;
 
-    BlogPost.define('newRevision', revision.getNewRevisionHandler(BlogPost));
     BlogPost.define('deleteAllRevisions', revision.getDeleteAllRevisionsHandler(BlogPost));
     BlogPost.define('populateUserInfo', populateUserInfo);
 

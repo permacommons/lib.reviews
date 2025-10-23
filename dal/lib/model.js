@@ -9,6 +9,7 @@
 
 const QueryBuilder = require('./query-builder');
 const { DocumentNotFound, ValidationError, convertPostgreSQLError } = require('./errors');
+const revision = require('./revision');
 const debug = require('../../util/debug');
 
 /**
@@ -259,6 +260,13 @@ class Model {
    */
   static define(name, method) {
     this.prototype[name] = method;
+    
+    if (name === 'newRevision' || name === 'deleteAllRevisions') {
+      if (!this._revisionHandlers) {
+        this._revisionHandlers = {};
+      }
+      this._revisionHandlers[name] = method;
+    }
   }
 
   /**
@@ -317,8 +325,38 @@ class Model {
    * @param {Object} options - Revision options
    * @returns {Promise<Model>} New revision instance
    */
+  static _ensureRevisionHandler(handlerName) {
+    if (!this._revisionHandlers) {
+      this._revisionHandlers = {};
+    }
+
+    if (this._revisionHandlers[handlerName]) {
+      return this._revisionHandlers[handlerName];
+    }
+
+    const hasRevisionFields = this.schema && Object.prototype.hasOwnProperty.call(this.schema, '_rev_id');
+    if (!hasRevisionFields) {
+      const modelName = this.tableName || this.name || 'Model';
+      throw new Error(`Revision support is not enabled for ${modelName}`);
+    }
+
+    switch (handlerName) {
+      case 'newRevision':
+        this._revisionHandlers.newRevision = revision.getNewRevisionHandler(this);
+        break;
+      case 'deleteAllRevisions':
+        this._revisionHandlers.deleteAllRevisions = revision.getDeleteAllRevisionsHandler(this);
+        break;
+      default:
+        throw new Error(`Unknown revision handler requested: ${handlerName}`);
+    }
+
+    return this._revisionHandlers[handlerName];
+  }
+
   async newRevision(user, options = {}) {
-    throw new Error('newRevision method not implemented. Use revision.getNewRevisionHandler() to add this method.');
+    const handler = this.constructor._ensureRevisionHandler('newRevision');
+    return handler.call(this, user, options);
   }
 
   /**
@@ -329,7 +367,8 @@ class Model {
    * @returns {Promise<Model>} Deletion revision
    */
   async deleteAllRevisions(user, options = {}) {
-    throw new Error('deleteAllRevisions method not implemented. Use revision.getDeleteAllRevisionsHandler() to add this method.');
+    const handler = this.constructor._ensureRevisionHandler('deleteAllRevisions');
+    return handler.call(this, user, options);
   }
 
   /**

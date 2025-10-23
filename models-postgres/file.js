@@ -85,7 +85,6 @@ async function initializeFileModel(customDAL = null) {
     File.getFileFeed = getFileFeed;
 
     // Add instance methods
-    File.define("newRevision", revision.getNewRevisionHandler(File));
     File.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(File));
     File.define("populateUserInfo", populateUserInfo);
 

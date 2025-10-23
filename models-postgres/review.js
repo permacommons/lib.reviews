@@ -103,7 +103,6 @@ async function initializeReviewModel(customDAL = null) {
     Review.getFeed = getFeed;
 
     // Add instance methods
-    Review.define("newRevision", revision.getNewRevisionHandler(Review));
     Review.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(Review));
     Review.define("populateUserInfo", populateUserInfo);
     Review.define("deleteAllRevisionsWithThing", deleteAllRevisionsWithThing);

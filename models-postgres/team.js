@@ -101,7 +101,6 @@ async function initializeTeamModel(customDAL = null) {
     Team.getWithData = getWithData;
 
     // Add instance methods
-    Team.define("newRevision", revision.getNewRevisionHandler(Team));
     Team.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(Team));
     Team.define("populateUserInfo", populateUserInfo);
 
