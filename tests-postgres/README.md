@@ -86,50 +86,49 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 ## Writing PostgreSQL Tests
 
-1. **One fixture per file**
+1. **Use the shared setup helper**
    ```js
-   import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
+   import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
-   process.env.NODE_APP_INSTANCE = 'testing-X';
-   const dalFixture = createDALFixtureAVA('testing-X');
+   const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+     instance: 'testing-3',
+     tableSuffix: 'feature-under-test',
+     cleanupTables: ['users', 'things']
+   });
    ```
 
-2. **Bootstrap (schema is auto-provisioned)**
-   ```js
-   await dalFixture.bootstrap(); // establishes the pool and runs migrations in an isolated schema
-   ```
+   The helper applies standard environment defaults, wires up `test.before/after`
+   hooks, and provisions custom tables when `tableDefs` are supplied. Use
+   `skipIfUnavailable(t)` in hooks or tests to bail out cleanly when PostgreSQL
+   is not reachable.
 
-   The fixture creates a dedicated schema per test worker (e.g. `test_testing_4_adapter_functionality`), runs the real migrations from
-   `migrations/`, and sets the connection `search_path` so the DAL interacts with that schema transparently. Tables are created
-   automatically from migrations.
-
-3. **Load real models**
+2. **Models are loaded after bootstrap**
    ```js
-   const { User } = await dalFixture.initializeModels([
-     { key: 'users', alias: 'User' }
-   ]);
+   test.before(async t => {
+     if (skipIfUnavailable(t)) return;
+
+     const { User } = await dalFixture.initializeModels([
+       { key: 'users', alias: 'User' }
+     ]);
+     // ...
+   });
    ```
 
    The fixture configures table prefixes automatically; requesting the `users`
    model returns the version scoped to the worker schema (e.g.
    `test_testing_3_users`).
 
-4. **Create test data using helpers**
+3. **Create test data using helpers**
    ```js
    // Use the fixture helper to create test users
    const { actor: testUser } = await dalFixture.createTestUser('Test User Name');
    ```
 
-5. **Clean up aggressively**
-   ```js
-   test.beforeEach(async () => {
-     await dalFixture.cleanupTables(['users', 'things', 'reviews']);
-   });
+4. **Cleanup runs automatically**
 
-   test.after.always(async () => {
-     await dalFixture.cleanup();
-   });
-   ```
+   The setup helper truncates the tables listed in `cleanupTables` before each
+   test and tears down connections (including dropping ad-hoc tables declared in
+   `tableDefs`) after the suite finishes.
 
 6. **Skip gracefully when PostgreSQL is unavailable**
    Wrap the setup in a `try/catch` and `t.pass()` with a message so local runs
@@ -148,7 +147,7 @@ PostgreSQL-only (`LIBREVIEWS_SKIP_RETHINK=1` by default).
 ### Concurrency & teardown gotchas
 
 - Test files share AVA workers; anything that touches the same tables needs either unique schema suffixes (`createDALFixtureAVA('slot', { tableSuffix: 'feature' })`) **or** to run serially (`test.serial`). Mixing parallel tests with shared fixture state is the fastest way to get intermittent “missing row” failures.
-- Always call `dalFixture.cleanupTables()` in `beforeEach` and `dalFixture.cleanup()` in `after.always`; skipping even one cleanup leaves connections open and can block the AVA worker from exiting (manifests as “Failed to exit” timeouts).
+- The shared helper truncates registered tables automatically. If you opt out of `cleanupTables`, make sure to clear data manually; lingering rows or connections manifest as “Failed to exit” timeouts.
 - If a suite performs asynchronous teardown beyond the fixture cleanup (e.g., awaiting mock servers), register an AVA `registerCompletionHandler` so the worker exits only after your teardown finishes. See `tests-postgres/21-slug-helpers.mjs` for a minimal example of using the completion handler to avoid lingering sockets that would otherwise trigger the “Failed to exit” timeout.
 - When stubbing modules such as `../search`, remember to delete them from `require.cache` in `after.always` so following tests see the real implementation.
 - For PostgreSQL model tests that mutate shared tables (e.g. comprehensive integration suites), prefer serial tests (`test.serial(...)`) to avoid racing `cleanupTables()` calls across concurrent workers.

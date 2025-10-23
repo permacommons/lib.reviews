@@ -1,21 +1,15 @@
 import test, { registerCompletionHandler } from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
-// Standard env settings
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-2'; // Use testing-2 for search tests
-
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
-
-// Test setup
-const { createDALFixtureAVA } = await import('./fixtures/dal-fixture-ava.mjs');
-const dalFixture = createDALFixtureAVA('testing-2', { tableSuffix: 'search_integration' });
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-2',
+  tableSuffix: 'search_integration',
+  cleanupTables: ['users', 'things', 'reviews']
+});
 
 // Track indexing operations
 let indexedItems = [];
@@ -32,6 +26,8 @@ const ensureUserExists = async (id, name = 'Test User') => {
 };
 
 test.before(async t => {
+  if (skipIfUnavailable(t)) return;
+
   // Mock search module to capture indexing operations
   const searchPath = require.resolve('../search');
   require.cache[searchPath] = {
@@ -58,10 +54,8 @@ test.before(async t => {
       getClient: () => ({})
     }
   };
-  
-  try {
-    await dalFixture.bootstrap();
 
+  try {
     // Ensure UUID generation helper exists
     try {
       await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
@@ -84,9 +78,6 @@ test.before(async t => {
 });
 
 test.beforeEach(async t => {
-  // Clean up tables between tests
-  await dalFixture.cleanupTables(['users', 'things', 'reviews']);
-  
   // Clear indexed items before each test
   indexedItems.length = 0;
 });
@@ -94,7 +85,6 @@ test.beforeEach(async t => {
 test.after.always(async () => {
   const searchPath = require.resolve('../search');
   delete require.cache[searchPath];
-  await dalFixture.cleanup();
 });
 
 // Ensure the AVA worker exits promptly after asynchronous teardown completes.
@@ -104,6 +94,7 @@ registerCompletionHandler(() => {
 });
 
 function skipIfNoModels(t) {
+  if (skipIfUnavailable(t)) return true;
   if (!dalFixture.Thing || !dalFixture.Review) {
     t.pass('Skipping - PostgreSQL models not available');
     return true;

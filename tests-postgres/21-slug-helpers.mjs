@@ -1,28 +1,24 @@
 import test, { registerCompletionHandler } from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
-import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
-
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-if (!process.env.NODE_APP_INSTANCE) {
-  process.env.NODE_APP_INSTANCE = 'testing-6';
-}
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
-const slugs = require('../routes/helpers/slugs');
 
-const dalFixture = createDALFixtureAVA('testing-6', { tableSuffix: 'slug_helpers' });
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-6',
+  tableSuffix: 'slug_helpers',
+  cleanupTables: ['thing_slugs', 'reviews', 'things', 'users']
+});
+
+const slugs = require('../routes/helpers/slugs');
 
 let User, Thing;
 
 test.before(async t => {
-  try {
-    await dalFixture.bootstrap();
+  if (skipIfUnavailable(t)) return;
 
+  try {
     const models = await dalFixture.initializeModels([
       { key: 'users', alias: 'User' },
       { key: 'things', alias: 'Thing' },
@@ -33,15 +29,8 @@ test.before(async t => {
     Thing = models.Thing;
   } catch (error) {
     t.log('Skipping slug helper tests - PostgreSQL DAL unavailable:', error.message);
+    t.pass('Skipping tests - PostgreSQL not configured');
   }
-});
-
-test.beforeEach(async () => {
-  await dalFixture.cleanupTables(['thing_slugs', 'reviews', 'things', 'users']);
-});
-
-test.after.always(async () => {
-  await dalFixture.cleanup();
 });
 
 registerCompletionHandler(() => {
@@ -50,6 +39,7 @@ registerCompletionHandler(() => {
 });
 
 function skipIfNoModels(t) {
+  if (skipIfUnavailable(t)) return true;
   if (!User || !Thing) {
     t.pass('Skipping - PostgreSQL DAL not available');
     return true;

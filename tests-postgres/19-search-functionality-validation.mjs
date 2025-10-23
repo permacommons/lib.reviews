@@ -1,24 +1,16 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
-// Standard env settings
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-2'; // Use testing-2 for search tests
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-2',
+  tableSuffix: 'search_validation',
+  cleanupTables: ['users', 'things', 'reviews']
+});
 
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
-
-// Test setup
-const { createDALFixtureAVA } = await import('./fixtures/dal-fixture-ava.mjs');
-const dalFixture = createDALFixtureAVA('testing-2', { tableSuffix: 'search_validation' });
-
-let skipTests = false;
-let skipReason = null;
 let searchPath;
 let previousSearchCache;
 
@@ -44,6 +36,8 @@ const ensureUserExists = async (id, name = 'Test User') => {
 };
 
 test.before(async t => {
+  if (skipIfUnavailable(t)) return;
+
   // Prepare mocked search module to capture search operations
   searchPath = require.resolve('../search');
   previousSearchCache = require.cache[searchPath];
@@ -75,17 +69,8 @@ test.before(async t => {
       close: () => {}
     }
   };
-  
+
   try {
-    await dalFixture.bootstrap();
-
-    if (!dalFixture.isConnected()) {
-      skipTests = true;
-      skipReason = dalFixture.getSkipReason() || 'PostgreSQL not configured';
-      t.log(`PostgreSQL not available, skipping search validation tests: ${skipReason}`);
-      return;
-    }
-
     // Ensure UUID generation helper exists
     try {
       await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
@@ -102,18 +87,12 @@ test.before(async t => {
     dalFixture.Review = models.Review;
     
   } catch (error) {
-    skipTests = true;
-    skipReason = error.message || 'PostgreSQL not configured';
-    t.log(`PostgreSQL not available, skipping search validation tests: ${skipReason}`);
+    t.log(`PostgreSQL not available, skipping search validation tests: ${error.message || 'PostgreSQL not configured'}`);
+    t.pass('Skipping tests - PostgreSQL not configured');
   }
 });
 
 test.beforeEach(async t => {
-  if (skipTests) return;
-
-  // Clean up tables between tests
-  await dalFixture.cleanupTables(['users', 'things', 'reviews']);
-  
   // Clear captured queries before each test
   searchQueries.length = 0;
   searchResults.length = 0;
@@ -135,16 +114,10 @@ test.after.always(async t => {
     }
   }
   
-  await dalFixture.cleanup();
 });
 
 function skipIfNoModels(t) {
-  if (skipTests) {
-    const reason = skipReason || 'PostgreSQL not configured';
-    t.log(`Skipping - ${reason}`);
-    t.pass(`Skipping - ${reason}`);
-    return true;
-  }
+  if (skipIfUnavailable(t)) return true;
   if (!dalFixture.Thing || !dalFixture.Review) {
     t.pass('Skipping - PostgreSQL models not available');
     return true;

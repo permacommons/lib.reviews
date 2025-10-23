@@ -41,19 +41,37 @@ class DALFixtureAVA {
     this.connected = false;
     this.bootstrapError = null;
     this.skipReason = null;
+    this.managedTables = [];
   }
 
   /**
    * Bootstrap the DAL with PostgreSQL connection and models
    * Uses NODE_APP_INSTANCE to determine which test database to connect to
-   * @param {Array} modelDefinitions - Array of model definitions to create
+   * @param {Object|Array} [options] - Bootstrap options or legacy model definitions array
    */
-  async bootstrap(modelDefinitions = []) {
+  async bootstrap(options = []) {
     this.bootstrapError = null;
     this.skipReason = null;
 
-    if (!process.env.NODE_APP_INSTANCE) {
-      process.env.NODE_APP_INSTANCE = this.testInstance;
+    const legacyModelDefs = Array.isArray(options) ? options : null;
+    const normalizedOptions =
+      options && !Array.isArray(options) ? { ...options } : {};
+    if (legacyModelDefs) {
+      normalizedOptions.modelDefs = legacyModelDefs;
+    }
+
+    const envDefaults = {
+      NODE_ENV: 'development',
+      NODE_CONFIG_DISABLE_WATCH: 'Y',
+      LIBREVIEWS_SKIP_RETHINK: '1',
+      NODE_APP_INSTANCE: this.testInstance
+    };
+
+    const envConfig = { ...envDefaults, ...(normalizedOptions.env || {}) };
+
+    for (const [key, value] of Object.entries(envConfig)) {
+      if (value === undefined) continue;
+      process.env[key] = value;
     }
 
     logNotice(`Loading PostgreSQL DAL configuration for AVA instance ${this.testInstance}.`);
@@ -82,6 +100,10 @@ class DALFixtureAVA {
 
     logOK('PostgreSQL DAL connected for AVA tests.');
 
+    const modelDefinitions = Array.isArray(normalizedOptions.modelDefs)
+      ? normalizedOptions.modelDefs
+      : [];
+
     if (modelDefinitions.length > 0) {
       const revision = require('../../dal/lib/revision');
       const { getOrCreateModel } = require('../../dal/lib/model-factory');
@@ -108,6 +130,18 @@ class DALFixtureAVA {
       }
 
       logOK(`Created ${modelDefinitions.length} DAL models for AVA tests.`);
+    }
+
+    const tableDefinitions = normalizedOptions.tableDefs;
+    if (Array.isArray(tableDefinitions) && tableDefinitions.length > 0) {
+      await this.createTestTables(tableDefinitions);
+      const managed = tableDefinitions
+        .map(def => def?.name)
+        .filter(Boolean);
+      if (managed.length > 0) {
+        const unique = new Set([...this.managedTables, ...managed]);
+        this.managedTables = Array.from(unique);
+      }
     }
 
     this.loaded = true;
@@ -188,6 +222,15 @@ class DALFixtureAVA {
    */
   async cleanup(options = {}) {
     logNotice('Cleaning up PostgreSQL DAL for AVA tests.');
+
+    if (this.dal && this.connected && this.managedTables.length > 0) {
+      const shouldDrop = options.dropTables !== false;
+      if (shouldDrop) {
+        const toDrop = [...this.managedTables].reverse();
+        await this.dropTestTables(toDrop);
+        this.managedTables = [];
+      }
+    }
 
     if (this.harness) {
       try {

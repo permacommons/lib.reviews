@@ -1,21 +1,15 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
-// Standard env settings
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-2'; // Use testing-2 for search tests
-
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
-
-// Test setup
-const { createDALFixtureAVA } = await import('./fixtures/dal-fixture-ava.mjs');
-const dalFixture = createDALFixtureAVA('testing-2', { tableSuffix: 'search_indexing' });
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-2',
+  tableSuffix: 'search_indexing',
+  cleanupTables: ['users', 'things', 'reviews']
+});
 
 // Mock search module to capture indexing calls
 let indexedThings = [];
@@ -54,9 +48,8 @@ test.before(async t => {
   };
   
   try {
-    await dalFixture.bootstrap();
+    if (skipIfUnavailable(t)) return;
 
-    // Ensure UUID generation helper exists
     try {
       await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
     } catch (extensionError) {
@@ -70,7 +63,7 @@ test.before(async t => {
 
     dalFixture.Thing = models.Thing;
     dalFixture.Review = models.Review;
-    
+
   } catch (error) {
     t.log('PostgreSQL not available, skipping search indexing tests:', error.message);
     t.pass('Skipping tests - PostgreSQL not configured');
@@ -78,9 +71,6 @@ test.before(async t => {
 });
 
 test.beforeEach(async t => {
-  // Clean up tables between tests
-  await dalFixture.cleanupTables(['users', 'things', 'reviews']);
-  
   // Clear captured calls before each test
   indexedThings.length = 0;
   indexedReviews.length = 0;
@@ -91,11 +81,10 @@ test.after.always(async t => {
   // Clean up the mocked search module from require cache
   const searchPath = require.resolve('../search');
   delete require.cache[searchPath];
-  
-  await dalFixture.cleanup();
 });
 
 function skipIfNoModels(t) {
+  if (skipIfUnavailable(t)) return true;
   if (!dalFixture.Thing || !dalFixture.Review) {
     t.pass('Skipping - PostgreSQL models not available');
     return true;

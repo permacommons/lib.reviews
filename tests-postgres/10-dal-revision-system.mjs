@@ -15,7 +15,7 @@
  */
 import test from 'ava';
 import isUUID from 'is-uuid';
-import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 import { 
   getTestModelDefinitionsAVA, 
   getTestTableDefinitionsAVA, 
@@ -27,42 +27,14 @@ import {
   verifyTestIsolation
 } from './helpers/dal-helpers-ava.mjs';
 
-// Standard env settings
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-// Use testing-1 slot for DAL tests to avoid conflicts with other AVA tests
-process.env.NODE_APP_INSTANCE = 'testing-1';
-
-const dalFixture = createDALFixtureAVA('testing-1', { tableSuffix: 'revision_system' });
+const { dalFixture } = setupPostgresTest(test, {
+  instance: 'testing-1',
+  tableSuffix: 'revision_system',
+  modelDefs: getTestModelDefinitionsAVA,
+  tableDefs: getTestTableDefinitionsAVA,
+  cleanupTables: ['revisions', 'users']
+});
 const testUser = getTestUserDataAVA();
-
-test.before(async t => {
-  try {
-    // Bootstrap DAL with test models
-    const modelDefs = getTestModelDefinitionsAVA();
-    await dalFixture.bootstrap(modelDefs);
-    
-    // Create test tables
-    const tableDefs = getTestTableDefinitionsAVA();
-    await dalFixture.createTestTables(tableDefs);
-  } catch (error) {
-    // Skip tests if PostgreSQL is not available
-    t.log('PostgreSQL not available, skipping DAL revision system tests:', error.message);
-    t.pass('Skipping tests - PostgreSQL not configured');
-  }
-});
-
-test.after.always(async t => {
-  // Clean up test tables
-  await dalFixture.dropTestTables(['revisions', 'users']);
-  await dalFixture.cleanup();
-});
-
-// Use serial tests to ensure proper isolation
-test.beforeEach(async t => {
-  // Clean up test data before each test to ensure isolation
-  await dalFixture.cleanupTables(['revisions', 'users']);
-});
 
 test.serial('DAL revision system: can create first revision with PostgreSQL partial indexes', async t => {
   const TestModel = dalFixture.getModel('revisions');

@@ -1,19 +1,15 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
-import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
-// Standard env settings for AVA worker
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-4'; // Use testing-4 as per README pattern
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
-
-const dalFixture = createDALFixtureAVA('testing-4', { tableSuffix: 'adapter_functionality' });
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-4',
+  tableSuffix: 'adapter_functionality',
+  cleanupTables: ['things', 'users']
+});
 
 let Thing;
 let adapters, WikidataBackendAdapter, OpenLibraryBackendAdapter;
@@ -30,6 +26,8 @@ const ensureUserExists = async (id, name = 'Test User') => {
 };
 
 test.before(async t => {
+  if (skipIfUnavailable(t)) return;
+
   // Stub search module to avoid starting Elasticsearch clients during tests
   const searchPath = require.resolve('../search');
   require.cache[searchPath] = {
@@ -41,59 +39,27 @@ test.before(async t => {
   };
 
   try {
-    await dalFixture.bootstrap();
-
-    if (!dalFixture.isConnected()) {
-      const reason = dalFixture.getSkipReason() || 'PostgreSQL not configured';
-      t.log(`PostgreSQL not available, skipping adapter tests: ${reason}`);
-      t.pass('Skipping tests - PostgreSQL not configured');
-      return;
-    }
-
-    // Ensure UUID generation helper exists (ignore failures on hosted CI)
-    try {
-      await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    } catch (extensionError) {
-      t.log('pgcrypto extension not available:', extensionError.message);
-    }
-
-    const models = await dalFixture.initializeModels([
-      { key: 'things', alias: 'Thing' }
-    ]);
-    Thing = models.Thing;
-
-    // Import adapters
-    adapters = (await import('../adapters/adapters.js')).default;
-    WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.js')).default;
-    OpenLibraryBackendAdapter = (await import('../adapters/openlibrary-backend-adapter.js')).default;
-
-    t.log('PostgreSQL DAL and models initialized for adapter tests');
-  } catch (error) {
-    if (!dalFixture.isConnected()) {
-      t.log('Failed to initialize test environment (PostgreSQL unavailable):', error.message || error);
-      t.pass('Skipping tests - PostgreSQL not configured');
-      return;
-    }
-    t.log('Failed to initialize test environment:', error);
-    throw error;
+    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+  } catch (extensionError) {
+    t.log('pgcrypto extension not available:', extensionError.message);
   }
-});
 
-test.after.always(async t => {
-  if (dalFixture) {
-    await dalFixture.cleanup();
-  }
-});
+  const models = await dalFixture.initializeModels([
+    { key: 'things', alias: 'Thing' }
+  ]);
+  Thing = models.Thing;
 
-test.beforeEach(async () => {
-  await dalFixture.cleanupTables(['things', 'users']);
+  adapters = (await import('../adapters/adapters.js')).default;
+  WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.js')).default;
+  OpenLibraryBackendAdapter = (await import('../adapters/openlibrary-backend-adapter.js')).default;
+
+  t.log('PostgreSQL DAL and models initialized for adapter tests');
 });
 
 function skipIfNoModels(t) {
+  if (skipIfUnavailable(t)) return true;
   if (!Thing) {
-    const reason = dalFixture.getSkipReason() || 'PostgreSQL setup may have failed';
-    t.log(`Models not available - ${reason}`);
-    t.pass(`Skipping - ${reason}`);
+    t.pass('Skipping - PostgreSQL DAL not available');
     return true;
   }
   return false;

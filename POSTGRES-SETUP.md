@@ -73,6 +73,13 @@ Grant the application role full control over each test database and enable the `
 PGUSER=postgres psql -f dal/setup-test-db-grants.sql
 ```
 
+If your environment enforces peer authentication for the `postgres` role (the
+default on many Linux distributions), run the helper via `sudo` instead:
+
+```bash
+sudo -u postgres psql -f dal/setup-test-db-grants.sql
+```
+
 The script issues the following changes for every `libreviews_test_*` database:
 
 - grants `libreviews_user` all privileges on the database and `public` schema,

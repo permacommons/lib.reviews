@@ -1,58 +1,51 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
-import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
-// Standard env settings for AVA worker
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-3';
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
-
-const dalFixture = createDALFixtureAVA('testing-3', { tableSuffix: 'user_file_models' });
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-3',
+  tableSuffix: 'user_file_models',
+  cleanupTables: ['files', 'users', 'user_metas']
+});
 
 let User;
 let File;
 let NewUserError;
 
 test.before(async t => {
-  try {
-    await dalFixture.bootstrap();
+  if (skipIfUnavailable(t)) return;
 
-    // Ensure UUID generation helper exists (ignore failures on hosted CI)
-    try {
-      await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    } catch (extensionError) {
-      t.log('pgcrypto extension not available:', extensionError.message);
+  // Stub search module to avoid starting Elasticsearch clients during tests
+  const searchPath = require.resolve('../search');
+  require.cache[searchPath] = {
+    exports: {
+      indexThing() {},
+      searchThings: async () => ({}),
+      getClient: () => ({})
     }
+  };
 
-    const { User: userModel, File: fileModel } = await dalFixture.initializeModels([
-      { key: 'users', alias: 'User' },
-      { key: 'files', alias: 'File' }
-    ]);
-
-    User = userModel;
-    File = fileModel;
-    ({ NewUserError } = require('../models-postgres/user'));
-  } catch (error) {
-    t.log('PostgreSQL not available, skipping PostgreSQL model tests:', error.message);
-    t.pass('Skipping tests - PostgreSQL not configured');
+  try {
+    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+  } catch (extensionError) {
+    t.log('pgcrypto extension not available:', extensionError.message);
   }
-});
 
-test.beforeEach(async () => {
-  await dalFixture.cleanupTables(['files', 'users', 'user_metas']);
-});
+  const { User: userModel, File: fileModel } = await dalFixture.initializeModels([
+    { key: 'users', alias: 'User' },
+    { key: 'files', alias: 'File' }
+  ]);
 
-test.after.always(async () => {
-  await dalFixture.cleanup();
+  User = userModel;
+  File = fileModel;
+  ({ NewUserError } = require('../models-postgres/user'));
 });
 
 function skipIfNoModels(t) {
+  if (skipIfUnavailable(t)) return true;
   if (!User || !File) {
     t.pass('Skipping - PostgreSQL DAL not available');
     return true;

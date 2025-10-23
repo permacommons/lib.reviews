@@ -1,22 +1,21 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
-import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-4';
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
-
-const dalFixture = createDALFixtureAVA('testing-4', { tableSuffix: 'thing_model' });
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-4',
+  tableSuffix: 'thing_model',
+  cleanupTables: ['things', 'users']
+});
 
 let Thing;
 
 test.before(async t => {
+  if (skipIfUnavailable(t)) return;
+
   // Stub search module to avoid starting Elasticsearch clients during tests
   const searchPath = require.resolve('../search');
   require.cache[searchPath] = {
@@ -28,34 +27,20 @@ test.before(async t => {
   };
 
   try {
-    await dalFixture.bootstrap();
-
-    try {
-      await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    } catch (extensionError) {
-      t.log('pgcrypto extension not available:', extensionError.message);
-    }
-
-    const models = await dalFixture.initializeModels([
-      { key: 'things', alias: 'Thing' }
-    ]);
-
-    Thing = models.Thing;
-  } catch (error) {
-    t.log('PostgreSQL not available, skipping Thing model tests:', error.message);
-    t.pass('Skipping tests - PostgreSQL not configured');
+    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+  } catch (extensionError) {
+    t.log('pgcrypto extension not available:', extensionError.message);
   }
-});
 
-test.beforeEach(async () => {
-  await dalFixture.cleanupTables(['things', 'users']);
-});
+  const models = await dalFixture.initializeModels([
+    { key: 'things', alias: 'Thing' }
+  ]);
 
-test.after.always(async () => {
-  await dalFixture.cleanup();
+  Thing = models.Thing;
 });
 
 function skipIfNoThing(t) {
+  if (skipIfUnavailable(t)) return true;
   if (!Thing) {
     t.pass('Skipping - PostgreSQL DAL not available');
     return true;

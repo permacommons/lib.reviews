@@ -1,7 +1,7 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
-import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -15,15 +15,19 @@ const require = createRequire(import.meta.url);
  * - Revision-aware joins
  */
 
-// Standard env settings for AVA worker
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-6';
-if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
-  process.env.LIBREVIEWS_SKIP_RETHINK = '1';
-}
-
-const dalFixture = createDALFixtureAVA('testing-6', { tableSuffix: 'query_builder_joins' });
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  instance: 'testing-6',
+  tableSuffix: 'query_builder_joins',
+  cleanupTables: [
+    'review_teams',
+    'team_moderators',
+    'team_members',
+    'reviews',
+    'teams',
+    'things',
+    'users'
+  ]
+});
 
 let User, Thing, Review;
 const ensureUserExists = async (id, name = 'Test User') => {
@@ -39,6 +43,8 @@ const ensureUserExists = async (id, name = 'Test User') => {
 };
 
 test.before(async t => {
+  if (skipIfUnavailable(t)) return;
+
   // Stub search module to avoid starting Elasticsearch clients during tests
   const searchPath = require.resolve('../search');
   require.cache[searchPath] = {
@@ -50,40 +56,25 @@ test.before(async t => {
   };
 
   try {
-    await dalFixture.bootstrap();
-
-    // Ensure pgcrypto UUID helper exists (ignore permission errors)
-    try {
-      await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    } catch (extensionError) {
-      t.log('pgcrypto extension not available:', extensionError.message);
-      t.log('Tests may fail if gen_random_uuid() is unavailable.');
-    }
-
-    const models = await dalFixture.initializeModels([
-      { key: 'users', alias: 'User' },
-      { key: 'things', alias: 'Thing' },
-      { key: 'reviews', alias: 'Review' }
-    ]);
-
-    User = models.User;
-    Thing = models.Thing;
-    Review = models.Review;
-  } catch (error) {
-    t.log('PostgreSQL not available, skipping QueryBuilder integration tests:', error.message);
-    t.pass('Skipping tests - PostgreSQL not configured');
+    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+  } catch (extensionError) {
+    t.log('pgcrypto extension not available:', extensionError.message);
+    t.log('Tests may fail if gen_random_uuid() is unavailable.');
   }
-});
 
-test.beforeEach(async () => {
-  await dalFixture.cleanupTables(['review_teams', 'team_moderators', 'team_members', 'reviews', 'teams', 'things', 'users']);
-});
+  const models = await dalFixture.initializeModels([
+    { key: 'users', alias: 'User' },
+    { key: 'things', alias: 'Thing' },
+    { key: 'reviews', alias: 'Review' }
+  ]);
 
-test.after.always(async () => {
-  await dalFixture.cleanup();
+  User = models.User;
+  Thing = models.Thing;
+  Review = models.Review;
 });
 
 function skipIfNoModels(t) {
+  if (skipIfUnavailable(t)) return true;
   if (!User || !Thing || !Review) {
     t.pass('Skipping - PostgreSQL DAL not available');
     return true;
