@@ -255,9 +255,9 @@ test('QueryBuilder method chaining works correctly', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
   const mockModel = { tableName: 'test_table' };
   const mockDAL = { tablePrefix: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
-  
+
   // Test method chaining
   const result = qb
     .filter({ status: 'active' })
@@ -266,11 +266,57 @@ test('QueryBuilder method chaining works correctly', t => {
     .limit(10)
     .offset(5)
     .getJoin({ creator: true });
-  
+
   t.is(result, qb); // Should return the same instance
   t.true(qb._where.length > 0);
   t.true(qb._orderBy.length > 0);
   t.is(qb._limit, 10);
   t.is(qb._offset, 5);
   t.truthy(qb._joinSpecs);
+});
+
+test('Model constructor maps camelCase fields to snake_case columns', async t => {
+  const { initializeModel } = require('../dal/lib/model-initializer');
+  const type = require('../dal').type;
+  const BaseModel = require('../dal/lib/model');
+
+  const capturedQueries = [];
+  const mockDAL = {
+    tablePrefix: '',
+    async query(sql, params) {
+      capturedQueries.push({ sql, params });
+      return { rows: [{ id: 'generated-id', camel_case_field: params[0] }] };
+    },
+    createModel(name, schema, options = {}) {
+      return BaseModel.createModel(name, schema, options, this);
+    },
+    getModel(name) {
+      throw new Error(`Model '${name}' not found`);
+    }
+  };
+
+  const { model: TestModel } = initializeModel({
+    dal: mockDAL,
+    baseTable: 'tmp_models',
+    schema: {
+      id: type.string(),
+      camelCaseField: type.string().default('fallback')
+    },
+    camelToSnake: {
+      camelCaseField: 'camel_case_field'
+    }
+  });
+
+  const instance = new TestModel({ camelCaseField: 'value' });
+
+  t.is(instance._data.camel_case_field, 'value');
+  t.false(Object.prototype.hasOwnProperty.call(instance._data, 'camelCaseField'));
+
+  await instance.save();
+
+  t.true(capturedQueries[0].sql.includes('camel_case_field'));
+  t.deepEqual(capturedQueries[0].params, ['value']);
+
+  const defaultedInstance = new TestModel();
+  t.is(defaultedInstance._data.camel_case_field, 'fallback');
 });

@@ -21,15 +21,22 @@ class Model {
     this._virtualFields = {};
     this._changed = new Set();
     this._isNew = true;
-    
-    // Set initial data
-    Object.assign(this._data, data);
-    
-    // Generate virtual field values
-    this.generateVirtualValues();
-    
-    // Set up property accessors
+
+    // Set up property accessors before applying data so setters map correctly
     this._setupPropertyAccessors();
+
+    const initialData = (data && typeof data === 'object') ? data : {};
+
+    // Apply schema defaults for missing values
+    this._applyDefaults(initialData);
+
+    // Apply provided data using setters to respect mappings and change tracking
+    for (const [key, value] of Object.entries(initialData)) {
+      this.setValue(key, value);
+    }
+
+    // Generate virtual field values (may depend on applied data)
+    this.generateVirtualValues();
   }
 
   /**
@@ -145,7 +152,9 @@ class Model {
    */
   static async update(id, data) {
     const instance = await this.get(id);
-    Object.assign(instance._data, data);
+    for (const [key, value] of Object.entries(data || {})) {
+      instance.setValue(key, value);
+    }
     await instance.save();
     return instance;
   }
@@ -376,16 +385,15 @@ class Model {
    */
   generateVirtualValues() {
     const schema = this.constructor.schema;
-    
+
     for (const [fieldName, fieldDef] of Object.entries(schema)) {
       if (fieldDef && fieldDef.isVirtual) {
         // For virtual fields, we need to access the raw defaultValue function
         if (fieldDef.hasDefault) {
-          const defaultValue = fieldDef.defaultValue;
-          const computedValue = typeof defaultValue === 'function' 
-            ? defaultValue.call(this) 
-            : defaultValue;
-          this._virtualFields[fieldName] = computedValue;
+          const defaultValue = this._resolveDefault(fieldDef);
+          if (defaultValue !== undefined) {
+            this._virtualFields[fieldName] = defaultValue;
+          }
         }
       }
     }
@@ -526,7 +534,7 @@ class Model {
    */
   setValue(key, value) {
     const schema = this.constructor.schema;
-    
+
     if (schema[key] && schema[key].isVirtual) {
       this._virtualFields[key] = value;
     } else {
@@ -535,6 +543,66 @@ class Model {
       this._data[dbFieldName] = value;
       this._changed.add(dbFieldName);
     }
+  }
+
+  /**
+   * Apply default values defined in the schema for missing fields
+   * @param {Object} initialData - The initial payload passed to the constructor
+   * @private
+   */
+  _applyDefaults(initialData = {}) {
+    const schema = this.constructor.schema || {};
+
+    for (const [fieldName, fieldDef] of Object.entries(schema)) {
+      if (!fieldDef || fieldDef.isVirtual || !fieldDef.hasDefault) {
+        continue;
+      }
+
+      const dbFieldName = this.constructor._getDbFieldName(fieldName);
+      const hasInitialValue = Object.prototype.hasOwnProperty.call(initialData, fieldName) ||
+        (dbFieldName !== fieldName && Object.prototype.hasOwnProperty.call(initialData, dbFieldName));
+
+      if (hasInitialValue) {
+        continue;
+      }
+
+      const defaultValue = this._resolveDefault(fieldDef);
+      if (defaultValue !== undefined) {
+        this.setValue(fieldName, defaultValue);
+      }
+    }
+  }
+
+  /**
+   * Resolve a type default value, honoring functions that rely on instance context
+   * @param {Object} fieldDef - Schema field definition
+   * @returns {*} Default value or undefined if none
+   * @private
+   */
+  _resolveDefault(fieldDef) {
+    if (!fieldDef || !fieldDef.hasDefault) {
+      return undefined;
+    }
+
+    if (typeof fieldDef.getDefault === 'function') {
+      try {
+        const value = fieldDef.getDefault();
+        if (value !== undefined) {
+          return value;
+        }
+      } catch (error) {
+        if (typeof fieldDef.defaultValue !== 'function') {
+          throw error;
+        }
+        return fieldDef.defaultValue.call(this);
+      }
+    }
+
+    if (typeof fieldDef.defaultValue === 'function') {
+      return fieldDef.defaultValue.call(this);
+    }
+
+    return fieldDef.defaultValue;
   }
 }
 
