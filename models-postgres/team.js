@@ -21,19 +21,19 @@ let Team = null;
 
 /**
  * Initialize the PostgreSQL Team model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeTeamModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeTeamModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping Team model initialization');
     return null;
   }
 
   try {
     // Use table prefix if this is a test DAL
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}teams` : 'teams';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}teams` : 'teams';
     
     // Create the schema with revision fields and JSONB columns
     const teamSchema = {
@@ -76,7 +76,9 @@ async function initializeTeamModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(teamSchema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, teamSchema);
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, teamSchema, {
+      registryKey: 'teams'
+    });
     Team = model;
 
     if (!isNew) {
@@ -463,11 +465,11 @@ function _validateConfersPermissions(value) {
 
 /**
  * Get the PostgreSQL Team model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer|null} [dal] - Optional DAL instance for testing
  */
-async function getPostgresTeamModel(customDAL = null) {
-  if (!Team || customDAL) {
-    Team = await initializeTeamModel(customDAL);
+async function getPostgresTeamModel(dal = null) {
+  if (!Team || dal) {
+    Team = await initializeTeamModel(dal);
   }
   return Team;
 }

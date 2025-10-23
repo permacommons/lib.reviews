@@ -22,18 +22,18 @@ let BlogPost = null;
 
 /**
  * Initialize the PostgreSQL BlogPost model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeBlogPostModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeBlogPostModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping BlogPost model initialization');
     return null;
   }
 
   try {
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}blog_posts` : 'blog_posts';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}blog_posts` : 'blog_posts';
     
     const schema = {
       id: type.string().uuid(4),
@@ -50,7 +50,9 @@ async function initializeBlogPostModel(customDAL = null) {
 
     Object.assign(schema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
+      registryKey: 'blog_posts'
+    });
     BlogPost = model;
 
     if (!isNew) {
@@ -82,11 +84,11 @@ async function initializeBlogPostModel(customDAL = null) {
 
 /**
  * Get the PostgreSQL BlogPost model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
- */
-async function getPostgresBlogPostModel(customDAL = null) {
-  if (!BlogPost || customDAL) {
-    BlogPost = await initializeBlogPostModel(customDAL);
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+*/
+async function getPostgresBlogPostModel(dal = null) {
+  if (!BlogPost || dal) {
+    BlogPost = await initializeBlogPostModel(dal);
   }
   return BlogPost;
 }

@@ -1,6 +1,5 @@
 import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
-import path from 'path';
 import { logNotice, logOK } from '../helpers/test-helpers.mjs';
 
 const require = createRequire(import.meta.url);
@@ -32,7 +31,10 @@ class DALFixtureAVA {
     this.namespace = suffixKey ? `${instanceKey}_${suffixKey}` : instanceKey;
     this.schemaName = `test_${this.namespace}`;
     this.dal = null;
+    this.harness = null;
     this.models = {};
+    this.customModels = new Map();
+    this.userModel = null;
     this.loaded = false;
     this.testInstance = testInstance;
     this.tablePrefix = `${this.schemaName}.`;
@@ -50,99 +52,64 @@ class DALFixtureAVA {
     this.bootstrapError = null;
     this.skipReason = null;
 
-    // Ensure we have the right test instance
     if (!process.env.NODE_APP_INSTANCE) {
       process.env.NODE_APP_INSTANCE = this.testInstance;
     }
 
     logNotice(`Loading PostgreSQL DAL configuration for AVA instance ${this.testInstance}.`);
-    
-    // Load config
-    const config = require('config');
-    
-    // Check if postgres config exists
-    if (!config.has('postgres')) {
-      const message = `PostgreSQL configuration not found for instance ${this.testInstance}.`;
-      this.bootstrapError = new Error(message);
-      this.skipReason = message;
-      logNotice(`${message} Skipping PostgreSQL-dependent tests.`);
-      return;
-    }
-    
-    const pgConfig = {
-      ...config.get('postgres'),
-      allowExitOnIdle: true
-    };
-    
-    // Import DAL components
-    const DataAccessLayer = require('../../dal/lib/data-access-layer');
-    const revision = require('../../dal/lib/revision');
-    const Type = require('../../dal/lib/type');
-    
-    logNotice('Connecting to PostgreSQL for AVA tests.');
-    
-    // Initialize DAL
-    this.dal = new DataAccessLayer(pgConfig);
-    // Attach table prefix so real models can derive their table names
-    this.dal.tablePrefix = this.tablePrefix;
+
+    let harness;
     try {
-      await this.dal.connect();
-
-      await this.dal.query(`CREATE SCHEMA IF NOT EXISTS ${this.schemaName}`);
-      await this.dal.query(`SET search_path TO ${this.schemaName}, public`);
-
-      if (this.dal.pool?.on) {
-        this.dal.pool.on('connect', client => {
-          client.query(`SET search_path TO ${this.schemaName}, public`).catch(() => {});
-        });
-      }
-
-      await this.dal.migrate(path.resolve(process.cwd(), 'migrations'));
-
-      this.connected = true;
-      logOK('PostgreSQL DAL connected for AVA tests.');
+      const { createTestHarness } = require('../../bootstrap/dal');
+      harness = await createTestHarness({
+        schemaName: this.schemaName,
+        tablePrefix: this.tablePrefix,
+        registerModels: true
+      });
     } catch (error) {
-      // Best effort cleanup of partially initialized pools
-      try {
-        await this.dal.disconnect();
-      } catch (disconnectError) {
-        logNotice(`Ignoring disconnect error during bootstrap cleanup: ${disconnectError.message}`);
-      }
-      this.dal = null;
-      this.connected = false;
       this.bootstrapError = error;
-      this.skipReason = error.message || 'Failed to connect to PostgreSQL';
+      this.skipReason = error.message || 'Failed to initialize PostgreSQL harness';
       logNotice(`PostgreSQL connection unavailable for AVA tests: ${this.skipReason}`);
       return;
     }
-    
-    // Create models if provided
+
+    this.harness = harness;
+    this.dal = harness.dal;
+    this.tablePrefix = harness.tablePrefix || this.tablePrefix;
+    this.connected = true;
+    this.models = Object.fromEntries(harness.registeredModels);
+    this.customModels = new Map();
+
+    logOK('PostgreSQL DAL connected for AVA tests.');
+
     if (modelDefinitions.length > 0) {
+      const revision = require('../../dal/lib/revision');
+      const { getOrCreateModel } = require('../../dal/lib/model-factory');
+
       logNotice('Creating DAL models for AVA tests.');
-      
+
       for (const modelDef of modelDefinitions) {
-        // Use prefixed table names to avoid conflicts
-        const tableName = this.tablePrefix + modelDef.name;
-        const model = this.dal.createModel(tableName, modelDef.schema, modelDef.options);
-        
-        // Add revision handlers if the model has revision fields
+        const tableName = `${this.tablePrefix}${modelDef.name}`;
+        const { model } = getOrCreateModel(this.dal, tableName, modelDef.schema, {
+          registryKey: modelDef.name
+        });
+
         if (modelDef.hasRevisions) {
           model.createFirstRevision = revision.getFirstRevisionHandler(model);
           model.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(model);
           model.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(model);
           model.getMultipleNotStaleOrDeleted = revision.getMultipleNotStaleOrDeletedHandler(model);
-          
-          // Add instance methods
           model.define('newRevision', revision.getNewRevisionHandler(model));
           model.define('deleteAllRevisions', revision.getDeleteAllRevisionsHandler(model));
         }
-        
+
+        this.customModels.set(modelDef.name, model);
         this.models[modelDef.name] = model;
       }
-      
+
       logOK(`Created ${modelDefinitions.length} DAL models for AVA tests.`);
     }
-    
+
     this.loaded = true;
     logOK('AVA DAL fixture ready. 🚀');
   }
@@ -219,26 +186,28 @@ class DALFixtureAVA {
   /**
    * Clean up the DAL fixture
    */
-  async cleanup() {
-    const targetHost = this.dal?.config?.host || 'localhost';
-    const targetPort = this.dal?.config?.port || 5432;
-    if (this.dal) {
-      logNotice('Cleaning up PostgreSQL DAL for AVA tests.');
-      if (this.connected) {
-        try {
-          await this.dal.query(`DROP SCHEMA IF EXISTS ${this.schemaName} CASCADE`);
-        } catch (error) {
-          console.error(`Failed to drop schema ${this.schemaName}:`, error);
-        }
-      }
+  async cleanup(options = {}) {
+    logNotice('Cleaning up PostgreSQL DAL for AVA tests.');
+
+    if (this.harness) {
       try {
-        await this.dal.disconnect();
+        await this.harness.cleanup(options);
         logOK('PostgreSQL DAL disconnected for AVA tests.');
       } catch (error) {
-        console.error('Failed to disconnect DAL:', error);
+        console.error('Failed to disconnect DAL harness:', error);
       }
-      this.dal = null;
     }
+
+    this.harness = null;
+    this.dal = null;
+    this.connected = false;
+    this.models = {};
+    this.customModels = new Map();
+    this.userModel = null;
+    this.loaded = false;
+    this.bootstrapError = null;
+    this.skipReason = null;
+
     try {
       const pg = require('pg');
       if (pg?.pools?.all) {
@@ -249,15 +218,6 @@ class DALFixtureAVA {
         }));
         pg.pools.all.clear?.();
       }
-    } catch {}
-    this.connected = false;
-    this.models = {};
-    this.loaded = false;
-    this.bootstrapError = null;
-    this.skipReason = null;
-
-    try {
-      const pg = require('pg');
       if (pg && pg._pools && typeof pg._pools.forEach === 'function') {
         for (const pool of pg._pools) {
           try {
@@ -277,13 +237,7 @@ class DALFixtureAVA {
     if (typeof getActiveHandles === 'function') {
       const deadline = Date.now() + 1500;
       while (Date.now() < deadline) {
-        const sockets = getActiveHandles().filter(handle => {
-          if (handle?.constructor?.name !== 'Socket') return false;
-          const remotePort = handle.remotePort;
-          const remoteAddress = handle.remoteAddress;
-          return remotePort === targetPort &&
-            (!remoteAddress || remoteAddress === '127.0.0.1' || remoteAddress === targetHost || remoteAddress === '::1');
-        });
+        const sockets = getActiveHandles().filter(handle => handle?.constructor?.name === 'Socket');
         if (sockets.length === 0) {
           break;
         }
@@ -298,7 +252,31 @@ class DALFixtureAVA {
    * @returns {Object} Model class
    */
   getModel(name) {
-    return this.models[name];
+    if (this.customModels.has(name)) {
+      return this.customModels.get(name);
+    }
+
+    if (this.models[name]) {
+      return this.models[name];
+    }
+
+    if (!this.dal || !this.connected) {
+      return undefined;
+    }
+
+    try {
+      const model = this.dal.getModel(name);
+      if (model) {
+        this.models[name] = model;
+      }
+      return model;
+    } catch (error) {
+      const notFound = /Model '.*' not found/.test(error?.message || '');
+      if (notFound) {
+        return undefined;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -334,10 +312,9 @@ class DALFixtureAVA {
     }
 
     if (!this.userModel) {
-      const { initializeUserModel } = require('../../models-postgres/user');
-      this.userModel = await initializeUserModel(this.dal);
+      this.userModel = this.getModel('users');
       if (!this.userModel) {
-        throw new Error('Unable to initialize user model');
+        throw new Error('Unable to access user model');
       }
     }
 
@@ -383,41 +360,39 @@ class DALFixtureAVA {
    * @param {Array} loaders - Array of loader configs or functions
    * @returns {Object} Map of loaded models keyed by base table name
    */
-  async initializeModels(loaders = []) {
+  async initializeModels(descriptors = []) {
     if (!this.dal || !this.connected) {
       throw new Error('DAL not initialized');
     }
 
     const results = {};
 
-    for (const entry of loaders) {
+    for (const entry of descriptors) {
       if (!entry) continue;
 
-      let loaderFn;
       let key;
+      let alias;
 
-      if (typeof entry === 'function') {
-        loaderFn = entry;
+      if (typeof entry === 'string') {
+        key = entry;
+        alias = entry;
       } else if (typeof entry === 'object') {
-        loaderFn = entry.loader || entry.load;
-        key = entry.key || entry.name;
+        key = entry.key || entry.name || entry.table || entry.identifier;
+        alias = entry.alias || entry.as || entry.key || entry.name;
       }
 
-      if (typeof loaderFn !== 'function') {
+      if (!key) {
         continue;
       }
 
-      const model = await loaderFn(this.dal);
-      if (!model) continue;
+      const model = this.getModel(key);
+      if (!model) {
+        continue;
+      }
 
-      const tableName = typeof model.tableName === 'string' ? model.tableName : '';
-      const baseName = tableName.startsWith(this.tablePrefix) ?
-        tableName.slice(this.tablePrefix.length) :
-        tableName;
-
-      const modelKey = key || baseName || loaderFn.name || `model_${Object.keys(results).length + 1}`;
-      this.models[modelKey] = model;
-      results[modelKey] = model;
+      const aliasKey = alias || key;
+      this.models[aliasKey] = model;
+      results[aliasKey] = model;
     }
 
     return results;

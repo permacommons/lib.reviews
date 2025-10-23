@@ -16,18 +16,18 @@ let TeamJoinRequest = null;
 
 /**
  * Initialize the PostgreSQL TeamJoinRequest model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeTeamJoinRequestModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeTeamJoinRequestModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping TeamJoinRequest model initialization');
     return null;
   }
 
   try {
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}team_join_requests` : 'team_join_requests';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}team_join_requests` : 'team_join_requests';
     
     const schema = {
       id: type.string().uuid(4),
@@ -37,7 +37,9 @@ async function initializeTeamJoinRequestModel(customDAL = null) {
       message: type.string().max(500)
     };
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
+      registryKey: 'team_join_requests'
+    });
     TeamJoinRequest = model;
 
     if (!isNew) {

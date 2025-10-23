@@ -23,18 +23,18 @@ const reservedSlugs = [
 
 /**
  * Initialize the PostgreSQL ThingSlug model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeThingSlugModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeThingSlugModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping ThingSlug model initialization');
     return null;
   }
 
   try {
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}thing_slugs` : 'thing_slugs';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}thing_slugs` : 'thing_slugs';
 
     const schema = {
       id: type.string().uuid(4),
@@ -47,21 +47,22 @@ async function initializeThingSlugModel(customDAL = null) {
       qualifierPart: type.string().max(255)
     };
 
-    const { model } = getOrCreateModel(dal, tableName, schema);
+    const { model } = getOrCreateModel(activeDAL, tableName, schema, {
+      registryKey: 'thing_slugs'
+    });
 
-    model._registerFieldMapping('thingID', 'thing_id');
-    model._registerFieldMapping('createdOn', 'created_on');
-    model._registerFieldMapping('createdBy', 'created_by');
-    model._registerFieldMapping('baseName', 'base_name');
-    model._registerFieldMapping('qualifierPart', 'qualifier_part');
-    model.define('qualifiedSave', qualifiedSave);
-    model.reservedSlugs = reservedSlugs;
+    ThingSlug = model;
+
+    ThingSlug._registerFieldMapping('thingID', 'thing_id');
+    ThingSlug._registerFieldMapping('createdOn', 'created_on');
+    ThingSlug._registerFieldMapping('createdBy', 'created_by');
+    ThingSlug._registerFieldMapping('baseName', 'base_name');
+    ThingSlug._registerFieldMapping('qualifierPart', 'qualifier_part');
+    ThingSlug.define('qualifiedSave', qualifiedSave);
+    ThingSlug.reservedSlugs = reservedSlugs;
 
     debug.db('PostgreSQL ThingSlug model initialized');
-    if (!customDAL) {
-      ThingSlug = model;
-    }
-    return model;
+    return ThingSlug;
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL ThingSlug model:', error);
     return null;
@@ -77,16 +78,10 @@ ThingSlugHandle.reservedSlugs = reservedSlugs;
 
 /**
  * Get the PostgreSQL ThingSlug model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer|null} [dal] - Optional DAL instance for testing
  */
-async function getPostgresThingSlugModel(customDAL = null) {
-  if (customDAL) {
-    return await initializeThingSlugModel(customDAL);
-  }
-  
-  if (!ThingSlug) {
-    ThingSlug = await initializeThingSlugModel();
-  }
+async function getPostgresThingSlugModel(dal = null) {
+  ThingSlug = await initializeThingSlugModel(dal);
   return ThingSlug;
 }
 

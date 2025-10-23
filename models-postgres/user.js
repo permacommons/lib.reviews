@@ -33,21 +33,23 @@ let currentDAL = null;
 
 /**
  * Initialize the PostgreSQL User model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeUserModel(customDAL = null) {
+async function initializeUserModel(dal = null) {
   try {
     debug.db('Starting User model initialization...');
-    const dal = customDAL || await getPostgresDAL();
-    
-    if (!dal) {
+    const activeDAL = dal || await getPostgresDAL();
+
+    if (!activeDAL) {
       debug.db('PostgreSQL DAL not available, skipping User model initialization');
       return null;
     }
 
+    currentDAL = activeDAL;
+
     debug.db('DAL available, creating User model...');
     // Use table prefix if this is a test DAL
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}users` : 'users';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}users` : 'users';
     const userSchema = {
       id: type.string().uuid(4),
       
@@ -81,15 +83,15 @@ async function initializeUserModel(customDAL = null) {
       })
     };
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, userSchema);
-
-    if (!isNew) {
-      User = model;
-      currentDAL = dal;
-      return User;
-    }
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, userSchema, {
+      registryKey: 'users'
+    });
 
     User = model;
+
+    if (!isNew) {
+      return User;
+    }
 
     // Register camelCase to snake_case field mappings
     User._registerFieldMapping('displayName', 'display_name');
@@ -138,7 +140,6 @@ async function initializeUserModel(customDAL = null) {
     };
 
     debug.db('PostgreSQL User model initialized with all methods');
-    currentDAL = dal;
     return User;
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL User model:', error);
@@ -558,12 +559,10 @@ function _containsOnlyLegalCharacters(name) {
 
 /**
  * Get the PostgreSQL User model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
- */
-async function getPostgresUserModel(customDAL = null) {
-  if (!User || (customDAL && currentDAL !== customDAL)) {
-    User = await initializeUserModel(customDAL);
-  }
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+*/
+async function getPostgresUserModel(dal = null) {
+  User = await initializeUserModel(dal);
   return User;
 }
 

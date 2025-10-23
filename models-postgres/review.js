@@ -25,19 +25,19 @@ let Review = null;
 
 /**
  * Initialize the PostgreSQL Review model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeReviewModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
+async function initializeReviewModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
 
-  if (!dal) {
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping Review model initialization');
     return null;
   }
 
   try {
     // Use table prefix if this is a test DAL
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}reviews` : 'reviews';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}reviews` : 'reviews';
 
     // Create the schema with revision fields and JSONB columns
     const reviewSchema = {
@@ -67,7 +67,9 @@ async function initializeReviewModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(reviewSchema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, reviewSchema);
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, reviewSchema, {
+      registryKey: 'reviews'
+    });
     Review = model;
 
     if (!isNew) {
@@ -653,11 +655,11 @@ class ReviewError extends ReportedError {
 
 /**
  * Get the PostgreSQL Review model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer|null} [dal] - Optional DAL instance for testing
  */
-async function getPostgresReviewModel(customDAL = null) {
-  if (!Review || customDAL) {
-    Review = await initializeReviewModel(customDAL);
+async function getPostgresReviewModel(dal = null) {
+  if (!Review || dal) {
+    Review = await initializeReviewModel(dal);
   }
   return Review;
 }

@@ -40,28 +40,16 @@ test.before(async t => {
     }
 
     const models = await dalFixture.initializeModels([
-      {
-        key: 'users',
-        loader: dal => require('../models-postgres/user').initializeUserModel(dal)
-      },
-      {
-        key: 'things',
-        loader: dal => require('../models-postgres/thing').initializeThingModel(dal)
-      },
-      {
-        key: 'reviews',
-        loader: dal => require('../models-postgres/review').initializeReviewModel(dal)
-      },
-      {
-        key: 'teams',
-        loader: dal => require('../models-postgres/team').initializeTeamModel(dal)
-      }
+      { key: 'users', alias: 'User' },
+      { key: 'things', alias: 'Thing' },
+      { key: 'reviews', alias: 'Review' },
+      { key: 'teams', alias: 'Team' }
     ]);
 
-    User = models.users;
-    Thing = models.things;
-    Review = models.reviews;
-    Team = models.teams;
+    User = models.User;
+    Thing = models.Thing;
+    Review = models.Review;
+    Team = models.Team;
     
     ({ NewUserError } = require('../models-postgres/user'));
     ({ ReviewError } = require('../models-postgres/review'));

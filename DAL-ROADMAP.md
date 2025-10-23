@@ -61,15 +61,11 @@ coverage and tightening ergonomics.
 
 ### Phase 3.5 – DAL Ergonomics & Test Harness (planned)
 
-1. **Model registry** – encapsulate registration/lookup and enforce one-time
-   registration per DAL instance.
-2. **Documented contracts** – publish JSDoc or TypeScript definitions for core
-   DAL interfaces (`DataAccessLayer`, `Model`, `QueryBuilder`, helpers).
-3. **Dedicated test harness** – provide a fixture that spins up an isolated DAL
-   via the bootstrap, allowing model files to drop `customDAL` branches.
-4. **Constructor ergonomics** – ensure passing an object into `new Model({...})`
-   automatically routes through accessors so `_changed` is tracked without
-   manual reassignments.
+- **Documented contracts** – publish JSDoc or TypeScript definitions for core
+  DAL interfaces (`DataAccessLayer`, `Model`, `QueryBuilder`, helpers).
+- **Constructor ergonomics** – ensure passing an object into `new Model({...})`
+  automatically routes through accessors so `_changed` is tracked without
+  manual reassignments.
 
 ### Phase 4 – Optional Backend Generalisation
 

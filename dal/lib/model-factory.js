@@ -17,15 +17,32 @@
  *  flag indicating whether it was created by this call.
  */
 function getOrCreateModel(dal, tableName, schema, options = {}) {
+  const { registryKey, ...modelOptions } = options;
+  const lookupKeys = [];
+
+  if (registryKey && typeof registryKey === 'string') {
+    lookupKeys.push(registryKey);
+  }
+
+  if (tableName) {
+    lookupKeys.push(tableName);
+  }
+
   let existingModel = null;
 
   if (dal && typeof dal.getModel === 'function') {
-    try {
-      existingModel = dal.getModel(tableName);
-    } catch (error) {
-      const notFound = /Model '.*' not found/.test(error?.message || '');
-      if (!notFound) {
-        throw error;
+    for (const key of lookupKeys) {
+      if (!key) continue;
+      try {
+        existingModel = dal.getModel(key);
+        if (existingModel) {
+          break;
+        }
+      } catch (error) {
+        const notFound = /Model '.*' not found/.test(error?.message || '');
+        if (!notFound) {
+          throw error;
+        }
       }
     }
   }
@@ -34,7 +51,7 @@ function getOrCreateModel(dal, tableName, schema, options = {}) {
     return { model: existingModel, isNew: false };
   }
 
-  const model = dal.createModel(tableName, schema, options);
+  const model = dal.createModel(tableName, schema, { ...modelOptions, registryKey });
   return { model, isNew: true };
 }
 

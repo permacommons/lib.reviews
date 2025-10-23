@@ -16,18 +16,18 @@ let TeamSlug = null;
 
 /**
  * Initialize the PostgreSQL TeamSlug model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeTeamSlugModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeTeamSlugModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping TeamSlug model initialization');
     return null;
   }
 
   try {
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}team_slugs` : 'team_slugs';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}team_slugs` : 'team_slugs';
 
     const schema = {
       id: type.string().uuid(4),
@@ -38,13 +38,14 @@ async function initializeTeamSlugModel(customDAL = null) {
       name: type.string().max(255)
     };
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
+      registryKey: 'team_slugs'
+    });
+
+    TeamSlug = model;
 
     if (!isNew) {
-      if (!customDAL) {
-        TeamSlug = model;
-      }
-      return model;
+      return TeamSlug;
     }
 
     model._registerFieldMapping('teamID', 'team_id');
@@ -52,10 +53,7 @@ async function initializeTeamSlugModel(customDAL = null) {
     model._registerFieldMapping('createdBy', 'created_by');
 
     debug.db('PostgreSQL TeamSlug model initialized (stub)');
-    if (!customDAL) {
-      TeamSlug = model;
-    }
-    return model;
+    return TeamSlug;
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL TeamSlug model:', error);
     return null;
@@ -70,16 +68,10 @@ const TeamSlugHandle = createAutoModelHandle('team_slugs', initializeTeamSlugMod
 
 /**
  * Get the PostgreSQL TeamSlug model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function getPostgresTeamSlugModel(customDAL = null) {
-  if (customDAL) {
-    return await initializeTeamSlugModel(customDAL);
-  }
-  
-  if (!TeamSlug) {
-    TeamSlug = await initializeTeamSlugModel();
-  }
+async function getPostgresTeamSlugModel(dal = null) {
+  TeamSlug = await initializeTeamSlugModel(dal);
   return TeamSlug;
 }
 

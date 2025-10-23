@@ -37,13 +37,10 @@ test.before(async t => {
     }
 
     const models = await dalFixture.initializeModels([
-      {
-        key: 'things',
-        loader: dal => require('../models-postgres/thing').initializeThingModel(dal)
-      }
+      { key: 'things', alias: 'Thing' }
     ]);
 
-    Thing = models.things;
+    Thing = models.Thing;
   } catch (error) {
     t.log('PostgreSQL not available, skipping Thing model tests:', error.message);
     t.pass('Skipping tests - PostgreSQL not configured');

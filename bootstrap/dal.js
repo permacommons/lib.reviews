@@ -14,10 +14,23 @@ const config = require('config');
 const debug = require('../util/debug');
 const PostgresDAL = require('../dal');
 
+const DEFAULT_MODEL_INITIALIZERS = [
+    { key: 'users', initializer: require('../models-postgres/user').initializeModel },
+    { key: 'user_metas', initializer: require('../models-postgres/user-meta').initializeModel },
+    { key: 'teams', initializer: require('../models-postgres/team').initializeModel },
+    { key: 'team_join_requests', initializer: require('../models-postgres/team-join-request').initializeModel },
+    { key: 'team_slugs', initializer: require('../models-postgres/team-slug').initializeModel },
+    { key: 'things', initializer: require('../models-postgres/thing').initializeModel },
+    { key: 'thing_slugs', initializer: require('../models-postgres/thing-slug').initializeModel },
+    { key: 'reviews', initializer: require('../models-postgres/review').initializeModel },
+    { key: 'blog_posts', initializer: require('../models-postgres/blog-post').initializeModel },
+    { key: 'files', initializer: require('../models-postgres/file').initializeModel },
+    { key: 'invite_links', initializer: require('../models-postgres/invite-link').initializeModel }
+];
+
 // Global DAL state
 let globalDAL = null;
 let initializationPromise = null;
-let registeredModels = new Map();
 
 /**
  * Initialize the DAL and register all models
@@ -89,7 +102,6 @@ async function initializeDAL(customConfig = null) {
             }
             globalDAL = null;
             initializationPromise = null;
-            registeredModels.clear();
             throw error;
         }
     })();
@@ -101,41 +113,48 @@ async function initializeDAL(customConfig = null) {
  * Register all application models with the DAL
  * @param {DataAccessLayer} dal - The DAL instance to register models with
  */
-async function registerAllModels(dal) {
+async function registerAllModels(dal, initializers = DEFAULT_MODEL_INITIALIZERS) {
     debug.db('Registering all models...');
 
-    registeredModels.clear();
+    const registered = new Map();
 
-    // Import all model initializers
-    const modelInitializers = [
-        require('../models-postgres/user').initializeModel,
-        require('../models-postgres/user-meta').initializeModel,
-        require('../models-postgres/team').initializeModel,
-        require('../models-postgres/team-join-request').initializeModel,
-        require('../models-postgres/team-slug').initializeModel,
-        require('../models-postgres/thing').initializeModel,
-        require('../models-postgres/thing-slug').initializeModel,
-        require('../models-postgres/review').initializeModel,
-        require('../models-postgres/blog-post').initializeModel,
-        require('../models-postgres/file').initializeModel,
-        require('../models-postgres/invite-link').initializeModel
-    ];
+    for (const entry of initializers) {
+        if (!entry) {
+            continue;
+        }
 
-    // Initialize each model and store the result
-    for (const initializeModel of modelInitializers) {
+        let initializer = null;
+        let key = null;
+
+        if (typeof entry === 'function') {
+            initializer = entry;
+            key = entry.modelKey || entry.key || entry.name;
+        } else if (typeof entry === 'object') {
+            initializer = entry.initializer || entry.initialize || entry.init || entry.loader;
+            key = entry.key || entry.name;
+        }
+
+        if (typeof initializer !== 'function') {
+            continue;
+        }
+
         try {
-            const model = await initializeModel(dal);
-            if (model && model.tableName) {
-                registeredModels.set(model.tableName, model);
-                debug.db(`Registered model: ${model.tableName}`);
+            const model = await initializer(dal);
+            if (!model) {
+                continue;
             }
+
+            const canonicalKey = key || model.tableName || initializer.name;
+            registered.set(canonicalKey, model);
+            debug.db(`Registered model: ${canonicalKey}`);
         } catch (error) {
-            debug.error(`Failed to register model:`, error);
-            // Continue with other models - some may not be ready yet
+            const identifier = key || initializer.name || 'unknown';
+            debug.error(`Failed to register model ${identifier}:`, error);
         }
     }
 
-    debug.db(`Successfully registered ${registeredModels.size} models`);
+    debug.db(`Successfully registered ${registered.size} models`);
+    return registered;
 }
 
 /**
@@ -156,7 +175,19 @@ function getDAL() {
  * @returns {Model|null} The model instance or null if not found
  */
 function getModel(tableName) {
-    return registeredModels.get(tableName) || null;
+    if (!globalDAL) {
+        throw new Error('DAL not initialized. Call initializeDAL() first.');
+    }
+
+    try {
+        return globalDAL.getModel(tableName);
+    } catch (error) {
+        const notFound = /Model '.*' not found/.test(error?.message || '');
+        if (notFound) {
+            return null;
+        }
+        throw error;
+    }
 }
 
 /**
@@ -164,7 +195,10 @@ function getModel(tableName) {
  * @returns {Map} Map of table names to model instances
  */
 function getAllModels() {
-    return new Map(registeredModels);
+    if (!globalDAL) {
+        return new Map();
+    }
+    return globalDAL.getRegisteredModels();
 }
 
 /**
@@ -198,47 +232,112 @@ async function shutdown() {
         // Reset state
         globalDAL = null;
         initializationPromise = null;
-        registeredModels.clear();
     }
 }
 
 /**
- * Create a test DAL instance with isolated models
- * This is used by fixtures and tests to avoid interfering with the global DAL
- * @param {Object} testConfig - Test-specific configuration
- * @returns {Promise<Object>} Object containing DAL and initialized models
+ * Create an isolated DAL harness for tests.
+ * @param {Object} options - Harness configuration.
+ * @param {Object} [options.configOverride] - Overrides merged into the postgres config.
+ * @param {string} [options.schemaName] - Optional schema name to create and scope the harness to.
+ * @param {string} [options.tablePrefix] - Optional table prefix (defaults to `${schemaName}.`).
+ * @param {boolean} [options.autoMigrate=true] - Whether to run migrations automatically.
+ * @param {boolean} [options.registerModels=true] - Whether to register default models.
+ * @param {Array} [options.modelInitializers] - Custom model initializers to run.
+ * @returns {Promise<{dal: DataAccessLayer, registeredModels: Map, schemaName: string|null, tablePrefix: string|null, cleanup: Function}>}
  */
-async function createTestDAL(testConfig) {
-    debug.db('Creating isolated test DAL...');
+async function createTestHarness(options = {}) {
+    const {
+        configOverride = {},
+        schemaName = null,
+        tablePrefix = null,
+        autoMigrate = true,
+        registerModels: shouldRegisterModels = true,
+        modelInitializers = DEFAULT_MODEL_INITIALIZERS
+    } = options;
 
-    const testDAL = PostgresDAL(testConfig);
+    if (!config.has('postgres')) {
+        throw new Error('PostgreSQL configuration not found. Cannot create test harness.');
+    }
+
+    const baseConfig = config.get('postgres');
+    const dalConfig = {
+        ...baseConfig,
+        allowExitOnIdle: true,
+        ...configOverride
+    };
+
+    debug.db('Creating isolated test DAL harness...');
+    const testDAL = PostgresDAL(dalConfig);
     await testDAL.connect();
 
-    // Initialize models for this test DAL
-    const testModels = {};
-    const modelInitializers = [
-        { name: 'User', init: require('../models-postgres/user').initializeModel },
-        { name: 'UserMeta', init: require('../models-postgres/user-meta').initializeModel },
-        { name: 'Team', init: require('../models-postgres/team').initializeModel },
-        { name: 'TeamJoinRequest', init: require('../models-postgres/team-join-request').initializeModel },
-        { name: 'TeamSlug', init: require('../models-postgres/team-slug').initializeModel },
-        { name: 'Thing', init: require('../models-postgres/thing').initializeModel },
-        { name: 'ThingSlug', init: require('../models-postgres/thing-slug').initializeModel },
-        { name: 'Review', init: require('../models-postgres/review').initializeModel },
-        { name: 'BlogPost', init: require('../models-postgres/blog-post').initializeModel },
-        { name: 'File', init: require('../models-postgres/file').initializeModel },
-        { name: 'InviteLink', init: require('../models-postgres/invite-link').initializeModel }
-    ];
+    let activeSchema = schemaName || null;
+    let activePrefix = tablePrefix || null;
 
-    for (const { name, init } of modelInitializers) {
+    if (activeSchema) {
+        await testDAL.query(`CREATE SCHEMA IF NOT EXISTS ${activeSchema}`);
+        await testDAL.query(`SET search_path TO ${activeSchema}, public`);
+
+        if (testDAL.pool?.on) {
+            testDAL.pool.on('connect', client => {
+                client.query(`SET search_path TO ${activeSchema}, public`).catch(() => {});
+            });
+        }
+
+        activePrefix = activePrefix || `${activeSchema}.`;
+    }
+
+    if (activePrefix) {
+        testDAL.tablePrefix = activePrefix;
+    }
+
+    if (autoMigrate) {
         try {
-            testModels[name] = await init(testDAL);
-        } catch (error) {
-            debug.error(`Failed to initialize test model ${name}:`, error);
+            await testDAL.migrate();
+        } catch (migrationError) {
+            debug.db('Test harness migration error (may be expected if schema already exists):', migrationError.message);
         }
     }
 
-    return { dal: testDAL, models: testModels };
+    const previousState = {
+        dal: globalDAL,
+        promise: initializationPromise
+    };
+
+    globalDAL = testDAL;
+    initializationPromise = Promise.resolve(testDAL);
+
+    let registered = new Map();
+    if (shouldRegisterModels) {
+        registered = await registerAllModels(testDAL, modelInitializers);
+    }
+
+    async function cleanup({ dropSchema = true } = {}) {
+        if (activeSchema && dropSchema) {
+            try {
+                await testDAL.query(`DROP SCHEMA IF EXISTS ${activeSchema} CASCADE`);
+            } catch (error) {
+                debug.error(`Failed to drop schema ${activeSchema}:`, error);
+            }
+        }
+
+        try {
+            await testDAL.disconnect();
+        } catch (error) {
+            debug.error('Failed to disconnect test DAL:', error);
+        }
+
+        globalDAL = previousState.dal;
+        initializationPromise = previousState.promise;
+    }
+
+    return {
+        dal: testDAL,
+        schemaName: activeSchema,
+        tablePrefix: activePrefix,
+        registeredModels: registered,
+        cleanup
+    };
 }
 
 module.exports = {
@@ -248,5 +347,6 @@ module.exports = {
     getAllModels,
     isInitialized,
     shutdown,
-    createTestDAL
+    registerAllModels,
+    createTestHarness
 };

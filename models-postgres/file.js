@@ -20,19 +20,19 @@ let File = null;
 
 /**
  * Initialize the PostgreSQL File model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeFileModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeFileModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping File model initialization');
     return null;
   }
 
   try {
     // Use table prefix if this is a test DAL
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}files` : 'files';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}files` : 'files';
     
     // Create the schema with revision fields
     const fileSchema = {
@@ -61,7 +61,9 @@ async function initializeFileModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(fileSchema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, fileSchema);
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, fileSchema, {
+      registryKey: 'files'
+    });
     File = model;
 
     if (!isNew) {
@@ -210,11 +212,11 @@ function populateUserInfo(user) {
 
 /**
  * Get the PostgreSQL File model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
- */
-async function getPostgresFileModel(customDAL = null) {
-  if (!File || customDAL) {
-    File = await initializeFileModel(customDAL);
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+*/
+async function getPostgresFileModel(dal = null) {
+  if (!File || dal) {
+    File = await initializeFileModel(dal);
   }
   return File;
 }

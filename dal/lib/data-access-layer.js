@@ -14,6 +14,7 @@ const QueryBuilder = require('./query-builder');
 const debug = require('../../util/debug');
 const fs = require('fs').promises;
 const path = require('path');
+const ModelRegistry = require('./model-registry');
 
 class DataAccessLayer {
   constructor(config = {}) {
@@ -30,8 +31,8 @@ class DataAccessLayer {
     };
     
     this.pool = null;
-    this.models = {};
     this._connected = false;
+    this.modelRegistry = new ModelRegistry(this);
   }
 
   /**
@@ -79,6 +80,7 @@ class DataAccessLayer {
       await this.pool.end();
       this.pool = null;
       this._connected = false;
+      this.modelRegistry.clear();
       debug.db('PostgreSQL connection pool closed');
     }
   }
@@ -154,13 +156,19 @@ class DataAccessLayer {
    * @returns {Function} Model constructor
    */
   createModel(name, schema, options = {}) {
-    if (this.models[name]) {
-      throw new Error(`Model '${name}' already exists`);
+    const { registryKey, ...modelOptions } = options || {};
+    const canonicalKey = registryKey || name;
+
+    const existing = this.modelRegistry.get(name) ||
+      (canonicalKey !== name ? this.modelRegistry.get(canonicalKey) : null);
+
+    if (existing) {
+      throw new Error(`Model '${canonicalKey}' already exists`);
     }
 
-    const ModelClass = Model.createModel(name, schema, options, this);
-    this.models[name] = ModelClass;
-    
+    const ModelClass = Model.createModel(name, schema, modelOptions, this);
+    this.modelRegistry.register(name, ModelClass, { key: canonicalKey });
+
     debug.db(`Model '${name}' created`);
     return ModelClass;
   }
@@ -171,11 +179,27 @@ class DataAccessLayer {
    * @returns {Function} Model constructor
    */
   getModel(name) {
-    const model = this.models[name];
+    const model = this.modelRegistry.get(name);
     if (!model) {
       throw new Error(`Model '${name}' not found`);
     }
     return model;
+  }
+
+  /**
+   * Return a map of registered models keyed by canonical name
+   * @returns {Map<string, Function>}
+   */
+  getRegisteredModels() {
+    return this.modelRegistry.listByKey();
+  }
+
+  /**
+   * Expose the registry instance for advanced consumers
+   * @returns {ModelRegistry}
+   */
+  getModelRegistry() {
+    return this.modelRegistry;
   }
 
   /**

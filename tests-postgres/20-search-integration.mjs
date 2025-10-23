@@ -70,18 +70,12 @@ test.before(async t => {
     }
 
     const models = await dalFixture.initializeModels([
-      {
-        key: 'things',
-        loader: dal => require('../models-postgres/thing').initializeThingModel(dal)
-      },
-      {
-        key: 'reviews',
-        loader: dal => require('../models-postgres/review').initializeReviewModel(dal)
-      }
+      { key: 'things', alias: 'Thing' },
+      { key: 'reviews', alias: 'Review' }
     ]);
 
-    dalFixture.Thing = models.things;
-    dalFixture.Review = models.reviews;
+    dalFixture.Thing = models.Thing;
+    dalFixture.Review = models.Review;
     
   } catch (error) {
     t.log('PostgreSQL not available, skipping search integration tests:', error.message);

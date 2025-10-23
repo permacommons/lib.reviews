@@ -27,19 +27,19 @@ let Thing = null;
 
 /**
  * Initialize the PostgreSQL Thing model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeThingModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeThingModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping Thing model initialization');
     return null;
   }
 
   try {
     // Use table prefix if this is a test DAL
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}things` : 'things';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}things` : 'things';
     
     // Create the schema with revision fields
     const thingSchema = {
@@ -84,7 +84,9 @@ async function initializeThingModel(customDAL = null) {
     // Add revision fields to schema
     Object.assign(thingSchema, revision.getSchema());
 
-    const { model } = getOrCreateModel(dal, tableName, thingSchema);
+    const { model } = getOrCreateModel(activeDAL, tableName, thingSchema, {
+      registryKey: 'things'
+    });
     Thing = model;
 
     // Register camelCase to snake_case field mappings
@@ -822,11 +824,11 @@ function _validateMetadata(metadata) {
 
 /**
  * Get the PostgreSQL Thing model (initialize if needed)
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
- */
-async function getPostgresThingModel(customDAL = null) {
-  if (!Thing || customDAL) {
-    Thing = await initializeThingModel(customDAL);
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+*/
+async function getPostgresThingModel(dal = null) {
+  if (!Thing || dal) {
+    Thing = await initializeThingModel(dal);
   }
   return Thing;
 }

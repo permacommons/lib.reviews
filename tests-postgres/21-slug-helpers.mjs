@@ -3,14 +3,17 @@ import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { createDALFixtureAVA } from './fixtures/dal-fixture-ava.mjs';
 
-const require = createRequire(import.meta.url);
-const slugs = require('../routes/helpers/slugs');
-
 process.env.NODE_ENV = 'development';
 process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
+if (!process.env.NODE_APP_INSTANCE) {
+  process.env.NODE_APP_INSTANCE = 'testing-6';
+}
 if (!process.env.LIBREVIEWS_SKIP_RETHINK) {
   process.env.LIBREVIEWS_SKIP_RETHINK = '1';
 }
+
+const require = createRequire(import.meta.url);
+const slugs = require('../routes/helpers/slugs');
 
 const dalFixture = createDALFixtureAVA('testing-6', { tableSuffix: 'slug_helpers' });
 
@@ -21,22 +24,13 @@ test.before(async t => {
     await dalFixture.bootstrap();
 
     const models = await dalFixture.initializeModels([
-      {
-        key: 'users',
-        loader: dal => require('../models-postgres/user').initializeUserModel(dal)
-      },
-      {
-        key: 'things',
-        loader: dal => require('../models-postgres/thing').initializeThingModel(dal)
-      },
-      {
-        key: 'thingSlugs',
-        loader: dal => require('../models-postgres/thing-slug').initializeModel(dal)
-      }
+      { key: 'users', alias: 'User' },
+      { key: 'things', alias: 'Thing' },
+      { key: 'thing_slugs', alias: 'ThingSlug' }
     ]);
 
-    User = models.users;
-    Thing = models.things;
+    User = models.User;
+    Thing = models.Thing;
   } catch (error) {
     t.log('Skipping slug helper tests - PostgreSQL DAL unavailable:', error.message);
   }

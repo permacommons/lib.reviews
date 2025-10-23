@@ -105,13 +105,14 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 3. **Load real models**
    ```js
-   const { users } = await dalFixture.initializeModels([
-     { key: 'users', loader: dal => require('../models-postgres/user').initializeUserModel(dal) }
+   const { User } = await dalFixture.initializeModels([
+     { key: 'users', alias: 'User' }
    ]);
    ```
 
-   The fixture sets `dal.tablePrefix` before invoking initializers, so the model
-   automatically binds to names like `test_testing_3_users`.
+   The fixture configures table prefixes automatically; requesting the `users`
+   model returns the version scoped to the worker schema (e.g.
+   `test_testing_3_users`).
 
 4. **Create test data using helpers**
    ```js

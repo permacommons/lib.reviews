@@ -20,18 +20,18 @@ let InviteLink = null;
 
 /**
  * Initialize the PostgreSQL InviteLink model
- * @param {DataAccessLayer} customDAL - Optional custom DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function initializeInviteLinkModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
-  
-  if (!dal) {
+async function initializeInviteLinkModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping InviteLink model initialization');
     return null;
   }
 
   try {
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}invite_links` : 'invite_links';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}invite_links` : 'invite_links';
     
     const schema = {
       id: type.string().uuid(4).default(() => randomUUID()),
@@ -44,7 +44,9 @@ async function initializeInviteLinkModel(customDAL = null) {
       })
     };
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
+      registryKey: 'invite_links'
+    });
     InviteLink = model;
 
     if (isNew) {
@@ -235,13 +237,11 @@ const InviteLinkHandle = createAutoModelHandle('invite_links', initializeInviteL
 /**
  * Obtain the PostgreSQL InviteLink model, initializing if necessary.
  *
- * @param {DataAccessLayer} [customDAL] - Optional DAL for testing
+ * @param {DataAccessLayer} [dal] - Optional DAL for testing
  * @returns {Promise<Function|null>} Initialized model constructor or null
  */
-async function getPostgresInviteLinkModel(customDAL = null) {
-  if (!InviteLink || customDAL) {
-    InviteLink = await initializeInviteLinkModel(customDAL);
-  }
+async function getPostgresInviteLinkModel(dal = null) {
+  InviteLink = await initializeInviteLinkModel(dal);
   return InviteLink;
 }
 

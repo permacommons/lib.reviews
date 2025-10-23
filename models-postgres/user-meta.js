@@ -17,27 +17,22 @@ const debug = require('../util/debug');
 const { getOrCreateModel } = require('../dal/lib/model-factory');
 
 let UserMeta = null;
-let currentDAL = null;
 
 /**
  * Initialize the PostgreSQL UserMeta model
- * @param {DataAccessLayer} customDAL - Optional DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  * @returns {Promise<Model|null>} Initialized model or null if DAL unavailable
  */
-async function initializeUserMetaModel(customDAL = null) {
-  const dal = customDAL || await getPostgresDAL();
+async function initializeUserMetaModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
 
-  if (!dal) {
+  if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping UserMeta model initialization');
     return null;
   }
 
-  if (UserMeta && (!customDAL || currentDAL === customDAL)) {
-    return UserMeta;
-  }
-
   try {
-    const tableName = dal.tablePrefix ? `${dal.tablePrefix}user_metas` : 'user_metas';
+    const tableName = activeDAL.tablePrefix ? `${activeDAL.tablePrefix}user_metas` : 'user_metas';
 
     const multilingualStringSchema = mlString.getSchema({ maxLength: 1000 });
 
@@ -75,17 +70,15 @@ async function initializeUserMetaModel(customDAL = null) {
 
     Object.assign(schema, revision.getSchema());
 
-    const { model, isNew } = getOrCreateModel(dal, tableName, schema);
-
-    if (!isNew) {
-      if (!customDAL) {
-        UserMeta = model;
-        currentDAL = dal;
-      }
-      return model;
-    }
+    const { model, isNew } = getOrCreateModel(activeDAL, tableName, schema, {
+      registryKey: 'user_metas'
+    });
 
     UserMeta = model;
+
+    if (!isNew) {
+      return UserMeta;
+    }
 
     UserMeta.createFirstRevision = revision.getFirstRevisionHandler(UserMeta);
     UserMeta.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(UserMeta);
@@ -94,7 +87,6 @@ async function initializeUserMetaModel(customDAL = null) {
 
     UserMeta.define('deleteAllRevisions', revision.getDeleteAllRevisionsHandler(UserMeta));
 
-    currentDAL = dal;
     return UserMeta;
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL UserMeta model:', error);
@@ -104,13 +96,11 @@ async function initializeUserMetaModel(customDAL = null) {
 
 /**
  * Retrieve the initialized UserMeta model, creating it if necessary
- * @param {DataAccessLayer} customDAL - Optional DAL instance for testing
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  * @returns {Promise<Model|null>} UserMeta model or null if unavailable
  */
-async function getPostgresUserMetaModel(customDAL = null) {
-  if (!UserMeta || (customDAL && currentDAL !== customDAL)) {
-    UserMeta = await initializeUserMetaModel(customDAL);
-  }
+async function getPostgresUserMetaModel(dal = null) {
+  UserMeta = await initializeUserMetaModel(dal);
   return UserMeta;
 }
 

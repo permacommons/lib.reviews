@@ -61,23 +61,14 @@ test.before(async t => {
     }
 
     const models = await dalFixture.initializeModels([
-      {
-        key: 'users',
-        loader: dal => require('../models-postgres/user').initializeUserModel(dal)
-      },
-      {
-        key: 'things',
-        loader: dal => require('../models-postgres/thing').initializeThingModel(dal)
-      },
-      {
-        key: 'reviews',
-        loader: dal => require('../models-postgres/review').initializeReviewModel(dal)
-      }
+      { key: 'users', alias: 'User' },
+      { key: 'things', alias: 'Thing' },
+      { key: 'reviews', alias: 'Review' }
     ]);
 
-    User = models.users;
-    Thing = models.things;
-    Review = models.reviews;
+    User = models.User;
+    Thing = models.Thing;
+    Review = models.Review;
   } catch (error) {
     t.log('PostgreSQL not available, skipping QueryBuilder integration tests:', error.message);
     t.pass('Skipping tests - PostgreSQL not configured');

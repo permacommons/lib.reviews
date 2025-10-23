@@ -30,19 +30,13 @@ test.before(async t => {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
 
-    const { users, files } = await dalFixture.initializeModels([
-      {
-        key: 'users',
-        loader: dal => require('../models-postgres/user').initializeUserModel(dal)
-      },
-      {
-        key: 'files',
-        loader: dal => require('../models-postgres/file').initializeFileModel(dal)
-      }
+    const { User: userModel, File: fileModel } = await dalFixture.initializeModels([
+      { key: 'users', alias: 'User' },
+      { key: 'files', alias: 'File' }
     ]);
 
-    User = users;
-    File = files;
+    User = userModel;
+    File = fileModel;
     ({ NewUserError } = require('../models-postgres/user'));
   } catch (error) {
     t.log('PostgreSQL not available, skipping PostgreSQL model tests:', error.message);
@@ -51,7 +45,7 @@ test.before(async t => {
 });
 
 test.beforeEach(async () => {
-  await dalFixture.cleanupTables(['files', 'users']);
+  await dalFixture.cleanupTables(['files', 'users', 'user_metas']);
 });
 
 test.after.always(async () => {
@@ -134,6 +128,36 @@ test.serial('User model: increaseInviteLinkCount increments atomically', async t
 
   const reloaded = await User.get(user.id);
   t.is(reloaded.inviteLinkCount, 2, 'Invite count persisted');
+});
+
+test.serial('User model: findByURLName loads metadata and teams safely', async t => {
+  if (skipIfNoModels(t)) return;
+
+  const name = `Bio-${randomUUID()}`;
+  const email = `${name.toLowerCase()}@example.com`;
+  const password = 'secret123';
+
+  const user = await User.create({ name, password, email });
+
+  const bio = {
+    bio: {
+      text: { en: 'Test bio' },
+      html: { en: '<p>Test bio</p>' }
+    },
+    originalLanguage: 'en'
+  };
+
+  await User.createBio(user, bio);
+
+  const fetched = await User.findByURLName(user.urlName, {
+    withData: true,
+    withTeams: true
+  });
+
+  t.truthy(fetched.meta, 'Metadata attached to fetched user');
+  t.is(fetched.meta.bio.text.en, 'Test bio', 'Bio text persisted and loaded');
+  t.true(Array.isArray(fetched.teams), 'Teams list provided');
+  t.true(Array.isArray(fetched.moderatorOf), 'Moderator list provided');
 });
 
 test.serial('File model: create first revision and retrieve stashed upload', async t => {

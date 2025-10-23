@@ -56,15 +56,8 @@ test.before(async t => {
       t.log('pgcrypto extension not available:', extensionError.message);
     }
 
-    // Initialize models using the proper pattern
     const models = await dalFixture.initializeModels([
-      { 
-        key: 'Thing', 
-        loader: dal => {
-          const { initializeThingModel } = require('../models-postgres/thing.js');
-          return initializeThingModel(dal);
-        }
-      }
+      { key: 'things', alias: 'Thing' }
     ]);
     Thing = models.Thing;
 
