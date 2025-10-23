@@ -94,23 +94,27 @@ async function initializeTeamModel(dal = null) {
           name: 'members',
           targetTable: 'users',
           sourceKey: 'id',
+          targetKey: 'id',
           hasRevisions: false,
           through: {
             table: 'team_members',
             sourceForeignKey: 'team_id',
             targetForeignKey: 'user_id'
-          }
+          },
+          cardinality: 'many'
         },
         {
           name: 'moderators',
           targetTable: 'users',
           sourceKey: 'id',
+          targetKey: 'id',
           hasRevisions: false,
           through: {
             table: 'team_moderators',
             sourceForeignKey: 'team_id',
             targetForeignKey: 'user_id'
-          }
+          },
+          cardinality: 'many'
         }
       ]
     });

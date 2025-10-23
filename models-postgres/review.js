@@ -86,19 +86,25 @@ async function initializeReviewModel(dal = null) {
           name: 'thing',
           targetTable: 'things',
           sourceKey: 'thing_id',
-          hasRevisions: true
+          targetKey: 'id',
+          hasRevisions: true,
+          cardinality: 'one'
         },
         {
           name: 'creator',
           targetTable: 'users',
           sourceKey: 'created_by',
-          hasRevisions: false
+          targetKey: 'id',
+          hasRevisions: false,
+          cardinality: 'one'
         },
         {
           name: 'socialImage',
           targetTable: 'files',
           sourceKey: 'social_image_id',
-          hasRevisions: true
+          targetKey: 'id',
+          hasRevisions: true,
+          cardinality: 'one'
         }
       ]
     });

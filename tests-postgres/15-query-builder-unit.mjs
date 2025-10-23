@@ -240,12 +240,19 @@ test('QueryBuilder handles join information lookup', t => {
   t.is(thingJoin.table, 'things');
   t.true(thingJoin.hasRevisions);
   t.is(thingJoin.condition, 'reviews.thing_id = things.id');
+  t.is(thingJoin.sourceColumn, 'thing_id');
+  t.is(thingJoin.targetColumn, 'id');
+  t.is(thingJoin.cardinality, 'one');
+  t.is(thingJoin.type, 'direct');
 
   const creatorJoin = qb._getJoinInfo('creator');
   t.truthy(creatorJoin);
   t.is(creatorJoin.table, 'users');
   t.false(creatorJoin.hasRevisions);
   t.is(creatorJoin.condition, 'reviews.created_by = users.id');
+  t.is(creatorJoin.sourceColumn, 'created_by');
+  t.is(creatorJoin.targetColumn, 'id');
+  t.is(creatorJoin.cardinality, 'one');
 
   // Test unknown join
   const unknownJoin = qb._getJoinInfo('unknown');

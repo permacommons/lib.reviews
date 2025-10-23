@@ -112,29 +112,35 @@ async function initializeUserModel(dal = null) {
           name: 'teams',
           targetTable: 'teams',
           sourceKey: 'id',
+          targetKey: 'id',
           hasRevisions: true,
           through: {
             table: 'team_members',
             sourceForeignKey: 'user_id',
             targetForeignKey: 'team_id'
-          }
+          },
+          cardinality: 'many'
         },
         {
           name: 'moderatorOf',
           targetTable: 'teams',
           sourceKey: 'id',
+          targetKey: 'id',
           hasRevisions: true,
           through: {
             table: 'team_moderators',
             sourceForeignKey: 'user_id',
             targetForeignKey: 'team_id'
-          }
+          },
+          cardinality: 'many'
         },
         {
           name: 'meta',
           targetTable: 'user_metas',
           sourceKey: 'user_meta_id',
-          hasRevisions: true
+          targetKey: 'id',
+          hasRevisions: true,
+          cardinality: 'one'
         }
       ]
     });

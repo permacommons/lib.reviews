@@ -82,14 +82,76 @@ class Model {
       this._relations = new Map();
     }
 
-    const normalizedConfig = { ...config };
-    if (normalizedConfig.through && typeof normalizedConfig.through === 'object') {
-      normalizedConfig.through = { ...normalizedConfig.through };
-      Object.freeze(normalizedConfig.through);
+    const normalizedConfig = this._normalizeRelationConfig(name, config);
+    this._relations.set(name, normalizedConfig);
+  }
+
+  /**
+   * Normalize and enrich relation metadata for downstream consumers.
+   *
+   * @param {string} name - Relation name.
+   * @param {Object} config - Raw relation configuration.
+   * @returns {Object} Frozen, normalized relation configuration.
+   * @private
+   */
+  static _normalizeRelationConfig(name, config) {
+    const baseConfig = config && typeof config === 'object' ? { ...config } : {};
+
+    const targetTable = baseConfig.targetTable || baseConfig.table || baseConfig.target;
+    if (!targetTable) {
+      throw new Error(`Relation '${name}' must define a targetTable or table property.`);
     }
 
-    Object.freeze(normalizedConfig);
-    this._relations.set(name, normalizedConfig);
+    const targetModelKey = baseConfig.targetModelKey || baseConfig.targetModel || targetTable;
+
+    const rawSource = baseConfig.sourceColumn || baseConfig.sourceKey || baseConfig.sourceField || 'id';
+    const sourceColumn = this._getDbFieldName ? this._getDbFieldName(rawSource) : rawSource;
+
+    const rawTarget = baseConfig.targetColumn || baseConfig.targetKey || baseConfig.targetField || 'id';
+    const targetColumn = rawTarget;
+
+    const hasRevisions = Boolean(baseConfig.hasRevisions);
+
+    let throughConfig = null;
+    if (baseConfig.through && typeof baseConfig.through === 'object') {
+      const rawThrough = baseConfig.through;
+      const throughTable = rawThrough.table || rawThrough.name || baseConfig.joinTable;
+      if (!throughTable) {
+        throw new Error(`Relation '${name}' requires a through.table definition for many-to-many joins.`);
+      }
+
+      const throughSourceColumn = rawThrough.sourceColumn || rawThrough.sourceForeignKey || rawThrough.sourceKey;
+      const throughTargetColumn = rawThrough.targetColumn || rawThrough.targetForeignKey || rawThrough.targetKey;
+
+      if (!throughSourceColumn || !throughTargetColumn) {
+        throw new Error(`Relation '${name}' through definition must include sourceForeignKey and targetForeignKey.`);
+      }
+
+      throughConfig = Object.freeze({
+        table: throughTable,
+        sourceColumn: throughSourceColumn,
+        targetColumn: throughTargetColumn,
+        sourceCondition: rawThrough.sourceCondition || null,
+        targetCondition: rawThrough.targetCondition || null
+      });
+    }
+
+    const inferredCardinality = baseConfig.cardinality
+      || (throughConfig ? 'many' : (sourceColumn === 'id' ? 'many' : 'one'));
+
+    return Object.freeze({
+      ...baseConfig,
+      targetTable,
+      targetModelKey,
+      sourceColumn,
+      targetColumn,
+      hasRevisions,
+      cardinality: inferredCardinality,
+      isArray: inferredCardinality !== 'one',
+      through: throughConfig,
+      joinType: throughConfig ? 'through' : 'direct',
+      condition: baseConfig.condition || null
+    });
   }
 
   /**

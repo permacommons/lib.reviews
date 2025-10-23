@@ -378,15 +378,18 @@ class QueryBuilder {
       return null;
     }
 
-    const targetTableName = this._resolveTableReference(relationConfig.targetTable || relationConfig.table);
+    const baseTargetTable = relationConfig.targetTable || relationConfig.table;
+    const targetTableName = this._resolveTableReference(baseTargetTable);
     if (!targetTableName) {
       debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing a target table definition`);
       return null;
     }
 
     const hasRevisions = Boolean(relationConfig.hasRevisions);
-    const sourceKey = relationConfig.sourceKey || relationConfig.sourceColumn || 'id';
-    const targetKey = relationConfig.targetKey || relationConfig.targetColumn || 'id';
+    const sourceColumn = relationConfig.sourceColumn || relationConfig.sourceKey || 'id';
+    const targetColumn = relationConfig.targetColumn || relationConfig.targetKey || 'id';
+    const cardinality = relationConfig.cardinality || (relationConfig.isArray ? 'many' : 'one');
+    const targetModelKey = relationConfig.targetModelKey || relationConfig.targetModel || baseTargetTable;
 
     if (relationConfig.through && typeof relationConfig.through === 'object') {
       const joinTableName = this._resolveTableReference(relationConfig.through.table || relationConfig.joinTable);
@@ -395,8 +398,12 @@ class QueryBuilder {
         return null;
       }
 
-      const throughSourceKey = relationConfig.through.sourceForeignKey || relationConfig.through.sourceKey;
-      const throughTargetKey = relationConfig.through.targetForeignKey || relationConfig.through.targetKey;
+      const throughSourceKey = relationConfig.through.sourceColumn
+        || relationConfig.through.sourceForeignKey
+        || relationConfig.through.sourceKey;
+      const throughTargetKey = relationConfig.through.targetColumn
+        || relationConfig.through.targetForeignKey
+        || relationConfig.through.targetKey;
 
       if (!throughSourceKey || !throughTargetKey) {
         debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing join column metadata`);
@@ -404,27 +411,43 @@ class QueryBuilder {
       }
 
       const joinTableOn = relationConfig.through.sourceCondition
-        || `${this.tableName}.${sourceKey} = ${joinTableName}.${throughSourceKey}`;
+        || `${this.tableName}.${sourceColumn} = ${joinTableName}.${throughSourceKey}`;
       const targetCondition = relationConfig.condition
         || relationConfig.through.targetCondition
-        || `${joinTableName}.${throughTargetKey} = ${targetTableName}.${targetKey}`;
+        || `${joinTableName}.${throughTargetKey} = ${targetTableName}.${targetColumn}`;
 
       return {
+        type: 'through',
         table: targetTableName,
+        baseTable: baseTargetTable,
         hasRevisions,
         joinTable: joinTableName,
         joinTableOn,
-        condition: targetCondition
+        condition: targetCondition,
+        sourceColumn,
+        targetColumn,
+        joinTableSourceColumn: throughSourceKey,
+        joinTableTargetColumn: throughTargetKey,
+        cardinality,
+        isArray: cardinality !== 'one',
+        targetModelKey
       };
     }
 
     const directCondition = relationConfig.condition
-      || `${this.tableName}.${sourceKey} = ${targetTableName}.${targetKey}`;
+      || `${this.tableName}.${sourceColumn} = ${targetTableName}.${targetColumn}`;
 
     return {
+      type: 'direct',
       table: targetTableName,
+      baseTable: baseTargetTable,
       hasRevisions,
-      condition: directCondition
+      condition: directCondition,
+      sourceColumn,
+      targetColumn,
+      cardinality,
+      isArray: cardinality !== 'one',
+      targetModelKey
     };
   }
 
@@ -499,114 +522,314 @@ class QueryBuilder {
    * @private
    */
   async _processComplexJoin(mainRows, relationName, joinSpec) {
-    if (mainRows.length === 0) return;
-    
+    if (!Array.isArray(mainRows) || mainRows.length === 0) {
+      return;
+    }
+
     const { joinInfo } = joinSpec;
-    const mainIds = mainRows.map(row => row.id);
-    
-    // Build query for the related data
-    let relatedQuery = `SELECT * FROM ${joinInfo.table}`;
-    let relatedParams = [];
-    let paramIndex = 1;
-    
-    // Add join conditions
-    if (relationName === 'reviews' && this.tableName.includes('things')) {
-      relatedQuery += ` WHERE thing_id = ANY(${paramIndex})`;
-      relatedParams.push(mainIds);
-      paramIndex++;
-    } else if (relationName === 'files' && this.tableName.includes('things')) {
-      relatedQuery = `
-        SELECT f.* FROM ${joinInfo.table} f
-        JOIN thing_files tf ON f.id = tf.file_id
-        WHERE tf.thing_id = ANY(${paramIndex})
-      `;
-      relatedParams.push(mainIds);
-      paramIndex++;
-    } else if (relationName === 'teams' && this.tableName.includes('users')) {
-      relatedQuery = `
-        SELECT t.* FROM ${joinInfo.table} t
-        JOIN team_members tm ON t.id = tm.team_id
-        WHERE tm.user_id = ANY(${paramIndex})
-      `;
-      relatedParams.push(mainIds);
-      paramIndex++;
+    if (!joinInfo) {
+      debug.db(`Warning: Missing join metadata for relation '${relationName}' on '${this.tableName}'`);
+      return;
     }
-    
-    // Add revision filtering
+
+    const sourceValues = this._extractJoinSourceValues(mainRows, joinInfo.sourceColumn);
+    if (sourceValues.length === 0) {
+      this._assignJoinResults(mainRows, relationName, joinInfo, new Map());
+      return;
+    }
+
+    const analysis = this._analyzeJoinApply(joinSpec._apply);
+    const { query, params, joinSourceAlias } = this._buildComplexJoinQuery(
+      relationName,
+      joinInfo,
+      sourceValues,
+      analysis
+    );
+
+    const relatedResult = await this.dal.query(query, params);
+    let relatedRows = relatedResult.rows || [];
+
+    if (analysis?.removeFields?.length) {
+      relatedRows = this._applyJoinFieldOmissions(relatedRows, analysis.removeFields);
+    }
+
+    const groupedRows = this._groupRelatedRows(relatedRows, joinSourceAlias);
+    this._assignJoinResults(mainRows, relationName, joinInfo, groupedRows);
+  }
+
+  _extractJoinSourceValues(mainRows, sourceColumn) {
+    if (!sourceColumn) {
+      return [];
+    }
+
+    const values = [];
+    const seen = new Set();
+    for (const row of mainRows) {
+      const value = this._getRowValue(row, sourceColumn);
+      if (value === undefined || value === null) {
+        continue;
+      }
+
+      const key = value instanceof Date ? value.getTime() : `${value}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      values.push(value);
+    }
+
+    return values;
+  }
+
+  _buildComplexJoinQuery(relationName, joinInfo, sourceValues, analysis = null) {
+    const params = [sourceValues];
+    let paramIndex = 2;
+
+    const targetAlias = `${relationName}_target`;
+    const throughAlias = `${relationName}_through`;
+    const joinSourceAlias = '_join_source_id';
+
+    const whereClauses = [];
+    let orderClause = '';
+    let limitClause = '';
+
+    let query;
+    if (joinInfo.type === 'through') {
+      query = `
+        SELECT ${targetAlias}.*, ${throughAlias}.${joinInfo.joinTableSourceColumn} AS ${joinSourceAlias}
+        FROM ${joinInfo.table} ${targetAlias}
+        JOIN ${joinInfo.joinTable} ${throughAlias}
+          ON ${throughAlias}.${joinInfo.joinTableTargetColumn} = ${targetAlias}.${joinInfo.targetColumn}
+      `;
+      whereClauses.push(`${throughAlias}.${joinInfo.joinTableSourceColumn} = ANY($1)`);
+    } else {
+      query = `
+        SELECT ${targetAlias}.*, ${targetAlias}.${joinInfo.targetColumn} AS ${joinSourceAlias}
+        FROM ${joinInfo.table} ${targetAlias}
+      `;
+      whereClauses.push(`${targetAlias}.${joinInfo.targetColumn} = ANY($1)`);
+    }
+
     if (joinInfo.hasRevisions) {
-      relatedQuery += ` AND _old_rev_of IS NULL AND (_rev_deleted IS NULL OR _rev_deleted = false)`;
+      whereClauses.push(`${targetAlias}._old_rev_of IS NULL`);
+      whereClauses.push(`(${targetAlias}._rev_deleted IS NULL OR ${targetAlias}._rev_deleted = false)`);
     }
-    
-    // Apply _apply transformations
-    if (joinSpec._apply) {
-      // Handle common _apply patterns
-      if (joinSpec._apply.toString().includes('without(\'password\')')) {
-        // Remove password field from select
-        relatedQuery = relatedQuery.replace('SELECT *', 'SELECT id, display_name, canonical_name, email, user_meta_id, invite_link_count, registration_date, show_error_details, is_trusted, is_site_moderator, is_super_user, suppressed_notices, prefers_rich_text_editor');
-      }
-      
-      // Handle ordering
-      if (joinSpec._apply.toString().includes('orderBy')) {
-        if (joinSpec._apply.toString().includes('desc(\'createdOn\')')) {
-          relatedQuery += ' ORDER BY created_on DESC';
-        } else if (joinSpec._apply.toString().includes('desc(\'created_on\')')) {
-          relatedQuery += ' ORDER BY created_on DESC';
+
+    if (analysis?.filters?.length) {
+      for (const filter of analysis.filters) {
+        const column = this._normalizeColumnName(filter.field);
+        if (column === '_rev_deleted' && filter.value === false) {
+          whereClauses.push(`(${targetAlias}._rev_deleted IS NULL OR ${targetAlias}._rev_deleted = false)`);
+          continue;
         }
-      }
-      
-      // Handle filtering
-      if (joinSpec._apply.toString().includes('filter')) {
-        if (joinSpec._apply.toString().includes('completed: true')) {
-          relatedQuery += ' AND completed = true';
+
+        if (filter.operator === 'IS NULL' || filter.value === null) {
+          whereClauses.push(`${targetAlias}.${column} IS NULL`);
+          continue;
         }
-        if (joinSpec._apply.toString().includes('_revDeleted: false')) {
-          relatedQuery += ' AND (_rev_deleted IS NULL OR _rev_deleted = false)';
+
+        if (filter.operator === 'IS NOT NULL') {
+          whereClauses.push(`${targetAlias}.${column} IS NOT NULL`);
+          continue;
         }
-      }
-      
-      // Handle limits
-      if (joinSpec._apply.toString().includes('limit(')) {
-        const limitMatch = joinSpec._apply.toString().match(/limit\((\d+)\)/);
-        if (limitMatch) {
-          relatedQuery += ` LIMIT ${limitMatch[1]}`;
-        }
+
+        const operator = filter.operator || '=';
+        whereClauses.push(`${targetAlias}.${column} ${operator} $${paramIndex}`);
+        params.push(filter.value);
+        paramIndex++;
       }
     }
-    
-    // Execute the related query
-    const relatedResult = await this.dal.query(relatedQuery, relatedParams);
-    
-    // Group related results by the foreign key
-    const relatedByKey = {};
-    for (const relatedRow of relatedResult.rows) {
-      let foreignKey;
-      if (relationName === 'reviews') {
-        foreignKey = relatedRow.thing_id;
-      } else if (relationName === 'files') {
-        // This would need to be handled differently for many-to-many
-        continue;
-      } else if (relationName === 'teams') {
-        // This would need to be handled differently for many-to-many
-        continue;
-      } else {
-        continue;
-      }
-      
-      if (!relatedByKey[foreignKey]) {
-        relatedByKey[foreignKey] = [];
-      }
-      relatedByKey[foreignKey].push(relatedRow);
+
+    if (analysis?.order) {
+      const column = this._normalizeColumnName(analysis.order.field);
+      orderClause = ` ORDER BY ${targetAlias}.${column} ${analysis.order.direction}`;
     }
-    
-    // Attach related data to main rows
+
+    if (typeof analysis?.limit === 'number') {
+      limitClause = ` LIMIT ${analysis.limit}`;
+    }
+
+    const whereClause = whereClauses.length > 0 ? ` WHERE ${whereClauses.join(' AND ')}` : '';
+    const sql = `${query.trim()}${whereClause}${orderClause}${limitClause}`;
+
+    return { query: sql, params, joinSourceAlias };
+  }
+
+  _groupRelatedRows(rows, joinSourceAlias = '_join_source_id') {
+    const grouped = new Map();
+    if (!Array.isArray(rows)) {
+      return grouped;
+    }
+
+    for (const row of rows) {
+      if (!row || typeof row !== 'object' || !Object.prototype.hasOwnProperty.call(row, joinSourceAlias)) {
+        continue;
+      }
+
+      const key = row[joinSourceAlias];
+      if (key === undefined || key === null) {
+        continue;
+      }
+
+      const cloned = { ...row };
+      delete cloned[joinSourceAlias];
+
+      const existing = grouped.get(key) || [];
+      existing.push(cloned);
+      grouped.set(key, existing);
+    }
+
+    return grouped;
+  }
+
+  _assignJoinResults(mainRows, relationName, joinInfo, groupedRows) {
+    const RelatedModel = this._getRelatedModel(relationName, joinInfo);
+    const expectsArray = joinInfo.isArray !== false && joinInfo.cardinality !== 'one';
+    const sourceColumn = joinInfo.sourceColumn || 'id';
+
     for (const mainRow of mainRows) {
-      const relatedData = relatedByKey[mainRow.id] || [];
-      mainRow[relationName] = relatedData.map(row => {
-        // Create model instances for related data
-        const RelatedModel = this._getRelatedModel(relationName);
-        return RelatedModel ? RelatedModel._createInstance(row) : row;
-      });
+      const joinKey = this._getRowValue(mainRow, sourceColumn);
+      const related = joinKey === undefined || joinKey === null
+        ? []
+        : (groupedRows.get(joinKey) || []);
+
+      if (expectsArray) {
+        mainRow[relationName] = related.map(row => (
+          RelatedModel ? RelatedModel._createInstance(row) : row
+        ));
+      } else {
+        const match = related[0] || null;
+        mainRow[relationName] = match ? (
+          RelatedModel ? RelatedModel._createInstance(match) : match
+        ) : null;
+      }
     }
+  }
+
+  _getRowValue(row, column) {
+    if (!row || !column) {
+      return undefined;
+    }
+
+    if (typeof row.getValue === 'function') {
+      return row.getValue(column);
+    }
+
+    return row[column];
+  }
+
+  _applyJoinFieldOmissions(rows, fields) {
+    if (!Array.isArray(rows) || !Array.isArray(fields) || fields.length === 0) {
+      return rows;
+    }
+
+    return rows.map(row => {
+      if (!row || typeof row !== 'object') {
+        return row;
+      }
+
+      const cloned = { ...row };
+      for (const field of fields) {
+        if (!field) continue;
+        delete cloned[field];
+      }
+      return cloned;
+    });
+  }
+
+  _analyzeJoinApply(applyFn) {
+    if (typeof applyFn !== 'function') {
+      return null;
+    }
+
+    const source = applyFn.toString();
+    const analysis = {
+      removeFields: [],
+      filters: []
+    };
+
+    const withoutRegex = /without\(([^)]+)\)/g;
+    let withoutMatch;
+    while ((withoutMatch = withoutRegex.exec(source)) !== null) {
+      const fields = withoutMatch[1]
+        .split(',')
+        .map(entry => entry.replace(/['"\[\]\s]/g, ''))
+        .filter(Boolean);
+      analysis.removeFields.push(...fields);
+    }
+
+    const limitMatch = source.match(/limit\((\d+)\)/);
+    if (limitMatch) {
+      analysis.limit = Number.parseInt(limitMatch[1], 10);
+    }
+
+    const descMatch = source.match(/desc\(['"]([\w]+)['"]\)/);
+    const ascMatch = source.match(/asc\(['"]([\w]+)['"]\)/);
+    const orderByMatch = source.match(/orderBy\(['"]([\w]+)['"]\)/);
+
+    if (descMatch) {
+      analysis.order = { field: descMatch[1], direction: 'DESC' };
+    } else if (ascMatch) {
+      analysis.order = { field: ascMatch[1], direction: 'ASC' };
+    } else if (orderByMatch) {
+      analysis.order = { field: orderByMatch[1], direction: 'ASC' };
+    }
+
+    const filterMatch = source.match(/filter\(\{([^}]*)\}\)/);
+    if (filterMatch) {
+      const parts = filterMatch[1].split(',');
+      for (const part of parts) {
+        const [rawField, rawValue] = part.split(':');
+        if (!rawField) continue;
+        const field = rawField.trim().replace(/['"]/g, '');
+        if (!field) continue;
+
+        let value = rawValue ? rawValue.trim() : undefined;
+        if (value === undefined || value.length === 0) {
+          analysis.filters.push({ field, operator: 'IS NULL', value: null });
+          continue;
+        }
+
+        value = value.replace(/['"]/g, '');
+        if (value.toLowerCase() === 'true') {
+          analysis.filters.push({ field, value: true });
+        } else if (value.toLowerCase() === 'false') {
+          analysis.filters.push({ field, value: false });
+        } else if (value.toLowerCase() === 'null') {
+          analysis.filters.push({ field, operator: 'IS NULL', value: null });
+        } else if (!Number.isNaN(Number(value))) {
+          analysis.filters.push({ field, value: Number(value) });
+        } else {
+          analysis.filters.push({ field, value });
+        }
+      }
+    }
+
+    if (
+      analysis.removeFields.length === 0 &&
+      analysis.filters.length === 0 &&
+      !analysis.order &&
+      typeof analysis.limit !== 'number'
+    ) {
+      return null;
+    }
+
+    return analysis;
+  }
+
+  _normalizeColumnName(field) {
+    if (!field) {
+      return field;
+    }
+
+    if (field.startsWith('_')) {
+      return `_${this._normalizeColumnName(field.slice(1))}`;
+    }
+
+    const withUnderscores = field
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/[\s-]+/g, '_');
+    return withUnderscores.toLowerCase();
   }
 
   /**
@@ -615,10 +838,45 @@ class QueryBuilder {
    * @returns {Function|null} Model class
    * @private
    */
-  _getRelatedModel(relationName) {
-    // This would ideally use a model registry
-    // For now, return null and use raw data
+  _getRelatedModel(relationName, joinInfo = null) {
+    const registry = this._getModelRegistry();
+    if (!registry || typeof registry.get !== 'function') {
+      return null;
+    }
+
+    const metadata = joinInfo
+      || (this._simpleJoins && this._simpleJoins[relationName])
+      || (this._complexJoins && this._complexJoins[relationName]?.joinInfo)
+      || {};
+
+    const identifiers = [
+      metadata.targetModelKey,
+      metadata.baseTable,
+      metadata.table,
+      relationName
+    ];
+
+    for (const identifier of identifiers) {
+      if (!identifier) continue;
+      const model = registry.get(identifier);
+      if (model) {
+        return model;
+      }
+    }
+
     return null;
+  }
+
+  _getModelRegistry() {
+    if (!this.dal) {
+      return null;
+    }
+
+    if (typeof this.dal.getModelRegistry === 'function') {
+      return this.dal.getModelRegistry();
+    }
+
+    return this.dal.modelRegistry || null;
   }
 
   /**
@@ -666,7 +924,8 @@ class QueryBuilder {
       for (const [relationName, data] of Object.entries(joinedData)) {
         if (data && Object.keys(data).some(key => data[key] !== null)) {
           // Create model instance for joined data if possible
-          const RelatedModel = this._getRelatedModel(relationName);
+          const joinInfo = this._simpleJoins ? this._simpleJoins[relationName] : null;
+          const RelatedModel = this._getRelatedModel(relationName, joinInfo);
           instance[relationName] = RelatedModel ? RelatedModel._createInstance(data) : data;
         } else {
           instance[relationName] = null;

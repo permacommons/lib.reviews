@@ -29,16 +29,16 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
   ]
 });
 
-let User, Thing, Review;
+let User, Thing, Review, Team;
 const ensureUserExists = async (id, name = 'Test User') => {
   const usersTable = dalFixture.getTableName('users');
   const displayName = name;
   const canonicalName = name.toUpperCase();
   await dalFixture.query(
-    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email, password)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (id) DO NOTHING`,
-    [id, displayName, canonicalName, `${id}@example.com`]
+    [id, displayName, canonicalName, `${id}@example.com`, `hashed-${id}`]
   );
 };
 
@@ -65,17 +65,19 @@ test.before(async t => {
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
     { key: 'things', alias: 'Thing' },
-    { key: 'reviews', alias: 'Review' }
+    { key: 'reviews', alias: 'Review' },
+    { key: 'teams', alias: 'Team' }
   ]);
 
   User = models.User;
   Thing = models.Thing;
   Review = models.Review;
+  Team = models.Team;
 });
 
 function skipIfNoModels(t) {
   if (skipIfUnavailable(t)) return true;
-  if (!User || !Thing || !Review) {
+  if (!User || !Thing || !Review || !Team) {
     t.pass('Skipping - PostgreSQL DAL not available');
     return true;
   }
@@ -164,7 +166,7 @@ test.serial('QueryBuilder handles revision-aware joins', async t => {
 
 test.serial('QueryBuilder supports complex joins with _apply', async t => {
   if (skipIfNoModels(t)) return;
-  
+
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
   await ensureUserExists(testUser.id, 'Array Contains User');
@@ -194,11 +196,79 @@ test.serial('QueryBuilder supports complex joins with _apply', async t => {
   });
   
   const reviews = await query.run();
-  
+
   t.true(Array.isArray(reviews));
   t.is(reviews.length, 1);
   t.is(reviews[0].id, review.id);
-  // Creator would be populated without password field
+  t.truthy(reviews[0].creator);
+  t.true(reviews[0].creator instanceof User);
+  t.is(reviews[0].creator.id, testUser.id);
+  t.is(reviews[0].creator.password, undefined);
+});
+
+test.serial('QueryBuilder materializes hasMany relations using model metadata', async t => {
+  if (skipIfNoModels(t)) return;
+
+  const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(testUser.id, 'HasMany Join User');
+
+  const thingDraft = await Thing.createFirstRevision(testUser, { tags: ['join'] });
+  thingDraft.urls = [`https://example.com/${randomUUID()}`];
+  thingDraft.label = { en: 'Join Test Thing' };
+  thingDraft.createdOn = new Date();
+  thingDraft.createdBy = testUser.id;
+  await thingDraft.save();
+
+  const reviewDraft = await Review.createFirstRevision(testUser, { tags: ['join'] });
+  reviewDraft.thingID = thingDraft.id;
+  reviewDraft.title = { en: 'Join Review' };
+  reviewDraft.text = { en: 'Join review text' };
+  reviewDraft.starRating = 4;
+  reviewDraft.createdOn = new Date();
+  reviewDraft.createdBy = testUser.id;
+  await reviewDraft.save();
+
+  const things = await Thing.filter({ id: thingDraft.id }).getJoin({ reviews: {} }).run();
+
+  t.is(things.length, 1);
+  const loadedThing = things[0];
+  t.true(Array.isArray(loadedThing.reviews));
+  t.is(loadedThing.reviews.length, 1);
+  t.true(loadedThing.reviews[0] instanceof Review);
+  t.is(loadedThing.reviews[0].thingID, thingDraft.id);
+});
+
+test.serial('QueryBuilder materializes through-table joins generically', async t => {
+  if (skipIfNoModels(t)) return;
+
+  const userId = randomUUID();
+  await ensureUserExists(userId, 'Through Join User');
+
+  const teamDraft = await Team.createFirstRevision({ id: userId, is_super_user: false, is_trusted: true }, { tags: ['create'] });
+  teamDraft.name = { en: 'Join Test Team' };
+  teamDraft.motto = { en: 'Together' };
+  teamDraft.description = { text: { en: 'Team description' }, html: { en: '<p>Team description</p>' } };
+  teamDraft.rules = { text: { en: 'Be kind' }, html: { en: '<p>Be kind</p>' } };
+  teamDraft.createdBy = userId;
+  teamDraft.createdOn = new Date();
+  teamDraft.originalLanguage = 'en';
+  teamDraft.confersPermissions = {};
+  await teamDraft.save();
+
+  const teamMembersTable = dalFixture.getTableName('team_members');
+  await dalFixture.query(
+    `INSERT INTO ${teamMembersTable} (team_id, user_id) VALUES ($1, $2)`,
+    [teamDraft.id, userId]
+  );
+
+  const users = await User.filter({ id: userId }).getJoin({ teams: {} }).run();
+
+  t.is(users.length, 1);
+  const loadedUser = users[0];
+  t.true(Array.isArray(loadedUser.teams));
+  t.is(loadedUser.teams.length, 1);
+  t.true(loadedUser.teams[0] instanceof Team);
+  t.is(loadedUser.teams[0].id, teamDraft.id);
 });
 
 test.serial('QueryBuilder supports multiple joins', async t => {

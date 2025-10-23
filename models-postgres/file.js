@@ -82,18 +82,22 @@ async function initializeFileModel(dal = null) {
           name: 'uploader',
           targetTable: 'users',
           sourceKey: 'uploaded_by',
-          hasRevisions: false
+          targetKey: 'id',
+          hasRevisions: false,
+          cardinality: 'one'
         },
         {
           name: 'things',
           targetTable: 'things',
           sourceKey: 'id',
+          targetKey: 'id',
           hasRevisions: true,
           through: {
             table: 'thing_files',
             sourceForeignKey: 'file_id',
             targetForeignKey: 'thing_id'
-          }
+          },
+          cardinality: 'many'
         }
       ]
     });

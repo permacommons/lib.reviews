@@ -118,18 +118,21 @@ async function initializeThingModel(dal = null) {
           targetTable: 'reviews',
           sourceKey: 'id',
           targetKey: 'thing_id',
-          hasRevisions: true
+          hasRevisions: true,
+          cardinality: 'many'
         },
         {
           name: 'files',
           targetTable: 'files',
           sourceKey: 'id',
+          targetKey: 'id',
           hasRevisions: true,
           through: {
             table: 'thing_files',
             sourceForeignKey: 'thing_id',
             targetForeignKey: 'file_id'
-          }
+          },
+          cardinality: 'many'
         }
       ]
     });
