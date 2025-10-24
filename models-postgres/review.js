@@ -186,8 +186,8 @@ async function getWithData(id) {
   // Manually join thing data
   if (review.thingID) {
     try {
-      const { getPostgresThingModel } = require('./thing');
-      const ThingModel = await getPostgresThingModel(Review.dal);
+      const { getModel } = require('../bootstrap/dal');
+      const ThingModel = getModel('things');
       if (ThingModel) {
         const thing = await ThingModel.getNotStaleOrDeleted(review.thingID);
         if (thing) {
@@ -353,8 +353,8 @@ async function findOrCreateThing(reviewObj) {
     return reviewObj.thing;
   }
 
-  const { getPostgresThingModel } = require('./thing');
-  const ThingModel = await getPostgresThingModel(Review.dal);
+  const { getModel } = require('../bootstrap/dal');
+  const ThingModel = getModel('things');
 
   if (!ThingModel || typeof ThingModel.createFirstRevision !== 'function') {
     throw new Error('Thing model not available');
@@ -557,11 +557,8 @@ async function getFeed({
         const thingIds = [...new Set(feedItems.map(review => review.thingID).filter(Boolean))];
 
         if (thingIds.length > 0) {
-          const { getPostgresThingModel } = require('./thing');
-          let ThingModel = await getPostgresThingModel(Review.dal);
-          if (!ThingModel) {
-            ThingModel = await getPostgresThingModel();
-          }
+          const { getModel } = require('../bootstrap/dal');
+          const ThingModel = getModel('things');
 
           if (!ThingModel) {
             debug.db('Thing model not available for joins in Review.getFeed');
@@ -623,8 +620,8 @@ async function getFeed({
           const teamResult = await Review.dal.query(teamQuery, reviewIds);
 
           // Get the Team model to create proper instances
-          const { getPostgresTeamModel } = require('./team');
-          const TeamModel = await getPostgresTeamModel(Review.dal);
+          const { getModel } = require('../bootstrap/dal');
+          const TeamModel = getModel('teams');
 
           if (!TeamModel) {
             debug.db('Team model not available for review team joins in feed');
@@ -737,8 +734,8 @@ async function _getReviewTeams(reviewId) {
     const result = await Review.dal.query(query, [reviewId]);
     
     // Get the Team model to create proper instances
-    const { getPostgresTeamModel } = require('./team');
-    const TeamModel = await getPostgresTeamModel(Review.dal);
+    const { getModel } = require('../bootstrap/dal');
+    const TeamModel = getModel('teams');
     
     if (!TeamModel) {
       debug.db('Team model not available for review team joins');

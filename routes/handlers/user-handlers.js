@@ -3,8 +3,8 @@ const escapeHTML = require('escape-html');
 
 const render = require('../helpers/render');
 const feeds = require('../helpers/feeds');
-const { getPostgresUserModel } = require('../../models-postgres/user');
-const { getPostgresReviewModel } = require('../../models-postgres/review');
+const User = require('../../models-postgres/user');
+const Review = require('../../models-postgres/review');
 const reviewHandlers = require('./review-handlers');
 const md = require('../../util/md');
 const { getEditorMessages } = require('../../util/frontend-messages');
@@ -15,8 +15,6 @@ let userHandlers = {
     const { name } = req.params;
 
     try {
-      const User = await getPostgresUserModel();
-      if (!User) return next(new Error('User model not available'));
 
       const user = await User.findByURLName(name, {
         withData: true,
@@ -77,9 +75,6 @@ let userHandlers = {
     return async function(req, res, next) {
       const { name } = req.params;
       try {
-        const User = await getPostgresUserModel();
-        if (!User) return next(new Error('User model not available'));
-
         const user = await User.findByURLName(name, {
           withData: true,
           withTeams: true
@@ -93,8 +88,7 @@ let userHandlers = {
         if (decodeURIComponent(user.urlName) !== name)
           return res.redirect(`/user/${user.urlName}`);
 
-        const Review = await getPostgresReviewModel();
-        if (!Review) return next(new Error('Review model not available'));
+
 
         const result = await Review.getFeed({
           createdBy: user.id,
@@ -183,9 +177,6 @@ let userHandlers = {
       }
 
       try {
-        const User = await getPostgresUserModel();
-        if (!User) return next(new Error('User model not available'));
-
         const user = await User.findByURLName(name);
 
         if (decodeURIComponent(user.urlName) !== name) {

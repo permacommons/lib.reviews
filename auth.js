@@ -5,7 +5,7 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 
 // Internal deps
-const { getPostgresUserModel } = require('./models-postgres/user');
+const User = require('./models-postgres/user');
 
 passport.serializeUser(function(user, done) {
   done(null, user.id);
@@ -13,10 +13,6 @@ passport.serializeUser(function(user, done) {
 
 passport.deserializeUser(async function(id, done) {
   try {
-    const User = await getPostgresUserModel();
-    if (!User) {
-      return done(new Error('User model not available'));
-    }
 
     const user = await User.getWithTeams(id);
     return done(null, user);
@@ -28,10 +24,6 @@ passport.deserializeUser(async function(id, done) {
 passport.use(new LocalStrategy(
   async function(username, password, done) {
     try {
-      const User = await getPostgresUserModel();
-      if (!User) {
-        return done(new Error('User model not available'));
-      }
 
       const users = await User
         .filter({

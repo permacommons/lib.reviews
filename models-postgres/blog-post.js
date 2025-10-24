@@ -7,7 +7,7 @@ const isValidLanguage = require('../locales/languages').isValid;
 const debug = require('../util/debug');
 const { DocumentNotFound } = require('../dal/lib/errors');
 const TeamSlug = require('./team-slug');
-const { getPostgresUserModel } = require('./user');
+// User model will be accessed via bootstrap DAL when needed
 const { initializeModel } = require('../dal/lib/model-initializer');
 
 let BlogPost = null;
@@ -188,7 +188,8 @@ async function _attachCreator(post) {
       return post;
     }
 
-    const User = await getPostgresUserModel(BlogPost.dal);
+    const { getModel } = require('../bootstrap/dal');
+    const User = getModel('users');
     const user = User._createInstance(result.rows[0]);
     post.creator = {
       id: user.id,

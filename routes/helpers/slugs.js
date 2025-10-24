@@ -4,10 +4,10 @@ const isUUID = require('is-uuid');
 
 // Internal dependencies
 const { DocumentNotFound } = require('../../dal/lib/errors');
-const { getPostgresTeamModel } = require('../../models-postgres/team');
-const { getPostgresTeamSlugModel } = require('../../models-postgres/team-slug');
-const { getPostgresThingModel } = require('../../models-postgres/thing');
-const { getPostgresThingSlugModel } = require('../../models-postgres/thing-slug');
+const Team = require('../../models-postgres/team');
+const TeamSlug = require('../../models-postgres/team-slug');
+const Thing = require('../../models-postgres/thing');
+const ThingSlug = require('../../models-postgres/thing-slug');
 
 const slugs = {
 
@@ -22,13 +22,13 @@ const slugs = {
     return _resolveAndLoad(req, res, id, loadOptions, {
       basePath: '/team/',
       slugForeignKey: 'teamID',
-      getDocumentModel: () => getPostgresTeamModel(),
+      getDocumentModel: () => Team,
       loadSlug: async (slugName, DocumentModel) => {
         const dal = DocumentModel && DocumentModel.dal;
         if (!dal) {
           return null;
         }
-        const TeamSlugModel = await getPostgresTeamSlugModel(dal);
+        const TeamSlugModel = TeamSlug;
         if (!TeamSlugModel) {
           return null;
         }
@@ -55,13 +55,13 @@ const slugs = {
     return _resolveAndLoad(req, res, id, loadOptions, {
       basePath: '/',
       slugForeignKey: 'thingID',
-      getDocumentModel: () => getPostgresThingModel(),
+      getDocumentModel: () => Thing,
       loadSlug: async (slugName, DocumentModel) => {
         const dal = DocumentModel && DocumentModel.dal;
         if (!dal) {
           return null;
         }
-        const ThingSlugModel = await getPostgresThingSlugModel(dal);
+        const ThingSlugModel = ThingSlug;
         if (!ThingSlugModel) {
           return null;
         }

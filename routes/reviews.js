@@ -6,11 +6,11 @@ const config = require('config');
 // Internal dependencies
 const render = require('./helpers/render');
 const feeds = require('./helpers/feeds');
-const { getPostgresTeamModel } = require('../models-postgres/team');
-const { getPostgresReviewModel } = require('../models-postgres/review');
+const Team = require('../models-postgres/team');
+const Review = require('../models-postgres/review');
 const ReviewProvider = require('./handlers/review-provider');
 const reviewHandlers = require('./handlers/review-handlers');
-const { getPostgresBlogPostModel } = require('../models-postgres/blog-post');
+const BlogPost = require('../models-postgres/blog-post');
 
 // Standard routes
 
@@ -34,8 +34,7 @@ let router = ReviewProvider.bakeRoutes(null, routes);
 // and a feed of recent reviews, filtered to include only trusted ones.
 router.get('/', async (req, res, next) => {
 
-  const Review = await getPostgresReviewModel();
-  const Team = await getPostgresTeamModel();
+  // Models are now available directly via bootstrap initialization
   let queries = [
     Review.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
     // Temporarily disable team sampling until table is properly created
@@ -43,7 +42,6 @@ router.get('/', async (req, res, next) => {
   ];
 
   if (config.frontPageTeamBlog) {
-    const BlogPost = await getPostgresBlogPostModel();
     queries.push(BlogPost.getMostRecentBlogPostsBySlug(
       config.frontPageTeamBlog, { limit: 3 }
     ));

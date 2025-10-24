@@ -7,7 +7,7 @@ const i18n = require('i18n');
 
 // Internal dependencies
 const AbstractBREADProvider = require('./abstract-bread-provider');
-const { getPostgresBlogPostModel } = require('../../models-postgres/blog-post');
+const BlogPost = require('../../models-postgres/blog-post');
 const mlString = require('../../dal/lib/ml-string.js');
 const languages = require('../../locales/languages');
 const feeds = require('../helpers/feeds');
@@ -62,7 +62,6 @@ class BlogPostProvider extends AbstractBREADProvider {
     if (!offsetDate || offsetDate == 'Invalid Date')
       offsetDate = null;
 
-    const BlogPost = await getPostgresBlogPostModel();
     BlogPost.getMostRecentBlogPosts(team.id, {
         limit: 10,
         offsetDate
@@ -116,7 +115,6 @@ class BlogPostProvider extends AbstractBREADProvider {
   }
 
   async read_GET(team) {
-    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -156,7 +154,6 @@ class BlogPostProvider extends AbstractBREADProvider {
   }
 
   async edit_GET(team) {
-    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -172,7 +169,6 @@ class BlogPostProvider extends AbstractBREADProvider {
   }
 
   async edit_POST(team) {
-    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -260,7 +256,6 @@ class BlogPostProvider extends AbstractBREADProvider {
   }
 
   async delete_GET(team) {
-    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -280,7 +275,6 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   async delete_POST() {
 
-    const BlogPost = await getPostgresBlogPostModel();
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {

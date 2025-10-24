@@ -507,8 +507,8 @@ async function getReviewsByUser(user) {
   }
 
   try {
-    const { getPostgresReviewModel } = require('./review');
-    const ReviewModel = await getPostgresReviewModel(Thing.dal);
+    const { getModel } = require('../bootstrap/dal');
+    const ReviewModel = getModel('reviews');
 
     if (!ReviewModel || typeof ReviewModel.getFeed !== 'function') {
       debug.db('Review model not available in Thing.getReviewsByUser');
@@ -646,7 +646,8 @@ async function updateSlug(userID, language) {
     this.id = randomUUID();
   }
 
-  const ThingSlugModel = await ThingSlug.initializeModel(Thing.dal);
+  const { getModel } = require('../bootstrap/dal');
+  const ThingSlugModel = getModel('thing_slugs');
   if (!ThingSlugModel) {
     debug.db('ThingSlug model not available; skipping slug update');
     return this;
@@ -691,7 +692,8 @@ async function addFilesByIDsAndSave(files, userID) {
     return this;
   }
 
-  const FileModel = await File.initializeModel(Thing.dal);
+  const { getModel } = require('../bootstrap/dal');
+  const FileModel = getModel('files');
   if (!FileModel) {
     debug.db('File model not available; skipping file association');
     return this;

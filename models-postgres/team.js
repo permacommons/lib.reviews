@@ -5,8 +5,7 @@ const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
-const { getPostgresUserModel } = require('./user');
-const { getPostgresReviewModel } = require('./review');
+// Models will be accessed via bootstrap DAL when needed
 const { initializeModel } = require('../dal/lib/model-initializer');
 
 let Team = null;
@@ -269,7 +268,8 @@ async function _getTeamMembers(teamId) {
     `;
     
     const result = await Team.dal.query(query, [teamId]);
-    const User = await getPostgresUserModel(Team.dal);
+    const { getModel } = require('../bootstrap/dal');
+    const User = getModel('users');
 
     return result.rows.map(row => {
       delete row.password;
@@ -300,7 +300,8 @@ async function _getTeamModerators(teamId) {
     `;
     
     const result = await Team.dal.query(query, [teamId]);
-    const User = await getPostgresUserModel(Team.dal);
+    const { getModel } = require('../bootstrap/dal');
+    const User = getModel('users');
 
     return result.rows.map(row => {
       delete row.password;
@@ -357,7 +358,8 @@ async function _getTeamReviews(teamId, limit, offsetDate) {
       `${Team.dal.tablePrefix}review_teams` : 'review_teams';
     const reviewTableName = Team.dal.tablePrefix ? 
       `${Team.dal.tablePrefix}reviews` : 'reviews';
-    const Review = await getPostgresReviewModel(Team.dal);
+    const { getModel } = require('../bootstrap/dal');
+    const Review = getModel('reviews');
     
     let query = `
       SELECT r.id, r.created_on FROM ${reviewTableName} r

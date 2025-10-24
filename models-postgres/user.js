@@ -341,7 +341,8 @@ function canonicalize(name) {
  * @async
  */
 async function createBio(user, bioObj) {
-  const UserMeta = await getPostgresUserMetaModel(currentDAL);
+  const { getModel } = require('../bootstrap/dal');
+  const UserMeta = getModel('user_metas');
   if (!UserMeta) {
     throw new Error('UserMeta model not available');
   }
@@ -374,7 +375,8 @@ async function attachUserMeta(user) {
     return;
   }
 
-  const UserMeta = await getPostgresUserMetaModel(currentDAL);
+  const { getModel } = require('../bootstrap/dal');
+  const UserMeta = getModel('user_metas');
   if (!UserMeta) {
     user.meta = undefined;
     return;
@@ -403,8 +405,8 @@ async function attachUserTeams(user) {
   user.teams = [];
   user.moderatorOf = [];
 
-  const { getPostgresTeamModel } = require('./team');
-  const Team = await getPostgresTeamModel(currentDAL);
+  const { getModel } = require('../bootstrap/dal');
+  const Team = getModel('teams');
   if (!Team) {
     return;
   }

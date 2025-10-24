@@ -378,8 +378,7 @@ class ReviewProvider extends AbstractBREADProvider {
       return;
     }
 
-    const { getPostgresTeamModel } = require('../../models-postgres/team');
-    const TeamModel = await getPostgresTeamModel();
+    const TeamModel = require('../../models-postgres/team');
     const queries = Object.keys(formValues.teams).map(teamId => TeamModel.getWithData(teamId));
 
     try {

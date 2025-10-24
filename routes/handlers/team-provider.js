@@ -9,7 +9,7 @@ const i18n = require('i18n');
 const AbstractBREADProvider = require('./abstract-bread-provider');
 const Team = require('../../models-postgres/team');
 const mlString = require('../../dal/lib/ml-string');
-const { getPostgresBlogPostModel } = require('../../models-postgres/blog-post');
+const BlogPost = require('../../models-postgres/blog-post');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
 const { getEditorMessages } = require('../../util/frontend-messages');
@@ -55,13 +55,7 @@ class TeamProvider extends AbstractBREADProvider {
 
   browse_GET() {
 
-    Team
-      .getPostgresTeamModel()
-      .then(model => {
-        if (!model || typeof model.filterNotStaleOrDeleted !== 'function')
-          throw new Error('PostgreSQL Team model not initialized');
-        return model.filterNotStaleOrDeleted().run();
-      })
+    Team.filterNotStaleOrDeleted().run()
       .then(teams => {
 
         this.renderTemplate('teams', {
@@ -287,7 +281,6 @@ class TeamProvider extends AbstractBREADProvider {
       [team.createdBy]: true
     };
 
-    const BlogPost = await getPostgresBlogPostModel();
     BlogPost.getMostRecentBlogPosts(team.id, {
         limit: 3
       })
