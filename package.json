@@ -15,9 +15,6 @@
     "prepare": "npm run snyk-protect",
     "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
   },
-  "pre-commit": [
-    "test"
-  ],
   "dependencies": {
     "@babel/core": "^7.28.4",
     "@fortawesome/fontawesome-free": "^7.1.0",
@@ -95,7 +92,6 @@
     "jsdom": "^24.0.0",
     "less": "^4.2.0",
     "nock": "^14.0.10",
-    "pre-commit": "^1.2.2",
     "snyk": "^1.1300.0",
     "supertest": "^7.1.4",
     "vite": "^7.1.10"
