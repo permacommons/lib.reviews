@@ -62,6 +62,9 @@ async function initializeUserMetaModel(dal = null) {
       dal: activeDAL,
       baseTable: 'user_metas',
       schema,
+      camelToSnake: {
+        originalLanguage: 'original_language'
+      },
       withRevision: {
         static: [
           'createFirstRevision',
