@@ -124,3 +124,9 @@ The runner compiles the Vite bundle on first run (creating `build/vite/.vite/man
 - **Asset build issues:** delete `build/vite` and let `npm run test-postgres` rebuild the bundle.
 
 Following the steps above provides a functioning PostgreSQL-only environment capable of running the lib.reviews PostgreSQL test suite.
+
+## 10. Notes
+
+- The setup has been verified with PostgreSQL 16.10 on Ubuntu 24.04.
+- During the `npm install` step, you may see deprecation warnings for packages like `session-rethinkdb`, `csurf`, and `elasticsearch`. These are expected as the project is in the process of migrating away from RethinkDB.
+- When running the test suite with `npm run test-postgres`, you may see multiple `DeprecationWarning: The util._extend API is deprecated` messages. These warnings are harmless and do not affect the outcome of the tests.
