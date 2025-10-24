@@ -221,7 +221,7 @@ let userHandlers = {
 
   getUserNotFoundHandler(req, res, next, name) {
     return function(error) {
-      if (error.name == 'DocumentNotFoundError')
+      if (error.name == 'DocumentNotFound' || error.name == 'DocumentNotFoundError')
         userHandlers.sendUserNotFound(req, res, name);
       else
         return next(error);

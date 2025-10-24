@@ -31,6 +31,16 @@ class DocumentNotFound extends DALError {
 }
 
 /**
+ * Invalid UUID error - for malformed UUID strings
+ */
+class InvalidUUIDError extends DALError {
+  constructor(message = 'Invalid UUID format') {
+    super(message, 'INVALID_UUID');
+    this.name = 'InvalidUUIDError';
+  }
+}
+
+/**
  * Validation error - equivalent to Thinky's ValidationError
  */
 class ValidationError extends DALError {
@@ -139,6 +149,7 @@ function convertPostgreSQLError(pgError) {
 module.exports = {
   DALError,
   DocumentNotFound,
+  InvalidUUIDError,
   ValidationError,
   ConnectionError,
   TransactionError,

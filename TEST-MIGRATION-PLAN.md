@@ -31,7 +31,7 @@ The migration should be done on a file-by-file basis, starting with the tests th
 The migration will be performed by creating new PostgreSQL-native test files and gradually porting over the legacy RethinkDB-era tests. This checklist tracks the work on a per-file basis.
 
 ### Core Integration Tests
-- [ ] Migrate `tests/2-integration-signed-out.mjs` to `tests-postgres/22-integration-signed-out.mjs`
+- [x] Migrate `tests/2-integration-signed-out.mjs` to `tests-postgres/22-integration-signed-out.mjs`
 - [ ] Migrate `tests/3-integration-signed-in.mjs` to `tests-postgres/23-integration-signed-in.mjs`
 
 ### External Service and Adapter Tests

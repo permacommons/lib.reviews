@@ -172,6 +172,14 @@ const revision = {
      * @throws {Error} If revision is deleted or stale
      */
     const getNotStaleOrDeleted = async function(id, joinOptions = {}) {
+      // Validate UUID format before querying database to avoid PostgreSQL syntax errors
+      const isUUID = require('is-uuid');
+      const { InvalidUUIDError } = require('./errors');
+      
+      if (!isUUID.v4(id)) {
+        throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);
+      }
+      
       let data;
       
       if (Object.keys(joinOptions).length > 0) {

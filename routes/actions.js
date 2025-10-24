@@ -235,7 +235,7 @@ router.get('/register/:code', function(req, res, next) {
         return sendRegistrationForm(req, res).catch(next);
     })
     .catch(error => {
-      if (error.name === 'DocumentNotFoundError')
+      if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError')
         return render.permissionError(req, res, {
           titleKey: 'invite link invalid title',
           detailsKey: 'invite link invalid'
@@ -366,7 +366,7 @@ router.post('/register/:code', async function(req, res, next) {
       return;
     }
   } catch (error) { // Invite link lookup problem
-    if (error.name === 'DocumentNotFoundError')
+    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError')
       return render.permissionError(req, res, {
         titleKey: 'invite link invalid title',
         detailsKey: 'invite link invalid'

@@ -366,7 +366,7 @@ class ReviewProvider extends AbstractBREADProvider {
     try {
       formValues.teams = await Promise.all(queries);
     } catch (error) {
-      if (error.name == 'DocumentNotFoundError' || error.name == 'RevisionDeletedError')
+      if (error.name == 'DocumentNotFound' || error.name == 'DocumentNotFoundError' || error.name == 'RevisionDeletedError')
         throw new ReportedError({
           parentError: error,
           userMessage: 'submitted team could not be found'
