@@ -59,12 +59,15 @@ class ReviewProvider extends AbstractBREADProvider {
     // No permission checks on reads, so we have to do this manually
     review.populateUserInfo(this.req.user);
 
+    let pageMessages = this.req.flash('pageMessages');
+
     this.renderTemplate('review', {
       titleKey: titleParam ? 'review of' : 'review',
       titleParam,
       deferPageHeader: true,
       socialImage: review.socialImage ? encodeURIComponent(review.socialImage.name) : review.headerImage,
-      review
+      review,
+      pageMessages
     });
 
   }

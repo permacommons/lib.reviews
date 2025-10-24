@@ -47,6 +47,7 @@ let userHandlers = {
         bioObj.originalLanguage = bioLanguage;
 
         await User.createBio(user, bioObj);
+        req.flash('pageMessages', req.__('edit saved'));
         res.redirect(`/user/${user.urlName}`);
       } else {
         let metaRev = await user.meta.newRevision(req.user, {
@@ -60,6 +61,7 @@ let userHandlers = {
         metaRev.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
 
         await metaRev.save();
+        req.flash('pageMessages', req.__('edit saved'));
         res.redirect(`/user/${user.urlName}`);
       }
     } catch (error) {
@@ -128,6 +130,7 @@ let userHandlers = {
         });
 
         let pageErrors = req.flash('pageErrors');
+        let pageMessages = req.flash('pageMessages');
 
         let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
           atomURLPrefix: `/user/${user.urlName}/feed/atom`,
@@ -148,6 +151,7 @@ let userHandlers = {
           edit,
           scripts: loadEditor ? ['user', 'editor'] : ['user'],
           pageErrors,
+          pageMessages,
           teams: user.teams,
           modOf,
           founderOf,
