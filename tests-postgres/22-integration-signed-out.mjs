@@ -19,11 +19,12 @@ const routeTests = [
   { path: '/+not+a+thing+', status: 404, regex: /Thing not found/ }
 ];
 
-setupPostgresTest(test, {
+const { skipIfUnavailable } = setupPostgresTest(test, {
   instance: 'testing-6'
 });
 
 test.before(async t => {
+  if (skipIfUnavailable(t)) return;
   // Initialize once so sessions table is created if needed
   const getApp = require('../app');
   await getApp();
