@@ -3,7 +3,6 @@
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
-const revision = require('../dal').revision;
 const debug = require('../util/debug');
 const urlUtils = require('../util/url-utils');
 const ReportedError = require('../util/reported-error');
@@ -70,9 +69,6 @@ async function initializeThingModel(dal = null) {
       numberOfReviews: type.virtual().default(0),
       averageStarRating: type.virtual().default(0)
     };
-
-    // Add revision fields to schema
-    Object.assign(thingSchema, revision.getSchema());
 
     const { model } = initializeModel({
       dal: activeDAL,

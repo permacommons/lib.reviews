@@ -3,7 +3,6 @@
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
-const revision = require('../dal').revision;
 const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
 const { getPostgresUserModel } = require('./user');
@@ -62,9 +61,6 @@ async function initializeTeamModel(dal = null) {
         return slugName ? encodeURIComponent(slugName) : this.id;
       })
     };
-
-    // Add revision fields to schema
-    Object.assign(teamSchema, revision.getSchema());
 
     const { model, isNew } = initializeModel({
       dal: activeDAL,

@@ -3,7 +3,6 @@
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
-const revision = require('../dal').revision;
 const debug = require('../util/debug');
 const { initializeModel } = require('../dal/lib/model-initializer');
 
@@ -47,9 +46,6 @@ async function initializeFileModel(dal = null) {
       userCanDelete: type.virtual().default(false),
       userIsCreator: type.virtual().default(false)
     };
-
-    // Add revision fields to schema
-    Object.assign(fileSchema, revision.getSchema());
 
     const { model, isNew } = initializeModel({
       dal: activeDAL,

@@ -3,7 +3,6 @@
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal/lib/ml-string');
-const revision = require('../dal/lib/revision');
 const isValidLanguage = require('../locales/languages').isValid;
 const debug = require('../util/debug');
 const { DocumentNotFound } = require('../dal/lib/errors');
@@ -38,8 +37,6 @@ async function initializeBlogPostModel(dal = null) {
       userCanEdit: type.virtual().default(false),
       userCanDelete: type.virtual().default(false)
     };
-
-    Object.assign(schema, revision.getSchema());
 
     const { model, isNew } = initializeModel({
       dal: activeDAL,

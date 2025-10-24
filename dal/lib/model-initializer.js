@@ -27,7 +27,9 @@ function initializeModel({
   if (!baseTable) throw new Error('Model initialization requires a base table name');
 
   const tableName = dal.tablePrefix ? `${dal.tablePrefix}${baseTable}` : baseTable;
-  const { model, isNew } = getOrCreateModel(dal, tableName, schema, { registryKey: registryKey || baseTable });
+  const schemaDefinition = schema ? { ...schema } : {};
+  if (withRevision) Object.assign(schemaDefinition, revision.getSchema());
+  const { model, isNew } = getOrCreateModel(dal, tableName, schemaDefinition, { registryKey: registryKey || baseTable });
   const relationDefs = normalizeRelationDefinitions(relations);
 
   if (relationDefs.length > 0 && typeof model?.defineRelation === 'function') {

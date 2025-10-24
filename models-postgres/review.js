@@ -54,9 +54,6 @@ async function initializeReviewModel(dal = null) {
       userIsAuthor: type.virtual().default(false)
     };
 
-    // Add revision fields to schema
-    Object.assign(reviewSchema, revision.getSchema());
-
     const { model, isNew } = initializeModel({
       dal: activeDAL,
       baseTable: 'reviews',

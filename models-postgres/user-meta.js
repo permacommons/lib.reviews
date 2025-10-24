@@ -3,7 +3,6 @@
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal/lib/ml-string');
-const revision = require('../dal/lib/revision');
 const { ValidationError } = require('../dal/lib/errors');
 const { isValid: isValidLanguage } = require('../locales/languages');
 const debug = require('../util/debug');
@@ -58,8 +57,6 @@ async function initializeUserMetaModel(dal = null) {
           return true;
         })
     };
-
-    Object.assign(schema, revision.getSchema());
 
     const { model, isNew } = initializeModel({
       dal: activeDAL,
