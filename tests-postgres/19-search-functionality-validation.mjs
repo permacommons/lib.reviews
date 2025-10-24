@@ -3,6 +3,10 @@ import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
+import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
+
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
@@ -11,64 +15,15 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
   cleanupTables: ['users', 'things', 'reviews']
 });
 
-let searchPath;
-let previousSearchCache;
-
-// Mock Elasticsearch client to capture search queries
-let searchQueries = [];
-let searchResults = [];
-let mockSearchResponse = {
-  hits: {
-    hits: [],
-    total: { value: 0 }
-  }
-};
-const ensureUserExists = async (id, name = 'Test User') => {
-  const usersTable = dalFixture.getTableName('users');
-  const displayName = name;
-  const canonicalName = name.toUpperCase();
-  await dalFixture.query(
-    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (id) DO NOTHING`,
-    [id, displayName, canonicalName, `${id}@example.com`]
-  );
-};
+let searchQueries;
+let mockSearchResponse;
 
 test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
-  // Prepare mocked search module to capture search operations
-  searchPath = require.resolve('../search');
-  previousSearchCache = require.cache[searchPath];
-  require.cache[searchPath] = {
-    exports: {
-      searchThings(query, lang = 'en') {
-        searchQueries.push({ type: 'searchThings', query, lang });
-        return Promise.resolve(mockSearchResponse);
-      },
-      searchReviews(query, lang = 'en') {
-        searchQueries.push({ type: 'searchReviews', query, lang });
-        return Promise.resolve(mockSearchResponse);
-      },
-      suggestThing(prefix = '', lang = 'en') {
-        searchQueries.push({ type: 'suggestThing', prefix, lang });
-        return Promise.resolve({ suggest: {} });
-      },
-      indexThing: () => Promise.resolve(),
-      indexReview: () => Promise.resolve(),
-      getClient: () => ({
-        search: params => {
-          searchQueries.push({ type: 'rawSearch', params });
-          return Promise.resolve(mockSearchResponse);
-        }
-      }),
-      createIndices: () => Promise.resolve(),
-      deleteThing: () => Promise.resolve(),
-      deleteReview: () => Promise.resolve(),
-      close: () => {}
-    }
-  };
+  const captured = mockSearch();
+  searchQueries = captured.searchQueries;
+  mockSearchResponse = captured.mockSearchResponse;
 
   try {
     // Ensure UUID generation helper exists
@@ -92,29 +47,7 @@ test.before(async t => {
   }
 });
 
-test.beforeEach(async t => {
-  // Clear captured queries before each test
-  searchQueries.length = 0;
-  searchResults.length = 0;
-  mockSearchResponse = {
-    hits: {
-      hits: [],
-      total: { value: 0 }
-    }
-  };
-});
-
-test.after.always(async t => {
-  // Clean up the mocked search module from require cache
-  if (searchPath) {
-    if (previousSearchCache) {
-      require.cache[searchPath] = previousSearchCache;
-    } else {
-      delete require.cache[searchPath];
-    }
-  }
-  
-});
+test.after.always(unmockSearch);
 
 function skipIfNoModels(t) {
   if (skipIfUnavailable(t)) return true;
@@ -128,23 +61,14 @@ function skipIfNoModels(t) {
 test.serial('searchThings API maintains compatibility with existing interface', async t => {
   if (skipIfNoModels(t)) return;
   
-  // Create test-specific arrays
-  const testSearchQueries = [];
-  
-  // Create test-specific mock
-  const search = {
-    searchThings(query, lang = 'en') {
-      testSearchQueries.push({ type: 'searchThings', query, lang });
-      return Promise.resolve({ hits: { hits: [], total: { value: 0 } } });
-    }
-  };
+  const search = require('../search');
   
   // Test basic search
   await search.searchThings('test query', 'en');
   
-  t.is(testSearchQueries.length, 1, 'Should have captured one search query');
+  t.is(searchQueries.length, 1, 'Should have captured one search query');
   
-  const query = testSearchQueries[0];
+  const query = searchQueries[0];
   t.is(query.type, 'searchThings', 'Should be a searchThings query');
   t.is(query.query, 'test query', 'Query should be preserved');
   t.is(query.lang, 'en', 'Language should be preserved');
@@ -153,23 +77,14 @@ test.serial('searchThings API maintains compatibility with existing interface', 
 test.serial('searchReviews API maintains compatibility with existing interface', async t => {
   if (skipIfNoModels(t)) return;
   
-  // Create test-specific arrays
-  const testSearchQueries = [];
-  
-  // Create test-specific mock
-  const search = {
-    searchReviews(query, lang = 'en') {
-      testSearchQueries.push({ type: 'searchReviews', query, lang });
-      return Promise.resolve({ hits: { hits: [], total: { value: 0 } } });
-    }
-  };
+  const search = require('../search');
   
   // Test basic search
   await search.searchReviews('review query', 'de');
   
-  t.is(testSearchQueries.length, 1, 'Should have captured one search query');
+  t.is(searchQueries.length, 1, 'Should have captured one search query');
   
-  const query = testSearchQueries[0];
+  const query = searchQueries[0];
   t.is(query.type, 'searchReviews', 'Should be a searchReviews query');
   t.is(query.query, 'review query', 'Query should be preserved');
   t.is(query.lang, 'de', 'Language should be preserved');
@@ -178,23 +93,14 @@ test.serial('searchReviews API maintains compatibility with existing interface',
 test.serial('suggestThing API maintains compatibility with existing interface', async t => {
   if (skipIfNoModels(t)) return;
   
-  // Create test-specific arrays
-  const testSearchQueries = [];
-  
-  // Create test-specific mock
-  const search = {
-    suggestThing(prefix = '', lang = 'en') {
-      testSearchQueries.push({ type: 'suggestThing', prefix, lang });
-      return Promise.resolve({ suggest: {} });
-    }
-  };
+  const search = require('../search');
   
   // Test suggestion
   await search.suggestThing('test', 'fr');
   
-  t.is(testSearchQueries.length, 1, 'Should have captured one suggestion query');
+  t.is(searchQueries.length, 1, 'Should have captured one suggestion query');
   
-  const query = testSearchQueries[0];
+  const query = searchQueries[0];
   t.is(query.type, 'suggestThing', 'Should be a suggestThing query');
   t.is(query.prefix, 'test', 'Prefix should be preserved');
   t.is(query.lang, 'fr', 'Language should be preserved');
@@ -208,7 +114,7 @@ test.serial('search queries include new PostgreSQL fields', async t => {
   // Create test data with PostgreSQL structure
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Search Validation User');
+  await ensureUserExists(dalFixture, testUserId, 'Search Validation User');
   
   const thing = await dalFixture.Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/test-search'];
@@ -254,7 +160,7 @@ test.serial('search indexing handles PostgreSQL vs RethinkDB field name compatib
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Compatibility User');
+  await ensureUserExists(dalFixture, testUserId, 'Compatibility User');
   
   // Create a thing with PostgreSQL field names
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
@@ -297,7 +203,7 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Performance User');
+  await ensureUserExists(dalFixture, testUserId, 'Performance User');
   
   // Create multiple things with complex JSONB data
   const things = [];

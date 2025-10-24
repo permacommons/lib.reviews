@@ -239,6 +239,18 @@ export async function verifyTestIsolation(t, dal, tableName, expectedCount = 0) 
   return actualCount;
 }
 
+export async function ensureUserExists(dal, id, name = 'Test User') {
+  const usersTable = dal.getTableName('users');
+  const displayName = name;
+  const canonicalName = name.toUpperCase();
+  await dal.query(
+    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING`,
+    [id, displayName, canonicalName, `${id}@example.com`]
+  );
+}
+
 /**
  * Create comprehensive test data for query builder tests
  */

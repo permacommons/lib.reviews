@@ -3,6 +3,10 @@ import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+
+import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
+
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
@@ -12,30 +16,11 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 });
 
 let Thing;
-const ensureUserExists = async (id, name = 'Test User') => {
-  const usersTable = dalFixture.getTableName('users');
-  const displayName = name;
-  const canonicalName = name.toUpperCase();
-  await dalFixture.query(
-    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (id) DO NOTHING`,
-    [id, displayName, canonicalName, `${id}@example.com`]
-  );
-};
 
 test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
-  // Stub search module to avoid starting Elasticsearch clients during tests
-  const searchPath = require.resolve('../search');
-  require.cache[searchPath] = {
-    exports: {
-      indexThing() {},
-      searchThings: async () => ({}),
-      getClient: () => ({})
-    }
-  };
+  mockSearch();
 
   try {
     await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
@@ -50,6 +35,8 @@ test.before(async t => {
 
   t.log('PostgreSQL DAL and models initialized for sync script tests');
 });
+
+test.after.always(unmockSearch);
 
 function skipIfNoModels(t) {
   if (skipIfUnavailable(t)) return true;
@@ -66,7 +53,7 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
   // Create a test thing with Wikidata URL
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Sync Creator');
+  await ensureUserExists(dalFixture, testUserId, 'Sync Creator');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://www.wikidata.org/wiki/Q42'];
@@ -106,7 +93,7 @@ test.serial('sync functionality works with metadata grouping', async t => {
   // Create a test thing
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Sync Updater');
+  await ensureUserExists(dalFixture, testUserId, 'Sync Updater');
   
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://www.wikidata.org/wiki/Q123'];

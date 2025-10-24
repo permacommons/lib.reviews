@@ -5,6 +5,8 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
   instance: 'testing-2',
   tableSuffix: 'search_integration',
@@ -13,47 +15,12 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 
 // Track indexing operations
 let indexedItems = [];
-const ensureUserExists = async (id, name = 'Test User') => {
-  const usersTable = dalFixture.getTableName('users');
-  const displayName = name;
-  const canonicalName = name.toUpperCase();
-  await dalFixture.query(
-    `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (id) DO NOTHING`,
-    [id, displayName, canonicalName, `${id}@example.com`]
-  );
-};
 
 test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
-  // Mock search module to capture indexing operations
-  const searchPath = require.resolve('../search');
-  require.cache[searchPath] = {
-    exports: {
-      indexThing(thing) {
-        // Apply the same revision filtering as the real function
-        if (thing._old_rev_of || thing._rev_deleted) {
-          return Promise.resolve();
-        }
-        indexedItems.push({ type: 'thing', data: thing });
-        return Promise.resolve();
-      },
-      indexReview(review) {
-        // Apply the same revision filtering as the real function
-        if (review._old_rev_of || review._rev_deleted) {
-          return Promise.resolve();
-        }
-        indexedItems.push({ type: 'review', data: review });
-        return Promise.resolve();
-      },
-      createIndices: () => Promise.resolve(),
-      searchThings: async () => ({ hits: { hits: [], total: { value: 0 } } }),
-      searchReviews: async () => ({ hits: { hits: [], total: { value: 0 } } }),
-      getClient: () => ({})
-    }
-  };
+  const captured = mockSearch(indexedItems);
+  indexedItems = captured.indexedItems;
 
   try {
     // Ensure UUID generation helper exists
@@ -82,10 +49,7 @@ test.beforeEach(async t => {
   indexedItems.length = 0;
 });
 
-test.after.always(async () => {
-  const searchPath = require.resolve('../search');
-  delete require.cache[searchPath];
-});
+test.after.always(unmockSearch);
 
 // Ensure the AVA worker exits promptly after asynchronous teardown completes.
 registerCompletionHandler(() => {
@@ -140,7 +104,7 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Integration User');
+  await ensureUserExists(dalFixture, testUserId, 'Integration User');
   
   // Create test data
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
@@ -208,7 +172,7 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Bulk Index User');
+  await ensureUserExists(dalFixture, testUserId, 'Bulk Index User');
   
   // Create multiple things and reviews
   const things = [];
@@ -288,7 +252,7 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(testUserId, 'Revision Filter User');
+  await ensureUserExists(dalFixture, testUserId, 'Revision Filter User');
   
   // Create a thing and then create a new revision (making the first one old)
   const originalThing = await Thing.createFirstRevision(testUser, { tags: ['create'] });

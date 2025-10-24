@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
@@ -14,74 +16,34 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 // Mock search module to capture indexing calls
 let indexedThings = [];
 let indexedReviews = [];
-let searchMockCalls = [];
 
 test.before(async t => {
-  // Stub search module to capture indexing calls instead of sending to Elasticsearch
-  const searchPath = require.resolve('../search');
-  
-  require.cache[searchPath] = {
-    exports: {
-      indexThing(thing) {
-        // Skip indexing if this is an old or deleted revision (same logic as real function)
-        if (thing._old_rev_of || thing._rev_deleted) {
-          return Promise.resolve();
-        }
-        
-        indexedThings.push(thing);
-        searchMockCalls.push({ type: 'indexThing', data: thing });
-        return Promise.resolve();
-      },
-      indexReview(review) {
-        // Skip indexing if this is an old or deleted revision (same logic as real function)
-        if (review._old_rev_of || review._rev_deleted) {
-          return Promise.resolve();
-        }
-        
-        indexedReviews.push(review);
-        searchMockCalls.push({ type: 'indexReview', data: review });
-        return Promise.resolve();
-      },
-      searchThings: async () => ({}),
-      getClient: () => ({})
-    }
-  };
-  
+  if (skipIfUnavailable(t)) return;
+
+  mockSearch(indexedThings);
+
   try {
-    if (skipIfUnavailable(t)) return;
-
-    try {
-      await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    } catch (extensionError) {
-      t.log('pgcrypto extension not available:', extensionError.message);
-    }
-
-    const models = await dalFixture.initializeModels([
-      { key: 'things', alias: 'Thing' },
-      { key: 'reviews', alias: 'Review' }
-    ]);
-
-    dalFixture.Thing = models.Thing;
-    dalFixture.Review = models.Review;
-
-  } catch (error) {
-    t.log('PostgreSQL not available, skipping search indexing tests:', error.message);
-    t.pass('Skipping tests - PostgreSQL not configured');
+    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+  } catch (extensionError) {
+    t.log('pgcrypto extension not available:', extensionError.message);
   }
+
+  const models = await dalFixture.initializeModels([
+    { key: 'things', alias: 'Thing' },
+    { key: 'reviews', alias: 'Review' }
+  ]);
+
+  dalFixture.Thing = models.Thing;
+  dalFixture.Review = models.Review;
 });
 
 test.beforeEach(async t => {
   // Clear captured calls before each test
   indexedThings.length = 0;
   indexedReviews.length = 0;
-  searchMockCalls.length = 0;
 });
 
-test.after.always(async t => {
-  // Clean up the mocked search module from require cache
-  const searchPath = require.resolve('../search');
-  delete require.cache[searchPath];
-});
+test.after.always(unmockSearch);
 
 function skipIfNoModels(t) {
   if (skipIfUnavailable(t)) return true;

@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
@@ -18,15 +20,7 @@ let NewUserError;
 test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
-  // Stub search module to avoid starting Elasticsearch clients during tests
-  const searchPath = require.resolve('../search');
-  require.cache[searchPath] = {
-    exports: {
-      indexThing() {},
-      searchThings: async () => ({}),
-      getClient: () => ({})
-    }
-  };
+  mockSearch();
 
   try {
     await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
@@ -43,6 +37,8 @@ test.before(async t => {
   File = fileModel;
   ({ NewUserError } = require('../models-postgres/user'));
 });
+
+test.after.always(unmockSearch);
 
 function skipIfNoModels(t) {
   if (skipIfUnavailable(t)) return true;

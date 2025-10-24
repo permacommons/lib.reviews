@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
@@ -25,15 +27,7 @@ let NewUserError, ReviewError;
 test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
-  // Stub search module to avoid starting Elasticsearch clients during tests
-  const searchPath = require.resolve('../search');
-  require.cache[searchPath] = {
-    exports: {
-      indexThing() {},
-      searchThings: async () => ({}),
-      getClient: () => ({})
-    }
-  };
+  mockSearch();
 
   try {
     await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
@@ -56,6 +50,8 @@ test.before(async t => {
   ({ NewUserError } = require('../models-postgres/user'));
   ({ ReviewError } = require('../models-postgres/review'));
 });
+
+test.after.always(unmockSearch);
 
 function skipIfNoModels(t) {
   if (skipIfUnavailable(t)) return true;
@@ -838,6 +834,67 @@ test.serial('Integration: Team-Review association', async t => {
   t.is(associationResult.rows.length, 1, 'Review-team association created');
   t.is(associationResult.rows[0].review_id, review.id, 'Review ID matches');
   t.is(associationResult.rows[0].team_id, team.id, 'Team ID matches');
+});
+
+test.serial('Integration: Review.create with team associations', async t => {
+  if (skipIfNoModels(t)) return;
+
+  const teamFounder = await User.create({
+    name: `CreateTeamFounder-${randomUUID()}`,
+    password: 'secret123',
+    email: `createteamfounder-${randomUUID()}@example.com`
+  });
+
+  const reviewer = await User.create({
+    name: `CreateReviewer-${randomUUID()}`,
+    password: 'secret123',
+    email: `createreviewer-${randomUUID()}@example.com`
+  });
+
+  // Create team
+  const teamRev = await Team.createFirstRevision(teamFounder, { tags: ['create'] });
+  teamRev.name = { en: 'Create Review Team' };
+  teamRev.createdBy = teamFounder.id;
+  teamRev.createdOn = new Date();
+  const team = await teamRev.save();
+
+  // Create review with team association using Review.create
+  const reviewUrl = `https://example.com/create-team-review-${randomUUID()}`;
+  const reviewObj = {
+    url: reviewUrl,
+    title: { en: 'Team Review via Create' },
+    text: { en: 'This review was created with team associations.' },
+    html: { en: '<p>This review was created with team associations.</p>' },
+    starRating: 5,
+    createdOn: new Date(),
+    createdBy: reviewer.id,
+    originalLanguage: 'en',
+    teams: [team] // Associate with team
+  };
+
+  const review = await Review.create(reviewObj, { tags: ['create'] });
+
+  t.truthy(review.id, 'Review created successfully');
+  t.truthy(review.thingID, 'Thing created for review');
+
+  // Verify team association was created
+  const reviewTeamTableName = dalFixture.tablePrefix ? 
+    `${dalFixture.tablePrefix}review_teams` : 'review_teams';
+  
+  const associationResult = await dalFixture.query(
+    `SELECT * FROM ${reviewTeamTableName} WHERE review_id = $1 AND team_id = $2`,
+    [review.id, team.id]
+  );
+  
+  t.is(associationResult.rows.length, 1, 'Team association created via Review.create');
+  t.is(associationResult.rows[0].review_id, review.id, 'Review ID matches in association');
+  t.is(associationResult.rows[0].team_id, team.id, 'Team ID matches in association');
+
+  // Test getWithData includes teams
+  const reviewWithData = await Review.getWithData(review.id);
+  t.truthy(reviewWithData.teams, 'Teams included in getWithData');
+  t.is(reviewWithData.teams.length, 1, 'One team associated');
+  t.is(reviewWithData.teams[0].id, team.id, 'Correct team associated');
 });
 
 test.serial('Integration: Revision system across all models', async t => {
