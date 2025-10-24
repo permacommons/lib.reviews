@@ -439,9 +439,83 @@ class Model {
    * @returns {Promise<Model>} This instance
    */
   async saveAll(joinOptions = {}) {
-    // For now, just save the main record
-    // Full join saving would be implemented in a future iteration
-    return await this.save();
+    // First save the main record
+    await this.save();
+    
+    // Then handle relationships
+    const relations = this.constructor.getRelations();
+    
+    for (const { name, config } of relations) {
+      // Only process relationships that are explicitly requested in joinOptions
+      if (!joinOptions[name]) continue;
+      
+      // Only handle many-to-many relationships with through tables for now
+      if (config.cardinality !== 'many' || !config.through) continue;
+      
+      // Get the related data from this instance
+      const relatedData = this[name];
+      if (!relatedData) continue;
+      
+      await this._saveManyToManyRelation(name, config, relatedData);
+    }
+    
+    return this;
+  }
+
+  /**
+   * Save a many-to-many relationship through a join table
+   * @param {string} relationName - Name of the relation
+   * @param {Object} config - Relation configuration
+   * @param {Array} relatedData - Array of related model instances or IDs
+   * @private
+   */
+  async _saveManyToManyRelation(relationName, config, relatedData) {
+    if (!Array.isArray(relatedData)) {
+      return;
+    }
+
+    const { through } = config;
+    const joinTableName = this.constructor.dal.tablePrefix ? 
+      `${this.constructor.dal.tablePrefix}${through.table}` : through.table;
+    
+    const sourceColumn = through.sourceForeignKey || `${this.constructor.tableName.replace(/s$/, '')}_id`;
+    const targetColumn = through.targetForeignKey || `${config.targetTable.replace(/s$/, '')}_id`;
+    
+    try {
+      // First, remove existing associations for this record
+      await this.constructor.dal.query(
+        `DELETE FROM ${joinTableName} WHERE ${sourceColumn} = $1`,
+        [this.id]
+      );
+
+      // Then add new associations
+      if (relatedData.length > 0) {
+        const values = [];
+        const params = [];
+        let paramIndex = 1;
+
+        for (const item of relatedData) {
+          const itemId = typeof item === 'string' ? item : item.id;
+          if (!itemId) continue;
+
+          values.push(`($${paramIndex}, $${paramIndex + 1})`);
+          params.push(this.id, itemId);
+          paramIndex += 2;
+        }
+
+        if (values.length > 0) {
+          const insertQuery = `
+            INSERT INTO ${joinTableName} (${sourceColumn}, ${targetColumn})
+            VALUES ${values.join(', ')}
+            ON CONFLICT (${sourceColumn}, ${targetColumn}) DO NOTHING
+          `;
+
+          await this.constructor.dal.query(insertQuery, params);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Failed to save ${relationName} relation: ${error.message}`);
+    }
   }  /*
 *
    * Delete this model instance

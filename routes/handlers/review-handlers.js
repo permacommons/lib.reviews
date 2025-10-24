@@ -5,7 +5,7 @@ const config = require('config');
 const i18n = require('i18n');
 
 // Internal dependencies
-const { getPostgresReviewModel } = require('../../models-postgres/review.js');
+const Review = require('../../models-postgres/review.js');
 const render = require('../helpers/render');
 const feeds = require('../helpers/feeds');
 const languages = require('../../locales/languages');
@@ -51,7 +51,6 @@ let reviewHandlers = {
           language = 'en';
       }
 
-      const Review = await getPostgresReviewModel();
       Review
         .getFeed({
           onlyTrusted: options.onlyTrusted,

@@ -102,6 +102,19 @@ async function initializeReviewModel(dal = null) {
           targetKey: 'id',
           hasRevisions: true,
           cardinality: 'one'
+        },
+        {
+          name: 'teams',
+          targetTable: 'teams',
+          sourceKey: 'id',
+          targetKey: 'id',
+          hasRevisions: true,
+          through: {
+            table: 'review_teams',
+            sourceForeignKey: 'review_id',
+            targetForeignKey: 'team_id'
+          },
+          cardinality: 'many'
         }
       ]
     });
@@ -186,6 +199,16 @@ async function getWithData(id) {
     }
   }
 
+  // Manually join team data
+  try {
+    const teams = await _getReviewTeams(review.id);
+    if (teams.length > 0) {
+      review.teams = teams;
+    }
+  } catch (error) {
+    debug.db('Failed to fetch teams for review:', error);
+  }
+
   return review;
 }
 
@@ -256,13 +279,14 @@ async function createReview(reviewObj, { tags, files } = {}) {
   });
 
   try {
-    await review.save();
-
-    // Handle team associations if provided
+    // Set teams for saveAll to handle
     if (reviewObj.teams && Array.isArray(reviewObj.teams)) {
-      // This would need proper team association implementation
-      debug.db('Team associations not yet implemented in Review.create');
+      review.teams = reviewObj.teams;
     }
+
+    await review.saveAll({
+      teams: true
+    });
 
     review.thing = thing;
 
@@ -573,6 +597,64 @@ async function getFeed({
         debug.error('Failed to join things in Review.getFeed:', error.message);
       }
     }
+
+    if (withTeams) {
+      try {
+        const reviewIds = feedItems.map(review => review.id).filter(Boolean);
+
+        if (reviewIds.length > 0) {
+          debug.db(`Batch fetching teams for ${reviewIds.length} reviews in feed...`);
+
+          const reviewTeamTableName = Review.dal.tablePrefix ? 
+            `${Review.dal.tablePrefix}review_teams` : 'review_teams';
+          const teamTableName = Review.dal.tablePrefix ? 
+            `${Review.dal.tablePrefix}teams` : 'teams';
+
+          // Get all review-team associations
+          const placeholders = reviewIds.map((_, index) => `$${index + 1}`).join(', ');
+          const teamQuery = `
+            SELECT rt.review_id, t.* FROM ${teamTableName} t
+            JOIN ${reviewTeamTableName} rt ON t.id = rt.team_id
+            WHERE rt.review_id IN (${placeholders})
+              AND (t._old_rev_of IS NULL)
+              AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
+          `;
+
+          const teamResult = await Review.dal.query(teamQuery, reviewIds);
+
+          // Get the Team model to create proper instances
+          const { getPostgresTeamModel } = require('./team');
+          const TeamModel = await getPostgresTeamModel(Review.dal);
+
+          if (!TeamModel) {
+            debug.db('Team model not available for review team joins in feed');
+          } else {
+            // Group teams by review ID
+            const reviewTeamMap = new Map();
+            teamResult.rows.forEach(row => {
+              const reviewId = row.review_id;
+              const teamInstance = TeamModel._createInstance(row);
+              
+              if (!reviewTeamMap.has(reviewId)) {
+                reviewTeamMap.set(reviewId, []);
+              }
+              reviewTeamMap.get(reviewId).push(teamInstance);
+            });
+
+            // Assign teams to reviews
+            feedItems.forEach(review => {
+              if (reviewTeamMap.has(review.id)) {
+                review.teams = reviewTeamMap.get(review.id);
+              }
+            });
+
+            debug.db(`Populated team joins for ${reviewTeamMap.size} reviews in feed`);
+          }
+        }
+      } catch (error) {
+        debug.error('Failed to join teams in Review.getFeed:', error.message);
+      }
+    }
   }
 
   feedResult.feedItems = feedItems;
@@ -628,6 +710,46 @@ async function deleteAllRevisionsWithThing(user) {
   }
 
   return Promise.all([p1, p2]);
+}
+
+// Helper functions for team associations
+
+/**
+ * Get teams associated with a review
+ * @param {String} reviewId - Review ID
+ * @returns {Promise<Array>} Array of team objects
+ */
+async function _getReviewTeams(reviewId) {
+  try {
+    const reviewTeamTableName = Review.dal.tablePrefix ? 
+      `${Review.dal.tablePrefix}review_teams` : 'review_teams';
+    const teamTableName = Review.dal.tablePrefix ? 
+      `${Review.dal.tablePrefix}teams` : 'teams';
+
+    const query = `
+      SELECT t.* FROM ${teamTableName} t
+      JOIN ${reviewTeamTableName} rt ON t.id = rt.team_id
+      WHERE rt.review_id = $1
+        AND (t._old_rev_of IS NULL)
+        AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
+    `;
+
+    const result = await Review.dal.query(query, [reviewId]);
+    
+    // Get the Team model to create proper instances
+    const { getPostgresTeamModel } = require('./team');
+    const TeamModel = await getPostgresTeamModel(Review.dal);
+    
+    if (!TeamModel) {
+      debug.db('Team model not available for review team joins');
+      return [];
+    }
+
+    return result.rows.map(row => TeamModel._createInstance(row));
+  } catch (error) {
+    debug.error('Failed to get teams for review:', error);
+    return [];
+  }
 }
 
 /**
