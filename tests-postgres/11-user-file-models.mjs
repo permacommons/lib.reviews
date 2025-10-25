@@ -8,7 +8,6 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-3',
   tableSuffix: 'user_file_models',
   cleanupTables: ['files', 'users', 'user_metas']
 });
@@ -21,12 +20,6 @@ test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
   mockSearch();
-
-  try {
-    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-  } catch (extensionError) {
-    t.log('pgcrypto extension not available:', extensionError.message);
-  }
 
   const { User: userModel, File: fileModel } = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
@@ -220,4 +213,8 @@ test.serial('File model: populateUserInfo reflects permissions', async t => {
   viewer.populateUserInfo(moderator);
   t.false(viewer.userIsCreator, 'Moderator is not creator');
   t.true(viewer.userCanDelete, 'Moderator can delete via elevated role');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

@@ -18,7 +18,6 @@ const require = createRequire(import.meta.url);
  */
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-6',
   tableSuffix: 'query_builder_joins',
   cleanupTables: [
     'review_teams',
@@ -45,13 +44,6 @@ test.before(async t => {
       getClient: () => ({})
     }
   };
-
-  try {
-    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-  } catch (extensionError) {
-    t.log('pgcrypto extension not available:', extensionError.message);
-    t.log('Tests may fail if gen_random_uuid() is unavailable.');
-  }
 
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
@@ -572,4 +564,8 @@ test('QueryBuilder handles empty results gracefully', async t => {
   
   const count = await User.filter({ id: nonExistentId }).count();
   t.is(count, 0);
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

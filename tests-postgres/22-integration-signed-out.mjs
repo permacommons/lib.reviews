@@ -20,7 +20,7 @@ const routeTests = [
 ];
 
 const { skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-6'
+  tableSuffix: 'integration_signed_out'
 });
 
 test.before(async t => {
@@ -80,5 +80,8 @@ test.after.always(async t => {
   const search = require('../search');
   if (search && typeof search.close === 'function') {
     search.close();
+  }
+  if (t.context.app && t.context.app.locals.dal) {
+    await t.context.app.locals.dal.cleanup();
   }
 });

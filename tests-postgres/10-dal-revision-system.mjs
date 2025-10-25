@@ -28,7 +28,6 @@ import {
 } from './helpers/dal-helpers-ava.mjs';
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-1',
   tableSuffix: 'revision_system',
   modelDefs: getTestModelDefinitionsAVA,
   tableDefs: getTestTableDefinitionsAVA,
@@ -324,4 +323,8 @@ test.serial('DAL revision system: test isolation verification', async t => {
   const tableName = dalFixture.getTableName('revisions');
   const afterCreate = await dalFixture.query(`SELECT COUNT(*) as count FROM ${tableName}`);
   t.is(parseInt(afterCreate.rows[0].count, 10), 1, 'Document was created');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

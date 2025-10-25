@@ -1,4 +1,4 @@
-import test, { registerCompletionHandler } from 'ava';
+import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
@@ -6,7 +6,6 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-6',
   tableSuffix: 'slug_helpers',
   cleanupTables: ['thing_slugs', 'reviews', 'things', 'users']
 });
@@ -31,11 +30,6 @@ test.before(async t => {
     t.log('Skipping slug helper tests - PostgreSQL DAL unavailable:', error.message);
     t.pass('Skipping tests - PostgreSQL not configured');
   }
-});
-
-registerCompletionHandler(() => {
-  const code = typeof process.exitCode === 'number' ? process.exitCode : 0;
-  process.exit(code);
 });
 
 function skipIfNoModels(t) {
@@ -125,4 +119,8 @@ test.serial('resolveAndLoadThing throws DocumentNotFound for unknown slug', asyn
   await t.throwsAsync(() => slugs.resolveAndLoadThing(req, res, 'missing-slug'), {
     name: 'DocumentNotFound'
   });
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

@@ -8,7 +8,6 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-5',
   tableSuffix: 'thing_review_team',
   cleanupTables: [
     'review_teams',
@@ -28,12 +27,6 @@ test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
   mockSearch();
-
-  try {
-    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-  } catch (extensionError) {
-    t.log('pgcrypto extension not available:', extensionError.message);
-  }
 
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
@@ -977,4 +970,8 @@ test.serial('Integration: Revision system across all models', async t => {
   t.is(parseInt(thingRevisions.rows[0].count), 2, 'Thing has 2 revisions');
   t.is(parseInt(teamRevisions.rows[0].count), 2, 'Team has 2 revisions');
   t.is(parseInt(reviewRevisions.rows[0].count), 2, 'Review has 2 revisions');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

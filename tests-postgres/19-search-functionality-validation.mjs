@@ -10,7 +10,6 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-2',
   tableSuffix: 'search_validation',
   cleanupTables: ['users', 'things', 'reviews']
 });
@@ -27,12 +26,6 @@ test.before(async t => {
 
   try {
     // Ensure UUID generation helper exists
-    try {
-      await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    } catch (extensionError) {
-      t.log('pgcrypto extension not available:', extensionError.message);
-    }
-
     const models = await dalFixture.initializeModels([
       { key: 'things', alias: 'Thing' },
       { key: 'reviews', alias: 'Review' }
@@ -326,4 +319,8 @@ test.serial('search results structure remains compatible', async t => {
   t.truthy(hit._source, 'Hit should have _source');
   t.truthy(hit.highlight, 'Hit should have highlight');
   t.is(hit._source.type, 'thing', 'Hit should be a thing');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

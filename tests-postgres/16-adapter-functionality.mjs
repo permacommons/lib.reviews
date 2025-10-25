@@ -10,7 +10,6 @@ import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-4',
   tableSuffix: 'adapter_functionality',
   cleanupTables: ['things', 'users']
 });
@@ -22,12 +21,6 @@ test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
   mockSearch();
-
-  try {
-    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-  } catch (extensionError) {
-    t.log('pgcrypto extension not available:', extensionError.message);
-  }
 
   const models = await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' }
@@ -261,4 +254,8 @@ test.serial('search indexing with PostgreSQL metadata structure', async t => {
   
   // Test that the metadata structure is correct for search indexing
   t.is(thing.canonicalSlugName, 'test-item', 'canonical_slug_name should be set correctly');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

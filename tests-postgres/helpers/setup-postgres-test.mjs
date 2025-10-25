@@ -15,7 +15,6 @@ const resolveMaybeAsync = async value => {
 
 export function setupPostgresTest(test, options = {}) {
   const {
-    instance = 'testing-2',
     tableSuffix,
     env = {},
     tableDefs,
@@ -23,10 +22,10 @@ export function setupPostgresTest(test, options = {}) {
     cleanupTables = []
   } = options;
 
-  const dalFixture = createDALFixtureAVA(instance, { tableSuffix });
+  const dalFixture = createDALFixtureAVA('testing', { tableSuffix });
   const finalEnv = {
     ...DEFAULT_ENV,
-    NODE_APP_INSTANCE: instance,
+    NODE_APP_INSTANCE: 'testing',
     ...env
   };
 

@@ -102,6 +102,7 @@
       "tests/*-*.mjs",
       "tests-postgres/[0-9]*-*.mjs"
     ],
-    "concurrency": 4
+    "concurrency": 4,
+    "timeout": "2m"
   }
 }

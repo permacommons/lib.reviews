@@ -50,6 +50,17 @@
   dbUser: "admin",
   dbPassword: "",
 
+  postgres: {
+    host: "localhost",
+    port: 5432,
+    database: "libreviews",
+    user: "libreviews_user",
+    password: "libreviews_password",
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000
+  },
+
   // The secret used to sign the session cookie. Should be changed for
   // production environments.
   sessionSecret: "joeyTheCanadianStoreOwner",

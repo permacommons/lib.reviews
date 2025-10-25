@@ -28,7 +28,7 @@ class DALFixtureAVA {
     const instanceKey = sanitizeIdentifier(testInstance) || 'testing_2';
     const suffixKey = sanitizeIdentifier(tableSuffix);
     this.instanceKey = instanceKey;
-    this.namespace = suffixKey ? `${instanceKey}_${suffixKey}` : instanceKey;
+    this.namespace = suffixKey || instanceKey;
     this.schemaName = `test_${this.namespace}`;
     this.dal = null;
     this.harness = null;

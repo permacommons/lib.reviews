@@ -10,7 +10,6 @@ import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-6',
   tableSuffix: 'sync_scripts',
   cleanupTables: ['things', 'users']
 });
@@ -21,12 +20,6 @@ test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
   mockSearch();
-
-  try {
-    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-  } catch (extensionError) {
-    t.log('pgcrypto extension not available:', extensionError.message);
-  }
 
   const models = await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' }
@@ -164,4 +157,8 @@ test.serial('adapter integration with PostgreSQL Thing model', async t => {
   const supportedFields = wikidataAdapter.getSupportedFields();
   t.true(supportedFields.includes('label'), 'Should support label field');
   t.true(supportedFields.includes('description'), 'Should support description field');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

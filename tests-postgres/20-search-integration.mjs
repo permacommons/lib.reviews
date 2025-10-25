@@ -1,4 +1,4 @@
-import test, { registerCompletionHandler } from 'ava';
+import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
@@ -8,7 +8,6 @@ const require = createRequire(import.meta.url);
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-2',
   tableSuffix: 'search_integration',
   cleanupTables: ['users', 'things', 'reviews']
 });
@@ -24,12 +23,6 @@ test.before(async t => {
 
   try {
     // Ensure UUID generation helper exists
-    try {
-      await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-    } catch (extensionError) {
-      t.log('pgcrypto extension not available:', extensionError.message);
-    }
-
     const models = await dalFixture.initializeModels([
       { key: 'things', alias: 'Thing' },
       { key: 'reviews', alias: 'Review' }
@@ -52,10 +45,6 @@ test.beforeEach(async t => {
 test.after.always(unmockSearch);
 
 // Ensure the AVA worker exits promptly after asynchronous teardown completes.
-registerCompletionHandler(() => {
-  const code = typeof process.exitCode === 'number' ? process.exitCode : 0;
-  process.exit(code);
-});
 
 function skipIfNoModels(t) {
   if (skipIfUnavailable(t)) return true;
@@ -294,4 +283,8 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   
   t.is(indexedThings.length, 1, 'Should only index one revision');
   t.is(indexedThings[0].data.label.en, 'Updated Version', 'Should index the updated version');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });

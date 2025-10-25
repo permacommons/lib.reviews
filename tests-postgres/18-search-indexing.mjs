@@ -8,7 +8,6 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  instance: 'testing-2',
   tableSuffix: 'search_indexing',
   cleanupTables: ['users', 'things', 'reviews']
 });
@@ -21,12 +20,6 @@ test.before(async t => {
   if (skipIfUnavailable(t)) return;
 
   mockSearch(indexedThings);
-
-  try {
-    await dalFixture.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
-  } catch (extensionError) {
-    t.log('pgcrypto extension not available:', extensionError.message);
-  }
 
   const models = await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
@@ -431,4 +424,8 @@ test.serial('search indexing extracts multilingual content correctly', async t =
   t.is(indexedThing.label.de, 'Mehrsprachiges Buch', 'German label should be correct');
   t.is(indexedThing.metadata.description.fr, 'Un livre disponible en plusieurs langues avec un contenu riche', 'French description should be correct');
   t.is(indexedThing.metadata.subtitle.es, 'Edición Internacional', 'Spanish subtitle should be correct');
+});
+
+test.after.always(async () => {
+  await dalFixture.cleanup();
 });
