@@ -2,14 +2,18 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+import { transactionalTest } from './helpers/transactional-test.mjs';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'thing_model',
-  cleanupTables: ['things', 'users']
+  tableSuffix: 'thing_model'
+});
+
+test.beforeEach(t => {
+  t.context.dalFixture = dalFixture;
 });
 
 let Thing;
@@ -37,7 +41,7 @@ function skipIfNoThing(t) {
   return false;
 }
 
-test('Thing model: create first revision and lookup by URL', async t => {
+test('Thing model: create first revision and lookup by URL', transactionalTest(async t => {
   if (skipIfNoThing(t)) return;
 
   const { actor: creator } = await dalFixture.createTestUser('Thing Creator');
@@ -60,9 +64,9 @@ test('Thing model: create first revision and lookup by URL', async t => {
   const results = await Thing.lookupByURL(url);
   t.is(results.length, 1, 'lookupByURL returns inserted Thing');
   t.is(results[0].id, saved.id, 'Returned Thing matches saved record');
-});
+}));
 
-test('Thing model: populateUserInfo sets permission flags', async t => {
+test('Thing model: populateUserInfo sets permission flags', transactionalTest(async t => {
   if (skipIfNoThing(t)) return;
 
   const { actor: creatorActor } = await dalFixture.createTestUser('Thing Creator');
@@ -100,7 +104,7 @@ test('Thing model: populateUserInfo sets permission flags', async t => {
   t.false(moderatorView.userIsCreator, 'Moderator not creator');
   t.true(moderatorView.userCanDelete, 'Moderator can delete');
   t.false(moderatorView.userCanUpload, 'Moderator cannot upload without trust');
-});
+}));
 
 test.after.always(async () => {
   await dalFixture.cleanup();

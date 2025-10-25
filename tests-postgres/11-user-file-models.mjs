@@ -2,14 +2,18 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+import { transactionalTest } from './helpers/transactional-test.mjs';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'user_file_models',
-  cleanupTables: ['files', 'users', 'user_metas']
+  tableSuffix: 'user_file_models'
+});
+
+test.beforeEach(t => {
+  t.context.dalFixture = dalFixture;
 });
 
 let User;
@@ -42,7 +46,7 @@ function skipIfNoModels(t) {
   return false;
 }
 
-test.serial('User model: create hashes password and canonicalizes name', async t => {
+test.serial('User model: create hashes password and canonicalizes name', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const uniqueName = `TestUser-${randomUUID()}`;
@@ -56,9 +60,9 @@ test.serial('User model: create hashes password and canonicalizes name', async t
   t.is(user.displayName, uniqueName, 'Display name stored');
   t.is(user.canonicalName, uniqueName.toUpperCase(), 'Canonical name uppercases input');
   t.true(user.password.startsWith('$2b$'), 'Password stored as bcrypt hash');
-});
+}));
 
-test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
+test.serial('User model: ensureUnique rejects duplicate usernames', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const name = `Duplicate-${randomUUID()}`;
@@ -76,9 +80,9 @@ test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
 
   t.true(error instanceof NewUserError);
   t.is(error.userMessage, 'username exists');
-});
+}));
 
-test.serial('User model: checkPassword validates bcrypt hash', async t => {
+test.serial('User model: checkPassword validates bcrypt hash', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const name = `Password-${randomUUID()}`;
@@ -90,9 +94,9 @@ test.serial('User model: checkPassword validates bcrypt hash', async t => {
 
   t.true(await storedUser.checkPassword(password), 'Correct password matches hash');
   t.false(await storedUser.checkPassword('incorrect'), 'Wrong password fails');
-});
+}));
 
-test.serial('User model: increaseInviteLinkCount increments atomically', async t => {
+test.serial('User model: increaseInviteLinkCount increments atomically', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const name = `Invites-${randomUUID()}`;
@@ -110,9 +114,9 @@ test.serial('User model: increaseInviteLinkCount increments atomically', async t
 
   const reloaded = await User.get(user.id);
   t.is(reloaded.inviteLinkCount, 2, 'Invite count persisted');
-});
+}));
 
-test.serial('User model: findByURLName loads metadata and teams safely', async t => {
+test.serial('User model: findByURLName loads metadata and teams safely', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const name = `Bio-${randomUUID()}`;
@@ -140,9 +144,9 @@ test.serial('User model: findByURLName loads metadata and teams safely', async t
   t.is(fetched.meta.bio.text.en, 'Test bio', 'Bio text persisted and loaded');
   t.true(Array.isArray(fetched.teams), 'Teams list provided');
   t.true(Array.isArray(fetched.moderatorOf), 'Moderator list provided');
-});
+}));
 
-test.serial('File model: create first revision and retrieve stashed upload', async t => {
+test.serial('File model: create first revision and retrieve stashed upload', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const uploaderName = `Uploader-${randomUUID()}`;
@@ -175,9 +179,9 @@ test.serial('File model: create first revision and retrieve stashed upload', asy
 
   const afterComplete = await File.getStashedUpload(uploader.id, 'example.png');
   t.is(afterComplete, undefined, 'Completed uploads no longer count as stashed');
-});
+}));
 
-test.serial('File model: populateUserInfo reflects permissions', async t => {
+test.serial('File model: populateUserInfo reflects permissions', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const uploaderName = `Perms-${randomUUID()}`;
@@ -213,7 +217,7 @@ test.serial('File model: populateUserInfo reflects permissions', async t => {
   viewer.populateUserInfo(moderator);
   t.false(viewer.userIsCreator, 'Moderator is not creator');
   t.true(viewer.userCanDelete, 'Moderator can delete via elevated role');
-});
+}));
 
 test.after.always(async () => {
   await dalFixture.cleanup();

@@ -2,22 +2,18 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+import { transactionalTest } from './helpers/transactional-test.mjs';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'thing_review_team',
-  cleanupTables: [
-    'review_teams',
-    'team_moderators',
-    'team_members',
-    'reviews',
-    'teams',
-    'things',
-    'users'
-  ]
+  tableSuffix: 'thing_review_team'
+});
+
+test.beforeEach(t => {
+  t.context.dalFixture = dalFixture;
 });
 
 let User, Thing, Review, Team;
@@ -59,20 +55,20 @@ function skipIfNoModels(t) {
 // MODEL INITIALIZATION TESTS
 // ============================================================================
 
-test.serial('Thing, Review, and Team initializers attach to shared DAL', t => {
+test.serial('Thing, Review, and Team initializers attach to shared DAL', transactionalTest(t => {
   if (skipIfNoModels(t)) return;
 
   t.truthy(Thing.dal === Review.dal && Review.dal === Team.dal, 'Models share the same DAL instance');
   t.true(Thing.tableName.startsWith(dalFixture.tablePrefix), 'Thing table respects prefix');
   t.true(Review.tableName.startsWith(dalFixture.tablePrefix), 'Review table respects prefix');
   t.true(Team.tableName.startsWith(dalFixture.tablePrefix), 'Team table respects prefix');
-});
+}));
 
 // ============================================================================
 // THING MODEL TESTS
 // ============================================================================
 
-test.serial('Thing model: create first revision with JSONB multilingual fields', async t => {
+test.serial('Thing model: create first revision with JSONB multilingual fields', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const creator = await User.create({
@@ -127,9 +123,9 @@ test.serial('Thing model: create first revision with JSONB multilingual fields',
   t.deepEqual(saved.metadata, thingRev.metadata, 'Grouped metadata stored correctly');
   t.deepEqual(saved.sync, thingRev.sync, 'Sync data stored correctly');
   t.deepEqual(saved.urls, [url], 'URLs array stored correctly');
-});
+}));
 
-test.serial('Thing model: lookupByURL finds things by URL', async t => {
+test.serial('Thing model: lookupByURL finds things by URL', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const creator = await User.create({
@@ -168,9 +164,9 @@ test.serial('Thing model: lookupByURL finds things by URL', async t => {
 
   const noResults = await Thing.lookupByURL('https://nonexistent.com');
   t.is(noResults.length, 0, 'No results for non-existent URL');
-});
+}));
 
-test.serial('Thing model: populateUserInfo sets permission flags correctly', async t => {
+test.serial('Thing model: populateUserInfo sets permission flags correctly', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const creator = await User.create({
@@ -224,9 +220,9 @@ test.serial('Thing model: populateUserInfo sets permission flags correctly', asy
   t.false(regularView.userCanEdit, 'Regular user cannot edit');
   t.false(regularView.userCanDelete, 'Regular user cannot delete');
   t.false(regularView.userCanUpload, 'Regular user cannot upload');
-});
+}));
 
-test.serial('Thing model: revision system works correctly', async t => {
+test.serial('Thing model: revision system works correctly', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const creator = await User.create({
@@ -259,13 +255,13 @@ test.serial('Thing model: revision system works correctly', async t => {
     [firstRev.id]
   );
   t.is(allRevisions.rows.length, 2, 'Two revisions exist in database');
-});
+}));
 
 // ============================================================================
 // REVIEW MODEL TESTS
 // ============================================================================
 
-test.serial('Review model: create review with JSONB multilingual content', async t => {
+test.serial('Review model: create review with JSONB multilingual content', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const author = await User.create({
@@ -319,9 +315,9 @@ test.serial('Review model: create review with JSONB multilingual content', async
   t.deepEqual(saved.html, review.html, 'Multilingual HTML stored correctly');
   t.is(saved.starRating, 5, 'Star rating stored correctly');
   t.is(saved.thingID, thing.id, 'Thing relationship stored correctly');
-});
+}));
 
-test.serial('Review model: populateUserInfo sets permission flags correctly', async t => {
+test.serial('Review model: populateUserInfo sets permission flags correctly', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const author = await User.create({
@@ -393,9 +389,9 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
   t.false(otherView.userIsAuthor, 'Other user not author');
   t.false(otherView.userCanEdit, 'Other user cannot edit');
   t.false(otherView.userCanDelete, 'Other user cannot delete');
-});
+}));
 
-test.serial('Review model: star rating validation works', async t => {
+test.serial('Review model: star rating validation works', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const author = await User.create({
@@ -461,9 +457,9 @@ test.serial('Review model: star rating validation works', async t => {
     const saved = await review.save();
     t.is(saved.starRating, rating, `Rating ${rating} should be valid`);
   }
-});
+}));
 
-test.serial('Review model: getFeed joins thing data', async t => {
+test.serial('Review model: getFeed joins thing data', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const author = await User.create({
@@ -508,13 +504,13 @@ test.serial('Review model: getFeed joins thing data', async t => {
   t.is(firstItem.thing.id, thing.id, 'Thing join matches review thing ID');
   t.is(firstItem.thing.label.en, 'Feed Thing', 'Thing label preserved in join');
   t.is(firstItem.thing.urls[0], reviewUrl, 'Thing URLs included in join');
-});
+}));
 
 // ============================================================================
 // TEAM MODEL TESTS
 // ============================================================================
 
-test.serial('Team model: create team with JSONB multilingual fields', async t => {
+test.serial('Team model: create team with JSONB multilingual fields', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const founder = await User.create({
@@ -578,9 +574,9 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
   t.deepEqual(saved.rules, teamRev.rules, 'Multilingual rules stored correctly');
   t.deepEqual(saved.confersPermissions, teamRev.confersPermissions, 'Permissions config stored correctly');
   t.true(saved.modApprovalToJoin, 'Moderation settings stored correctly');
-});
+}));
 
-test.serial('Team model: populateUserInfo sets permission flags correctly', async t => {
+test.serial('Team model: populateUserInfo sets permission flags correctly', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const founder = await User.create({
@@ -675,13 +671,13 @@ test.serial('Team model: populateUserInfo sets permission flags correctly', asyn
   siteModView.moderators = [moderator];
   siteModView.populateUserInfo(siteModerator);
   t.true(siteModView.userCanDelete, 'Site moderator can delete team');
-});
+}));
 
 // ============================================================================
 // INTEGRATION TESTS BETWEEN MODELS
 // ============================================================================
 
-test.serial('Integration: Thing-Review relationship and metrics', async t => {
+test.serial('Integration: Thing-Review relationship and metrics', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const thingCreator = await User.create({
@@ -754,9 +750,9 @@ test.serial('Integration: Thing-Review relationship and metrics', async t => {
   await thing.populateReviewMetrics();
   t.is(thing.averageStarRating, 4, 'Average rating populated correctly');
   t.is(thing.numberOfReviews, 2, 'Review count populated correctly');
-});
+}));
 
-test.serial('Integration: Team-Review association', async t => {
+test.serial('Integration: Team-Review association', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
@@ -827,9 +823,9 @@ test.serial('Integration: Team-Review association', async t => {
   t.is(associationResult.rows.length, 1, 'Review-team association created');
   t.is(associationResult.rows[0].review_id, review.id, 'Review ID matches');
   t.is(associationResult.rows[0].team_id, team.id, 'Team ID matches');
-});
+}));
 
-test.serial('Integration: Review.create with team associations', async t => {
+test.serial('Integration: Review.create with team associations', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
@@ -888,9 +884,9 @@ test.serial('Integration: Review.create with team associations', async t => {
   t.truthy(reviewWithData.teams, 'Teams included in getWithData');
   t.is(reviewWithData.teams.length, 1, 'One team associated');
   t.is(reviewWithData.teams[0].id, team.id, 'Correct team associated');
-});
+}));
 
-test.serial('Integration: Revision system across all models', async t => {
+test.serial('Integration: Revision system across all models', transactionalTest(async t => {
   if (skipIfNoModels(t)) return;
 
   const user = await User.create({
@@ -970,7 +966,7 @@ test.serial('Integration: Revision system across all models', async t => {
   t.is(parseInt(thingRevisions.rows[0].count), 2, 'Thing has 2 revisions');
   t.is(parseInt(teamRevisions.rows[0].count), 2, 'Team has 2 revisions');
   t.is(parseInt(reviewRevisions.rows[0].count), 2, 'Review has 2 revisions');
-});
+}));
 
 test.after.always(async () => {
   await dalFixture.cleanup();

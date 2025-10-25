@@ -15,6 +15,7 @@ const debug = require('../../util/debug');
 const fs = require('fs').promises;
 const path = require('path');
 const ModelRegistry = require('./model-registry');
+const asyncLocalStorage = require('./async-context');
 
 class DataAccessLayer {
   constructor(config = {}) {
@@ -104,7 +105,8 @@ class DataAccessLayer {
    * @returns {Promise<Object>} Query result
    */
   async query(text, params = [], client = null) {
-    const queryClient = client || this.pool;
+    const store = asyncLocalStorage.getStore();
+    const queryClient = client || store?.client || this.pool;
     
     try {
       const start = Date.now();
@@ -133,7 +135,9 @@ class DataAccessLayer {
       await client.query('BEGIN');
       debug.db('Transaction started');
       
-      const result = await callback(client);
+      const result = await asyncLocalStorage.run({ client }, async () => {
+        return await callback(client);
+      });
       
       await client.query('COMMIT');
       debug.db('Transaction committed');

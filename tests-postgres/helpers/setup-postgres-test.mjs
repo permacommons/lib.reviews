@@ -53,13 +53,6 @@ export function setupPostgresTest(test, options = {}) {
     }
   });
 
-  if (cleanupTables.length > 0) {
-    test.beforeEach(async () => {
-      if (!dalFixture.isConnected()) return;
-      await dalFixture.cleanupTables(cleanupTables);
-    });
-  }
-
   test.after.always(async () => {
     await dalFixture.cleanup();
   });
