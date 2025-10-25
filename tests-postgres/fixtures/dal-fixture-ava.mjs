@@ -257,31 +257,6 @@ class DALFixtureAVA {
     this.bootstrapError = null;
     this.skipReason = null;
 
-    try {
-      const pg = require('pg');
-      if (pg?.pools?.all) {
-        await Promise.all(Array.from(pg.pools.all).map(async ([, pool]) => {
-          try {
-            await pool.end();
-          } catch {}
-        }));
-        pg.pools.all.clear?.();
-      }
-      if (pg && pg._pools && typeof pg._pools.forEach === 'function') {
-        for (const pool of pg._pools) {
-          try {
-            await pool.end();
-          } catch {}
-        }
-        if (typeof pg._pools.clear === 'function') {
-          pg._pools.clear();
-        }
-      }
-      if (typeof pg.end === 'function') {
-        await pg.end().catch(() => {});
-      }
-    } catch {}
-
     const getActiveHandles = process._getActiveHandles?.bind(process);
     if (typeof getActiveHandles === 'function') {
       const deadline = Date.now() + 1500;

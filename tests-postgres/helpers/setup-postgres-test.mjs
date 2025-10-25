@@ -60,10 +60,6 @@ export function setupPostgresTest(test, options = {}) {
     });
   }
 
-  test.after.always(async () => {
-    await dalFixture.cleanup();
-  });
-
   return {
     dalFixture,
     skipIfUnavailable(t, message = 'Skipping - PostgreSQL DAL not available') {

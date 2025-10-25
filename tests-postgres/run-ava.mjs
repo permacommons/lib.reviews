@@ -30,6 +30,7 @@ if (!existsSync(manifestPath)) {
 
 const env = {
   ...process.env,
+  NODE_APP_INSTANCE: 'testing',
   LIBREVIEWS_VITE_DEV_SERVER: process.env.LIBREVIEWS_VITE_DEV_SERVER || 'off',
   LIBREVIEWS_SKIP_RETHINK: process.env.LIBREVIEWS_SKIP_RETHINK || '1'
 };
@@ -39,9 +40,30 @@ const child = spawn('ava', args, {
   env
 });
 
-child.on('exit', (code, signal) => {
-  const exitCode = signal ? (128 + (signal === 'SIGINT' ? 2 : signal === 'SIGTERM' ? 15 : 0)) : (code ?? 0);
-  process.exit(exitCode);
+import config from 'config';
+import pg from 'pg';
+
+child.on('exit', async (code, signal) => {
+  const dbConfig = config.get('postgres');
+  const pool = new pg.Pool(dbConfig);
+  try {
+    const client = await pool.connect();
+    const { rows } = await client.query(`
+      SELECT schema_name
+      FROM information_schema.schemata
+      WHERE schema_name LIKE 'test_%'
+    `);
+    for (const { schema_name } of rows) {
+      await client.query(`DROP SCHEMA IF EXISTS ${schema_name} CASCADE`);
+    }
+    client.release();
+  } catch (error) {
+    console.error('Failed to clean up test schemas:', error);
+  } finally {
+    await pool.end();
+    const exitCode = signal ? (128 + (signal === 'SIGINT' ? 2 : signal === 'SIGTERM' ? 15 : 0)) : (code ?? 0);
+    process.exit(exitCode);
+  }
 });
 
 child.on('error', async error => {
