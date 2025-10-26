@@ -475,11 +475,20 @@ class Model {
     }
 
     const { through } = config;
-    const joinTableName = this.constructor.dal.tablePrefix ? 
-      `${this.constructor.dal.tablePrefix}${through.table}` : through.table;
-    
-    const sourceColumn = through.sourceForeignKey || `${this.constructor.tableName.replace(/s$/, '')}_id`;
-    const targetColumn = through.targetForeignKey || `${config.targetTable.replace(/s$/, '')}_id`;
+    const tablePrefix = this.constructor.dal.tablePrefix || '';
+    const joinTableName = tablePrefix ? `${tablePrefix}${through.table}` : through.table;
+
+    const getBaseName = value => {
+      if (!value) return '';
+      const segments = String(value).split('.');
+      return segments[segments.length - 1];
+    };
+
+    const sourceBase = getBaseName(this.constructor.tableName);
+    const targetBase = getBaseName(config.targetTable);
+
+    const sourceColumn = through.sourceForeignKey || `${sourceBase.replace(/s$/, '')}_id`;
+    const targetColumn = through.targetForeignKey || `${targetBase.replace(/s$/, '')}_id`;
     
     try {
       // First, remove existing associations for this record

@@ -109,7 +109,7 @@ The prepare step runs `snyk-protect`; in offline environments it may emit `ENETU
 npm run test-postgres
 ```
 
-The runner compiles the Vite bundle on first run (creating `build/vite/.vite/manifest.json`) and then executes the AVA suite under `tests-postgres/`. The command sets `LIBREVIEWS_SKIP_RETHINK=1`, so the tests never attempt a RethinkDB connection.
+The runner compiles the Vite bundle on first run (creating `build/vite/.vite/manifest.json`) and then executes the AVA suite under `tests/`.
 
 ## 9. Troubleshooting checklist
 

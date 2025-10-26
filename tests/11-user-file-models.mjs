@@ -17,7 +17,7 @@ let File;
 let NewUserError;
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
 
   mockSearch();
 
@@ -33,17 +33,19 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-function skipIfNoModels(t) {
-  if (skipIfUnavailable(t)) return true;
+async function skipIfNoModels(t) {
+  if (await skipIfUnavailable(t)) return true;
   if (!User || !File) {
-    t.pass('Skipping - PostgreSQL DAL not available');
+    const skipMessage = 'Skipping - PostgreSQL DAL not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
     return true;
   }
   return false;
 }
 
 test.serial('User model: create hashes password and canonicalizes name', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const uniqueName = `TestUser-${randomUUID()}`;
   const user = await User.create({
@@ -59,7 +61,7 @@ test.serial('User model: create hashes password and canonicalizes name', async t
 });
 
 test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const name = `Duplicate-${randomUUID()}`;
   await User.create({
@@ -79,7 +81,7 @@ test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
 });
 
 test.serial('User model: checkPassword validates bcrypt hash', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const name = `Password-${randomUUID()}`;
   const email = `${name.toLowerCase()}@example.com`;
@@ -93,7 +95,7 @@ test.serial('User model: checkPassword validates bcrypt hash', async t => {
 });
 
 test.serial('User model: increaseInviteLinkCount increments atomically', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const name = `Invites-${randomUUID()}`;
   const user = await User.create({
@@ -113,7 +115,7 @@ test.serial('User model: increaseInviteLinkCount increments atomically', async t
 });
 
 test.serial('User model: findByURLName loads metadata and teams safely', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const name = `Bio-${randomUUID()}`;
   const email = `${name.toLowerCase()}@example.com`;
@@ -143,7 +145,7 @@ test.serial('User model: findByURLName loads metadata and teams safely', async t
 });
 
 test.serial('File model: create first revision and retrieve stashed upload', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const uploaderName = `Uploader-${randomUUID()}`;
   const uploader = await User.create({
@@ -178,7 +180,7 @@ test.serial('File model: create first revision and retrieve stashed upload', asy
 });
 
 test.serial('File model: populateUserInfo reflects permissions', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const uploaderName = `Perms-${randomUUID()}`;
   const otherName = `Viewer-${randomUUID()}`;

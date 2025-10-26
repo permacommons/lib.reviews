@@ -18,7 +18,7 @@ let searchQueries;
 let mockSearchResponse;
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
 
   const captured = mockSearch();
   searchQueries = captured.searchQueries;
@@ -35,24 +35,37 @@ test.before(async t => {
     dalFixture.Review = models.Review;
     
   } catch (error) {
-    t.log(`PostgreSQL not available, skipping search validation tests: ${error.message || 'PostgreSQL not configured'}`);
+    const skipMessage = `PostgreSQL not available, skipping search validation tests: ${error.message || 'PostgreSQL not configured'}`;
+    t.log(skipMessage);
     t.pass('Skipping tests - PostgreSQL not configured');
   }
 });
 
 test.after.always(unmockSearch);
 
-function skipIfNoModels(t) {
-  if (skipIfUnavailable(t)) return true;
+test.beforeEach(() => {
+  if (Array.isArray(searchQueries)) {
+    searchQueries.length = 0;
+  }
+  if (mockSearchResponse && mockSearchResponse.hits) {
+    mockSearchResponse.hits.hits = [];
+    mockSearchResponse.hits.total = { value: 0 };
+  }
+});
+
+async function skipIfNoModels(t) {
+  if (await skipIfUnavailable(t)) return true;
   if (!dalFixture.Thing || !dalFixture.Review) {
-    t.pass('Skipping - PostgreSQL models not available');
+    const skipMessage = 'Skipping - PostgreSQL models not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
     return true;
   }
   return false;
 }
 
 test.serial('searchThings API maintains compatibility with existing interface', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -68,7 +81,7 @@ test.serial('searchThings API maintains compatibility with existing interface', 
 });
 
 test.serial('searchReviews API maintains compatibility with existing interface', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -84,7 +97,7 @@ test.serial('searchReviews API maintains compatibility with existing interface',
 });
 
 test.serial('suggestThing API maintains compatibility with existing interface', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -100,7 +113,7 @@ test.serial('suggestThing API maintains compatibility with existing interface', 
 });
 
 test.serial('search queries include new PostgreSQL fields', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -147,7 +160,7 @@ test.serial('search queries include new PostgreSQL fields', async t => {
 });
 
 test.serial('search indexing handles PostgreSQL vs RethinkDB field name compatibility', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   
@@ -190,7 +203,7 @@ test.serial('search indexing handles PostgreSQL vs RethinkDB field name compatib
 });
 
 test.serial('search performance with PostgreSQL JSONB fields', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   
@@ -262,7 +275,7 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
 });
 
 test.serial('search API error handling remains consistent', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -281,29 +294,27 @@ test.serial('search API error handling remains consistent', async t => {
 });
 
 test.serial('search results structure remains compatible', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
   // Set up mock response with expected structure
-  mockSearchResponse = {
-    hits: {
-      hits: [
-        {
-          _id: 'test-id',
-          _source: {
-            type: 'thing',
-            label: { en: 'Test Item' },
-            description: { en: 'Test description' },
-            createdOn: new Date().toISOString()
-          },
-          highlight: {
-            'label.en': ['<span class="search-highlight">Test</span> Item']
-          }
+  mockSearchResponse.hits = {
+    hits: [
+      {
+        _id: 'test-id',
+        _source: {
+          type: 'thing',
+          label: { en: 'Test Item' },
+          description: { en: 'Test description' },
+          createdOn: new Date().toISOString()
+        },
+        highlight: {
+          'label.en': ['<span class="search-highlight">Test</span> Item']
         }
-      ],
-      total: { value: 1 }
-    }
+      }
+    ],
+    total: { value: 1 }
   };
   
   const result = await search.searchThings('test', 'en');

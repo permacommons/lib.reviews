@@ -24,7 +24,7 @@ let User, Thing, Review, Team;
 let NewUserError, ReviewError;
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
 
   mockSearch();
 
@@ -34,6 +34,8 @@ test.before(async t => {
     { key: 'reviews', alias: 'Review' },
     { key: 'teams', alias: 'Team' }
   ]);
+
+  t.log(`Schema prefix: ${dalFixture.tablePrefix}`);
 
   User = models.User;
   Thing = models.Thing;
@@ -46,10 +48,12 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-function skipIfNoModels(t) {
-  if (skipIfUnavailable(t)) return true;
+async function skipIfNoModels(t) {
+  if (await skipIfUnavailable(t)) return true;
   if (!User || !Thing || !Review || !Team) {
-    t.pass('Skipping - PostgreSQL DAL not available');
+    const skipMessage = 'Skipping - PostgreSQL DAL not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
     return true;
   }
   return false;
@@ -59,8 +63,8 @@ function skipIfNoModels(t) {
 // MODEL INITIALIZATION TESTS
 // ============================================================================
 
-test.serial('Thing, Review, and Team initializers attach to shared DAL', t => {
-  if (skipIfNoModels(t)) return;
+test.serial('Thing, Review, and Team initializers attach to shared DAL', async t => {
+  if (await skipIfNoModels(t)) return;
 
   t.truthy(Thing.dal === Review.dal && Review.dal === Team.dal, 'Models share the same DAL instance');
   t.true(Thing.tableName.startsWith(dalFixture.tablePrefix), 'Thing table respects prefix');
@@ -73,7 +77,7 @@ test.serial('Thing, Review, and Team initializers attach to shared DAL', t => {
 // ============================================================================
 
 test.serial('Thing model: create first revision with JSONB multilingual fields', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const creator = await User.create({
     name: `Creator-${randomUUID()}`,
@@ -130,7 +134,7 @@ test.serial('Thing model: create first revision with JSONB multilingual fields',
 });
 
 test.serial('Thing model: lookupByURL finds things by URL', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const creator = await User.create({
     name: `URLCreator-${randomUUID()}`,
@@ -171,7 +175,7 @@ test.serial('Thing model: lookupByURL finds things by URL', async t => {
 });
 
 test.serial('Thing model: populateUserInfo sets permission flags correctly', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const creator = await User.create({
     name: `ThingCreator-${randomUUID()}`,
@@ -227,7 +231,7 @@ test.serial('Thing model: populateUserInfo sets permission flags correctly', asy
 });
 
 test.serial('Thing model: revision system works correctly', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const creator = await User.create({
     name: `RevisionCreator-${randomUUID()}`,
@@ -266,7 +270,7 @@ test.serial('Thing model: revision system works correctly', async t => {
 // ============================================================================
 
 test.serial('Review model: create review with JSONB multilingual content', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `ReviewAuthor-${randomUUID()}`,
@@ -322,7 +326,7 @@ test.serial('Review model: create review with JSONB multilingual content', async
 });
 
 test.serial('Review model: populateUserInfo sets permission flags correctly', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `ReviewAuthor-${randomUUID()}`,
@@ -396,7 +400,7 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
 });
 
 test.serial('Review model: star rating validation works', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `RatingAuthor-${randomUUID()}`,
@@ -464,7 +468,7 @@ test.serial('Review model: star rating validation works', async t => {
 });
 
 test.serial('Review model: getFeed joins thing data', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `FeedAuthor-${randomUUID()}`,
@@ -515,7 +519,7 @@ test.serial('Review model: getFeed joins thing data', async t => {
 // ============================================================================
 
 test.serial('Team model: create team with JSONB multilingual fields', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const founder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -581,7 +585,7 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
 });
 
 test.serial('Team model: populateUserInfo sets permission flags correctly', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const founder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -682,7 +686,7 @@ test.serial('Team model: populateUserInfo sets permission flags correctly', asyn
 // ============================================================================
 
 test.serial('Integration: Thing-Review relationship and metrics', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const thingCreator = await User.create({
     name: `ThingCreator-${randomUUID()}`,
@@ -757,7 +761,7 @@ test.serial('Integration: Thing-Review relationship and metrics', async t => {
 });
 
 test.serial('Integration: Team-Review association', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -830,7 +834,7 @@ test.serial('Integration: Team-Review association', async t => {
 });
 
 test.serial('Integration: Review.create with team associations', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
     name: `CreateTeamFounder-${randomUUID()}`,
@@ -891,7 +895,7 @@ test.serial('Integration: Review.create with team associations', async t => {
 });
 
 test.serial('Integration: Revision system across all models', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
 
   const user = await User.create({
     name: `RevisionUser-${randomUUID()}`,

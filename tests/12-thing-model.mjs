@@ -15,7 +15,7 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let Thing;
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
 
   mockSearch();
 
@@ -28,17 +28,19 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-function skipIfNoThing(t) {
-  if (skipIfUnavailable(t)) return true;
+async function skipIfNoThing(t) {
+  if (await skipIfUnavailable(t)) return true;
   if (!Thing) {
-    t.pass('Skipping - PostgreSQL DAL not available');
+    const skipMessage = 'Skipping - PostgreSQL DAL not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
     return true;
   }
   return false;
 }
 
 test('Thing model: create first revision and lookup by URL', async t => {
-  if (skipIfNoThing(t)) return;
+  if (await skipIfNoThing(t)) return;
 
   const { actor: creator } = await dalFixture.createTestUser('Thing Creator');
   const url = `https://example.com/${randomUUID()}`;
@@ -63,7 +65,7 @@ test('Thing model: create first revision and lookup by URL', async t => {
 });
 
 test('Thing model: populateUserInfo sets permission flags', async t => {
-  if (skipIfNoThing(t)) return;
+  if (await skipIfNoThing(t)) return;
 
   const { actor: creatorActor } = await dalFixture.createTestUser('Thing Creator');
   const { actor: otherUserActor } = await dalFixture.createTestUser('Thing Moderator');

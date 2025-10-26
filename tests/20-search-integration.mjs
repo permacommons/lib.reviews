@@ -1,7 +1,8 @@
-import test from 'ava';
+import test, { registerCompletionHandler } from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -16,9 +17,9 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let indexedItems = [];
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
 
-  const captured = mockSearch(indexedItems);
+  const captured = mockSearch();
   indexedItems = captured.indexedItems;
 
   try {
@@ -32,7 +33,8 @@ test.before(async t => {
     dalFixture.Review = models.Review;
     
   } catch (error) {
-    t.log('PostgreSQL not available, skipping search integration tests:', error.message);
+    const skipMessage = `PostgreSQL not available, skipping search integration tests: ${error.message}`;
+    t.log(skipMessage);
     t.pass('Skipping tests - PostgreSQL not configured');
   }
 });
@@ -42,21 +44,42 @@ test.beforeEach(async t => {
   indexedItems.length = 0;
 });
 
-test.after.always(unmockSearch);
+test.after.always(async () => {
+  const mockedSearch = require('../search');
+  if (mockedSearch && typeof mockedSearch.close === 'function') {
+    await mockedSearch.close();
+  }
+
+  unmockSearch();
+
+  try {
+    const realSearch = require('../search');
+    if (realSearch && typeof realSearch.close === 'function') {
+      await realSearch.close();
+    }
+  } catch {}
+});
+
+registerCompletionHandler(() => {
+ const code = typeof process.exitCode === 'number' ? process.exitCode : 0;
+  process.exit(code);
+});
 
 // Ensure the AVA worker exits promptly after asynchronous teardown completes.
 
-function skipIfNoModels(t) {
-  if (skipIfUnavailable(t)) return true;
+async function skipIfNoModels(t) {
+  if (await skipIfUnavailable(t)) return true;
   if (!dalFixture.Thing || !dalFixture.Review) {
-    t.pass('Skipping - PostgreSQL models not available');
+    const skipMessage = 'Skipping - PostgreSQL models not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
     return true;
   }
   return false;
 }
 
 test.serial('maintenance script model selection works with PostgreSQL', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   // Test the logic from maintenance/index-all.js
   const { isDualDatabaseMode, getPostgresDAL } = require('../db-dual');
@@ -86,7 +109,7 @@ test.serial('maintenance script model selection works with PostgreSQL', async t 
 });
 
 test.serial('search indexing integration with PostgreSQL models', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   const search = require('../search');
@@ -154,7 +177,7 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
 });
 
 test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   const search = require('../search');
@@ -234,7 +257,7 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
 });
 
 test.serial('search indexing skips old and deleted revisions in bulk operations', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   const search = require('../search');

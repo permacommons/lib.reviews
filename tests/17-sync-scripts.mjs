@@ -17,7 +17,7 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let Thing;
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
 
   mockSearch();
 
@@ -31,17 +31,19 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-function skipIfNoModels(t) {
-  if (skipIfUnavailable(t)) return true;
+async function skipIfNoModels(t) {
+  if (await skipIfUnavailable(t)) return true;
   if (!Thing) {
-    t.pass('Skipping - PostgreSQL DAL not available');
+    const skipMessage = 'Skipping - PostgreSQL DAL not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
     return true;
   }
   return false;
 }
 
 test.serial('sync scripts can be imported and work with PostgreSQL Thing model', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   // Create a test thing with Wikidata URL
   const testUserId = randomUUID();
@@ -81,7 +83,7 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
 });
 
 test.serial('sync functionality works with metadata grouping', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   // Create a test thing
   const testUserId = randomUUID();
@@ -136,7 +138,7 @@ test.serial('sync functionality works with metadata grouping', async t => {
 });
 
 test.serial('adapter integration with PostgreSQL Thing model', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   // Test that adapters can work with the PostgreSQL Thing model
   const adapters = (await import('../adapters/adapters.js')).default;

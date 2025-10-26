@@ -63,7 +63,6 @@ class DALFixtureAVA {
     const envDefaults = {
       NODE_ENV: 'development',
       NODE_CONFIG_DISABLE_WATCH: 'Y',
-      LIBREVIEWS_SKIP_RETHINK: '1',
       NODE_APP_INSTANCE: this.testInstance
     };
 

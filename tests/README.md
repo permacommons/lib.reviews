@@ -1,9 +1,8 @@
 # PostgreSQL Test Harness
 
 The files in this directory exercise the in-progress PostgreSQL DAL and models.
-They run independently from the legacy RethinkDB tests under `tests/` and use a
-dedicated AVA wrapper (`npm run test-postgres`). The harness sets `LIBREVIEWS_SKIP_RETHINK=1`, so no RethinkDB
-connections are opened while the Postgres suite runs.
+They run independently from the legacy RethinkDB tests under `tests-legacy/` and use a
+dedicated AVA wrapper (`npm run test`) to keep the run PostgreSQL-only.
 
 ## Database Setup Requirements
 
@@ -62,7 +61,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 2. **Models are loaded after bootstrap**
    ```js
    test.before(async t => {
-     if (skipIfUnavailable(t)) return;
+     if (await skipIfUnavailable(t)) return;
 
      const { User } = await dalFixture.initializeModels([
        { key: 'users', alias: 'User' }
@@ -87,19 +86,16 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
    test and tears down connections (including dropping ad-hoc tables declared in
    `tableDefs`) after the suite finishes.
 
-6. **Skip gracefully when PostgreSQL is unavailable**
-   Wrap the setup in a `try/catch` and `t.pass()` with a message so local runs
-   without PostgreSQL do not fail noisily.
+5. **Skip gracefully when PostgreSQL is unavailable**
 
 ## Running the Suite
 
 ```
-npm run test-postgres
+npm run test
 ```
 
-The command mirrors the RethinkDB runner: it compiles assets if needed, then
-executes `ava` with the `tests-postgres/*-*.mjs` pattern while keeping the run
-PostgreSQL-only (`LIBREVIEWS_SKIP_RETHINK=1` by default).
+The command compiles assets if needed, then executes `ava` with the
+`tests/*-*.mjs` pattern while keeping the run PostgreSQL-only.
 
 ### Concurrency & teardown gotchas
 

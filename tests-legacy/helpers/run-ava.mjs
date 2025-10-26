@@ -10,7 +10,7 @@ import { cleanupAllFixtures } from './rethinkdb-cleanup.mjs';
 
 const args = process.argv.slice(2);
 if (args.length === 0)
-  args.push('--verbose', 'tests/*-*.mjs');
+  args.push('--verbose', 'tests-legacy/*-*.mjs');
 
 process.stdout.write('Cleaning up rethinkdb fixtures …');
 await cleanupAllFixtures();

@@ -5,7 +5,7 @@ import process from 'process';
 
 const args = process.argv.slice(2);
 if (args.length === 0)
-  args.push('--verbose', 'tests-postgres/[0-9]*-*.mjs');
+  args.push('--verbose', 'tests/[0-9]*-*.mjs');
 
 const manifestPath = resolve(process.cwd(), 'build', 'vite', '.vite', 'manifest.json');
 if (!existsSync(manifestPath)) {
@@ -31,7 +31,8 @@ if (!existsSync(manifestPath)) {
 const env = {
   ...process.env,
   LIBREVIEWS_VITE_DEV_SERVER: process.env.LIBREVIEWS_VITE_DEV_SERVER || 'off',
-  LIBREVIEWS_SKIP_RETHINK: process.env.LIBREVIEWS_SKIP_RETHINK || '1'
+  NODE_APP_INSTANCE: process.env.NODE_APP_INSTANCE || 'testing',
+  NODE_CONFIG_DISABLE_WATCH: process.env.NODE_CONFIG_DISABLE_WATCH || 'Y'
 };
 
 const child = spawn('ava', args, {

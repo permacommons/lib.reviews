@@ -2,8 +2,7 @@ import { createDALFixtureAVA } from '../fixtures/dal-fixture-ava.mjs';
 
 const DEFAULT_ENV = {
   NODE_ENV: 'development',
-  NODE_CONFIG_DISABLE_WATCH: 'Y',
-  LIBREVIEWS_SKIP_RETHINK: '1'
+  NODE_CONFIG_DISABLE_WATCH: 'Y'
 };
 
 const resolveMaybeAsync = async value => {
@@ -34,7 +33,7 @@ export function setupPostgresTest(test, options = {}) {
     process.env[key] = value;
   }
 
-  test.before(async t => {
+  const bootstrapPromise = (async () => {
     try {
       const resolvedTableDefs = await resolveMaybeAsync(tableDefs);
       const resolvedModelDefs = await resolveMaybeAsync(modelDefs);
@@ -44,11 +43,23 @@ export function setupPostgresTest(test, options = {}) {
         modelDefs: resolvedModelDefs
       });
     } catch (error) {
-      t.log(
-        `PostgreSQL not available for ${instance} (${tableSuffix || 'default'}): ${
-          error?.message || 'unknown error'
-        }`
-      );
+      dalFixture.bootstrapError = error;
+      dalFixture.skipReason = error?.message || 'Failed to initialize PostgreSQL harness';
+      throw error;
+    }
+  })();
+
+  test.before(async t => {
+    try {
+      await bootstrapPromise;
+    } catch (error) {
+      const instanceName = dalFixture?.testInstance || 'testing';
+      const errorMessage = error?.message || 'unknown error';
+      const skipMessage = `PostgreSQL not available for ${instanceName} (${tableSuffix || 'default'}): ${errorMessage}`;
+      t.log(skipMessage);
+      if (error?.stack) {
+        t.log(error.stack);
+      }
       t.pass('Skipping tests - PostgreSQL not configured');
     }
   });
@@ -66,8 +77,21 @@ export function setupPostgresTest(test, options = {}) {
 
   return {
     dalFixture,
-    skipIfUnavailable(t, message = 'Skipping - PostgreSQL DAL not available') {
+    async skipIfUnavailable(t, message = 'Skipping - PostgreSQL DAL not available') {
       if (!dalFixture.isConnected()) {
+        await bootstrapPromise.catch(() => {});
+      }
+
+      if (!dalFixture.isConnected()) {
+        const stack = dalFixture.bootstrapError?.stack;
+        if (stack) {
+          t.log(stack);
+        }
+        const reason = dalFixture.getSkipReason?.() || dalFixture.bootstrapError?.message;
+        if (reason) {
+          t.log(`Skip reason: ${reason}`);
+        }
+        t.log(message);
         t.pass(message);
         return true;
       }

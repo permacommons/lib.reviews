@@ -13,13 +13,13 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 });
 
 // Mock search module to capture indexing calls
-let indexedThings = [];
-let indexedReviews = [];
+let indexedItems = [];
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
 
-  mockSearch(indexedThings);
+  const captured = mockSearch();
+  indexedItems = captured.indexedItems;
 
   const models = await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
@@ -32,23 +32,24 @@ test.before(async t => {
 
 test.beforeEach(async t => {
   // Clear captured calls before each test
-  indexedThings.length = 0;
-  indexedReviews.length = 0;
+  indexedItems.length = 0;
 });
 
 test.after.always(unmockSearch);
 
-function skipIfNoModels(t) {
-  if (skipIfUnavailable(t)) return true;
+async function skipIfNoModels(t) {
+  if (await skipIfUnavailable(t)) return true;
   if (!dalFixture.Thing || !dalFixture.Review) {
-    t.pass('Skipping - PostgreSQL models not available');
+    const skipMessage = 'Skipping - PostgreSQL models not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
     return true;
   }
   return false;
 }
 
 test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   
@@ -128,7 +129,7 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
 });
 
 test.serial('indexThing skips old and deleted revisions', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   const search = require('../search');
@@ -162,19 +163,22 @@ test.serial('indexThing skips old and deleted revisions', async t => {
   
   // Test indexing current revision
   await search.indexThing(currentThing);
-  t.is(indexedThings.length, 1, 'Should index current revision');
+  let things = indexedItems.filter(item => item.type === 'thing');
+  t.is(things.length, 1, 'Should index current revision');
   
   // Test skipping old revision
   await search.indexThing(oldThing);
-  t.is(indexedThings.length, 1, 'Should skip old revision');
+  things = indexedItems.filter(item => item.type === 'thing');
+  t.is(things.length, 1, 'Should skip old revision');
   
   // Test skipping deleted revision
   await search.indexThing(deletedThing);
-  t.is(indexedThings.length, 1, 'Should skip deleted revision');
+  things = indexedItems.filter(item => item.type === 'thing');
+  t.is(things.length, 1, 'Should skip deleted revision');
 });
 
 test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   
@@ -242,7 +246,7 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
 });
 
 test.serial('indexReview skips old and deleted revisions', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   const search = require('../search');
@@ -287,15 +291,18 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   
   // Test indexing current revision
   await search.indexReview(currentReview);
-  t.is(indexedReviews.length, 1, 'Should index current revision');
+  let reviews = indexedItems.filter(item => item.type === 'review');
+  t.is(reviews.length, 1, 'Should index current revision');
   
   // Test skipping old revision
   await search.indexReview(oldReview);
-  t.is(indexedReviews.length, 1, 'Should skip old revision');
+  reviews = indexedItems.filter(item => item.type === 'review');
+  t.is(reviews.length, 1, 'Should skip old revision');
   
   // Test skipping deleted revision
   await search.indexReview(deletedReview);
-  t.is(indexedReviews.length, 1, 'Should skip deleted revision');
+  reviews = indexedItems.filter(item => item.type === 'review');
+  t.is(reviews.length, 1, 'Should skip deleted revision');
 });
 
 test.serial('maintenance script uses correct models based on database mode', async t => {
@@ -321,12 +328,14 @@ test.serial('maintenance script uses correct models based on database mode', asy
     }
   } else {
     // Should use RethinkDB models
-    t.pass('Would use RethinkDB models when PostgreSQL not available');
+    const skipMessage = 'Would use RethinkDB models when PostgreSQL not available';
+    t.log(skipMessage);
+    t.pass(skipMessage);
   }
 });
 
 test.serial('search indexing extracts multilingual content correctly', async t => {
-  if (skipIfNoModels(t)) return;
+  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   

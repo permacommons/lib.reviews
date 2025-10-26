@@ -2,10 +2,10 @@
 // URLs are just for fun.
 export function* getReviewDataGenerator(userID) {
   const urls = [
-    'https://github.com/permacommons/lib.reviews/blob/master/tests/1-models.js',
-    'https://github.com/permacommons/lib.reviews/blob/master/tests/2-integration-signed-out.js',
-    'https://github.com/permacommons/lib.reviews/blob/master/tests/3-integration-signed-in.js',
-    'https://github.com/permacommons/lib.reviews/blob/master/tests/4-adapter.js',
+    'https://github.com/permacommons/lib.reviews/blob/master/tests-legacy/1-models.js',
+    'https://github.com/permacommons/lib.reviews/blob/master/tests-legacy/2-integration-signed-out.js',
+    'https://github.com/permacommons/lib.reviews/blob/master/tests-legacy/3-integration-signed-in.js',
+    'https://github.com/permacommons/lib.reviews/blob/master/tests-legacy/4-adapter.js',
   ];
   for (let i = 0; true; i++) {
     yield {
@@ -13,7 +13,7 @@ export function* getReviewDataGenerator(userID) {
       text: { en: 'Whoever wrote this test was clearly *drunk*, or asleep, or something.' },
       html: { en: '<p>Whoever wrote this test was clearly <em>drunk</em>, or asleep, or something.</p>' },
       url: urls[i] ||
-        `https://github.com/permacommons/lib.reviews/blob/master/tests/${i + 1}-something-else.js`,
+        `https://github.com/permacommons/lib.reviews/blob/master/tests-legacy/${i + 1}-something-else.js`,
       tags: ['test_revision', 'test_revision_create'],
       createdOn: new Date(),
       createdBy: userID,

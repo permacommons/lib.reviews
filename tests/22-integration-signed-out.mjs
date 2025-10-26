@@ -1,7 +1,7 @@
 import test from 'ava';
 import supertest from 'supertest';
 import { createRequire } from 'module';
-import { extractCSRF } from '../tests/helpers/integration-helpers.mjs';
+import { extractCSRF } from './helpers/integration-helpers.mjs';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
@@ -24,7 +24,7 @@ const { skipIfUnavailable } = setupPostgresTest(test, {
 });
 
 test.before(async t => {
-  if (skipIfUnavailable(t)) return;
+  if (await skipIfUnavailable(t)) return;
   // Initialize once so sessions table is created if needed
   const getApp = require('../app');
   await getApp();
