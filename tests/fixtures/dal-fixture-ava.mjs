@@ -8,7 +8,8 @@ const require = createRequire(import.meta.url);
  * AVA-compatible PostgreSQL DAL fixture for testing
  * 
  * Designed to work with AVA's concurrency model (concurrency: 4) by:
- * - Using separate test databases (libreviews_test_1, libreviews_test_2, etc.)
+ * - Targeting the shared test database (`libreviews_test`) while isolating each
+ *   worker in its own schema (e.g., `test_feature_x`)
  * - Prefixing table names to avoid conflicts between concurrent tests
  * - Providing proper cleanup and connection management
  * - Supporting test isolation with atomic transactions

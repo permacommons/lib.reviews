@@ -1,107 +1,86 @@
 # PostgreSQL Test Harness
 
 The files in this directory exercise the in-progress PostgreSQL DAL and models.
-They run independently from the legacy RethinkDB tests under `tests-legacy/` and use a
-dedicated AVA wrapper (`npm run test`) to keep the run PostgreSQL-only.
+They run independently from the legacy RethinkDB suites under `tests-legacy/`
+and use the AVA runner in `tests/run-ava.mjs`.
 
-## Database Setup Requirements
+## Prerequisites
 
-The PostgreSQL tests require proper database setup with appropriate permissions:
+Complete the steps in `POSTGRES-SETUP.md` before running these tests. That
+document covers creating the `libreviews` and `libreviews_test` databases,
+granting privileges (via `dal/setup-db-grants.sql`), installing extensions, and
+priming the schema. Once those steps are done you can boot the app or execute
+the test suite without additional setup.
 
-### 1. Create Test Database
+## Harness Architecture
 
-Create a single test database for the entire test suite:
+The `setupPostgresTest` helper (`tests/helpers/setup-postgres-test.mjs`) wires
+AVA into the shared PostgreSQL DAL bootstrap (`bootstrap/dal.js`):
 
-```sql
-CREATE DATABASE libreviews_test;
-```
-
-### 2. Grant Permissions
-
-Grant full permissions to your PostgreSQL user (replace `libreviews_user` with your username):
-
-```sql
--- Grant database-level permissions
-GRANT ALL PRIVILEGES ON DATABASE libreviews_test TO libreviews_user;
-
--- Grant schema-level permissions (connect to each database and run):
-\c libreviews_test
-GRANT ALL ON SCHEMA public TO libreviews_user;
-```
-
-### 3. Install UUID Extensions
-
-Install UUID generation extensions in the test database:
-
-```sql
--- Connect to each database and install extensions
-\c libreviews_test
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-```
-
-**Note**: The fixture will attempt to enable extensions automatically, but may lack permissions on hosted services. Pre-installing them ensures tests run smoothly.
+- It sets `NODE_APP_INSTANCE=testing`, which loads the `libreviews_test`
+  connection settings from `config/development-testing.json5`.
+- During bootstrap the harness runs migrations, registers the default models,
+  and exposes a `dalFixture` with helpers for queries, model access, and data
+  creation.
+- Each worker receives its own schema (for example `test_my_feature`) and a
+  matching table prefix, so concurrent workers can exercise the same tables
+  without clobbering each other. Schemas are dropped during teardown.
 
 ## Writing PostgreSQL Tests
 
-1. **Use the shared setup helper**
-   ```js
-   import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+Use the shared helper to provision a fixture and skip cleanly when PostgreSQL is
+unavailable:
 
-   const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-     tableSuffix: 'feature-under-test',
-     cleanupTables: ['users', 'things']
-   });
-   ```
+```js
+import test from 'ava';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
-   The helper applies standard environment defaults, wires up `test.before/after`
-   hooks, and provisions custom tables when `tableDefs` are supplied. Use
-   `skipIfUnavailable(t)` in hooks or tests to bail out cleanly when PostgreSQL
-   is not reachable.
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  tableSuffix: 'feature-under-test',
+  cleanupTables: ['users', 'things']
+});
 
-2. **Models are loaded after bootstrap**
-   ```js
-   test.before(async t => {
-     if (await skipIfUnavailable(t)) return;
+test.before(async t => {
+  if (await skipIfUnavailable(t)) return;
 
-     const { User } = await dalFixture.initializeModels([
-       { key: 'users', alias: 'User' }
-     ]);
-     // ...
-   });
-   ```
+  const { User } = await dalFixture.initializeModels([
+    { key: 'users', alias: 'User' }
+  ]);
 
-   The fixture configures table prefixes automatically; requesting the `users`
-   model returns the version scoped to the worker schema (e.g.
-   `test_testing_users`).
+  t.context.models = { User };
+});
+```
 
-3. **Create test data using helpers**
-   ```js
-   // Use the fixture helper to create test users
-   const { actor: testUser } = await dalFixture.createTestUser('Test User Name');
-   ```
+Key capabilities:
 
-4. **Cleanup runs automatically**
-
-   The setup helper truncates the tables listed in `cleanupTables` before each
-   test and tears down connections (including dropping ad-hoc tables declared in
-   `tableDefs`) after the suite finishes.
-
-5. **Skip gracefully when PostgreSQL is unavailable**
+- `dalFixture.initializeModels([...])` loads real models through their
+  initializer functions while honoring the worker-specific table prefix.
+- `dalFixture.createTestUser()` provisions a user (and actor stub) backed by
+  the prefixed tables, making it easy to seed data.
+- `cleanupTables` truncates the listed tables before each test. Omit it only if
+  the suite handles cleanup manually.
+- `skipIfUnavailable(t)` logs the initialization failure and short-circuits the
+  test when PostgreSQL is unreachable (for example, in CI jobs that do not
+  provision the database service).
 
 ## Running the Suite
 
+```bash
+npm run test-postgres
 ```
-npm run test
-```
 
-The command compiles assets if needed, then executes `ava` with the
-`tests/*-*.mjs` pattern while keeping the run PostgreSQL-only.
+`tests/run-ava.mjs` ensures the Vite manifest exists (triggering `npm run build`
+on demand), sets the required environment variables, and executes AVA with the
+`tests/[0-9]*-*.mjs` pattern. The runner defaults to four workers; use AVA’s
+`--concurrency` flag if you need to scale it down.
 
-### Concurrency & teardown gotchas
+## Caveats & Best Practices
 
-- Test files share AVA workers; anything that touches the same tables needs either unique schema suffixes (`createDALFixtureAVA('slot', { tableSuffix: 'feature' })`) **or** to run serially (`test.serial`). Mixing parallel tests with shared fixture state is the fastest way to get intermittent “missing row” failures.
-- The shared helper truncates registered tables automatically. If you opt out of `cleanupTables`, make sure to clear data manually; lingering rows or connections manifest as “Failed to exit” timeouts.
-- If a suite performs asynchronous teardown beyond the fixture cleanup (e.g., awaiting mock servers), add a `test.after.always(async () => { await dalFixture.cleanup(); });` block to ensure the worker exits only after your teardown finishes.
-- When stubbing modules such as `../search`, remember to delete them from `require.cache` in `after.always` so following tests see the real implementation.
-- For PostgreSQL model tests that mutate shared tables (e.g. comprehensive integration suites), prefer serial tests (`test.serial(...)`) to avoid racing `cleanupTables()` calls across concurrent workers.
-- Avoid reusing the same `tableSuffix` across different files; the fixture now derives schema names from the suffix, so it must be unique for genuine isolation.
+- Use unique `tableSuffix` values per test file to avoid schema name clashes.
+- For suites that share mutable tables across tests, prefer `test.serial` or
+  isolate the work by giving each test its own table suffix.
+- When stubbing modules (for example `../search`), remove them from
+  `require.cache` in an `after.always` hook so the next test sees the real
+  implementation.
+- If you add asynchronous teardown logic outside the fixture, await it inside a
+  `test.after.always` hook; otherwise AVA reports “Failed to exit” timeouts.
