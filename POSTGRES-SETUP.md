@@ -62,27 +62,27 @@ Re-running the command is safe; `createdb` will report an error if the database 
 
 ## 5. Grant permissions and enable extensions
 
-Grant the application role full control over the test database and enable the `pgcrypto` extension that the migrations rely on. A helper script is available inside the repository:
+Grant the application role full control over both databases and enable the `pgcrypto` extension that the migrations rely on. A helper script is available inside the repository:
 
 ```bash
-PGUSER=postgres psql -f dal/setup-test-db-grants.sql
+PGUSER=postgres psql -f dal/setup-db-grants.sql
 ```
 
 If your environment enforces peer authentication for the `postgres` role (the
 default on many Linux distributions), run the helper via `sudo` instead:
 
 ```bash
-sudo -u postgres psql -f dal/setup-test-db-grants.sql
+sudo -u postgres psql -f dal/setup-db-grants.sql
 ```
 
-The script issues the following changes for the `libreviews_test` database:
+The script applies to both `libreviews` and `libreviews_test`:
 
-- grants `libreviews_user` all privileges on the database and `public` schema,
+- grants `libreviews_user` all privileges on each database and the `public` schema,
 - grants privileges on all existing tables and sequences,
 - sets default privileges so future tables/sequences remain accessible,
-- installs the `pgcrypto` extension (needed for UUID generation).
+- installs the `pgcrypto` extension (needed for UUID generation) in both databases.
 
-If you prefer to apply the grants manually, mirror the statements from `dal/setup-test-db-grants.sql` in the database.
+If you prefer to apply the grants manually, mirror the statements from `dal/setup-db-grants.sql` in each database.
 
 ## 6. Run the application to apply migrations
 
@@ -114,7 +114,7 @@ The runner compiles the Vite bundle on first run (creating `build/vite/.vite/man
 ## 9. Troubleshooting checklist
 
 - **Connection failures:** verify PostgreSQL is running and reachable on `localhost:5432`.
-- **Permission errors:** re-run `psql -f dal/setup-test-db-grants.sql` to restore grants and default privileges.
+- **Permission errors:** re-run `psql -f dal/setup-db-grants.sql` to restore grants and default privileges.
 - **Missing extensions:** ensure the `pgcrypto` extension exists in the `libreviews_test` database.
 - **Asset build issues:** delete `build/vite` and let `npm run test-postgres` rebuild the bundle.
 

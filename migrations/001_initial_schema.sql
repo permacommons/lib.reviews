@@ -306,6 +306,15 @@ CREATE TABLE thing_files (
   CONSTRAINT thing_files_file_id_fkey FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
 );
 
+-- Session table for connect-pg-simple
+CREATE TABLE session (
+  sid VARCHAR NOT NULL COLLATE "default" PRIMARY KEY,
+  sess JSON NOT NULL,
+  expire TIMESTAMP(6) NOT NULL
+);
+
+CREATE INDEX idx_session_expire ON session (expire);
+
 -- Critical revision system indexes (partial indexes for current revisions only)
 -- These indexes are crucial for performance as they only index current, non-deleted revisions
 CREATE INDEX idx_user_metas_current ON user_metas (_old_rev_of, _rev_deleted)
