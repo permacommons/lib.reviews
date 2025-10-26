@@ -10,7 +10,7 @@ const adapters = require('../adapters/adapters');
 const isValidLanguage = require('../locales/languages').isValid;
 const { initializeModel } = require('../dal/lib/model-initializer');
 const ThingSlug = require('./thing-slug');
-const File = require('./file');
+const User = require('./user');
 const isUUID = require('is-uuid');
 const decodeHTML = require('entities').decodeHTML;
 const search = require('../search');
@@ -185,14 +185,22 @@ async function getWithData(id, {
   withFiles = true,
   withReviewMetrics = true
 } = {}) {
-  
-  let joinOptions = {};
+
+  const joinOptions = {};
   if (withFiles) {
-    // This would need proper File model integration
-    debug.db('File joins not yet implemented in Thing.getWithData');
+    joinOptions.files = {
+      _apply: seq => seq.filter({ completed: true })
+    };
   }
 
-  const thing = await Thing.getNotStaleOrDeleted(id, joinOptions);
+  const thing = Object.keys(joinOptions).length
+    ? await Thing.getNotStaleOrDeleted(id, joinOptions)
+    : await Thing.getNotStaleOrDeleted(id);
+
+  if (withFiles) {
+    thing.files = Array.isArray(thing.files) ? thing.files : [];
+    await _attachUploadersToFiles(thing.files);
+  }
   
   if (withReviewMetrics) {
     await thing.populateReviewMetrics();
@@ -754,6 +762,53 @@ async function addFilesByIDsAndSave(files, userID) {
 }
 
 // Helper functions
+
+async function _attachUploadersToFiles(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return;
+  }
+
+  const uploaderIDs = [];
+  const seen = new Set();
+  files.forEach(file => {
+    const uploaderID = file && file.uploadedBy;
+    if (typeof uploaderID === 'string' && !seen.has(uploaderID)) {
+      seen.add(uploaderID);
+      uploaderIDs.push(uploaderID);
+    }
+  });
+
+  if (!uploaderIDs.length) {
+    return;
+  }
+
+  try {
+    const userQuery = User.getMultipleNotStaleOrDeleted(uploaderIDs);
+    const result = typeof userQuery?.run === 'function'
+      ? await userQuery.run()
+      : [];
+
+    const uploaderMap = new Map();
+    for (const uploader of result || []) {
+      if (!uploader || !uploader.id) {
+        continue;
+      }
+      uploaderMap.set(uploader.id, uploader);
+    }
+
+    files.forEach(file => {
+      if (!file || !file.uploadedBy) {
+        return;
+      }
+      const uploader = uploaderMap.get(file.uploadedBy);
+      if (uploader) {
+        file.uploader = uploader;
+      }
+    });
+  } catch (error) {
+    debug.error('Failed to attach uploader data to files:', error);
+  }
+}
 
 /**
  * Validate URL format
