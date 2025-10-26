@@ -236,8 +236,20 @@ async function getFileRevs(files, fileTypes, user, tags = []) {
 async function attachFileRevsToThing(fileRevs, thing) {
   // Note that the file association is stored in a separate table, so we do not
   // create a new Thing revision in this case
-  fileRevs.forEach(fileRev => thing.addFile(fileRev));
-  await thing.saveAll(); // saves joined files
+  if (!Array.isArray(fileRevs) || !fileRevs.length) {
+    return [];
+  }
+
+  if (!Array.isArray(thing.files)) {
+    thing.files = [];
+  }
+
+  fileRevs.forEach(fileRev => {
+    thing.addFile(fileRev);
+  });
+
+  await Promise.all(fileRevs.map(fileRev => fileRev.save()));
+  await thing.saveAll({ files: true });
   return fileRevs;
 }
 
