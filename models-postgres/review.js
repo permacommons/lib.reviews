@@ -482,6 +482,15 @@ async function getFeed({
     paramIndex++;
   }
 
+  if (onlyTrusted) {
+    query += `
+      AND EXISTS (
+        SELECT 1 FROM users u
+        WHERE u.id = r.created_by
+          AND u.is_trusted = true
+      )`;
+  }
+
   query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
   params.push(limit + 1); // Get one extra to check for pagination
 
@@ -499,12 +508,6 @@ async function getFeed({
     } else if (offsetCandidate) {
       feedResult.offsetDate = new Date(offsetCandidate);
     }
-  }
-
-  // Filter by trusted users if requested (after limit for performance)
-  if (onlyTrusted) {
-    // This would need proper user join implementation
-    debug.db('Trusted user filtering not yet implemented in Review.getFeed');
   }
 
   // Add joins if requested
