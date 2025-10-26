@@ -2,10 +2,14 @@ import test from 'ava';
 import supertest from 'supertest';
 import { createRequire } from 'module';
 import { extractCSRF } from './helpers/integration-helpers.mjs';
-import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
+
+// Mock search before loading any modules that depend on it (e.g. bootstrap/dal).
+mockSearch();
+
+const { setupPostgresTest } = await import('./helpers/setup-postgres-test.mjs');
 
 const routeTests = [
   { path: '/', status: 200, regex: /Welcome/ },

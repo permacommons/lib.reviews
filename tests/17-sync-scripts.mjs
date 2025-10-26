@@ -1,13 +1,15 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
-import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
-
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
-
 import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
 
 const require = createRequire(import.meta.url);
+
+// Ensure the search mock is registered before loading the DAL bootstrap.
+mockSearch();
+
+const { setupPostgresTest } = await import('./helpers/setup-postgres-test.mjs');
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
   tableSuffix: 'sync_scripts',

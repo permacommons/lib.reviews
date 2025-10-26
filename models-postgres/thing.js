@@ -13,6 +13,7 @@ const ThingSlug = require('./thing-slug');
 const File = require('./file');
 const isUUID = require('is-uuid');
 const decodeHTML = require('entities').decodeHTML;
+const search = require('../search');
 
 let Thing = null;
 
@@ -446,7 +447,7 @@ async function updateActiveSyncs(userID) {
   await thing.save();
 
   // Index update can keep running after we resolve this promise
-  require('../search').indexThing(thing);
+  search.indexThing(thing);
 
   return thing;
 
