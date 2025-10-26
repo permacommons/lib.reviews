@@ -84,15 +84,15 @@ The script issues the following changes for the `libreviews_test` database:
 
 If you prefer to apply the grants manually, mirror the statements from `dal/setup-test-db-grants.sql` in the database.
 
-## 6. (Optional) Apply the base schema to the primary database
+## 6. Run the application to apply migrations
 
-If you want to run the application against PostgreSQL, load the initial schema:
+When lib.reviews starts against PostgreSQL it automatically runs any pending migrations and records them for future upgrades. Launch the server once (development mode is fine) to initialize the primary database:
 
 ```bash
-PGPASSWORD=libreviews_password psql -h localhost -U libreviews_user -d libreviews -f migrations/001_initial_schema.sql
+npm run start-dev
 ```
 
-The PostgreSQL test harness runs the migrations automatically inside isolated schemas, so this step is not required for `npm run test-postgres`.
+You can leave the server running for development, or stop it once it finishes booting (Ctrl+C) if you only needed to seed the schema. Avoid manually applying `migrations/001_initial_schema.sql`; running the app keeps the migration history consistent.
 
 ## 7. Install Node.js dependencies
 
