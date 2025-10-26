@@ -53,3 +53,12 @@ work with.
   abstractions.
 - Explore lightweight secondary backends (e.g., SQLite for tests) only if the
   primary Postgres path remains simple.
+
+## Outstanding Ergonomic Follow-ups
+
+- Ensure the query builder automatically maps camelCase field names to their
+  snake_case columns for helpers such as `whereIn`, `orderBy`, and explicit
+  predicates so model code never has to mix naming styles.
+- Standardise model cross-dependencies: each model should import the
+  synchronous handles it collaborates with (e.g., `const Review = require('./review')`)
+  at module load, avoiding ad hoc bootstrap calls or `getModel` fetches mid-flow.
