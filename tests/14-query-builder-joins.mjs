@@ -18,7 +18,7 @@ const require = createRequire(import.meta.url);
  */
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'query_builder_joins',
+  schemaNamespace: 'query_builder_joins',
   cleanupTables: [
     'review_teams',
     'team_moderators',

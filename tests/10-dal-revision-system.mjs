@@ -28,7 +28,7 @@ import {
 } from './helpers/dal-helpers-ava.mjs';
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'revision_system',
+  schemaNamespace: 'revision_system',
   modelDefs: getTestModelDefinitionsAVA,
   tableDefs: getTestTableDefinitionsAVA,
   cleanupTables: ['revisions', 'users']

@@ -8,7 +8,7 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'thing_review_team',
+  schemaNamespace: 'thing_review_team',
   cleanupTables: [
     'review_teams',
     'team_moderators',

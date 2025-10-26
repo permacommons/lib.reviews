@@ -6,7 +6,7 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 const require = createRequire(import.meta.url);
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'slug_helpers',
+  schemaNamespace: 'slug_helpers',
   cleanupTables: ['thing_slugs', 'reviews', 'things', 'users']
 });
 

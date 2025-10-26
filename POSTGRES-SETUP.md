@@ -1,6 +1,6 @@
 # PostgreSQL Setup Guide
 
-This document walks through setting up lib.reviews with PostgreSQL only. It captures the exact steps used to bring up a fresh environment and run the PostgreSQL test suite (`npm run test-postgres`) without relying on RethinkDB.
+This document walks through setting up lib.reviews with PostgreSQL only. It captures the exact steps used to bring up a fresh environment and run the PostgreSQL test suite (`npm run test`) without relying on RethinkDB.
 
 > **Heads up:** The PostgreSQL DAL expects a dedicated user with full privileges on a primary database (`libreviews`) and on a single isolated test database (`libreviews_test`). The test harness provisions schemas on the fly, but it needs permission to create tables, sequences, and the `pgcrypto` extension in each database.
 
@@ -104,7 +104,7 @@ You can leave the server running for development, or stop it once it finishes bo
 ## 7. Run the PostgreSQL test suite
 
 ```bash
-npm run test-postgres
+npm run test
 ```
 
 The runner compiles the Vite bundle on first run (creating `build/vite/.vite/manifest.json`) and then executes the AVA suite under `tests/`.
@@ -114,7 +114,7 @@ The runner compiles the Vite bundle on first run (creating `build/vite/.vite/man
 - **Connection failures:** verify PostgreSQL is running and reachable on `localhost:5432`.
 - **Permission errors:** re-run `psql -f dal/setup-db-grants.sql` to restore grants and default privileges.
 - **Missing extensions:** ensure the `pgcrypto` extension exists in the `libreviews_test` database.
-- **Asset build issues:** delete `build/vite` and let `npm run test-postgres` rebuild the bundle.
+- **Asset build issues:** delete `build/vite` and let `npm run test` rebuild the bundle.
 
 Following the steps above provides a functioning PostgreSQL-only environment capable of running the lib.reviews PostgreSQL test suite.
 
@@ -147,7 +147,7 @@ Errors: 0
 
 - The setup has been verified with PostgreSQL 16.10 on Ubuntu 24.04.
 - During the `npm install` step, you may see deprecation warnings for packages like `session-rethinkdb`, `csurf`, and `elasticsearch`. These are expected as the project is in the process of migrating away from RethinkDB.
-- When running the test suite with `npm run test-postgres`, you may see multiple `DeprecationWarning: The util._extend API is deprecated` messages. These warnings are harmless and do not affect the outcome of the tests.
+- When running the test suite with `npm run test`, you may see multiple `DeprecationWarning: The util._extend API is deprecated` messages. These warnings are harmless and do not affect the outcome of the tests.
 - To clean up the old test databases, run the following commands:
   ```bash
   for i in $(seq 1 6); do sudo -u postgres dropdb libreviews_test_$i; done

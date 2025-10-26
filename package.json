@@ -7,10 +7,6 @@
     "start": "NODE_ENV=production node bin/www.js",
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.js",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.mjs",
-    "test-postgres": "NODE_ENV=development node tests/run-ava.mjs",
-    "test-debug": "NODE_ENV=development DEBUG=libreviews:* node tests-legacy/helpers/run-ava.mjs",
-    "test-watch": "NODE_ENV=development DEBUG=libreviews:tests node tests-legacy/helpers/run-ava.mjs --watch",
-    "test-dual-db": "NODE_ENV=development DEBUG=libreviews:* node test-dual-db.js",
     "snyk-protect": "snyk-protect",
     "prepare": "npm run snyk-protect",
     "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"

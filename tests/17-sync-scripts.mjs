@@ -12,7 +12,7 @@ mockSearch();
 const { setupPostgresTest } = await import('./helpers/setup-postgres-test.mjs');
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'sync_scripts',
+  schemaNamespace: 'sync_scripts',
   cleanupTables: ['things', 'users']
 });
 

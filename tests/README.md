@@ -36,7 +36,7 @@ import test from 'ava';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'feature-under-test',
+  schemaNamespace: 'feature-under-test',
   cleanupTables: ['users', 'things']
 });
 
@@ -66,7 +66,7 @@ Key capabilities:
 ## Running the Suite
 
 ```bash
-npm run test-postgres
+npm run test
 ```
 
 `tests/run-ava.mjs` ensures the Vite manifest exists (triggering `npm run build`
@@ -76,9 +76,9 @@ on demand), sets the required environment variables, and executes AVA with the
 
 ## Caveats & Best Practices
 
-- Use unique `tableSuffix` values per test file to avoid schema name clashes.
+- Use unique `schemaNamespace` values per test file to avoid schema name clashes.
 - For suites that share mutable tables across tests, prefer `test.serial` or
-  isolate the work by giving each test its own table suffix.
+  isolate the work by giving each test its own schema namespace.
 - When stubbing modules (for example `../search`), remove them from
   `require.cache` in an `after.always` hook so the next test sees the real
   implementation.

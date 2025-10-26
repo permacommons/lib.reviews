@@ -25,11 +25,11 @@ const sanitizeIdentifier = value => {
 
 class DALFixtureAVA {
   constructor(testInstance = 'testing-2', options = {}) {
-    const { tableSuffix } = options;
+    const { schemaNamespace } = options;
     const instanceKey = sanitizeIdentifier(testInstance) || 'testing_2';
-    const suffixKey = sanitizeIdentifier(tableSuffix);
+    const namespaceKey = sanitizeIdentifier(schemaNamespace);
     this.instanceKey = instanceKey;
-    this.namespace = suffixKey || instanceKey;
+    this.namespace = namespaceKey || instanceKey;
     this.schemaName = `test_${this.namespace}`;
     this.dal = null;
     this.harness = null;

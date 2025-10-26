@@ -14,14 +14,15 @@ const resolveMaybeAsync = async value => {
 
 export function setupPostgresTest(test, options = {}) {
   const {
-    tableSuffix,
+    schemaNamespace,
     env = {},
     tableDefs,
     modelDefs,
     cleanupTables = []
   } = options;
 
-  const dalFixture = createDALFixtureAVA('testing', { tableSuffix });
+  const namespace = schemaNamespace;
+  const dalFixture = createDALFixtureAVA('testing', { schemaNamespace: namespace });
   const finalEnv = {
     ...DEFAULT_ENV,
     NODE_APP_INSTANCE: 'testing',
@@ -55,7 +56,8 @@ export function setupPostgresTest(test, options = {}) {
     } catch (error) {
       const instanceName = dalFixture?.testInstance || 'testing';
       const errorMessage = error?.message || 'unknown error';
-      const skipMessage = `PostgreSQL not available for ${instanceName} (${tableSuffix || 'default'}): ${errorMessage}`;
+      const skipNamespace = namespace || 'default';
+      const skipMessage = `PostgreSQL not available for ${instanceName} (${skipNamespace}): ${errorMessage}`;
       t.log(skipMessage);
       if (error?.stack) {
         t.log(error.stack);

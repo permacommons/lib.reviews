@@ -25,15 +25,12 @@ const routeTests = [
 ];
 
 const { skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'integration_signed_out'
+  schemaNamespace: 'integration_signed_out'
 });
 
 test.before(async t => {
   if (await skipIfUnavailable(t)) return;
   mockSearch();
-  // Initialize once so sessions table is created if needed
-  const getApp = require('../app');
-  await getApp();
 });
 
 test.beforeEach(async t => {

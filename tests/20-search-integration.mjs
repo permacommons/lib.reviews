@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
-  tableSuffix: 'search_integration',
+  schemaNamespace: 'search_integration',
   cleanupTables: ['users', 'things', 'reviews']
 });
 
