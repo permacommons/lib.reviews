@@ -18,9 +18,6 @@ brew install postgresql
 brew services start postgresql
 ```
 
-### Windows
-Download and install PostgreSQL from <https://www.postgresql.org/download/windows/>. Make sure the server is running before continuing.
-
 ## 2. Ensure the PostgreSQL server is running
 
 On Linux systems the service is managed by `systemd`:
@@ -28,7 +25,7 @@ On Linux systems the service is managed by `systemd`:
 sudo service postgresql start
 ```
 
-On macOS and Windows the installers usually start PostgreSQL automatically. If needed, use `brew services list` (macOS) or the "pgAdmin" service manager (Windows) to confirm it is running.
+On macOS athe installer usually starts PostgreSQL automatically. If needed, use `brew services list` (macOS) to confirm it is running.
 
 ## 3. Create the application role and primary database
 
@@ -84,6 +81,15 @@ The script applies to both `libreviews` and `libreviews_test`:
 
 If you prefer to apply the grants manually, mirror the statements from `dal/setup-db-grants.sql` in each database.
 
+## 5. Install Node.js dependencies
+
+From the repository root run:
+```bash
+npm install
+```
+
+The prepare step runs `snyk-protect`; in offline environments it may emit `ENETUNREACH` warnings, but the installation still completes.
+
 ## 6. Run the application to apply migrations
 
 When lib.reviews starts against PostgreSQL it automatically runs any pending migrations and records them for future upgrades. Launch the server once (development mode is fine) to initialize the primary database:
@@ -94,16 +100,8 @@ npm run start-dev
 
 You can leave the server running for development, or stop it once it finishes booting (Ctrl+C) if you only needed to seed the schema. Avoid manually applying `migrations/001_initial_schema.sql`; running the app keeps the migration history consistent.
 
-## 7. Install Node.js dependencies
 
-From the repository root run:
-```bash
-npm install
-```
-
-The prepare step runs `snyk-protect`; in offline environments it may emit `ENETUNREACH` warnings, but the installation still completes.
-
-## 8. Run the PostgreSQL test suite
+## 7. Run the PostgreSQL test suite
 
 ```bash
 npm run test-postgres
@@ -111,7 +109,7 @@ npm run test-postgres
 
 The runner compiles the Vite bundle on first run (creating `build/vite/.vite/manifest.json`) and then executes the AVA suite under `tests/`.
 
-## 9. Troubleshooting checklist
+## 8. Troubleshooting checklist
 
 - **Connection failures:** verify PostgreSQL is running and reachable on `localhost:5432`.
 - **Permission errors:** re-run `psql -f dal/setup-db-grants.sql` to restore grants and default privileges.
@@ -119,6 +117,31 @@ The runner compiles the Vite bundle on first run (creating `build/vite/.vite/man
 - **Asset build issues:** delete `build/vite` and let `npm run test-postgres` rebuild the bundle.
 
 Following the steps above provides a functioning PostgreSQL-only environment capable of running the lib.reviews PostgreSQL test suite.
+
+## 9. (Optional) Import a RethinkDB database
+
+To import an existing lib.reviews RethinkDB database, use the migration tool:
+
+```bash
+node migrations/migrate-rethinkdb-to-postgres.js --verbose
+```
+
+The migration tool will:
+- Connect to both RethinkDB and PostgreSQL
+- Migrate all 15 tables (users, teams, things, reviews, files, etc.)
+- Transform data to PostgreSQL format (camelCase → snake_case, etc.)
+- Validate data integrity after migration
+- Generate a detailed migration report at `migration-report.json`
+
+Expected output:
+```
+✓ Migration completed successfully
+Duration: ~15 seconds
+Tables processed: 15
+Records migrated: 7000+
+Records skipped: 0-5 (due to referential integrity)
+Errors: 0
+```
 
 ## 10. Notes
 
