@@ -3,6 +3,7 @@ import supertest from 'supertest';
 import { createRequire } from 'module';
 import { extractCSRF } from './helpers/integration-helpers.mjs';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -25,6 +26,7 @@ const { skipIfUnavailable } = setupPostgresTest(test, {
 
 test.before(async t => {
   if (await skipIfUnavailable(t)) return;
+  mockSearch();
   // Initialize once so sessions table is created if needed
   const getApp = require('../app');
   await getApp();
@@ -77,10 +79,7 @@ test.after.always(async t => {
     await new Promise(resolve => t.context.agent.close(resolve));
     t.context.agent = null;
   }
-  const search = require('../search');
-  if (search && typeof search.close === 'function') {
-    search.close();
-  }
+  unmockSearch();
   if (t.context.app && t.context.app.locals.dal) {
     await t.context.app.locals.dal.cleanup();
   }

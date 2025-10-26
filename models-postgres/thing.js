@@ -7,7 +7,6 @@ const debug = require('../util/debug');
 const urlUtils = require('../util/url-utils');
 const ReportedError = require('../util/reported-error');
 const adapters = require('../adapters/adapters');
-const search = require('../search');
 const isValidLanguage = require('../locales/languages').isValid;
 const { initializeModel } = require('../dal/lib/model-initializer');
 const ThingSlug = require('./thing-slug');
@@ -447,7 +446,7 @@ async function updateActiveSyncs(userID) {
   await thing.save();
 
   // Index update can keep running after we resolve this promise
-  search.indexThing(thing);
+  require('../search').indexThing(thing);
 
   return thing;
 
