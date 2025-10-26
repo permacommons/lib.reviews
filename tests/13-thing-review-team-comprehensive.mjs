@@ -174,6 +174,52 @@ test.serial('Thing model: lookupByURL finds things by URL', async t => {
   t.is(noResults.length, 0, 'No results for non-existent URL');
 });
 
+test.serial('Thing model: lookupByURL attaches reviews for requesting user', async t => {
+  if (await skipIfNoModels(t)) return;
+
+  const reviewer = await User.create({
+    name: `Reviewer-${randomUUID()}`,
+    password: 'secret123',
+    email: `reviewer-${randomUUID()}@example.com`
+  });
+
+  const otherUser = await User.create({
+    name: `Other-${randomUUID()}`,
+    password: 'secret123',
+    email: `other-${randomUUID()}@example.com`
+  });
+
+  const url = `https://example.com/review-${randomUUID()}`;
+
+  const thingRev = await Thing.createFirstRevision(reviewer, { tags: ['create'] });
+  thingRev.urls = [url];
+  thingRev.label = { en: 'Review Target' };
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = reviewer.id;
+  const thing = await thingRev.save();
+
+  const reviewRev = await Review.createFirstRevision(reviewer, { tags: ['create'] });
+  reviewRev.thingID = thing.id;
+  reviewRev.starRating = 4;
+  reviewRev.createdOn = new Date();
+  reviewRev.createdBy = reviewer.id;
+  reviewRev.originalLanguage = 'en';
+  reviewRev.title = { en: 'Solid review' };
+  reviewRev.text = { en: 'Plenty of useful detail.' };
+  const review = await reviewRev.save();
+
+  const resultsForReviewer = await Thing.lookupByURL(url, reviewer.id);
+  t.is(resultsForReviewer.length, 1, 'Lookup returns the thing for reviewer');
+  t.true(Array.isArray(resultsForReviewer[0].reviews), 'Reviews array is present for reviewer');
+  t.is(resultsForReviewer[0].reviews.length, 1, 'Reviewer sees their review');
+  t.is(resultsForReviewer[0].reviews[0].id, review.id, 'Reviewer review is returned');
+
+  const resultsForOtherUser = await Thing.lookupByURL(url, otherUser.id);
+  t.is(resultsForOtherUser.length, 1, 'Lookup returns the thing for other user');
+  t.true(Array.isArray(resultsForOtherUser[0].reviews), 'Reviews array present for other user');
+  t.is(resultsForOtherUser[0].reviews.length, 0, 'Other user sees no reviews');
+});
+
 test.serial('Thing model: populateUserInfo sets permission flags correctly', async t => {
   if (await skipIfNoModels(t)) return;
 

@@ -10,6 +10,7 @@ const adapters = require('../adapters/adapters');
 const isValidLanguage = require('../locales/languages').isValid;
 const { initializeModel } = require('../dal/lib/model-initializer');
 const ThingSlug = require('./thing-slug');
+const Review = require('./review');
 const User = require('./user');
 const isUUID = require('is-uuid');
 const decodeHTML = require('entities').decodeHTML;
@@ -164,8 +165,54 @@ async function lookupByURL(url, userID) {
   const things = result.rows.map(row => Thing._createInstance(row));
   
   if (typeof userID === 'string') {
-    // This would need the Review model to be available for joins
-    debug.db('User-specific review lookup not yet implemented in Thing.lookupByURL');
+    const lookupUserID = typeof userID.trim === 'function' ? userID.trim() : userID;
+    const thingIDs = things
+      .map(thing => thing.id)
+      .filter(id => typeof id === 'string' && id.length > 0);
+
+    // Default to empty arrays so API consumers can rely on the property
+    things.forEach(thing => {
+      thing.reviews = [];
+    });
+
+    if (thingIDs.length > 0) {
+      try {
+        const reviews = await Review
+          .filterNotStaleOrDeleted()
+          .whereIn('thing_id', thingIDs, { cast: 'uuid[]' })
+          .filter({ createdBy: lookupUserID })
+          .orderBy('created_on', 'DESC')
+          .limit(50)
+          .run();
+
+        const reviewsByThing = new Map();
+        for (const review of reviews) {
+          if (typeof review.populateUserInfo === 'function') {
+            review.populateUserInfo({ id: lookupUserID });
+          }
+
+          const reviewThingID = review.thingID;
+          if (!reviewThingID) {
+            continue;
+          }
+
+          if (!reviewsByThing.has(reviewThingID)) {
+            reviewsByThing.set(reviewThingID, []);
+          }
+
+          reviewsByThing.get(reviewThingID).push(review);
+        }
+
+        things.forEach(thing => {
+          const userReviews = reviewsByThing.get(thing.id);
+          if (Array.isArray(userReviews)) {
+            thing.reviews = userReviews;
+          }
+        });
+      } catch (error) {
+        debug.db('Failed to include user reviews in Thing.lookupByURL:', error.message);
+      }
+    }
   }
   
   return things;
