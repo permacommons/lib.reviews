@@ -9,6 +9,136 @@
 
 const { DocumentNotFound, convertPostgreSQLError } = require('./errors');
 const debug = require('../../util/debug');
+const isUUID = require('is-uuid');
+
+/**
+ * Marker object representing a single field reference in a filter predicate.
+ * Methods like `.eq()` mutate the active QueryBuilder by adding the
+ * corresponding PostgreSQL predicate, preserving the more ergonomic
+ * camelCase call sites the rest of the codebase uses.
+ *
+ * @private
+ */
+class FieldExpression {
+  constructor(builder, fieldName) {
+    this._builder = builder;
+    this.fieldName = fieldName;
+    this.dbFieldName = builder._resolveFieldName(fieldName);
+    Object.defineProperty(this, '__isFieldExpression', {
+      value: true,
+      enumerable: false,
+      configurable: false,
+      writable: false
+    });
+  }
+
+  eq(value) {
+    this._builder._addWhereCondition(this.dbFieldName, '=', value);
+    return true;
+  }
+
+  ne(value) {
+    this._builder._addWhereCondition(this.dbFieldName, '!=', value);
+    return true;
+  }
+
+  gt(value) {
+    this._builder._addWhereCondition(this.dbFieldName, '>', value);
+    return true;
+  }
+
+  ge(value) {
+    this._builder._addWhereCondition(this.dbFieldName, '>=', value);
+    return true;
+  }
+
+  lt(value) {
+    this._builder._addWhereCondition(this.dbFieldName, '<', value);
+    return true;
+  }
+
+  le(value) {
+    this._builder._addWhereCondition(this.dbFieldName, '<=', value);
+    return true;
+  }
+
+  contains(...args) {
+    const values = normalizeArrayValues(args);
+    if (!values.length) {
+      return true;
+    }
+
+    const cast = inferArrayCast(values, { preferText: true });
+    const options = {};
+    if (cast) {
+      options.cast = cast;
+    }
+
+    this._builder._addWhereCondition(this.dbFieldName, '@>', values, options);
+    return true;
+  }
+
+  isNull() {
+    this._builder._addWhereCondition(this.dbFieldName, 'IS', null);
+    return true;
+  }
+
+  isNotNull() {
+    this._builder._addWhereCondition(this.dbFieldName, 'IS NOT', null);
+    return true;
+  }
+}
+
+/**
+ * Ensure Thinky-style contains() arguments are always treated as a fresh array.
+ *
+ * @param {*} args - Arguments passed to FieldExpression.contains
+ * @returns {Array<*>} Copy of the supplied values
+ * @private
+ */
+function normalizeArrayValues(args) {
+  if (!args || args.length === 0) {
+    return [];
+  }
+
+  if (args.length === 1 && Array.isArray(args[0])) {
+    return args[0].slice();
+  }
+
+  return Array.from(args);
+}
+
+/**
+ * Guess the most appropriate PostgreSQL array type for a list of values.
+ *
+ * @param {Array<*>} values - Values slated for WHERE comparisons
+ * @param {Object} [options]
+ * @param {boolean} [options.preferText=false] - Force text[] even for UUID-like strings
+ * @returns {string|null} SQL cast suffix such as `uuid[]`, or null for default
+ * @private
+ */
+function inferArrayCast(values, { preferText = false } = {}) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return null;
+  }
+
+  if (values.every(value => typeof value === 'boolean')) {
+    return 'boolean[]';
+  }
+
+  if (values.every(value => typeof value === 'number')) {
+    return values.every(Number.isInteger) ? 'integer[]' : 'numeric[]';
+  }
+
+  if (values.every(value => typeof value === 'string')) {
+    if (!preferText && values.every(value => isUUID.v4(value))) {
+      return 'uuid[]';
+    }
+    return 'text[]';
+  }
+
+  return null;
+}
 
 class QueryBuilder {
   constructor(modelClass, dal) {
@@ -31,25 +161,211 @@ class QueryBuilder {
    * Add WHERE conditions
    * @param {Object|Function} criteria - Filter criteria
    * @returns {QueryBuilder} This instance for chaining
-   */
+  */
   filter(criteria) {
     if (typeof criteria === 'function') {
-      // For now, function-based filters are not fully implemented
-      // This would require a more sophisticated query parser
-      throw new Error('Function-based filters not yet implemented');
+      if (!this._applyFunctionFilter(criteria)) {
+        const signature = criteria.name ? `${criteria.name}()` : criteria.toString();
+        throw new Error(`Unsupported function-based filter pattern: ${signature}`);
+      }
+      return this;
     }
-    
+
     if (typeof criteria === 'object' && criteria !== null) {
       for (const [key, value] of Object.entries(criteria)) {
         // Convert camelCase property names to snake_case database field names
         // Fallback to original key if _getDbFieldName is not available (for tests)
-        const dbFieldName = this.modelClass._getDbFieldName ? 
-          this.modelClass._getDbFieldName(key) : key;
-        this._addWhereCondition(dbFieldName, '=', value);
+        const dbFieldName = this._resolveFieldName(key);
+        const normalizedValue = this._normalizeFilterValue(dbFieldName, value);
+        this._addWhereCondition(dbFieldName, '=', normalizedValue);
       }
     }
     
     return this;
+  }
+
+  /**
+   * Attempt to translate a Thinky-style function predicate into SQL.
+   *
+   * @private
+   * @param {Function} filterFunc - Legacy filter callback
+   * @returns {boolean} True if at least one predicate was generated
+   */
+  _applyFunctionFilter(filterFunc) {
+    if (typeof filterFunc !== 'function') {
+      return false;
+    }
+
+    if (this._processFunctionFilter(filterFunc)) {
+      return true;
+    }
+
+    return this._parseFunctionFilterString(filterFunc);
+  }
+
+  /**
+   * Evaluate the filter against a proxy row to capture method calls directly.
+   *
+   * @private
+   * @param {Function} filterFunc - Legacy filter callback
+   * @returns {boolean} True when evaluation yielded new predicates
+   */
+  _processFunctionFilter(filterFunc) {
+    const initialPredicateCount = Array.isArray(this._where) ? this._where.length : 0;
+    const rowProxy = this._createRowProxy();
+    const builder = this;
+
+    const originalArrayIncludes = Array.prototype.includes;
+    if (typeof originalArrayIncludes === 'function') {
+      Array.prototype.includes = function(searchElement, fromIndex) {
+        if (searchElement && searchElement.__isFieldExpression) {
+          const values = Array.isArray(this) ? this.slice() : Array.from(this);
+          if (!Array.isArray(values) || values.length === 0) {
+            return true;
+          }
+
+          const cast = inferArrayCast(values);
+          const valueTransform = placeholder => `(${placeholder}${cast ? `::${cast}` : ''})`;
+          builder._addWhereCondition(
+            searchElement.dbFieldName,
+            '= ANY',
+            values,
+            { valueTransform }
+          );
+          return true;
+        }
+
+        return originalArrayIncludes.call(this, searchElement, fromIndex);
+      };
+    }
+
+    let evaluationError = null;
+    try {
+      filterFunc(rowProxy);
+    } catch (error) {
+      evaluationError = error;
+    } finally {
+      if (typeof originalArrayIncludes === 'function') {
+        Array.prototype.includes = originalArrayIncludes;
+      }
+    }
+
+    if (evaluationError) {
+      debug.db('Failed to interpret function-based filter via proxy evaluation', evaluationError);
+      return false;
+    }
+
+    return (Array.isArray(this._where) ? this._where.length : 0) > initialPredicateCount;
+  }
+
+  /**
+   * Create the Thinky row proxy that powers function-style filters.
+   *
+   * @private
+   * @returns {Proxy} Proxy object compatible with Thinky row helpers
+   */
+  _createRowProxy() {
+    const builder = this;
+    const getFieldExpression = fieldName => {
+      if (typeof fieldName === 'symbol') {
+        return undefined;
+      }
+      return new FieldExpression(builder, String(fieldName));
+    };
+
+    const rowTarget = function(fieldName) {
+      return getFieldExpression(fieldName);
+    };
+
+    return new Proxy(rowTarget, {
+      apply(target, thisArg, args) {
+        const [fieldName] = args || [];
+        return getFieldExpression(fieldName);
+      },
+      get(target, prop) {
+        if (prop === Symbol.toPrimitive) {
+          return () => '[object RowProxy]';
+        }
+        if (prop === 'toString') {
+          return () => '[object RowProxy]';
+        }
+        if (prop === 'valueOf') {
+          return () => 0;
+        }
+        return getFieldExpression(prop);
+      }
+    });
+  }
+
+  /**
+   * Fallback string parser for simple literal predicates.
+   *
+   * @private
+   * @param {Function} filterFunc - Legacy filter callback
+   * @returns {boolean} True if a predicate was extracted
+   */
+  _parseFunctionFilterString(filterFunc) {
+    if (typeof filterFunc !== 'function') {
+      return false;
+    }
+
+    const funcStr = filterFunc.toString();
+
+    // Patterns like row => row.field.eq('value') or row => row('field').eq('value')
+    const eqLiteralMatch = funcStr.match(/=>\s*(?:\w+\(['"](\w+)['"]\)|\w+\.(\w+))\.eq\(\s*['"]([^'"]+)['"]\s*\)/);
+    if (eqLiteralMatch) {
+      const field = eqLiteralMatch[1] || eqLiteralMatch[2];
+      const value = eqLiteralMatch[3];
+      const dbFieldName = this._resolveFieldName(field);
+      this._addWhereCondition(dbFieldName, '=', value);
+      return true;
+    }
+
+    const neLiteralMatch = funcStr.match(/=>\s*(?:\w+\(['"](\w+)['"]\)|\w+\.(\w+))\.ne\(\s*['"]([^'"]+)['"]\s*\)/);
+    if (neLiteralMatch) {
+      const field = neLiteralMatch[1] || neLiteralMatch[2];
+      const value = neLiteralMatch[3];
+      const dbFieldName = this._resolveFieldName(field);
+      this._addWhereCondition(dbFieldName, '!=', value);
+      return true;
+    }
+
+    debug.db(`Unsupported filter function pattern: ${funcStr}`);
+    return false;
+  }
+
+  /**
+   * Normalize Thinky sentinel values to their SQL equivalents.
+   *
+   * @private
+   * @param {string} dbFieldName - Resolved database column name
+   * @param {*} value - Raw comparison value
+   * @returns {*} Normalized comparison value
+   */
+  _normalizeFilterValue(dbFieldName, value) {
+    if (dbFieldName === '_old_rev_of' && value === false) {
+      return null;
+    }
+    return value;
+  }
+
+  /**
+   * Resolve a logical field reference to a database column.
+   *
+   * @private
+   * @param {string} fieldName - Field identifier from legacy code
+   * @returns {string} Database column name
+   */
+  _resolveFieldName(fieldName) {
+    if (typeof fieldName !== 'string') {
+      return fieldName;
+    }
+
+    if (this.modelClass && typeof this.modelClass._getDbFieldName === 'function') {
+      return this.modelClass._getDbFieldName(fieldName);
+    }
+
+    return fieldName;
   }
 
   /**
@@ -181,41 +497,11 @@ class QueryBuilder {
 
   /**
    * Filter using a function-like syntax (limited RethinkDB compatibility)
-   * @param {Function} filterFunc - Filter function
-   * @returns {QueryBuilder} This instance for chaining
-   */
+  * @param {Function} filterFunc - Filter function
+  * @returns {QueryBuilder} This instance for chaining
+  */
   filterFunction(filterFunc) {
-    // This is a simplified implementation for common patterns
-    const funcStr = filterFunc.toString();
-    
-    // Handle row => row.field.eq(value) patterns
-    const eqMatch = funcStr.match(/row\s*=>\s*row\.(\w+)\.eq\(([^)]+)\)/);
-    if (eqMatch) {
-      const field = eqMatch[1];
-      const value = eqMatch[2].replace(/['"]/g, ''); // Remove quotes
-      this._addWhereCondition(field, '=', value);
-      return this;
-    }
-    
-    // Handle row => row.field.ne(value) patterns
-    const neMatch = funcStr.match(/row\s*=>\s*row\.(\w+)\.ne\(([^)]+)\)/);
-    if (neMatch) {
-      const field = neMatch[1];
-      const value = neMatch[2].replace(/['"]/g, '');
-      this._addWhereCondition(field, '!=', value);
-      return this;
-    }
-    
-    // Handle row => ids.includes(row.id) patterns
-    const includesMatch = funcStr.match(/(\w+)\.includes\(row\.(\w+)\)/);
-    if (includesMatch) {
-      const field = includesMatch[2];
-      // This would need the array to be passed separately
-      debug.db('Warning: includes pattern detected but array not available');
-      return this;
-    }
-    
-    debug.db(`Warning: Unsupported filter function pattern: ${funcStr}`);
+    this.filter(filterFunc);
     return this;
   }
 
@@ -510,6 +796,34 @@ class QueryBuilder {
     } catch (error) {
       throw convertPostgreSQLError(error);
     }
+  }
+
+  /**
+   * Allow QueryBuilder to behave like a Promise (basic thenable)
+   * @param {Function} onFulfilled - Success handler
+   * @param {Function} onRejected - Error handler
+   * @returns {Promise} Promise resolving to query results
+   */
+  then(onFulfilled, onRejected) {
+    return this.run().then(onFulfilled, onRejected);
+  }
+
+  /**
+   * Catch handler for Promise-like usage
+   * @param {Function} onRejected - Error handler
+   * @returns {Promise} Promise resolving to query results
+   */
+  catch(onRejected) {
+    return this.run().catch(onRejected);
+  }
+
+  /**
+   * Finally handler for Promise-like usage
+   * @param {Function} onFinally - Finally handler
+   * @returns {Promise} Promise resolving to query results
+   */
+  finally(onFinally) {
+    return this.run().finally(onFinally);
   }
 
   /**

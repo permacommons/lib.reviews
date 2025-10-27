@@ -12,6 +12,15 @@ const { randomUUID } = require('crypto');
 const { DocumentNotFound, ValidationError } = require('./errors');
 const debug = require('../../util/debug');
 
+const REVISION_FIELD_MAPPINGS = Object.freeze({
+  _revID: '_rev_id',
+  _revUser: '_rev_user',
+  _revDate: '_rev_date',
+  _revTags: '_rev_tags',
+  _revDeleted: '_rev_deleted',
+  _oldRevOf: '_old_rev_of'
+});
+
 /**
  * Revision system handlers
  */
@@ -312,6 +321,22 @@ const revision = {
       _rev_deleted: Type.boolean().default(false),
       _rev_tags: Type.array(Type.string()).default([])
     };
+  }
+};
+
+/**
+ * Register standard revision field aliases on a model so QueryBuilder
+ * can keep using camelCase field names transparently in PostgreSQL.
+ *
+ * @param {Function} ModelClass - Model constructor returned by initializeModel
+ */
+revision.registerFieldMappings = function(ModelClass) {
+  if (!ModelClass || typeof ModelClass._registerFieldMapping !== 'function') {
+    return;
+  }
+
+  for (const [camel, snake] of Object.entries(REVISION_FIELD_MAPPINGS)) {
+    ModelClass._registerFieldMapping(camel, snake);
   }
 };
 

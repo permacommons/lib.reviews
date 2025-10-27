@@ -59,6 +59,12 @@ work with.
 - Ensure the query builder automatically maps camelCase field names to their
   snake_case columns for helpers such as `whereIn`, `orderBy`, and explicit
   predicates so model code never has to mix naming styles.
+- Replace legacy Thinky-style `filter(row => …)` usage with first-class
+  query-builder helpers (e.g., `whereArrayOverlap`, `whereNotId`) so we can
+  drop the proxy/function parser and rely on declarative predicates only.
+- Introduce high-level conveniences for common lookups (for example,
+  `Thing.lookupByURLs(urls, { excludeId })`) to consolidate duplication checks
+  into one SQL call instead of scattering per-URL queries across routes.
 - Standardise model cross-dependencies: each model should import the
   synchronous handles it collaborates with (e.g., `const Review = require('./review')`)
   at module load, avoiding ad hoc bootstrap calls or `getModel` fetches mid-flow.

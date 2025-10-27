@@ -40,7 +40,10 @@ function initializeModel({
 
   if (!isNew) return { model, isNew, tableName };
   for (const [camel, snake] of Object.entries(camelToSnake)) model._registerFieldMapping(camel, snake);
-  if (withRevision) attachRevisionHandlers(model, normalizeRevisionConfig(withRevision));
+  if (withRevision) {
+    attachRevisionHandlers(model, normalizeRevisionConfig(withRevision));
+    revision.registerFieldMappings(model);
+  }
   for (const [name, fn] of Object.entries(staticMethods)) if (typeof fn === 'function') model[name] = fn;
   for (const [name, fn] of Object.entries(instanceMethods)) {
     if (typeof fn !== 'function') continue;
