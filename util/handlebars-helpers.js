@@ -110,8 +110,12 @@ hbs.registerHelper('shortDate', function(date) {
 });
 
 hbs.registerHelper('longDate', function(date) {
-  if (date && date instanceof Date)
-    return date.toLocaleString();
+  if (!date)
+    return;
+
+  const value = date instanceof Date ? date : new Date(date);
+  if (value instanceof Date && !Number.isNaN(value.getTime()))
+    return value.toLocaleString();
 });
 
 // Sources are external sites we interface with; if they're known sources,

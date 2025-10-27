@@ -495,8 +495,11 @@ async function updateActiveSyncs(userID) {
   });
 
   if (needSlugUpdate) {
-    // Slug update would need to be implemented
-    debug.db('Slug update not yet implemented in Thing.updateActiveSyncs');
+    try {
+      await thing.updateSlug(userID, thing.originalLanguage || 'en');
+    } catch (error) {
+      debug.error('Failed to update slug after sync:', error);
+    }
   }
 
   await thing.save();
