@@ -95,7 +95,7 @@ test.serial('Review model: create review with JSONB multilingual content', async
   review.originalLanguage = 'en';
 
   const saved = await review.save();
-  
+
   t.truthy(saved.id, 'Review saved with generated UUID');
   t.deepEqual(saved.title, review.title, 'Multilingual title stored correctly');
   t.deepEqual(saved.text, review.text, 'Multilingual text stored correctly');
@@ -129,7 +129,7 @@ test.serial('Review model: star rating validation works', async t => {
   const { randomUUID: uuid } = require('crypto');
 
   const invalidRatings = [0, 6, -1, 3.5, 'five'];
-  
+
   for (const rating of invalidRatings) {
     const review = new Review({
       thing_id: thing.id,
@@ -149,7 +149,7 @@ test.serial('Review model: star rating validation works', async t => {
   }
 
   const validRatings = [1, 2, 3, 4, 5];
-  
+
   for (const rating of validRatings) {
     const review = new Review({
       thing_id: thing.id,
@@ -240,6 +240,70 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
   t.false(otherView.userCanDelete, 'Other user cannot delete');
 });
 
+test.serial('Review model: deleteAllRevisionsWithThing deletes review and associated thing', async t => {
+  if (await skipIfNoModels(t)) return;
+
+  const author = await User.create({
+    name: `DeleteAuthor-${randomUUID()}`,
+    password: 'secret123',
+    email: `deleteauthor-${randomUUID()}@example.com`
+  });
+
+  const thingCreator = await User.create({
+    name: `ThingCreator-${randomUUID()}`,
+    password: 'secret123',
+    email: `thingcreator-${randomUUID()}@example.com`
+  });
+
+  const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
+  thingRev.urls = [`https://example.com/delete-test-${randomUUID()}`];
+  thingRev.label = { en: 'Thing to Delete' };
+  thingRev.createdOn = new Date();
+  thingRev.createdBy = thingCreator.id;
+  const thing = await thingRev.save();
+
+  const reviewRev = await Review.createFirstRevision(author, { tags: ['create'] });
+  reviewRev.thingID = thing.id;
+  reviewRev.title = { en: 'Review to Delete' };
+  reviewRev.text = { en: 'This review will be deleted.' };
+  reviewRev.starRating = 3;
+  reviewRev.createdOn = new Date();
+  reviewRev.createdBy = author.id;
+  reviewRev.originalLanguage = 'en';
+  const review = await reviewRev.save();
+
+  const reviewRevId1 = review._data._rev_id;
+  const thingID = review.thingID;
+
+  const newRev = await review.newRevision(author, { tags: ['edit'] });
+  newRev.title = { en: 'Updated Review to Delete' };
+  const savedRev = await newRev.save();
+  const reviewRevId2 = savedRev._data._rev_id;
+
+  savedRev.thing = await Thing.get(savedRev.thingID);
+  await savedRev.deleteAllRevisionsWithThing(author);
+
+  const deletedReview1 = await Review.filter({ _revID: reviewRevId1 }).run();
+  const deletedReview2 = await Review.filter({ _revID: reviewRevId2 }).run();
+  const deletedThing = await Thing.get(thingID);
+
+  t.true(deletedReview1[0]._data._rev_deleted, 'Original review revision marked as deleted');
+  t.true(deletedReview2[0]._data._rev_deleted, 'Updated review revision marked as deleted');
+  t.true(deletedThing._data._rev_deleted, 'Associated thing marked as deleted');
+
+  await t.throwsAsync(
+    () => Review.getNotStaleOrDeleted(review.id),
+    { name: 'RevisionDeletedError' },
+    'Getting deleted review throws error'
+  );
+
+  await t.throwsAsync(
+    () => Thing.getNotStaleOrDeleted(thingID),
+    { name: 'RevisionDeletedError' },
+    'Getting deleted thing throws error'
+  );
+});
+
 // ============================================================================
 // REVIEW FEED AND PAGINATION TESTS
 // ============================================================================
@@ -260,7 +324,7 @@ test.serial('Review model: getFeed returns reviews with pagination', async t => 
   });
 
   const baseTime = new Date('2025-01-01T12:00:00Z');
-  
+
   for (let i = 0; i < 5; i++) {
     const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
     thingRev.urls = [`https://example.com/pagination-${randomUUID()}`];
