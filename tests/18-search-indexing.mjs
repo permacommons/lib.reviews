@@ -310,9 +310,8 @@ test.serial('maintenance script ensures DAL bootstrap before indexing', async t 
   await initializeDAL();
   t.true(isInitialized(), 'DAL should initialize for maintenance script');
 
-  const ThingHandle = require('../models-postgres/thing');
-  const ReviewHandle = require('../models-postgres/review');
-
+  const ThingHandle = require('../models/thing');
+  const ReviewHandle = require('../models/review');
   t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
   t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
 });

@@ -68,7 +68,7 @@ class DBFixture {
     logNotice('Loading models.');
     let readyPromises = [];
     for (let m of models) {
-      this.models[m.name] = require(`../../models/${m.file}`);
+      this.models[m.name] = require(`../../models-legacy/${m.file}`);
       readyPromises.push(this.models[m.name].ready());
     }
     logNotice('Waiting for tables and indices to be created by Thinky.');

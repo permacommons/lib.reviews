@@ -1,43 +1,112 @@
 'use strict';
 
+const { getPostgresDAL } = require('../db-postgres');
+const type = require('../dal').type;
+const mlString = require('../dal/lib/ml-string');
+const { ValidationError } = require('../dal/lib/errors');
+const { isValid: isValidLanguage } = require('../locales/languages');
+const debug = require('../util/debug');
+const { initializeModel } = require('../dal/lib/model-initializer');
+
+let UserMeta = null;
+
 /**
- * Model for versioned metadata for {@link User} objects (currently just the
- * bio).
- *
- * @namespace UserMeta
+ * Initialize the PostgreSQL UserMeta model
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+ * @returns {Promise<Model|null>} Initialized model or null if DAL unavailable
  */
+async function initializeUserMetaModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
 
-const thinky = require('../db');
-const type = thinky.type;
-const mlString = require('./helpers/ml-string');
-const revision = require('./helpers/revision');
-const isValidLanguage = require('../locales/languages').isValid;
+  if (!activeDAL) {
+    debug.db('PostgreSQL DAL not available, skipping UserMeta model initialization');
+    return null;
+  }
 
-/* eslint-disable newline-per-chained-call */ /* for schema readability */
+  try {
+    const multilingualStringSchema = mlString.getSchema({ maxLength: 1000 });
 
-let userMetaSchema = {
-  id: type.string(),
-  bio: {
-    text: mlString.getSchema({
-      maxLength: 1000
-    }),
-    html: mlString.getSchema({
-      maxLength: 1000
-    })
-  },
-  // We track this to enable collaborative bio translations
-  originalLanguage: type.string().max(4).required().validator(isValidLanguage)
-};
+    const bioType = type.object()
+      .default(() => ({
+        text: {},
+        html: {}
+      }))
+      .validator(value => {
+        if (value === null || value === undefined) {
+          return true;
+        }
 
-/* eslint-enable newline-per-chained-call */ /* for schema readability */
+        multilingualStringSchema.validate(value.text, 'bio.text');
+        multilingualStringSchema.validate(value.html, 'bio.html');
+        return true;
+      });
 
-// Add versioning related fields
-Object.assign(userMetaSchema, revision.getSchema());
-let UserMeta = thinky.createModel("user_meta", userMetaSchema);
+    const schema = {
+      id: type.string().uuid(4),
+      bio: bioType,
+      originalLanguage: type.string()
+        .max(4)
+        .required(true)
+        .validator(lang => {
+          if (lang === null || lang === undefined) {
+            return true;
+          }
+          if (!isValidLanguage(lang)) {
+            throw new ValidationError(`Invalid language code: ${lang}`, 'originalLanguage');
+          }
+          return true;
+        })
+    };
 
-// NOTE: INSTANCE METHODS ------------------------------------------------------
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'user_metas',
+      schema,
+      camelToSnake: {
+        originalLanguage: 'original_language'
+      },
+      withRevision: {
+        static: [
+          'createFirstRevision',
+          'getNotStaleOrDeleted',
+          'filterNotStaleOrDeleted',
+          'getMultipleNotStaleOrDeleted'
+        ],
+        instance: ['deleteAllRevisions']
+      }
+    });
 
-UserMeta.define("newRevision", revision.getNewRevisionHandler(UserMeta));
-UserMeta.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(UserMeta));
+    UserMeta = model;
 
-module.exports = UserMeta;
+    if (!isNew) {
+      return UserMeta;
+    }
+
+    return UserMeta;
+  } catch (error) {
+    debug.error('Failed to initialize PostgreSQL UserMeta model:', error);
+    return null;
+  }
+}
+
+/**
+ * Retrieve the initialized UserMeta model, creating it if necessary
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+ * @returns {Promise<Model|null>} UserMeta model or null if unavailable
+ */
+async function getPostgresUserMetaModel(dal = null) {
+  UserMeta = await initializeUserMetaModel(dal);
+  return UserMeta;
+}
+
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const UserMetaHandle = createAutoModelHandle('user_metas', initializeUserMetaModel);
+
+module.exports = UserMetaHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeUserMetaModel;
+module.exports.getPostgresUserMetaModel = getPostgresUserMetaModel;

@@ -5,7 +5,7 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 
 // Internal deps
-const User = require('./models-postgres/user');
+const User = require('./models/user');
 
 passport.serializeUser(function(user, done) {
   done(null, user.id);

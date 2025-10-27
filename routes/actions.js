@@ -10,8 +10,8 @@ const i18n = require('i18n');
 // Internal dependencies
 const render = require('./helpers/render');
 const forms = require('./helpers/forms');
-const User = require('../models-postgres/user');
-const InviteLink = require('../models-postgres/invite-link');
+const User = require('../models/user');
+const InviteLink = require('../models/invite-link');
 const debug = require('../util/debug');
 const actionHandler = require('./handlers/action-handler.js');
 const signinRequiredRoute = require('./handlers/signin-required-route');

@@ -4,10 +4,10 @@ const isUUID = require('is-uuid');
 
 // Internal dependencies
 const { DocumentNotFound } = require('../../dal/lib/errors');
-const Team = require('../../models-postgres/team');
-const TeamSlug = require('../../models-postgres/team-slug');
-const Thing = require('../../models-postgres/thing');
-const ThingSlug = require('../../models-postgres/thing-slug');
+const Team = require('../../models/team');
+const TeamSlug = require('../../models/team-slug');
+const Thing = require('../../models/thing');
+const ThingSlug = require('../../models/thing-slug');
 
 const slugs = {
 

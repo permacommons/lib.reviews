@@ -3,10 +3,10 @@
 const config = require('config');
 
 // Internal dependencies
-const Review = require('../../models-postgres/review');
-const Team = require('../../models-postgres/team');
-const User = require('../../models-postgres/user');
-const File = require('../../models-postgres/file');
+const Review = require('../../models/review');
+const Team = require('../../models/team');
+const User = require('../../models/user');
+const File = require('../../models/file');
 const AbstractBREADProvider = require('./abstract-bread-provider');
 const mlString = require('../../dal/lib/ml-string.js');
 const urlUtils = require('../../util/url-utils');
@@ -378,7 +378,7 @@ class ReviewProvider extends AbstractBREADProvider {
       return;
     }
 
-    const TeamModel = require('../../models-postgres/team');
+    const TeamModel = require('../../models/team');
     const queries = Object.keys(formValues.teams).map(teamId => TeamModel.getWithData(teamId));
 
     try {

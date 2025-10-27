@@ -7,9 +7,8 @@ const i18n = require('i18n');
 
 // Internal deps
 const AbstractBREADProvider = require('./abstract-bread-provider');
-const Team = require('../../models-postgres/team');
-const mlString = require('../../dal/lib/ml-string');
-const BlogPost = require('../../models-postgres/blog-post');
+const Team = require('../../models/team');
+const BlogPost = require('../../models/blog-post');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
 const { getEditorMessages } = require('../../util/frontend-messages');

@@ -5,7 +5,7 @@ const type = thinky.type;
 
 /**
  * Common handler functions for managing revisions. These are typically attached
- * to models as static or instance methods, see models/thing.js for examples.
+ * to models as static or instance methods, see models-legacy/thing.js for examples.
  *
  * @namespace Revision
  */

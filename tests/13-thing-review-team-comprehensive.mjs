@@ -42,9 +42,8 @@ test.before(async t => {
   Review = models.Review;
   Team = models.Team;
 
-  ({ NewUserError } = require('../models-postgres/user'));
-  ({ ReviewError } = require('../models-postgres/review'));
-});
+  ({ NewUserError } = require('../models/user'));
+  ({ ReviewError } = require('../models/review'));});
 
 test.after.always(unmockSearch);
 

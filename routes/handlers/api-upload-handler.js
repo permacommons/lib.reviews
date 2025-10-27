@@ -8,7 +8,7 @@ const languages = require('../../locales/languages');
 const { validateFiles, cleanupFiles, getFileRevs, completeUploads } =
   require('../uploads');
 const ReportedError = require('../../util/reported-error');
-const File = require('../../models-postgres/file');
+const File = require('../../models/file');
 const api = require('../helpers/api');
 
 /**

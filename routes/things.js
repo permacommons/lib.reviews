@@ -7,8 +7,8 @@ const url = require('url');
 const config = require('config');
 
 // Internal dependencies
-const Thing = require('../models-postgres/thing');
-const Review = require('../models-postgres/review');
+const Thing = require('../models/thing');
+const Review = require('../models/review');
 const render = require('./helpers/render');
 const getResourceErrorHandler = require('./handlers/resource-error-handler');
 const languages = require('../locales/languages');

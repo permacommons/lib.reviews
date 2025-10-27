@@ -9,7 +9,7 @@
 // External deps
 const limit = require('promise-limit')(2); // Max 2 URL batch updates at a time
 const { initializeDAL } = require('../../bootstrap/dal');
-const Thing = require('../../models-postgres/thing');
+const Thing = require('../../models/thing');
 const debug = require('../../util/debug');
 
 // Commonly run from command-line, force output

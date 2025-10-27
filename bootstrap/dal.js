@@ -15,17 +15,17 @@ const debug = require('../util/debug');
 const PostgresDAL = require('../dal');
 
 const DEFAULT_MODEL_INITIALIZERS = [
-    { key: 'users', initializer: require('../models-postgres/user').initializeModel },
-    { key: 'user_metas', initializer: require('../models-postgres/user-meta').initializeModel },
-    { key: 'teams', initializer: require('../models-postgres/team').initializeModel },
-    { key: 'team_join_requests', initializer: require('../models-postgres/team-join-request').initializeModel },
-    { key: 'team_slugs', initializer: require('../models-postgres/team-slug').initializeModel },
-    { key: 'things', initializer: require('../models-postgres/thing').initializeModel },
-    { key: 'thing_slugs', initializer: require('../models-postgres/thing-slug').initializeModel },
-    { key: 'reviews', initializer: require('../models-postgres/review').initializeModel },
-    { key: 'blog_posts', initializer: require('../models-postgres/blog-post').initializeModel },
-    { key: 'files', initializer: require('../models-postgres/file').initializeModel },
-    { key: 'invite_links', initializer: require('../models-postgres/invite-link').initializeModel }
+    { key: 'users', initializer: require('../models/user').initializeModel },
+    { key: 'user_metas', initializer: require('../models/user-meta').initializeModel },
+    { key: 'teams', initializer: require('../models/team').initializeModel },
+    { key: 'team_join_requests', initializer: require('../models/team-join-request').initializeModel },
+    { key: 'team_slugs', initializer: require('../models/team-slug').initializeModel },
+    { key: 'things', initializer: require('../models/thing').initializeModel },
+    { key: 'thing_slugs', initializer: require('../models/thing-slug').initializeModel },
+    { key: 'reviews', initializer: require('../models/review').initializeModel },
+    { key: 'blog_posts', initializer: require('../models/blog-post').initializeModel },
+    { key: 'files', initializer: require('../models/file').initializeModel },
+    { key: 'invite_links', initializer: require('../models/invite-link').initializeModel }
 ];
 
 // Global DAL state

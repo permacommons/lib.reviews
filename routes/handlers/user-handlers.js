@@ -3,8 +3,8 @@ const escapeHTML = require('escape-html');
 
 const render = require('../helpers/render');
 const feeds = require('../helpers/feeds');
-const User = require('../../models-postgres/user');
-const Review = require('../../models-postgres/review');
+const User = require('../../models/user');
+const Review = require('../../models/review');
 const reviewHandlers = require('./review-handlers');
 const md = require('../../util/md');
 const { getEditorMessages } = require('../../util/frontend-messages');

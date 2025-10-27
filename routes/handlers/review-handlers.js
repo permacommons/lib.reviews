@@ -5,7 +5,7 @@ const config = require('config');
 const i18n = require('i18n');
 
 // Internal dependencies
-const Review = require('../../models-postgres/review.js');
+const Review = require('../../models/review.js');
 const render = require('../helpers/render');
 const feeds = require('../helpers/feeds');
 const languages = require('../../locales/languages');

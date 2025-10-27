@@ -3,7 +3,7 @@
 'use strict';
 
 const { initializeDAL } = require('../bootstrap/dal');
-const Thing = require('../models-postgres/thing');
+const Thing = require('../models/thing');
 
 async function generateSlugs() {
   await initializeDAL();

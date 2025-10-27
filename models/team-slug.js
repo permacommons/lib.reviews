@@ -1,29 +1,76 @@
 'use strict';
-const thinky = require('../db');
-const type = thinky.type;
+
+const { getPostgresDAL } = require('../db-postgres');
+const type = require('../dal').type;
+const debug = require('../util/debug');
+const { initializeModel } = require('../dal/lib/model-initializer');
+
+let TeamSlug = null;
 
 /**
- * Model for storing short human-readable identifier (slugs) for a given team
- * RethinkDB, being distributed, wants all unique indexes to be primary keys,
- * so we have a separate table for these.
- *
- * @namespace TeamSlug
+ * Initialize the PostgreSQL TeamSlug model
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-let teamSlugSchema = {
-  name: type.string().max(100),
-  teamID: type.string().uuid(4),
-  createdOn: type.date(),
-  createdBy: type.string().uuid(4)
-};
+async function initializeTeamSlugModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
 
-let TeamSlug = thinky.createModel("team_slugs", teamSlugSchema, {
-  pk: "name"
-});
+  if (!activeDAL) {
+    debug.db('PostgreSQL DAL not available, skipping TeamSlug model initialization');
+    return null;
+  }
 
-// Team slugs must be unique (i.e. we don't do the bla-2, bla-3 modification
-// we do for review subjects), so a qualified save is just a regular save.
-TeamSlug.define("qualifiedSave", function() {
-  return this.save();
-});
+  try {
+    const schema = {
+      id: type.string().uuid(4),
+      teamID: type.string().uuid(4).required(true),
+      slug: type.string().max(255).required(true),
+      createdOn: type.date().default(() => new Date()),
+      createdBy: type.string().uuid(4),
+      name: type.string().max(255)
+    };
 
-module.exports = TeamSlug;
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'team_slugs',
+      schema,
+      camelToSnake: {
+        teamID: 'team_id',
+        createdOn: 'created_on',
+        createdBy: 'created_by'
+      }
+    });
+
+    TeamSlug = model;
+
+    if (!isNew) {
+      return TeamSlug;
+    }
+
+    debug.db('PostgreSQL TeamSlug model initialized (stub)');
+    return TeamSlug;
+  } catch (error) {
+    debug.error('Failed to initialize PostgreSQL TeamSlug model:', error);
+    return null;
+  }
+}
+
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const TeamSlugHandle = createAutoModelHandle('team_slugs', initializeTeamSlugModel);
+
+/**
+ * Get the PostgreSQL TeamSlug model (initialize if needed)
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+ */
+async function getPostgresTeamSlugModel(dal = null) {
+  TeamSlug = await initializeTeamSlugModel(dal);
+  return TeamSlug;
+}
+
+module.exports = TeamSlugHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeTeamSlugModel;
+module.exports.getPostgresTeamSlugModel = getPostgresTeamSlugModel;

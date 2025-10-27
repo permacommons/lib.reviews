@@ -11,7 +11,7 @@ const limit = require('promise-limit')(4); // Max 4 concurrent requests
 const { initializeDAL } = require('../../bootstrap/dal');
 const WikidataBackendAdapter = require('../wikidata-backend-adapter');
 const wikidata = new WikidataBackendAdapter();
-const Thing = require('../../models-postgres/thing');
+const Thing = require('../../models/thing');
 const search = require('../../search');
 
 // URL pattern a thing needs to have among its .urls to enable and perform

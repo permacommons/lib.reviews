@@ -1,31 +1,64 @@
 'use strict';
-const thinky = require('../db');
-const type = thinky.type;
-const Team = require('./team');
-const User = require('./user');
 
-// Eventually, we'll want to move some of this into proper notifications,
-// possibly with an external message queue, but it's all handled on the team
-// page and inside this table for now.
-let teamJoinRequestSchema = {
-  id: type.string().uuid(4),
-  teamID: type.string().uuid(4),
-  userID: type.string().uuid(4),
-  requestMessage: type.string(),
-  requestDate: type.date(),
-  rejectedBy: type.string().uuid(4),
-  rejectionDate: type.date(), // We remove fulfilled requests, and date rejected ones
-  rejectionMessage: type.string(),
-  rejectedUntil: type.date() // TBD. If not specified, user can re-apply immediately.
-};
+const { getPostgresDAL } = require('../db-postgres');
+const type = require('../dal').type;
+const debug = require('../util/debug');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
-let TeamJoinRequest = thinky.createModel("team_join_requests", teamJoinRequestSchema);
+let TeamJoinRequest = null;
 
-// Facilitate joining a team to its requests
-Team.hasMany(TeamJoinRequest, "joinRequests", "id", "teamID");
-// Facilitate joining a request to its team
-TeamJoinRequest.belongsTo(Team, "team", "teamID", "id");
-// Facilitate joining a request to its user
-TeamJoinRequest.belongsTo(User, "user", "userID", "id");
+/**
+ * Initialize the PostgreSQL TeamJoinRequest model
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+ */
+async function initializeTeamJoinRequestModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
 
-module.exports = TeamJoinRequest;
+  if (!activeDAL) {
+    debug.db('PostgreSQL DAL not available, skipping TeamJoinRequest model initialization');
+    return null;
+  }
+
+  try {
+    const schema = {
+      id: type.string().uuid(4),
+      teamID: type.string().uuid(4).required(true),
+      userID: type.string().uuid(4).required(true),
+      requestedOn: type.date().default(() => new Date()),
+      message: type.string().max(500)
+    };
+
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'team_join_requests',
+      schema,
+      camelToSnake: {
+        teamID: 'team_id',
+        userID: 'user_id',
+        requestedOn: 'requested_on'
+      }
+    });
+    TeamJoinRequest = model;
+
+    if (!isNew) {
+      return TeamJoinRequest;
+    }
+
+    debug.db('PostgreSQL TeamJoinRequest model initialized (stub)');
+    return TeamJoinRequest;
+  } catch (error) {
+    debug.error('Failed to initialize PostgreSQL TeamJoinRequest model:', error);
+    return null;
+  }
+}
+
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const TeamJoinRequestHandle = createAutoModelHandle('team_join_requests', initializeTeamJoinRequestModel);
+
+module.exports = TeamJoinRequestHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeTeamJoinRequestModel;

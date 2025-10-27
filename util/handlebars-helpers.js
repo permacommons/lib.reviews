@@ -10,7 +10,7 @@ const linkifyHTML = require('linkify-html');
 // Internal dependencies
 const mlString = require('../dal/lib/ml-string');
 const languages = require('../locales/languages');
-const thingModelHandle = require('../models-postgres/thing');
+const thingModelHandle = require('../models/thing');
 const urlUtils = require('./url-utils');
 const adapters = require('../adapters/adapters');
 const getLicenseURL = require('./get-license-url');

@@ -85,9 +85,8 @@ test.serial('maintenance script bootstraps PostgreSQL models', async t => {
   await initializeDAL();
   t.true(isInitialized(), 'DAL should report initialized state');
 
-  const ThingHandle = require('../models-postgres/thing');
-  const ReviewHandle = require('../models-postgres/review');
-
+  const ThingHandle = require('../models/thing');
+  const ReviewHandle = require('../models/review');
   t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
   t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
 });

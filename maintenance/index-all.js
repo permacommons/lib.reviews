@@ -5,8 +5,8 @@ const { initializeDAL } = require('../bootstrap/dal');
 const search = require('../search');
 const debug = require('../util/debug');
 const limit = require('promise-limit')(2); // Throttle index updates
-const Thing = require('../models-postgres/thing');
-const Review = require('../models-postgres/review');
+const Thing = require('../models/thing');
+const Review = require('../models/review');
 
 // Commonly run from command-line, force output
 debug.util.enabled = true;

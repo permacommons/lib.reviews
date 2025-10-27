@@ -6,11 +6,11 @@ const config = require('config');
 // Internal dependencies
 const render = require('./helpers/render');
 const feeds = require('./helpers/feeds');
-const Team = require('../models-postgres/team');
-const Review = require('../models-postgres/review');
+const Team = require('../models/team');
+const Review = require('../models/review');
 const ReviewProvider = require('./handlers/review-provider');
 const reviewHandlers = require('./handlers/review-handlers');
-const BlogPost = require('../models-postgres/blog-post');
+const BlogPost = require('../models/blog-post');
 
 // Standard routes
 

@@ -7,7 +7,7 @@ const i18n = require('i18n');
 
 // Internal dependencies
 const AbstractBREADProvider = require('./abstract-bread-provider');
-const BlogPost = require('../../models-postgres/blog-post');
+const BlogPost = require('../../models/blog-post');
 const mlString = require('../../dal/lib/ml-string.js');
 const languages = require('../../locales/languages');
 const feeds = require('../helpers/feeds');

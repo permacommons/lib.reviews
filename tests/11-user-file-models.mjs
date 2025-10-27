@@ -28,7 +28,7 @@ test.before(async t => {
 
   User = userModel;
   File = fileModel;
-  ({ NewUserError } = require('../models-postgres/user'));
+  ({ NewUserError } = require('../models/user'));
 });
 
 test.after.always(unmockSearch);

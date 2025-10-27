@@ -9,7 +9,7 @@ This document outlines a plan for migrating the remaining RethinkDB tests from t
 The analysis of the existing test suites reveals several key differences and patterns that will inform the migration process:
 
 *   **Test Fixtures:** The RethinkDB tests use a monolithic `db-fixture.mjs`, while the PostgreSQL tests use a more modular `setup-postgres-test.mjs` helper that provides better test isolation through database schemas.
-*   **Data Models:** The PostgreSQL models (`models-postgres/`) have been updated to use modern JavaScript features and are designed to work with the PostgreSQL DAL. Multilingual fields are now stored in JSONB columns, which is a significant change from the RethinkDB models.
+*   **Data Models:** The PostgreSQL models (`models/`) have been updated to use modern JavaScript features and are designed to work with the PostgreSQL DAL. Multilingual fields are now stored in JSONB columns, which is a significant change from the RethinkDB models.
 *   **Test Structure:** The PostgreSQL tests are more granular, with separate files for different models and functionalities. This is a good practice that should be continued.
 *   **Asynchronous Operations:** The PostgreSQL tests make extensive use of `async/await`, which should be the standard for all new tests.
 
