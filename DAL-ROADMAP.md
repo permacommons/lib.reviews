@@ -62,6 +62,7 @@ work with.
 - Introduce high-level conveniences for common lookups (for example,
   `Thing.lookupByURLs(urls, { excludeId })`) to consolidate duplication checks
   into one SQL call instead of scattering per-URL queries across routes.
-- Standardise model cross-dependencies: each model should import the
-  synchronous handles it collaborates with (e.g., `const Review = require('./review')`)
-  at module load, avoiding ad hoc bootstrap calls or `getModel` fetches mid-flow.
+- Move each Postgres model to a declarative `defineModelModule({ … })`
+  manifest so files describe schema, relations, and behaviours as data. The
+  helper will own DAL bootstrap plumbing, handle creation, and fixture exports,
+  leaving model modules as concise configuration plus custom logic.
