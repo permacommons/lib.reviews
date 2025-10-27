@@ -1,11 +1,19 @@
 'use strict';
 
+const { createModelModule } = require('../dal/lib/model-handle');
+const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
+  tableName: 'users'
+});
+
+module.exports = UserHandle;
+
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const bcrypt = require('bcrypt');
 const ReportedError = require('../util/reported-error');
 const debug = require('../util/debug');
-const { getPostgresUserMetaModel } = require('./user-meta');
+const UserMeta = require('./user-meta');
+const Team = require('./team');
 const { DocumentNotFound } = require('../dal/lib/errors');
 const { initializeModel } = require('../dal/lib/model-initializer');
 
@@ -22,8 +30,6 @@ userOptions.illegalCharsReadable = userOptions.illegalChars.source.replace(/[\[\
 /* eslint-enable no-useless-escape */
 
 let User = null;
-let currentDAL = null;
-
 /**
  * Initialize the PostgreSQL User model
  * @param {DataAccessLayer} dal - Optional DAL instance for testing
@@ -37,8 +43,6 @@ async function initializeUserModel(dal = null) {
       debug.db('PostgreSQL DAL not available, skipping User model initialization');
       return null;
     }
-
-    currentDAL = activeDAL;
 
     debug.db('DAL available, creating User model...');
     const userSchema = {
@@ -341,12 +345,6 @@ function canonicalize(name) {
  * @async
  */
 async function createBio(user, bioObj) {
-  const { getModel } = require('../bootstrap/dal');
-  const UserMeta = getModel('user_metas');
-  if (!UserMeta) {
-    throw new Error('UserMeta model not available');
-  }
-
   const metaRev = await UserMeta.createFirstRevision(user, {
     tags: ['create-bio-via-user']
   });
@@ -375,13 +373,6 @@ async function attachUserMeta(user) {
     return;
   }
 
-  const { getModel } = require('../bootstrap/dal');
-  const UserMeta = getModel('user_metas');
-  if (!UserMeta) {
-    user.meta = undefined;
-    return;
-  }
-
   try {
     const meta = await UserMeta.getNotStaleOrDeleted(user.userMetaID);
     user.meta = meta;
@@ -404,12 +395,6 @@ async function attachUserMeta(user) {
 async function attachUserTeams(user) {
   user.teams = [];
   user.moderatorOf = [];
-
-  const { getModel } = require('../bootstrap/dal');
-  const Team = getModel('teams');
-  if (!Team) {
-    return;
-  }
 
   const dal = Team.dal;
   const teamTable = Team.tableName;
@@ -588,15 +573,6 @@ function _containsOnlyLegalCharacters(name) {
 }
 
 /**
- * Get the PostgreSQL User model (initialize if needed)
- * @param {DataAccessLayer} dal - Optional DAL instance for testing
-*/
-async function getPostgresUserModel(dal = null) {
-  User = await initializeUserModel(dal);
-  return User;
-}
-
-/**
  * Error class for reporting registration related problems.
  * Behaves as a normal ReportedError, but comes with built-in translation layer
  * for DB level errors.
@@ -629,20 +605,15 @@ class NewUserError extends ReportedError {
   }
 }
 
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
-const UserHandle = createAutoModelHandle('users', initializeUserModel, {
-  staticProperties: {
-    options: userOptions
+registerUserHandle({
+  initializeModel: initializeUserModel,
+  handleOptions: {
+    staticProperties: {
+      options: userOptions
+    }
+  },
+  additionalExports: {
+    initializeUserModel,
+    NewUserError
   }
 });
-
-module.exports = UserHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeUserModel;
-module.exports.initializeUserModel = initializeUserModel; // Backward compatibility
-module.exports.getPostgresUserModel = getPostgresUserModel;
-module.exports.NewUserError = NewUserError;

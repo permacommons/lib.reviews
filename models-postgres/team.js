@@ -1,11 +1,19 @@
 'use strict';
 
+const { createModelModule } = require('../dal/lib/model-handle');
+const { proxy: TeamHandle, register: registerTeamHandle } = createModelModule({
+  tableName: 'teams'
+});
+
+module.exports = TeamHandle;
+
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
-// Models will be accessed via bootstrap DAL when needed
+const User = require('./user');
+const Review = require('./review');
 const { initializeModel } = require('../dal/lib/model-initializer');
 
 let Team = null;
@@ -268,9 +276,6 @@ async function _getTeamMembers(teamId) {
     `;
     
     const result = await Team.dal.query(query, [teamId]);
-    const { getModel } = require('../bootstrap/dal');
-    const User = getModel('users');
-
     return result.rows.map(row => {
       delete row.password;
       return User._createInstance(row);
@@ -300,9 +305,6 @@ async function _getTeamModerators(teamId) {
     `;
     
     const result = await Team.dal.query(query, [teamId]);
-    const { getModel } = require('../bootstrap/dal');
-    const User = getModel('users');
-
     return result.rows.map(row => {
       delete row.password;
       return User._createInstance(row);
@@ -358,9 +360,6 @@ async function _getTeamReviews(teamId, limit, offsetDate) {
       `${Team.dal.tablePrefix}review_teams` : 'review_teams';
     const reviewTableName = Team.dal.tablePrefix ? 
       `${Team.dal.tablePrefix}reviews` : 'reviews';
-    const { getModel } = require('../bootstrap/dal');
-    const Review = getModel('reviews');
-    
     let query = `
       SELECT r.id, r.created_on FROM ${reviewTableName} r
       JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id
@@ -479,26 +478,9 @@ function _validateConfersPermissions(value) {
   return true;
 }
 
-/**
- * Get the PostgreSQL Team model (initialize if needed)
- * @param {DataAccessLayer|null} [dal] - Optional DAL instance for testing
- */
-async function getPostgresTeamModel(dal = null) {
-  if (!Team || dal) {
-    Team = await initializeTeamModel(dal);
+registerTeamHandle({
+  initializeModel: initializeTeamModel,
+  additionalExports: {
+    initializeTeamModel
   }
-  return Team;
-}
-
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
-const TeamHandle = createAutoModelHandle('teams', initializeTeamModel);
-
-module.exports = TeamHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeTeamModel;
-module.exports.initializeTeamModel = initializeTeamModel; // Backward compatibility
-module.exports.getPostgresTeamModel = getPostgresTeamModel;
+});

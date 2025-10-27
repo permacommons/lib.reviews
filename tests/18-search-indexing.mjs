@@ -305,33 +305,16 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   t.is(reviews.length, 1, 'Should skip deleted revision');
 });
 
-test.serial('maintenance script uses correct models based on database mode', async t => {
-  // This test verifies that the maintenance script logic works correctly
-  // We can't easily test the full script execution, but we can test the model selection logic
-  
-  const { isDualDatabaseMode, getPostgresDAL } = require('../db-dual');
-  
-  // Test the logic that determines which models to use
-  if (isDualDatabaseMode() && getPostgresDAL()) {
-    // Should use PostgreSQL models
-    const { getPostgresThingModel } = require('../models-postgres/thing');
-    const { getPostgresReviewModel } = require('../models-postgres/review');
-    
-    const Thing = getPostgresThingModel();
-    const Review = getPostgresReviewModel();
-    
-    if (Thing && Review) {
-      t.truthy(Thing.filterNotStaleOrDeleted, 'PostgreSQL Thing model should have filterNotStaleOrDeleted method');
-      t.truthy(Review.filterNotStaleOrDeleted, 'PostgreSQL Review model should have filterNotStaleOrDeleted method');
-    } else {
-      t.skip('PostgreSQL models not available in test environment');
-    }
-  } else {
-    // Should use RethinkDB models
-    const skipMessage = 'Would use RethinkDB models when PostgreSQL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-  }
+test.serial('maintenance script ensures DAL bootstrap before indexing', async t => {
+  const { initializeDAL, isInitialized } = require('../bootstrap/dal');
+  await initializeDAL();
+  t.true(isInitialized(), 'DAL should initialize for maintenance script');
+
+  const ThingHandle = require('../models-postgres/thing');
+  const ReviewHandle = require('../models-postgres/review');
+
+  t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
+  t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
 });
 
 test.serial('search indexing extracts multilingual content correctly', async t => {

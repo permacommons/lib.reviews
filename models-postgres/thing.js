@@ -1,5 +1,12 @@
 'use strict';
 
+const { createModelModule } = require('../dal/lib/model-handle');
+const { proxy: ThingHandle, register: registerThingHandle } = createModelModule({
+  tableName: 'things'
+});
+
+module.exports = ThingHandle;
+
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
@@ -10,6 +17,7 @@ const adapters = require('../adapters/adapters');
 const isValidLanguage = require('../locales/languages').isValid;
 const { initializeModel } = require('../dal/lib/model-initializer');
 const ThingSlug = require('./thing-slug');
+const File = require('./file');
 const Review = require('./review');
 const User = require('./user');
 const isUUID = require('is-uuid');
@@ -565,15 +573,7 @@ async function getReviewsByUser(user) {
   }
 
   try {
-    const { getModel } = require('../bootstrap/dal');
-    const ReviewModel = getModel('reviews');
-
-    if (!ReviewModel || typeof ReviewModel.getFeed !== 'function') {
-      debug.db('Review model not available in Thing.getReviewsByUser');
-      return [];
-    }
-
-    const feed = await ReviewModel.getFeed({
+    const feed = await Review.getFeed({
       thingID: this.id,
       createdBy: user.id,
       withThing: false,
@@ -704,14 +704,7 @@ async function updateSlug(userID, language) {
     this.id = randomUUID();
   }
 
-  const { getModel } = require('../bootstrap/dal');
-  const ThingSlugModel = getModel('thing_slugs');
-  if (!ThingSlugModel) {
-    debug.db('ThingSlug model not available; skipping slug update');
-    return this;
-  }
-
-  const slug = new ThingSlugModel({});
+  const slug = new ThingSlug({});
   slug.slug = baseSlug;
   slug.name = baseSlug;
   slug.baseName = baseSlug;
@@ -750,26 +743,19 @@ async function addFilesByIDsAndSave(files, userID) {
     return this;
   }
 
-  const { getModel } = require('../bootstrap/dal');
-  const FileModel = getModel('files');
-  if (!FileModel) {
-    debug.db('File model not available; skipping file association');
-    return this;
-  }
-
   try {
     const placeholders = uniqueIDs.map((_, index) => `$${index + 1}`).join(', ');
     const query = `
       SELECT *
-      FROM ${FileModel.tableName}
+      FROM ${File.tableName}
       WHERE id IN (${placeholders})
         AND (_old_rev_of IS NULL)
         AND (_rev_deleted IS NULL OR _rev_deleted = false)
     `;
 
-    const result = await FileModel.dal.query(query, uniqueIDs);
+    const result = await File.dal.query(query, uniqueIDs);
     const validFiles = result.rows
-      .map(row => FileModel._createInstance(row))
+      .map(row => File._createInstance(row))
       .filter(file => !userID || file.uploadedBy === userID);
 
     if (!validFiles.length) {
@@ -942,48 +928,30 @@ function _validateMetadata(metadata) {
   return true;
 }
 
-/**
- * Get the PostgreSQL Thing model (initialize if needed)
- * @param {DataAccessLayer} dal - Optional DAL instance for testing
-*/
-async function getPostgresThingModel(dal = null) {
-  if (!Thing || dal) {
-    Thing = await initializeThingModel(dal);
-  }
-  return Thing;
-}
-
-async function lookupByURLProxy(url, userID) {
-  const ThingModel = await getPostgresThingModel();
-  if (!ThingModel || typeof ThingModel.lookupByURL !== 'function') {
-    throw new Error('Thing model not available');
-  }
-  return ThingModel.lookupByURL(url, userID);
-}
-
-async function getWithDataProxy(id, options) {
-  const ThingModel = await getPostgresThingModel();
-  if (!ThingModel || typeof ThingModel.getWithData !== 'function') {
-    throw new Error('Thing model not available');
-  }
-  return ThingModel.getWithData(id, options);
-}
-
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
-const ThingHandle = createAutoModelHandle('things', initializeThingModel, {
-  staticMethods: {
-    lookupByURL,
-    getWithData,
-    getLabel
+registerThingHandle({
+  initializeModel: initializeThingModel,
+  handleOptions: {
+    staticMethods: {
+      lookupByURL,
+      getWithData,
+      getLabel
+    },
+    instanceMethods: {
+      initializeFieldsFromAdapter,
+      populateUserInfo,
+      populateReviewMetrics,
+      setURLs,
+      updateActiveSyncs,
+      getSourceIDsOfActiveSyncs,
+      updateSlug,
+      getReviewsByUser,
+      getAverageStarRating,
+      getReviewCount,
+      addFile,
+      addFilesByIDsAndSave
+    }
+  },
+  additionalExports: {
+    initializeThingModel
   }
 });
-
-module.exports = ThingHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeThingModel;
-module.exports.initializeThingModel = initializeThingModel; // Backward compatibility
-module.exports.getPostgresThingModel = getPostgresThingModel;

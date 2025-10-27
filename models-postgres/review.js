@@ -1,5 +1,12 @@
 'use strict';
 
+const { createModelModule } = require('../dal/lib/model-handle');
+const { proxy: ReviewHandle, register: registerReviewHandle } = createModelModule({
+  tableName: 'reviews'
+});
+
+module.exports = ReviewHandle;
+
 const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
@@ -8,6 +15,8 @@ const debug = require('../util/debug');
 const ReportedError = require('../util/reported-error');
 const isValidLanguage = require('../locales/languages').isValid;
 const adapters = require('../adapters/adapters');
+const Thing = require('./thing');
+const Team = require('./team');
 const { initializeModel } = require('../dal/lib/model-initializer');
 
 const reviewOptions = {
@@ -186,13 +195,9 @@ async function getWithData(id) {
   // Manually join thing data
   if (review.thingID) {
     try {
-      const { getModel } = require('../bootstrap/dal');
-      const ThingModel = getModel('things');
-      if (ThingModel) {
-        const thing = await ThingModel.getNotStaleOrDeleted(review.thingID);
-        if (thing) {
-          review.thing = thing;
-        }
+      const thing = await Thing.getNotStaleOrDeleted(review.thingID);
+      if (thing) {
+        review.thing = thing;
       }
     } catch (error) {
       debug.db('Failed to fetch thing for review:', error);
@@ -353,16 +358,9 @@ async function findOrCreateThing(reviewObj) {
     return reviewObj.thing;
   }
 
-  const { getModel } = require('../bootstrap/dal');
-  const ThingModel = getModel('things');
-
-  if (!ThingModel || typeof ThingModel.createFirstRevision !== 'function') {
-    throw new Error('Thing model not available');
-  }
-
   // Look up existing thing by URL
   debug.db('Review.findOrCreateThing: lookup by URL', { url: reviewObj.url });
-  const existingThings = await ThingModel.lookupByURL(reviewObj.url);
+  const existingThings = await Thing.lookupByURL(reviewObj.url);
   if (existingThings.length) {
     debug.db('Review.findOrCreateThing: existing thing found', { thingID: existingThings[0].id });
     return existingThings[0];
@@ -372,7 +370,7 @@ async function findOrCreateThing(reviewObj) {
   const { randomUUID } = require('crypto');
   const date = new Date();
 
-  const thing = await ThingModel.createFirstRevision(
+  const thing = await Thing.createFirstRevision(
     { id: reviewObj.createdBy },
     { tags: ['create-via-review'], date }
   );
@@ -560,38 +558,31 @@ async function getFeed({
         const thingIds = [...new Set(feedItems.map(review => review.thingID).filter(Boolean))];
 
         if (thingIds.length > 0) {
-          const { getModel } = require('../bootstrap/dal');
-          const ThingModel = getModel('things');
+          debug.db(`Batch fetching ${thingIds.length} things for review feed...`);
 
-          if (!ThingModel) {
-            debug.db('Thing model not available for joins in Review.getFeed');
-          } else {
-            debug.db(`Batch fetching ${thingIds.length} things for review feed...`);
+          const placeholders = thingIds.map((_, index) => `$${index + 1}`).join(', ');
+          const thingQuery = `
+            SELECT * FROM ${Thing.tableName}
+            WHERE id IN (${placeholders})
+              AND (_old_rev_of IS NULL)
+              AND (_rev_deleted IS NULL OR _rev_deleted = false)
+          `;
 
-            const placeholders = thingIds.map((_, index) => `$${index + 1}`).join(', ');
-            const thingQuery = `
-              SELECT * FROM ${ThingModel.tableName}
-              WHERE id IN (${placeholders})
-                AND (_old_rev_of IS NULL)
-                AND (_rev_deleted IS NULL OR _rev_deleted = false)
-            `;
+          const thingResult = await Thing.dal.query(thingQuery, thingIds);
+          const thingMap = new Map();
 
-            const thingResult = await ThingModel.dal.query(thingQuery, thingIds);
-            const thingMap = new Map();
+          thingResult.rows.forEach(row => {
+            const thingInstance = Thing._createInstance(row);
+            thingMap.set(thingInstance.id, thingInstance);
+          });
 
-            thingResult.rows.forEach(row => {
-              const thingInstance = ThingModel._createInstance(row);
-              thingMap.set(thingInstance.id, thingInstance);
-            });
+          feedItems.forEach(review => {
+            if (review.thingID && thingMap.has(review.thingID)) {
+              review.thing = thingMap.get(review.thingID);
+            }
+          });
 
-            feedItems.forEach(review => {
-              if (review.thingID && thingMap.has(review.thingID)) {
-                review.thing = thingMap.get(review.thingID);
-              }
-            });
-
-            debug.db(`Populated thing joins for ${thingMap.size} reviews in feed`);
-          }
+          debug.db(`Populated thing joins for ${thingMap.size} reviews in feed`);
         }
       } catch (error) {
         debug.error('Failed to join things in Review.getFeed:', error.message);
@@ -622,34 +613,26 @@ async function getFeed({
 
           const teamResult = await Review.dal.query(teamQuery, reviewIds);
 
-          // Get the Team model to create proper instances
-          const { getModel } = require('../bootstrap/dal');
-          const TeamModel = getModel('teams');
+          // Group teams by review ID
+          const reviewTeamMap = new Map();
+          teamResult.rows.forEach(row => {
+            const reviewId = row.review_id;
+            const teamInstance = Team._createInstance(row);
+            
+            if (!reviewTeamMap.has(reviewId)) {
+              reviewTeamMap.set(reviewId, []);
+            }
+            reviewTeamMap.get(reviewId).push(teamInstance);
+          });
 
-          if (!TeamModel) {
-            debug.db('Team model not available for review team joins in feed');
-          } else {
-            // Group teams by review ID
-            const reviewTeamMap = new Map();
-            teamResult.rows.forEach(row => {
-              const reviewId = row.review_id;
-              const teamInstance = TeamModel._createInstance(row);
-              
-              if (!reviewTeamMap.has(reviewId)) {
-                reviewTeamMap.set(reviewId, []);
-              }
-              reviewTeamMap.get(reviewId).push(teamInstance);
-            });
+          // Assign teams to reviews
+          feedItems.forEach(review => {
+            if (reviewTeamMap.has(review.id)) {
+              review.teams = reviewTeamMap.get(review.id);
+            }
+          });
 
-            // Assign teams to reviews
-            feedItems.forEach(review => {
-              if (reviewTeamMap.has(review.id)) {
-                review.teams = reviewTeamMap.get(review.id);
-              }
-            });
-
-            debug.db(`Populated team joins for ${reviewTeamMap.size} reviews in feed`);
-          }
+          debug.db(`Populated team joins for ${reviewTeamMap.size} reviews in feed`);
         }
       } catch (error) {
         debug.error('Failed to join teams in Review.getFeed:', error.message);
@@ -736,16 +719,7 @@ async function _getReviewTeams(reviewId) {
 
     const result = await Review.dal.query(query, [reviewId]);
     
-    // Get the Team model to create proper instances
-    const { getModel } = require('../bootstrap/dal');
-    const TeamModel = getModel('teams');
-    
-    if (!TeamModel) {
-      debug.db('Team model not available for review team joins');
-      return [];
-    }
-
-    return result.rows.map(row => TeamModel._createInstance(row));
+    return result.rows.map(row => Team._createInstance(row));
   } catch (error) {
     debug.error('Failed to get teams for review:', error);
     return [];
@@ -782,31 +756,15 @@ class ReviewError extends ReportedError {
   }
 }
 
-/**
- * Get the PostgreSQL Review model (initialize if needed)
- * @param {DataAccessLayer|null} [dal] - Optional DAL instance for testing
- */
-async function getPostgresReviewModel(dal = null) {
-  if (!Review || dal) {
-    Review = await initializeReviewModel(dal);
-  }
-  return Review;
-}
-
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
-const ReviewHandle = createAutoModelHandle('reviews', initializeReviewModel, {
-  staticProperties: {
-    options: reviewOptions
+registerReviewHandle({
+  initializeModel: initializeReviewModel,
+  handleOptions: {
+    staticProperties: {
+      options: reviewOptions
+    }
+  },
+  additionalExports: {
+    initializeReviewModel,
+    ReviewError
   }
 });
-
-module.exports = ReviewHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeReviewModel;
-module.exports.initializeReviewModel = initializeReviewModel; // Backward compatibility
-module.exports.getPostgresReviewModel = getPostgresReviewModel;
-module.exports.ReviewError = ReviewError;

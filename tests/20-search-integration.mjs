@@ -78,34 +78,18 @@ async function skipIfNoModels(t) {
   return false;
 }
 
-test.serial('maintenance script model selection works with PostgreSQL', async t => {
+test.serial('maintenance script bootstraps PostgreSQL models', async t => {
   if (await skipIfNoModels(t)) return;
   
-  // Test the logic from maintenance/index-all.js
-  const { isDualDatabaseMode, getPostgresDAL } = require('../db-dual');
-  
-  let Thing, Review;
-  
-  // Simulate the model selection logic from the maintenance script
-  if (isDualDatabaseMode() && getPostgresDAL()) {
-    // Should use PostgreSQL models
-    const { getPostgresThingModel } = require('../models-postgres/thing');
-    const { getPostgresReviewModel } = require('../models-postgres/review');
-    Thing = getPostgresThingModel();
-    Review = getPostgresReviewModel();
-  } else {
-    // Would use RethinkDB models
-    Thing = require('../models/thing');
-    Review = require('../models/review');
-  }
-  
-  t.truthy(Thing, 'Thing model should be available');
-  t.truthy(Review, 'Review model should be available');
-  
-  if (Thing && Review) {
-    t.truthy(Thing.filterNotStaleOrDeleted, 'Thing model should have filterNotStaleOrDeleted method');
-    t.truthy(Review.filterNotStaleOrDeleted, 'Review model should have filterNotStaleOrDeleted method');
-  }
+  const { initializeDAL, isInitialized } = require('../bootstrap/dal');
+  await initializeDAL();
+  t.true(isInitialized(), 'DAL should report initialized state');
+
+  const ThingHandle = require('../models-postgres/thing');
+  const ReviewHandle = require('../models-postgres/review');
+
+  t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
+  t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
 });
 
 test.serial('search indexing integration with PostgreSQL models', async t => {

@@ -225,7 +225,217 @@ function createAutoModelHandle(tableName, initializeModel, options = {}) {
     });
 }
 
+/**
+ * Create a placeholder export that can safely participate in circular
+ * dependencies while deferring to a resolved handle once available.
+ *
+ * @param {string} label - Identifier used for debugging messages.
+ * @returns {{ proxy: Function, assignHandle: Function }}
+ */
+function createLazyHandleExport(label) {
+    let resolvedHandle = null;
+
+    function ensureResolved() {
+        if (!resolvedHandle) {
+            throw new Error(`${label} model handle accessed before initialization`);
+        }
+        return resolvedHandle;
+    }
+
+    const target = function lazyModelHandle(...args) {
+        const handle = ensureResolved();
+        if (typeof handle === 'function') {
+            return handle(...args);
+        }
+        throw new Error(`${label} model handle is not callable`);
+    };
+
+    const proxy = new Proxy(target, {
+        get(currentTarget, prop, receiver) {
+            if (prop === '__isLazyHandle') {
+                return true;
+            }
+
+            if (Reflect.has(currentTarget, prop)) {
+                return Reflect.get(currentTarget, prop, receiver);
+            }
+
+            if (!resolvedHandle) {
+                throw new Error(`${label} model handle accessed before initialization`);
+            }
+
+            const value = resolvedHandle[prop];
+            if (typeof value === 'function') {
+                return value.bind(resolvedHandle);
+            }
+
+            return value;
+        },
+
+        set(currentTarget, prop, value, receiver) {
+            if (!resolvedHandle || Reflect.has(currentTarget, prop)) {
+                return Reflect.set(currentTarget, prop, value, receiver);
+            }
+
+            resolvedHandle[prop] = value;
+            return true;
+        },
+
+        has(currentTarget, prop) {
+            if (Reflect.has(currentTarget, prop)) {
+                return true;
+            }
+            if (!resolvedHandle) {
+                return false;
+            }
+            return prop in resolvedHandle;
+        },
+
+        ownKeys(currentTarget) {
+            if (!resolvedHandle) {
+                return Reflect.ownKeys(currentTarget);
+            }
+            const keys = new Set([
+                ...Reflect.ownKeys(currentTarget),
+                ...Reflect.ownKeys(resolvedHandle)
+            ]);
+            return Array.from(keys);
+        },
+
+        getOwnPropertyDescriptor(currentTarget, prop) {
+            if (Reflect.has(currentTarget, prop)) {
+                return Reflect.getOwnPropertyDescriptor(currentTarget, prop);
+            }
+
+            if (!resolvedHandle) {
+                return undefined;
+            }
+
+            const descriptor = Object.getOwnPropertyDescriptor(resolvedHandle, prop);
+            if (descriptor) {
+                descriptor.configurable = true;
+            }
+            return descriptor;
+        },
+
+        apply(currentTarget, thisArg, args) {
+            const handle = ensureResolved();
+            return Reflect.apply(handle, thisArg, args);
+        },
+
+        construct(currentTarget, args, newTarget) {
+            const handle = ensureResolved();
+            return Reflect.construct(handle, args, newTarget);
+        }
+    });
+
+    function assignHandle(handle) {
+        resolvedHandle = handle;
+    }
+
+    return {
+        proxy,
+        assignHandle
+    };
+}
+
+/**
+ * Attach the resolved handle to a lazy export and register additional
+ * properties that should live on the public module export.
+ *
+ * @param {Object} lazyExport - Proxy returned by createLazyHandleExport.
+ * @param {Function} assignHandle - Function returned by createLazyHandleExport.
+ * @param {Object|Function} resolvedHandle - Handle returned by createAutoModelHandle.
+ * @param {Object} [additionalProperties={}] - Map of property descriptors or values to assign.
+ * @returns {Object} The hydrated export (for convenience).
+ */
+function registerLazyHandle(lazyExport, assignHandle, resolvedHandle, additionalProperties = {}) {
+    if (typeof assignHandle !== 'function') {
+        throw new Error('registerLazyHandle requires a valid assignHandle function');
+    }
+
+    assignHandle(resolvedHandle);
+
+    const descriptors = {};
+    for (const [key, value] of Object.entries(additionalProperties || {})) {
+        if (value && typeof value === 'object' &&
+            (Object.prototype.hasOwnProperty.call(value, 'get') ||
+             Object.prototype.hasOwnProperty.call(value, 'set') ||
+             Object.prototype.hasOwnProperty.call(value, 'value') ||
+             Object.prototype.hasOwnProperty.call(value, 'writable'))) {
+            descriptors[key] = {
+                enumerable: true,
+                configurable: true,
+                ...value
+            };
+        } else {
+            descriptors[key] = {
+                value,
+                enumerable: true,
+                configurable: true
+            };
+        }
+    }
+
+    if (Object.keys(descriptors).length > 0) {
+        Object.defineProperties(lazyExport, descriptors);
+    }
+
+    return lazyExport;
+}
+
+/**
+ * Convenience helper for wiring a model module export using the standard
+ * lazy handle pattern.
+ *
+ * @param {Object} options - Configuration options.
+ * @param {string} options.tableName - Table name used to register the model.
+ * @param {Function} options.initializeModel - Async initializer function.
+ * @param {Object} [options.handleOptions] - Options passed to createAutoModelHandle.
+ * @param {Object} [options.additionalExports] - Extra exports to attach to the module.
+ * @returns {{proxy: Object, register: Function}} Module export proxy and register hook.
+ */
+function createModelModule({
+    tableName
+}) {
+    if (typeof tableName !== 'string' || !tableName.length) {
+        throw new Error('createModelModule requires a tableName');
+    }
+
+    const { proxy, assignHandle } = createLazyHandleExport(tableName);
+    let registered = false;
+
+    function register({
+        initializeModel,
+        handleOptions = {},
+        additionalExports = {}
+    }) {
+        if (registered) {
+            return proxy;
+        }
+        if (typeof initializeModel !== 'function') {
+            throw new Error(`createModelModule.register for ${tableName} requires initializeModel`);
+        }
+
+        const handle = createAutoModelHandle(tableName, initializeModel, handleOptions);
+        registerLazyHandle(proxy, assignHandle, handle, {
+            initializeModel,
+            ...additionalExports
+        });
+        registered = true;
+        return proxy;
+    }
+
+    return {
+        proxy,
+        register
+    };
+}
+
 module.exports = {
     createModelHandle,
-    createAutoModelHandle
+    createAutoModelHandle,
+    createLazyHandleExport,
+    registerLazyHandle,
+    createModelModule
 };

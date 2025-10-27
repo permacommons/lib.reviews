@@ -1,33 +1,20 @@
 // Set up indices and update all reviews and review subjects (things)
 'use strict';
-const { isDualDatabaseMode, getPostgresDAL } = require('../db-dual');
+
+const { initializeDAL } = require('../bootstrap/dal');
 const search = require('../search');
 const debug = require('../util/debug');
 const limit = require('promise-limit')(2); // Throttle index updates
+const Thing = require('../models-postgres/thing');
+const Review = require('../models-postgres/review');
 
 // Commonly run from command-line, force output
 debug.util.enabled = true;
 debug.errorLog.enabled = true;
 
 async function updateIndices() {
-  let Thing, Review;
-  
-  // Determine which models to use based on database configuration
-  if (isDualDatabaseMode() && getPostgresDAL()) {
-    debug.util('Using PostgreSQL models for indexing');
-    const { getPostgresThingModel } = require('../models-postgres/thing');
-    const { getPostgresReviewModel } = require('../models-postgres/review');
-    Thing = getPostgresThingModel();
-    Review = getPostgresReviewModel();
-  } else {
-    debug.util('Using PostgreSQL models for indexing');
-    Thing = require('../models-postgres/thing');
-    Review = require('../models-postgres/review');
-  }
-
-  if (!Thing || !Review) {
-    throw new Error('Could not load Thing and Review models');
-  }
+  await initializeDAL();
+  debug.util('Using PostgreSQL models for indexing');
 
   // Get revisions we need to index & create indices
   // Only get current revisions (not old or deleted)
@@ -57,8 +44,6 @@ updateIndices()
   })
   .catch(error => {
     debug.error('Problem updating search indices. The error was:');
-    debug.error({
-      error
-    });
+    debug.error({ error });
     process.exit(1);
   });
