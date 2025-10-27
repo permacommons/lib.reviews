@@ -127,6 +127,58 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
   t.true(saved.modApprovalToJoin, 'Moderation settings stored correctly');
 });
 
+test.serial('Team model: create team with members and moderators using saveAll and getWithData', async t => {
+  if (await skipIfNoModels(t)) return;
+
+  const founder = await User.create({
+    name: `TeamFounder-${randomUUID()}`,
+    password: 'secret123',
+    email: `teamfounder-${randomUUID()}@example.com`
+  });
+
+  const member1 = await User.create({
+    name: `Member1-${randomUUID()}`,
+    password: 'secret123',
+    email: `member1-${randomUUID()}@example.com`
+  });
+
+  const member2 = await User.create({
+    name: `Member2-${randomUUID()}`,
+    password: 'secret123',
+    email: `member2-${randomUUID()}@example.com`
+  });
+
+  const teamRev = await Team.createFirstRevision(founder, { tags: ['create'] });
+  teamRev.name = { en: 'Test Team with Members' };
+  teamRev.createdBy = founder.id;
+  teamRev.createdOn = new Date();
+  
+  teamRev.members = [founder, member1, member2];
+  teamRev.moderators = [founder, member1];
+
+  const saved = await teamRev.saveAll({
+    members: true,
+    moderators: true
+  });
+
+  t.truthy(saved.id, 'Team saved with ID');
+
+  const teamWithData = await Team.getWithData(saved.id);
+
+  t.truthy(teamWithData.members, 'Team has members array');
+  t.truthy(teamWithData.moderators, 'Team has moderators array');
+  t.is(teamWithData.members.length, 3, 'Team has 3 members');
+  t.is(teamWithData.moderators.length, 2, 'Team has 2 moderators');
+
+  const memberIds = teamWithData.members.map(m => m.id).sort();
+  const expectedMemberIds = [founder.id, member1.id, member2.id].sort();
+  t.deepEqual(memberIds, expectedMemberIds, 'All members retrieved correctly');
+
+  const moderatorIds = teamWithData.moderators.map(m => m.id).sort();
+  const expectedModeratorIds = [founder.id, member1.id].sort();
+  t.deepEqual(moderatorIds, expectedModeratorIds, 'All moderators retrieved correctly');
+});
+
 test.serial('Team model: populateUserInfo sets permission flags correctly', async t => {
   if (await skipIfNoModels(t)) return;
 
