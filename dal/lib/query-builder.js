@@ -531,9 +531,19 @@ class QueryBuilder {
    * @param {string} field - Field to order by
    * @param {string} direction - Sort direction (ASC/DESC)
    * @returns {QueryBuilder} This instance for chaining
-   */
+  */
   orderBy(field, direction = 'ASC') {
-    this._orderBy.push(`${field} ${direction.toUpperCase()}`);
+    let expression = field;
+    if (typeof field === 'string' && !field.includes('(')) {
+      const { table, column } = this._splitFieldReference(field);
+      const resolvedColumn = this._resolvePredicateColumn(table || null, column);
+      if (table) {
+        expression = `${table}.${resolvedColumn}`;
+      } else {
+        expression = resolvedColumn;
+      }
+    }
+    this._orderBy.push(`${expression} ${direction.toUpperCase()}`);
     return this;
   }
 
@@ -1359,17 +1369,17 @@ class QueryBuilder {
    */
   _createPredicate(field, operator, value, options = {}) {
     const { table: explicitTable, column } = this._splitFieldReference(field);
+    const tableReference = options.table || explicitTable || null;
+    const resolvedColumn = this._resolvePredicateColumn(tableReference, column);
+
     const predicate = {
       type: 'basic',
-      column,
+      column: resolvedColumn,
       operator
     };
 
-    if (explicitTable) {
-      predicate.table = explicitTable;
-    }
-    if (options.table) {
-      predicate.table = options.table;
+    if (tableReference) {
+      predicate.table = tableReference;
     }
 
     const serializer = typeof options.serializeValue === 'function' ? options.serializeValue : null;
@@ -1392,6 +1402,26 @@ class QueryBuilder {
     }
 
     return predicate;
+  }
+
+  _resolvePredicateColumn(tableReference, column) {
+    if (typeof column !== 'string' || column === '*' || /[()\s]/.test(column)) {
+      return column;
+    }
+
+    const normalizedTable = tableReference || null;
+    const tablePrefix = this.dal && typeof this.dal.tablePrefix === 'string' ? this.dal.tablePrefix : '';
+    const unprefixedTableName = tablePrefix && this.tableName.startsWith(tablePrefix)
+      ? this.tableName.slice(tablePrefix.length)
+      : this.tableName;
+    const isBaseTable = normalizedTable === null ||
+      normalizedTable === this.tableName ||
+      normalizedTable === unprefixedTableName;
+    if (isBaseTable) {
+      return this._resolveFieldName(column);
+    }
+
+    return column;
   }
 
   _splitFieldReference(field) {

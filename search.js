@@ -227,7 +227,7 @@ let search = {
   // Index a new review. Returns a promise; logs errors
   indexReview(review) {
     // Skip indexing if this is an old or deleted revision
-    if (review._old_rev_of || review._rev_deleted) {
+    if (review._oldRevOf || review._revDeleted) {
       debug.util(`Skipping indexing of review ${review.id} - old or deleted revision`);
       return Promise.resolve();
     }
@@ -235,16 +235,16 @@ let search = {
     return getClient().index({
         index: 'libreviews',
         id: review.id,
-        routing: review.thing_id || review.thingID, // Support both PostgreSQL and RethinkDB field names
+        routing: review.thingID,
         body: {
-          createdOn: review.created_on || review.createdOn, // Support both field names
+          createdOn: review.createdOn,
           title: mlString.stripHTML(review.title),
           text: mlString.stripHTML(review.html),
-          starRating: review.star_rating || review.starRating, // Support both field names
+          starRating: review.starRating,
           type: 'review',
           joined: {
             name: 'review',
-            parent: review.thing_id || review.thingID // Support both field names
+            parent: review.thingID
           }
         }
       })
@@ -256,7 +256,7 @@ let search = {
   // Index a new review subject (thing). Returns a promise; logs errors
   indexThing(thing) {
     // Skip indexing if this is an old or deleted revision
-    if (thing._old_rev_of || thing._rev_deleted) {
+    if (thing._oldRevOf || thing._revDeleted) {
       debug.util(`Skipping indexing of thing ${thing.id} - old or deleted revision`);
       return Promise.resolve();
     }
@@ -280,7 +280,7 @@ let search = {
         index: 'libreviews',
         id: thing.id,
         body: {
-          createdOn: thing.created_on || thing.createdOn, // Support both field names
+          createdOn: thing.createdOn,
           label: mlString.stripHTML(thing.label),
           aliases: mlString.stripHTMLFromArray(thing.aliases),
           description: mlString.stripHTML(description),
@@ -289,7 +289,7 @@ let search = {
           joined: 'thing',
           type: 'thing',
           urls: thing.urls,
-          urlID: thing.url_id || thing.urlID // Support both field names
+          urlID: thing.urlID
         }
       })
       .catch(error => debug.error({

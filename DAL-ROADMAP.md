@@ -56,9 +56,6 @@ work with.
 
 ## Outstanding Ergonomic Follow-ups
 
-- Ensure the query builder automatically maps camelCase field names to their
-  snake_case columns for helpers such as `whereIn`, `orderBy`, and explicit
-  predicates so model code never has to mix naming styles.
 - Replace legacy Thinky-style `filter(row => …)` usage with first-class
   query-builder helpers (e.g., `whereArrayOverlap`, `whereNotId`) so we can
   drop the proxy/function parser and rely on declarative predicates only.
