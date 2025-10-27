@@ -94,6 +94,26 @@ class ConstraintError extends DALError {
 }
 
 /**
+ * Duplicate slug name error
+ * 
+ * Business logic error thrown when attempting to save a slug that already exists.
+ * This abstracts away the database-specific ConstraintError to provide a semantic
+ * error that application code can handle without knowing about constraint names.
+ */
+class DuplicateSlugNameError extends DALError {
+  constructor(message, slugName = null, tableName = null) {
+    super(message, 'DUPLICATE_SLUG');
+    this.name = 'DuplicateSlugNameError';
+    this.payload = {
+      slug: {
+        name: slugName
+      }
+    };
+    this.tableName = tableName;
+  }
+}
+
+/**
  * Convert PostgreSQL errors to DAL errors
  * @param {Error} pgError - PostgreSQL error
  * @returns {DALError} Converted DAL error
@@ -155,5 +175,6 @@ module.exports = {
   TransactionError,
   QueryError,
   ConstraintError,
+  DuplicateSlugNameError,
   convertPostgreSQLError
 };

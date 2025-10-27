@@ -83,14 +83,20 @@ async function initializeTeamModel(dal = null) {
         confersPermissions: 'confers_permissions'
       },
       withRevision: {
-        static: ['createFirstRevision', 'getNotStaleOrDeleted', 'filterNotStaleOrDeleted'],
-        instance: ['deleteAllRevisions']
+        static: [
+          'createFirstRevision', 
+          'getNotStaleOrDeleted', 
+          'filterNotStaleOrDeleted',
+          'getMultipleNotStaleOrDeleted'
+        ],
+        instance: ['newRevision', 'deleteAllRevisions']
       },
       staticMethods: {
         getWithData
       },
       instanceMethods: {
-        populateUserInfo
+        populateUserInfo,
+        updateSlug
       },
       relations: [
         {
@@ -476,6 +482,103 @@ function _validateConfersPermissions(value) {
   }
   
   return true;
+}
+
+/**
+ * Update the canonical slug name for this team based on its name field.
+ * Only updates if the language matches the original language.
+ * 
+ * @param {String} userID - User ID to attribute the slug creation to
+ * @param {String} language - Language to use for slug generation
+ * @returns {Team} This team instance with updated canonical slug name
+ * @memberof Team
+ * @instance
+ */
+async function updateSlug(userID, language) {
+  const TeamSlug = require('./team-slug');
+  const originalLanguage = this.originalLanguage || 'en';
+  const slugLanguage = language || originalLanguage;
+
+  if (slugLanguage !== originalLanguage) {
+    return this;
+  }
+
+  if (!this.name) {
+    return this;
+  }
+
+  const resolved = mlString.resolve(slugLanguage, this.name);
+  if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) {
+    return this;
+  }
+
+  let baseSlug;
+  try {
+    baseSlug = _generateSlugName(resolved.str);
+  } catch (error) {
+    return this;
+  }
+
+  if (!baseSlug || baseSlug === this.canonicalSlugName) {
+    return this;
+  }
+
+  if (!this.id) {
+    const { randomUUID } = require('crypto');
+    this.id = randomUUID();
+  }
+
+  const slug = new TeamSlug({});
+  slug.slug = baseSlug;
+  slug.name = baseSlug;
+  slug.teamID = this.id;
+  slug.createdOn = new Date();
+  slug.createdBy = userID;
+
+  const savedSlug = await slug.qualifiedSave();
+  if (savedSlug && savedSlug.name) {
+    this.canonicalSlugName = savedSlug.name;
+    this._changed.add(Team._getDbFieldName('canonicalSlugName'));
+  }
+
+  return this;
+}
+
+/**
+ * Generate a URL-friendly slug from a string
+ * @param {String} str - Source string
+ * @returns {String} Slug name
+ */
+function _generateSlugName(str) {
+  const unescapeHTML = require('unescape-html');
+  const isUUID = require('is-uuid');
+  
+  if (typeof str !== 'string') {
+    throw new Error('Source string is undefined or not a string.');
+  }
+
+  str = str.trim();
+
+  if (str === '') {
+    throw new Error('Source string cannot be empty.');
+  }
+
+  let slugName = unescapeHTML(str)
+    .trim()
+    .toLowerCase()
+    .replace(/[?&"″'`'<>:]/g, '')
+    .replace(/[ _/]/g, '-')
+    .replace(/-{2,}/g, '-');
+
+  if (!slugName) {
+    throw new Error('Source string cannot be converted to a valid slug.');
+  }
+
+  if (isUUID.v4(slugName)) {
+    throw new Error('Source string cannot be a UUID.');
+  }
+
+  return slugName;
 }
 
 registerTeamHandle({

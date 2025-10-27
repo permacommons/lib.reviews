@@ -11,6 +11,7 @@ const Team = require('../../models/team');
 const BlogPost = require('../../models/blog-post');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
+const mlString = require('../../dal/lib/ml-string.js');
 const { getEditorMessages } = require('../../util/frontend-messages');
 
 class TeamProvider extends AbstractBREADProvider {
@@ -459,6 +460,12 @@ class TeamProvider extends AbstractBREADProvider {
 
         // Associate parsed form data with revision
         Object.assign(team, formData.formValues);
+        
+        // Ensure team has an ID before proceeding
+        if (!team.id) {
+          const { randomUUID } = require('crypto');
+          team.id = randomUUID();
+        }
 
         // Creator is first moderator
         team.moderators = [this.req.user];
@@ -470,16 +477,19 @@ class TeamProvider extends AbstractBREADProvider {
         team.createdBy = this.req.user.id;
         team.createdOn = new Date();
 
+        // Save team first to satisfy foreign key constraints
         team
-          .updateSlug(this.req.user.id, team.originalLanguage)
-          .then(team => {
-            team
-              .saveAll()
-              .then(team => this.res.redirect(`/team/${team.urlID}`))
-              // Problem saving team and/or updating user
-              .catch(this.next);
+          .save()
+          .then(savedTeam => {
+            // Then update slug (after team exists in DB)
+            return savedTeam.updateSlug(this.req.user.id, savedTeam.originalLanguage);
           })
-          // Problem updating slug
+          .then(team => {
+            // Save again if slug updated the canonicalSlugName, and save members/moderators
+            return team.saveAll();
+          })
+          .then(team => this.res.redirect(`/team/${team.urlID}`))
+          // Problem saving team or updating slug
           .catch(error => {
             if (error.name === 'DuplicateSlugNameError') {
               this.req.flash('pageErrors', this.req.__('duplicate team name', `/team/${error.payload.slug.name}`));

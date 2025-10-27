@@ -427,6 +427,9 @@ class Model {
       this._isNew = false;
       this._changed.clear();
       
+      // Regenerate virtual fields after save in case they depend on saved data
+      this.generateVirtualValues();
+      
       return this;
     } catch (error) {
       throw convertPostgreSQLError(error);
@@ -446,15 +449,17 @@ class Model {
     const relations = this.constructor.getRelations();
     
     for (const { name, config } of relations) {
-      // Only process relationships that are explicitly requested in joinOptions
-      if (!joinOptions[name]) continue;
-      
       // Only handle many-to-many relationships with through tables for now
       if (config.cardinality !== 'many' || !config.through) continue;
       
       // Get the related data from this instance
       const relatedData = this[name];
       if (!relatedData) continue;
+      
+      // If joinOptions is explicitly provided, only process requested relationships
+      // If joinOptions is empty (default), process all relationships
+      const isExplicitOptions = Object.keys(joinOptions).length > 0;
+      if (isExplicitOptions && !joinOptions[name]) continue;
       
       await this._saveManyToManyRelation(name, config, relatedData);
     }

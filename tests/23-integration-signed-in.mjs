@@ -6,7 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { extractCSRF, registerTestUser } from './helpers/integration-helpers.mjs';
-import { getModels } from './helpers/model-helpers.mjs';
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
@@ -14,32 +15,60 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
 const uploadsDir = path.join(projectRoot, 'static/uploads');
 
-// Standard env settings
-process.env.NODE_ENV = 'development';
-// Prevent config from installing file watchers that would leak handles under AVA.
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-3';
+mockSearch();
 
-const config = require('config');
+const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+  schemaNamespace: 'integration_signed_in',
+  cleanupTables: [
+    'review_teams',
+    'team_moderators',
+    'team_members',
+    'reviews',
+    'teams',
+    'things',
+    'files',
+    'users'
+  ]
+});
 
-const { createDBFixture } = await import('./fixtures/db-fixture.mjs');
-const dbFixture = createDBFixture();
-const search = require('../search');
+let User, File;
+let app;
 
-// Share cookies and app across tests
-let agent, app;
+test.before(async t => {
+  if (await skipIfUnavailable(t)) return;
 
-test.before(async() => {
-  await dbFixture.bootstrap(getModels());
-  // Initialize once so sessions table is created if needed
+  const models = await dalFixture.initializeModels([
+    { key: 'users', alias: 'User' },
+    { key: 'files', alias: 'File' },
+    { key: 'teams', alias: 'Team' },
+    { key: 'team_slugs', alias: 'TeamSlug' }
+  ]);
+
+  User = models.User;
+  File = models.File;
+
+  const config = require('config');
+  await fs.mkdir(config.uploadTempDir, { recursive: true });
+
+  Reflect.deleteProperty(require.cache, require.resolve('../app'));
   const getApp = require('../app');
   app = await getApp();
 });
 
-// This test needs to run before all the following. It creates a user and logs
-// them in
+async function skipIfNoModels(t) {
+  if (await skipIfUnavailable(t)) return true;
+  if (!User || !File || !app) {
+    t.log('Skipping - PostgreSQL DAL not available');
+    t.pass('Skipping - PostgreSQL DAL not available');
+    return true;
+  }
+  return false;
+}
+
 test.serial('We can register an account via the form (captcha disabled)', async t => {
-  agent = supertest.agent(app);
+  if (await skipIfNoModels(t)) return;
+
+  const agent = supertest.agent(app);
   const username = 'A friend of many GNUs';
   const { landingResponse } = await registerTestUser(agent, {
     username,
@@ -51,12 +80,21 @@ test.serial('We can register an account via the form (captcha disabled)', async 
   t.pass();
 });
 
-// This may fail if we add more than one review concurrently to the feed
-test('We can create and edit a review', async t => {
+test.serial('We can create and edit a review', async t => {
+  if (await skipIfNoModels(t)) return;
+
+  const agent = supertest.agent(app);
+  const username = `ReviewCreator-${Date.now()}`;
+  await registerTestUser(agent, {
+    username,
+    password: 'password123'
+  });
+
   const newReviewResponse = await agent.get('/new/review');
   let csrf = extractCSRF(newReviewResponse.text);
-  if (!csrf)
+  if (!csrf) {
     return t.fail('Could not obtain CSRF token');
+  }
 
   const postResponse = await agent
     .post('/new/review')
@@ -76,11 +114,12 @@ test('We can create and edit a review', async t => {
     .get(postResponse.headers.location)
     .expect(200)
     .expect(/<p>This is a decent enough resource if you want to do anything/)
-    .expect(/Written by <a href="\/user\/A_friend_of_many_GNUs">A friend of/);
+    .expect(new RegExp(`Written by <a href="/user/${username.replace(/ /g, '_')}">`));
 
   const match = feedResponse.text.match(/<a href="(\/review\/.*?\/edit)/);
-  if (!match)
+  if (!match) {
     return t.fail('Could not find edit link');
+  }
 
   const editURL = match[1];
   const editResponse = await agent.get(editURL)
@@ -107,29 +146,40 @@ test('We can create and edit a review', async t => {
     .get(editPostResponse.headers.location)
     .expect(200)
     .expect(/I just checked/)
-    .expect(/Written by <a href="\/user\/A_friend_of_many_GNUs">A friend of/);
+    .expect(new RegExp(`Written by <a href="/user/${username.replace(/ /g, '_')}">`));
 
   t.pass();
 });
 
-test('We can create a new team', async t => {
+test.serial('We can create a new team', async t => {
+  if (await skipIfNoModels(t)) return;
+
+  const agent = supertest.agent(app);
+  const username = `TeamCreator-${Date.now()}`;
+  await registerTestUser(agent, {
+    username,
+    password: 'password123'
+  });
+
   await agent.get('/new/team')
     .expect(403)
     .expect(/do not have permission/);
 
-  const user = await dbFixture.models.User.findByURLName('A_friend_of_many_GNUs', { withPassword: true });
+  const urlName = username.replace(/ /g, '_');
+  const user = await User.findByURLName(urlName, { withPassword: true });
   t.true(isUUID.v4(user.id), 'Previously created user could be found through model');
 
-  // Give user permission needed to create team
   user.isTrusted = true;
   await user.save();
+
   const newTeamResponse = await agent.get('/new/team')
     .expect(200)
     .expect(/Rules for joining/);
 
   const csrf = extractCSRF(newTeamResponse.text);
-  if (!csrf)
+  if (!csrf) {
     return t.fail('Could not obtain CSRF token');
+  }
 
   const newTeamPostResponse = await agent
     .post('/new/team')
@@ -154,8 +204,8 @@ test('We can create a new team', async t => {
   t.pass();
 });
 
-test('We can upload media via the API', async t => {
-  await fs.mkdir(config.uploadTempDir, { recursive: true });
+test.serial('We can upload media via the API', async t => {
+  if (await skipIfNoModels(t)) return;
 
   const pngBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
@@ -170,7 +220,7 @@ test('We can upload media via the API', async t => {
   });
 
   const urlName = username.replace(/ /g, '_');
-  const uploader = await dbFixture.models.User.findByURLName(urlName, { withPassword: true });
+  const uploader = await User.findByURLName(urlName, { withPassword: true });
   uploader.isTrusted = true;
   await uploader.save();
 
@@ -210,23 +260,24 @@ test('We can upload media via the API', async t => {
     const stats = await fs.stat(uploadedPath);
     t.true(stats.size > 0, 'Uploaded file should exist on disk.');
 
-    savedFile = await dbFixture.models.File.get(uploaded.fileID);
+    savedFile = await File.get(uploaded.fileID);
     t.true(savedFile.completed, 'Saved file metadata should be marked completed.');
     t.is(savedFile.mimeType, 'image/png');
     t.is(savedFile.license, 'cc-by');
     t.is(savedFile.uploadedBy, uploader.id);
     t.deepEqual(savedFile.description, { en: 'Tiny PNG' });
   } finally {
-    if (savedFile)
+    if (savedFile) {
       await savedFile.deleteAllRevisions().catch(() => {});
+    }
     if (uploadedPath) {
       await fs.unlink(uploadedPath).catch(() => {});
     }
   }
 });
 
-test('API upload rejects files with unrecognized signature', async t => {
-  await fs.mkdir(config.uploadTempDir, { recursive: true });
+test.serial('API upload rejects files with unrecognized signature', async t => {
+  if (await skipIfNoModels(t)) return;
 
   const uploadAgent = supertest.agent(app);
   const username = `Uploader ${Date.now()} invalid`;
@@ -236,14 +287,12 @@ test('API upload rejects files with unrecognized signature', async t => {
   });
 
   const urlName = username.replace(/ /g, '_');
-  const uploader = await dbFixture.models.User.findByURLName(urlName, { withPassword: true });
+  const uploader = await User.findByURLName(urlName, { withPassword: true });
   uploader.isTrusted = true;
   await uploader.save();
 
   const bogusBuffer = Buffer.from('definitely not an image');
 
-  // Attach a plaintext buffer while pretending it's a PNG; file-type should
-  // reject it and report an error payload instead of persisting metadata.
   const response = await uploadAgent
     .post('/api/actions/upload')
     .set('x-requested-with', 'XMLHttpRequest')
@@ -269,25 +318,11 @@ test('API upload rejects files with unrecognized signature', async t => {
     `Unexpected display message: ${errorDetail.displayMessage}`
   );
 
-  const savedFiles = await dbFixture.models.File.filter({ uploadedBy: uploader.id });
+  const savedFiles = await File.filter({ uploadedBy: uploader.id });
   t.is(savedFiles.length, 0, 'No file records should be persisted for rejected uploads');
 });
 
-test.after.always(async t => {
-  if (agent && typeof agent.close === 'function') {
-    await new Promise(resolve => agent.close(resolve));
-    agent = null;
-  }
-  await dbFixture.cleanup();
-  // AVA treats lingering handles as failures, so explicitly close anything the test touched.
-  const activeHandles = process._getActiveHandles();
-  for (const handle of activeHandles) {
-    const name = handle && handle.constructor ? handle.constructor.name : undefined;
-    if (name === 'FSWatcher' && typeof handle.close === 'function')
-      handle.close();
-    if (name === 'Socket' && typeof handle.destroy === 'function')
-      handle.destroy();
-  }
-  if (search && typeof search.close === 'function')
-    search.close();
+test.after.always(async () => {
+  unmockSearch();
+  await dalFixture.cleanup();
 });

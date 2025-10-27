@@ -4,6 +4,7 @@ const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const debug = require('../util/debug');
 const { initializeModel } = require('../dal/lib/model-initializer');
+const { ConstraintError, DuplicateSlugNameError } = require('../dal/lib/errors');
 
 let TeamSlug = null;
 
@@ -37,6 +38,9 @@ async function initializeTeamSlugModel(dal = null) {
         teamID: 'team_id',
         createdOn: 'created_on',
         createdBy: 'created_by'
+      },
+      instanceMethods: {
+        qualifiedSave
       }
     });
 
@@ -46,7 +50,7 @@ async function initializeTeamSlugModel(dal = null) {
       return TeamSlug;
     }
 
-    debug.db('PostgreSQL TeamSlug model initialized (stub)');
+    debug.db('PostgreSQL TeamSlug model initialized');
     return TeamSlug;
   } catch (error) {
     debug.error('Failed to initialize PostgreSQL TeamSlug model:', error);
@@ -67,6 +71,37 @@ const TeamSlugHandle = createAutoModelHandle('team_slugs', initializeTeamSlugMod
 async function getPostgresTeamSlugModel(dal = null) {
   TeamSlug = await initializeTeamSlugModel(dal);
   return TeamSlug;
+}
+
+/**
+ * For team slugs, we don't do automatic de-duplication (like thing-2, thing-3).
+ * A qualifiedSave is just a regular save, but it translates constraint violations
+ * into business logic errors that routes can handle.
+ * 
+ * @returns {Promise<TeamSlug>} This slug instance
+ * @throws {DuplicateSlugNameError} If a slug with this name already exists
+ * @memberof TeamSlug
+ * @instance
+ */
+async function qualifiedSave() {
+  if (!this.createdOn) {
+    this.createdOn = new Date();
+  }
+
+  try {
+    return await this.save();
+  } catch (error) {
+    // Translate database constraint violations into business logic errors
+    // This keeps route handlers from needing to know about constraint names
+    if (error instanceof ConstraintError && error.constraint === 'team_slugs_slug_unique') {
+      throw new DuplicateSlugNameError(
+        `Team slug '${this.name}' already exists`,
+        this.name,
+        'team_slugs'
+      );
+    }
+    throw error;
+  }
 }
 
 module.exports = TeamSlugHandle;
