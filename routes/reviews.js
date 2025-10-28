@@ -37,8 +37,7 @@ router.get('/', async (req, res, next) => {
   // Models are now available directly via bootstrap initialization
   let queries = [
     Review.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
-    // Temporarily disable team sampling until table is properly created
-    Promise.resolve([]) // Team.filterNotStaleOrDeleted().sample(3) // Random example teams
+    Team.filterNotStaleOrDeleted().sample(3) // Random example teams
   ];
 
   if (config.frontPageTeamBlog) {
