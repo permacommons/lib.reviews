@@ -833,10 +833,8 @@ async function _attachUploadersToFiles(files) {
   }
 
   try {
-    const userQuery = User.getMultipleNotStaleOrDeleted(uploaderIDs);
-    const result = typeof userQuery?.run === 'function'
-      ? await userQuery.run()
-      : [];
+    // Users don't have revisions, use whereIn for array of IDs
+    const result = await User.filter({}).whereIn('id', uploaderIDs, { cast: 'uuid[]' }).run();
 
     const uploaderMap = new Map();
     for (const uploader of result || []) {
@@ -856,7 +854,8 @@ async function _attachUploadersToFiles(files) {
       }
     });
   } catch (error) {
-    debug.error('Failed to attach uploader data to files:', error);
+    debug.error(`Failed to attach uploader data to files: ${error.message}`);
+    debug.error(error.stack);
   }
 }
 

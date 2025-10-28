@@ -114,9 +114,12 @@ class DataAccessLayer {
       debug.db(`Query executed in ${duration}ms: ${text.substring(0, 100)}...`);
       return result;
     } catch (error) {
-      debug.error('Query error:', error);
-      debug.error('Query text:', text);
-      debug.error('Query params:', params);
+      // Attach query info to error for better debugging
+      error.query = text;
+      error.parameters = params;
+      debug.error(`Query error: ${error.message}`);
+      debug.error(`Query text: ${text}`);
+      debug.error(`Query params: ${JSON.stringify(params)}`);
       throw error;
     }
   }
