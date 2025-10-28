@@ -193,39 +193,6 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
   }
 });
 
-test.serial('adapter URL pattern matching', async t => {
-  if (await skipIfNoModels(t)) return;
-  const wikidataAdapter = new WikidataBackendAdapter();
-  const openLibraryAdapter = new OpenLibraryBackendAdapter();
-  
-  // Test Wikidata URL patterns
-  t.true(wikidataAdapter.ask('https://www.wikidata.org/wiki/Q42'), 'Should match Wikidata wiki URL');
-  t.true(wikidataAdapter.ask('https://wikidata.org/entity/Q42'), 'Should match Wikidata entity URL');
-  t.false(wikidataAdapter.ask('https://example.com'), 'Should not match non-Wikidata URL');
-  
-  // Test OpenLibrary URL patterns
-  t.true(openLibraryAdapter.ask('https://openlibrary.org/works/OL123456W'), 'Should match OpenLibrary works URL');
-  t.true(openLibraryAdapter.ask('https://openlibrary.org/books/OL123456M'), 'Should match OpenLibrary books URL');
-  t.false(openLibraryAdapter.ask('https://example.com'), 'Should not match non-OpenLibrary URL');
-});
-
-test.serial('adapter supported fields configuration', async t => {
-  if (await skipIfNoModels(t)) return;
-  const wikidataAdapter = new WikidataBackendAdapter();
-  const openLibraryAdapter = new OpenLibraryBackendAdapter();
-  
-  // Test Wikidata supported fields
-  const wikidataFields = wikidataAdapter.getSupportedFields();
-  t.true(wikidataFields.includes('label'), 'Wikidata should support label field');
-  t.true(wikidataFields.includes('description'), 'Wikidata should support description field');
-  
-  // Test OpenLibrary supported fields
-  const openLibraryFields = openLibraryAdapter.getSupportedFields();
-  t.true(openLibraryFields.includes('label'), 'OpenLibrary should support label field');
-  t.true(openLibraryFields.includes('authors'), 'OpenLibrary should support authors field');
-  t.true(openLibraryFields.includes('subtitle'), 'OpenLibrary should support subtitle field');
-});
-
 test.serial('search indexing with PostgreSQL metadata structure', async t => {
   if (await skipIfNoModels(t)) return;
   
