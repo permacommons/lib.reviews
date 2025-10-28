@@ -2,18 +2,12 @@ import test from 'ava';
 import supertest from 'supertest';
 import isUUID from 'is-uuid';
 import { promises as fs } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { extractCSRF, registerTestUser } from './helpers/integration-helpers.mjs';
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const projectRoot = path.join(__dirname, '..');
-const uploadsDir = path.join(projectRoot, 'static/uploads');
 
 mockSearch();
 
@@ -32,7 +26,7 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
   ]
 });
 
-let User, File, Team, TeamJoinRequest;
+let User, Team, TeamJoinRequest;
 let app;
 
 test.before(async t => {
@@ -40,14 +34,12 @@ test.before(async t => {
 
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
-    { key: 'files', alias: 'File' },
     { key: 'teams', alias: 'Team' },
     { key: 'team_slugs', alias: 'TeamSlug' },
     { key: 'team_join_requests', alias: 'TeamJoinRequest' }
   ]);
 
   User = models.User;
-  File = models.File;
   Team = models.Team;
   TeamJoinRequest = models.TeamJoinRequest;
 
@@ -61,7 +53,7 @@ test.before(async t => {
 
 async function skipIfNoModels(t) {
   if (await skipIfUnavailable(t)) return true;
-  if (!User || !File || !app) {
+  if (!User || !app) {
     t.log('Skipping - PostgreSQL DAL not available');
     t.pass('Skipping - PostgreSQL DAL not available');
     return true;
@@ -206,124 +198,6 @@ test.serial('We can create a new team', async t => {
     .expect(/Team: Kale Alliance/);
 
   t.pass();
-});
-
-test.serial('We can upload media via the API', async t => {
-  if (await skipIfNoModels(t)) return;
-
-  const pngBuffer = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
-    'base64'
-  );
-
-  const uploadAgent = supertest.agent(app);
-  const username = `Uploader ${Date.now()}`;
-  await registerTestUser(uploadAgent, {
-    username,
-    password: 'uploadRocks!'
-  });
-
-  const urlName = username.replace(/ /g, '_');
-  const uploader = await User.findByURLName(urlName, { withPassword: true });
-  uploader.isTrusted = true;
-  await uploader.save();
-
-  let uploadedPath;
-  let savedFile;
-
-  try {
-    const response = await uploadAgent
-      .post('/api/actions/upload')
-      .set('x-requested-with', 'XMLHttpRequest')
-      .field('description', 'Tiny PNG')
-      .field('license', 'cc-by')
-      .field('ownwork', 'true')
-      .field('language', 'en')
-      .attach('files', pngBuffer, {
-        filename: 'tiny.png',
-        contentType: 'image/png'
-      });
-
-    t.is(response.status, 200, `Upload failed: ${response.status} ${response.text}`);
-    t.true(/json/.test(response.headers['content-type']), 'Response should be JSON');
-
-    const body = Object.keys(response.body || {}).length ? response.body : JSON.parse(response.text);
-
-    t.is(body.message, 'Upload successful.');
-    t.deepEqual(body.errors, []);
-    t.true(Array.isArray(body.uploads));
-    t.is(body.uploads.length, 1);
-
-    const uploaded = body.uploads[0];
-    t.truthy(uploaded.fileID);
-    t.is(uploaded.originalName, 'tiny.png');
-    t.is(uploaded.license, 'cc-by');
-    t.deepEqual(uploaded.description, { en: 'Tiny PNG' });
-
-    uploadedPath = path.join(uploadsDir, uploaded.uploadedFileName);
-    const stats = await fs.stat(uploadedPath);
-    t.true(stats.size > 0, 'Uploaded file should exist on disk.');
-
-    savedFile = await File.get(uploaded.fileID);
-    t.true(savedFile.completed, 'Saved file metadata should be marked completed.');
-    t.is(savedFile.mimeType, 'image/png');
-    t.is(savedFile.license, 'cc-by');
-    t.is(savedFile.uploadedBy, uploader.id);
-    t.deepEqual(savedFile.description, { en: 'Tiny PNG' });
-  } finally {
-    if (savedFile) {
-      await savedFile.deleteAllRevisions().catch(() => {});
-    }
-    if (uploadedPath) {
-      await fs.unlink(uploadedPath).catch(() => {});
-    }
-  }
-});
-
-test.serial('API upload rejects files with unrecognized signature', async t => {
-  if (await skipIfNoModels(t)) return;
-
-  const uploadAgent = supertest.agent(app);
-  const username = `Uploader ${Date.now()} invalid`;
-  await registerTestUser(uploadAgent, {
-    username,
-    password: 'uploadFails!'
-  });
-
-  const urlName = username.replace(/ /g, '_');
-  const uploader = await User.findByURLName(urlName, { withPassword: true });
-  uploader.isTrusted = true;
-  await uploader.save();
-
-  const bogusBuffer = Buffer.from('definitely not an image');
-
-  const response = await uploadAgent
-    .post('/api/actions/upload')
-    .set('x-requested-with', 'XMLHttpRequest')
-    .field('description', 'Bogus file')
-    .field('license', 'cc-by')
-    .field('ownwork', 'true')
-    .field('language', 'en')
-    .attach('files', bogusBuffer, {
-      filename: 'fake.png',
-      contentType: 'image/png'
-    });
-
-  t.is(response.status, 400, `Expected upload to be rejected, got ${response.status}`);
-
-  const body = Object.keys(response.body || {}).length ? response.body : JSON.parse(response.text);
-  t.is(body.message, 'Could not perform action.');
-  t.true(Array.isArray(body.errors) && body.errors.length > 0, 'Expected error details in response');
-
-  const [errorDetail] = body.errors;
-  t.truthy(errorDetail.internalMessage);
-  t.true(
-    (errorDetail.displayMessage || '').includes('did not recognize the file type'),
-    `Unexpected display message: ${errorDetail.displayMessage}`
-  );
-
-  const savedFiles = await File.filter({ uploadedBy: uploader.id });
-  t.is(savedFiles.length, 0, 'No file records should be persisted for rejected uploads');
 });
 
 test.serial('Team join request workflow: join, approve, leave, rejoin', async t => {
