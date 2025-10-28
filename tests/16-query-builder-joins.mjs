@@ -13,11 +13,11 @@ const require = createRequire(import.meta.url);
  * Tests the enhanced query builder with support for:
  * - Simple joins (boolean syntax)
  * - Complex joins with _apply transformations
- * - RethinkDB-style query patterns
+ * - Query patterns
  * - Revision-aware joins
  */
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'query_builder_joins',
   cleanupTables: [
     'review_teams',
@@ -32,8 +32,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 
 let User, Thing, Review, Team;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   // Stub search module to avoid starting Elasticsearch clients during tests
   const searchPath = require.resolve('../search');
@@ -58,19 +58,7 @@ test.before(async t => {
   Team = models.Team;
 });
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!User || !Thing || !Review || !Team) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 test.serial('QueryBuilder supports simple boolean joins', async t => {
-  if (await skipIfNoModels(t)) return;
 
   // Create a test user
   const testUser = await User.create({
@@ -92,7 +80,6 @@ test.serial('QueryBuilder supports simple boolean joins', async t => {
 });
 
 test.serial('QueryBuilder builds join SQL using model metadata', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const userQuery = User.getJoin({ teams: true });
   const { sql: userSql } = userQuery._buildSelectQuery();
@@ -126,7 +113,6 @@ test.serial('QueryBuilder builds join SQL using model metadata', async t => {
 });
 
 test.serial('QueryBuilder handles revision-aware joins', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -150,7 +136,6 @@ test.serial('QueryBuilder handles revision-aware joins', async t => {
 });
 
 test.serial('QueryBuilder supports complex joins with _apply', async t => {
-  if (await skipIfNoModels(t)) return;
 
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -192,7 +177,6 @@ test.serial('QueryBuilder supports complex joins with _apply', async t => {
 });
 
 test.serial('QueryBuilder materializes hasMany relations using model metadata', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
   await ensureUserExists(dalFixture, testUser.id, 'HasMany Join User');
@@ -224,7 +208,6 @@ test.serial('QueryBuilder materializes hasMany relations using model metadata', 
 });
 
 test.serial('QueryBuilder materializes through-table joins generically', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const userId = randomUUID();
   await ensureUserExists(dalFixture, userId, 'Through Join User');
@@ -257,7 +240,6 @@ test.serial('QueryBuilder materializes through-table joins generically', async t
 });
 
 test.serial('QueryBuilder supports multiple joins', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -294,7 +276,6 @@ test.serial('QueryBuilder supports multiple joins', async t => {
 });
 
 test.serial('QueryBuilder supports between date ranges', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -332,7 +313,6 @@ test.serial('QueryBuilder supports between date ranges', async t => {
 });
 
 test.serial('QueryBuilder supports array contains operations', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Test that the contains method exists and can be called
   const testUrl = 'https://example.com/test';
@@ -346,7 +326,6 @@ test.serial('QueryBuilder supports array contains operations', async t => {
 });
 
 test.serial('QueryBuilder supports revision filtering', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -371,7 +350,6 @@ test.serial('QueryBuilder supports revision filtering', async t => {
 });
 
 test.serial('QueryBuilder supports revision tag filtering', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -410,7 +388,6 @@ test.serial('QueryBuilder supports revision tag filtering', async t => {
 });
 
 test.serial('QueryBuilder supports ordering and limiting', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -453,7 +430,6 @@ test.serial('QueryBuilder supports ordering and limiting', async t => {
 });
 
 test.serial('QueryBuilder supports offset for pagination', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -506,7 +482,6 @@ test.serial('QueryBuilder supports offset for pagination', async t => {
 });
 
 test.serial('QueryBuilder supports count operations', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create test user and thing
   const testUser = { id: randomUUID(), is_super_user: false, is_trusted: true };
@@ -536,7 +511,6 @@ test.serial('QueryBuilder supports count operations', async t => {
 });
 
 test.serial('QueryBuilder supports first() operation', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a test user
   const testUser = await User.create({
@@ -553,7 +527,6 @@ test.serial('QueryBuilder supports first() operation', async t => {
 });
 
 test('QueryBuilder handles empty results gracefully', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Test with non-existent ID
   const nonExistentId = randomUUID();

@@ -24,26 +24,26 @@ AVA into the shared PostgreSQL DAL bootstrap (`bootstrap/dal.js`):
 
 ## Writing PostgreSQL Tests
 
-Use the shared helper to provision a fixture and skip cleanly when PostgreSQL is
-unavailable:
+Use the shared helper to provision a fixture:
 
 ```js
 import test from 'ava';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'feature-under-test',
   cleanupTables: ['users', 'things']
 });
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+// If your test file has its own test.before hook that uses dalFixture:
+test.before(async () => {
+  await bootstrapPromise; // Ensure DAL is ready first
 
   const { User } = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' }
   ]);
 
-  t.context.models = { User };
+  // Store models for use in tests
 });
 ```
 
@@ -55,9 +55,10 @@ Key capabilities:
   the prefixed tables, making it easy to seed data.
 - `cleanupTables` truncates the listed tables before each test. Omit it only if
   the suite handles cleanup manually.
-- `skipIfUnavailable(t)` logs the initialization failure and short-circuits the
-  test when PostgreSQL is unreachable (for example, in CI jobs that do not
-  provision the database service).
+- `bootstrapPromise` should be awaited in any test.before hook that uses
+  dalFixture to ensure the DAL initialization is complete.
+- **Note:** If PostgreSQL is unavailable, tests will fail immediately during the
+  readiness check in `run-ava.mjs` rather than being skipped individually.
 
 ## Running the Suite
 
@@ -65,10 +66,16 @@ Key capabilities:
 npm run test
 ```
 
-`tests/run-ava.mjs` ensures the Vite manifest exists (triggering `npm run build`
-on demand), sets the required environment variables, and executes AVA with the
-`tests/[0-9]*-*.mjs` pattern. The runner defaults to four workers; use AVA’s
-`--concurrency` flag if you need to scale it down.
+`tests/run-ava.mjs` performs the following:
+
+1. Checks if the Vite manifest exists (triggering `npm run build` on demand)
+2. **Checks PostgreSQL DAL readiness** - tests will exit immediately if PostgreSQL
+   is not available or not properly configured
+3. Sets the required environment variables (`NODE_APP_INSTANCE=testing`)
+4. Executes AVA with the `tests/[0-9]*-*.mjs` pattern
+
+The runner defaults to four workers; use AVA's `--concurrency` flag if you need
+to scale it down.
 
 ## Caveats & Best Practices
 

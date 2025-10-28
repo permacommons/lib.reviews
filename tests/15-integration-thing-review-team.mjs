@@ -7,7 +7,7 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'integration_thing_review_team',
   cleanupTables: [
     'review_teams',
@@ -22,8 +22,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 
 let User, Thing, Review, Team;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   mockSearch();
 
@@ -42,23 +42,11 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!User || !Thing || !Review || !Team) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 // ============================================================================
 // THING-REVIEW INTEGRATION TESTS
 // ============================================================================
 
 test.serial('Thing-Review: lookupByURL attaches reviews for requesting user', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const reviewer = await User.create({
     name: `Reviewer-${randomUUID()}`,
@@ -104,7 +92,6 @@ test.serial('Thing-Review: lookupByURL attaches reviews for requesting user', as
 });
 
 test.serial('Thing-Review: relationship and metrics', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const thingCreator = await User.create({
     name: `ThingCreator-${randomUUID()}`,
@@ -179,7 +166,6 @@ test.serial('Thing-Review: relationship and metrics', async t => {
 // ============================================================================
 
 test.serial('Team-Review: association', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -247,7 +233,6 @@ test.serial('Team-Review: association', async t => {
 });
 
 test.serial('Team-Review: Review.create with team associations', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
     name: `CreateTeamFounder-${randomUUID()}`,
@@ -308,7 +293,6 @@ test.serial('Team-Review: Review.create with team associations', async t => {
 // ============================================================================
 
 test.serial('Revision system across Thing, Review, and Team models', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const user = await User.create({
     name: `RevisionUser-${randomUUID()}`,

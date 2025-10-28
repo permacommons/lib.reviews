@@ -7,7 +7,7 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_indexing',
   cleanupTables: ['users', 'things', 'reviews']
 });
@@ -15,8 +15,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 // Mock search module to capture indexing calls
 let indexedItems = [];
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   const captured = mockSearch();
   indexedItems = captured.indexedItems;
@@ -37,19 +37,7 @@ test.beforeEach(async t => {
 
 test.after.always(unmockSearch);
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!dalFixture.Thing || !dalFixture.Review) {
-    const skipMessage = 'Skipping - PostgreSQL models not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   
@@ -129,7 +117,6 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
 });
 
 test.serial('indexThing skips old and deleted revisions', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   const search = require('../search');
@@ -178,7 +165,6 @@ test.serial('indexThing skips old and deleted revisions', async t => {
 });
 
 test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   
@@ -246,7 +232,6 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
 });
 
 test.serial('indexReview skips old and deleted revisions', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   const search = require('../search');
@@ -317,7 +302,6 @@ test.serial('maintenance script ensures DAL bootstrap before indexing', async t 
 });
 
 test.serial('search indexing extracts multilingual content correctly', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   

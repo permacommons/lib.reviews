@@ -50,20 +50,8 @@ export function setupPostgresTest(test, options = {}) {
     }
   })();
 
-  test.before(async t => {
-    try {
-      await bootstrapPromise;
-    } catch (error) {
-      const instanceName = dalFixture?.testInstance || 'testing';
-      const errorMessage = error?.message || 'unknown error';
-      const skipNamespace = namespace || 'default';
-      const skipMessage = `PostgreSQL not available for ${instanceName} (${skipNamespace}): ${errorMessage}`;
-      t.log(skipMessage);
-      if (error?.stack) {
-        t.log(error.stack);
-      }
-      t.pass('Skipping tests - PostgreSQL not configured');
-    }
+  test.before(async () => {
+    await bootstrapPromise;
   });
 
   if (cleanupTables.length > 0) {
@@ -77,27 +65,5 @@ export function setupPostgresTest(test, options = {}) {
     await dalFixture.cleanup();
   });
 
-  return {
-    dalFixture,
-    async skipIfUnavailable(t, message = 'Skipping - PostgreSQL DAL not available') {
-      if (!dalFixture.isConnected()) {
-        await bootstrapPromise.catch(() => {});
-      }
-
-      if (!dalFixture.isConnected()) {
-        const stack = dalFixture.bootstrapError?.stack;
-        if (stack) {
-          t.log(stack);
-        }
-        const reason = dalFixture.getSkipReason?.() || dalFixture.bootstrapError?.message;
-        if (reason) {
-          t.log(`Skip reason: ${reason}`);
-        }
-        t.log(message);
-        t.pass(message);
-        return true;
-      }
-      return false;
-    }
-  };
+  return { dalFixture, bootstrapPromise };
 }

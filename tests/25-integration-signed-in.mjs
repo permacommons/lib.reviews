@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 mockSearch();
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'integration_signed_in',
   cleanupTables: [
     'team_join_requests',
@@ -29,8 +29,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let User, Team, TeamJoinRequest;
 let app;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
@@ -51,18 +51,7 @@ test.before(async t => {
   app = await getApp();
 });
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!User || !app) {
-    t.log('Skipping - PostgreSQL DAL not available');
-    t.pass('Skipping - PostgreSQL DAL not available');
-    return true;
-  }
-  return false;
-}
-
 test.serial('We can register an account via the form (captcha disabled)', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = 'A friend of many GNUs';
@@ -77,7 +66,6 @@ test.serial('We can register an account via the form (captcha disabled)', async 
 });
 
 test.serial('We can create and edit a review', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `ReviewCreator-${Date.now()}`;
@@ -148,7 +136,6 @@ test.serial('We can create and edit a review', async t => {
 });
 
 test.serial('We can create a new team', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `TeamCreator-${Date.now()}`;
@@ -201,7 +188,6 @@ test.serial('We can create a new team', async t => {
 });
 
 test.serial('Team join request workflow: join, approve, leave, rejoin', async t => {
-  if (await skipIfNoModels(t)) return;
 
   // Create moderator who will manage the team
   const modAgent = supertest.agent(app);

@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_integration',
   cleanupTables: ['users', 'things', 'reviews']
 });
@@ -16,27 +16,19 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 // Track indexing operations
 let indexedItems = [];
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   const captured = mockSearch();
   indexedItems = captured.indexedItems;
 
-  try {
-    // Ensure UUID generation helper exists
-    const models = await dalFixture.initializeModels([
-      { key: 'things', alias: 'Thing' },
-      { key: 'reviews', alias: 'Review' }
-    ]);
+  const models = await dalFixture.initializeModels([
+    { key: 'things', alias: 'Thing' },
+    { key: 'reviews', alias: 'Review' }
+  ]);
 
-    dalFixture.Thing = models.Thing;
-    dalFixture.Review = models.Review;
-    
-  } catch (error) {
-    const skipMessage = `PostgreSQL not available, skipping search integration tests: ${error.message}`;
-    t.log(skipMessage);
-    t.pass('Skipping tests - PostgreSQL not configured');
-  }
+  dalFixture.Thing = models.Thing;
+  dalFixture.Review = models.Review;
 });
 
 test.beforeEach(async t => {
@@ -67,19 +59,7 @@ registerCompletionHandler(() => {
 
 // Ensure the AVA worker exits promptly after asynchronous teardown completes.
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!dalFixture.Thing || !dalFixture.Review) {
-    const skipMessage = 'Skipping - PostgreSQL models not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 test.serial('maintenance script bootstraps PostgreSQL models', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { initializeDAL, isInitialized } = require('../bootstrap/dal');
   await initializeDAL();
@@ -92,7 +72,6 @@ test.serial('maintenance script bootstraps PostgreSQL models', async t => {
 });
 
 test.serial('search indexing integration with PostgreSQL models', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   const search = require('../search');
@@ -160,7 +139,6 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
 });
 
 test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing, Review } = dalFixture;
   const search = require('../search');
@@ -240,7 +218,6 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
 });
 
 test.serial('search indexing skips old and deleted revisions in bulk operations', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   const search = require('../search');

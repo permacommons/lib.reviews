@@ -11,7 +11,7 @@ mockSearch();
 
 const { setupPostgresTest } = await import('./helpers/setup-postgres-test.mjs');
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'adapter_functionality',
   cleanupTables: ['things', 'users']
 });
@@ -19,8 +19,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let Thing;
 let adapters, WikidataBackendAdapter, OpenLibraryBackendAdapter;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   mockSearch();
 
@@ -32,26 +32,12 @@ test.before(async t => {
   adapters = (await import('../adapters/adapters.js')).default;
   WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.js')).default;
   OpenLibraryBackendAdapter = (await import('../adapters/openlibrary-backend-adapter.js')).default;
-
-  t.log('PostgreSQL DAL and models initialized for adapter tests');
 });
 
 test.after.always(unmockSearch);
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!Thing) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 // Test adapter functionality with PostgreSQL Thing model
 test.serial('adapter initialization and basic functionality', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Test that adapters are properly initialized
   const allAdapters = adapters.getAll();
@@ -68,7 +54,6 @@ test.serial('adapter initialization and basic functionality', async t => {
 });
 
 test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a new thing
   const testUserId = randomUUID();
@@ -109,7 +94,6 @@ test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', as
 });
 
 test.serial('Thing model setURLs functionality', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a new thing
   const testUserId = randomUUID();
@@ -146,7 +130,6 @@ test.serial('Thing model setURLs functionality', async t => {
 });
 
 test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a thing with Wikidata URL and sync settings
   const testUserId = randomUUID();
@@ -194,7 +177,6 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
 });
 
 test.serial('search indexing with PostgreSQL metadata structure', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a thing with metadata
   const testUserId = randomUUID();

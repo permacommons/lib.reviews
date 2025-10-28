@@ -27,7 +27,7 @@ import {
   verifyTestIsolation
 } from './helpers/dal-helpers-ava.mjs';
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture } = setupPostgresTest(test, {
   schemaNamespace: 'revision_system',
   modelDefs: getTestModelDefinitionsAVA,
   tableDefs: getTestTableDefinitionsAVA,
@@ -36,7 +36,6 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 const testUser = getTestUserDataAVA();
 
 test.serial('DAL revision system: can create first revision with PostgreSQL partial indexes', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -60,7 +59,6 @@ test.serial('DAL revision system: can create first revision with PostgreSQL part
 });
 
 test.serial('DAL revision system: new revision preserves existing revision mechanics', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -95,7 +93,6 @@ test.serial('DAL revision system: new revision preserves existing revision mecha
 });
 
 test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently with partial indexes', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -127,7 +124,6 @@ test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently w
   const currentRevisions = await TestModel.filterNotStaleOrDeleted().run();
   const queryTime = Date.now() - start;
 
-  // Verify results match RethinkDB behavior exactly
   t.true(currentRevisions.length > 0, 'Found current revisions');
   t.true(currentRevisions.every(rev => 
     !rev._data._old_rev_of && !rev._data._rev_deleted
@@ -141,8 +137,7 @@ test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently w
   t.is(currentRevisions.length, expectedCount, 'Correct number of current revisions');
 });
 
-test.serial('DAL revision system: revision querying patterns match RethinkDB behavior exactly', async t => {
-  if (await skipIfUnavailable(t)) return;
+test.serial('DAL revision system: revision querying patterns', async t => {
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -152,8 +147,6 @@ test.serial('DAL revision system: revision querying patterns match RethinkDB beh
   const finalRev = await createTestDocumentWithRevisionsAVA(TestModel, testUser, 3);
   const docId = finalRev.id;
 
-  // Test various query patterns that should match RethinkDB
-  
   // 1. Get current revision only
   const current = await TestModel.getNotStaleOrDeleted(docId);
   t.is(current.title, 'Updated Title 2', 'Gets current revision');
@@ -187,7 +180,6 @@ test.serial('DAL revision system: revision querying patterns match RethinkDB beh
 });
 
 test.serial('DAL revision system: deleteAllRevisions maintains same table structure', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -227,7 +219,6 @@ test.serial('DAL revision system: deleteAllRevisions maintains same table struct
 });
 
 test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted revision', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -251,7 +242,6 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted 
 });
 
 test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale revision', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -279,7 +269,6 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale re
 });
 
 test.serial('DAL revision system: revision filtering by user works correctly', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // Verify test isolation
@@ -309,7 +298,6 @@ test.serial('DAL revision system: revision filtering by user works correctly', a
 });
 
 test.serial('DAL revision system: test isolation verification', async t => {
-  if (await skipIfUnavailable(t)) return;
   const TestModel = dalFixture.getModel('revisions');
 
   // This test verifies that each test starts with a clean database

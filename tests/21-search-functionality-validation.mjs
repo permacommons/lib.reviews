@@ -9,7 +9,7 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_validation',
   cleanupTables: ['users', 'things', 'reviews']
 });
@@ -17,28 +17,20 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let searchQueries;
 let mockSearchResponse;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   const captured = mockSearch();
   searchQueries = captured.searchQueries;
   mockSearchResponse = captured.mockSearchResponse;
 
-  try {
-    // Ensure UUID generation helper exists
-    const models = await dalFixture.initializeModels([
-      { key: 'things', alias: 'Thing' },
-      { key: 'reviews', alias: 'Review' }
-    ]);
+  const models = await dalFixture.initializeModels([
+    { key: 'things', alias: 'Thing' },
+    { key: 'reviews', alias: 'Review' }
+  ]);
 
-    dalFixture.Thing = models.Thing;
-    dalFixture.Review = models.Review;
-    
-  } catch (error) {
-    const skipMessage = `PostgreSQL not available, skipping search validation tests: ${error.message || 'PostgreSQL not configured'}`;
-    t.log(skipMessage);
-    t.pass('Skipping tests - PostgreSQL not configured');
-  }
+  dalFixture.Thing = models.Thing;
+  dalFixture.Review = models.Review;
 });
 
 test.after.always(unmockSearch);
@@ -53,19 +45,7 @@ test.beforeEach(() => {
   }
 });
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!dalFixture.Thing || !dalFixture.Review) {
-    const skipMessage = 'Skipping - PostgreSQL models not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 test.serial('searchThings API maintains compatibility with existing interface', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -81,7 +61,6 @@ test.serial('searchThings API maintains compatibility with existing interface', 
 });
 
 test.serial('searchReviews API maintains compatibility with existing interface', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -97,7 +76,6 @@ test.serial('searchReviews API maintains compatibility with existing interface',
 });
 
 test.serial('suggestThing API maintains compatibility with existing interface', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -113,7 +91,6 @@ test.serial('suggestThing API maintains compatibility with existing interface', 
 });
 
 test.serial('search queries include new PostgreSQL fields', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -159,51 +136,7 @@ test.serial('search queries include new PostgreSQL fields', async t => {
   }, 'Description should be multilingual in metadata');
 });
 
-test.serial('search indexing handles PostgreSQL vs RethinkDB field name compatibility', async t => {
-  if (await skipIfNoModels(t)) return;
-  
-  const { Thing, Review } = dalFixture;
-  
-  const testUserId = randomUUID();
-  const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
-  await ensureUserExists(dalFixture, testUserId, 'Compatibility User');
-  
-  // Create a thing with PostgreSQL field names
-  const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
-  thing.urls = ['https://example.com/compatibility-test'];
-  thing.label = { en: 'Compatibility Test' };
-  thing.createdOn = new Date(); // PostgreSQL field name
-  thing.createdBy = testUserId;
-  thing.canonicalSlugName = 'compatibility-test';
-  
-  await thing.save();
-  
-  // Create a review with PostgreSQL field names
-  const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
-  review.thingID = thing.id; // PostgreSQL field name
-  review.title = { en: 'Test Review' };
-  review.text = { en: 'Test review text' };
-  review.html = { en: '<p>Test review text</p>' };
-  review.starRating = 5; // PostgreSQL field name
-  review.createdOn = new Date(); // PostgreSQL field name
-  review.createdBy = testUserId;
-  
-  await review.save();
-  
-  // Verify field name compatibility
-  t.truthy(thing.createdOn, 'Thing should have created_on field (PostgreSQL)');
-  t.truthy(thing.canonicalSlugName, 'Thing should have canonical_slug_name field');
-  t.truthy(review.thingID, 'Review should have thing_id field (PostgreSQL)');
-  t.truthy(review.starRating, 'Review should have star_rating field (PostgreSQL)');
-  t.truthy(review.createdOn, 'Review should have created_on field (PostgreSQL)');
-  
-  // The search indexing functions should handle both field name formats
-  // This is tested by the fact that the models can be created and saved successfully
-  t.pass('Field name compatibility verified');
-});
-
 test.serial('search performance with PostgreSQL JSONB fields', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const { Thing } = dalFixture;
   
@@ -275,7 +208,6 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
 });
 
 test.serial('search API error handling remains consistent', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   
@@ -294,7 +226,6 @@ test.serial('search API error handling remains consistent', async t => {
 });
 
 test.serial('search results structure remains compatible', async t => {
-  if (await skipIfNoModels(t)) return;
   
   const search = require('../search');
   

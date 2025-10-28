@@ -11,15 +11,15 @@ mockSearch();
 
 const { setupPostgresTest } = await import('./helpers/setup-postgres-test.mjs');
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'sync_scripts',
   cleanupTables: ['things', 'users']
 });
 
 let Thing;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   mockSearch();
 
@@ -27,25 +27,11 @@ test.before(async t => {
     { key: 'things', alias: 'Thing' }
   ]);
   Thing = models.Thing;
-
-  t.log('PostgreSQL DAL and models initialized for sync script tests');
 });
 
 test.after.always(unmockSearch);
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!Thing) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 test.serial('sync scripts can be imported and work with PostgreSQL Thing model', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a test thing with Wikidata URL
   const testUserId = randomUUID();
@@ -85,7 +71,6 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
 });
 
 test.serial('sync functionality works with metadata grouping', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Create a test thing
   const testUserId = randomUUID();
@@ -140,7 +125,6 @@ test.serial('sync functionality works with metadata grouping', async t => {
 });
 
 test.serial('adapter integration with PostgreSQL Thing model', async t => {
-  if (await skipIfNoModels(t)) return;
   
   // Test that adapters can work with the PostgreSQL Thing model
   const adapters = (await import('../adapters/adapters.js')).default;

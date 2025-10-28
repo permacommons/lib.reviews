@@ -17,7 +17,7 @@ const uploadsDir = path.join(projectRoot, 'static/uploads');
 
 mockSearch();
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'api_routes',
   cleanupTables: [
     'reviews',
@@ -30,8 +30,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let User, Thing, Review, File;
 let app;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
@@ -53,22 +53,11 @@ test.before(async t => {
   app = await getApp();
 });
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!User || !Thing || !Review || !File || !app) {
-    t.log('Skipping - PostgreSQL DAL not available');
-    t.pass('Skipping - PostgreSQL DAL not available');
-    return true;
-  }
-  return false;
-}
-
 // ============================================================================
 // GET /api/user/:name - User Information Retrieval
 // ============================================================================
 
 test.serial('GET /api/user/:name returns user information for existing user', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `APITestUser-${Date.now()}`;
@@ -94,7 +83,6 @@ test.serial('GET /api/user/:name returns user information for existing user', as
 });
 
 test.serial('GET /api/user/:name returns 404 for non-existent user', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const response = await supertest(app)
     .get('/api/user/NonExistentUser12345')
@@ -113,7 +101,6 @@ test.serial('GET /api/user/:name returns 404 for non-existent user', async t => 
 // ============================================================================
 
 test.serial('GET /api/thing?url=<url> returns thing data with review metrics', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `ThingCreator-${Date.now()}`;
@@ -162,7 +149,6 @@ test.serial('GET /api/thing?url=<url> returns thing data with review metrics', a
 });
 
 test.serial('GET /api/thing?url=<url> returns 404 for non-existent URL', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const response = await supertest(app)
     .get('/api/thing?url=https://example.com/does-not-exist-12345')
@@ -177,7 +163,6 @@ test.serial('GET /api/thing?url=<url> returns 404 for non-existent URL', async t
 });
 
 test.serial('GET /api/thing?url=<url> returns 400 for invalid URL', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const response = await supertest(app)
     .get('/api/thing?url=not-a-valid-url')
@@ -196,7 +181,6 @@ test.serial('GET /api/thing?url=<url> returns 400 for invalid URL', async t => {
 // ============================================================================
 
 test.serial('GET /api/suggest/thing/:prefix returns search suggestions', async t => {
-  if (await skipIfNoModels(t)) return;
 
   // The mock search will return results for any prefix
   const response = await supertest(app)
@@ -211,7 +195,6 @@ test.serial('GET /api/suggest/thing/:prefix returns search suggestions', async t
 });
 
 test.serial('GET /api/suggest/thing/:prefix handles whitespace prefix', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const response = await supertest(app)
     .get('/api/suggest/thing/%20')
@@ -228,7 +211,6 @@ test.serial('GET /api/suggest/thing/:prefix handles whitespace prefix', async t 
 // ============================================================================
 
 test.serial('POST /api/actions/enable-preference enables a user preference', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `PrefUser-${Date.now()}`;
@@ -254,7 +236,6 @@ test.serial('POST /api/actions/enable-preference enables a user preference', asy
 });
 
 test.serial('POST /api/actions/toggle-preference toggles a user preference', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `ToggleUser-${Date.now()}`;
@@ -292,7 +273,6 @@ test.serial('POST /api/actions/toggle-preference toggles a user preference', asy
 });
 
 test.serial('POST /api/actions/modify-preference requires authentication', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const response = await supertest(app)
     .post('/api/actions/enable-preference')
@@ -304,7 +284,6 @@ test.serial('POST /api/actions/modify-preference requires authentication', async
 });
 
 test.serial('POST /api/actions/modify-preference rejects invalid preference names', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `InvalidPrefUser-${Date.now()}`;
@@ -332,7 +311,6 @@ test.serial('POST /api/actions/modify-preference rejects invalid preference name
 // ============================================================================
 
 test.serial('POST /api/actions/suppress-notice suppresses a valid notice type', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `NoticeUser-${Date.now()}`;
@@ -364,7 +342,6 @@ test.serial('POST /api/actions/suppress-notice suppresses a valid notice type', 
 });
 
 test.serial('POST /api/actions/suppress-notice handles duplicate suppression', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `DuplicateNoticeUser-${Date.now()}`;
@@ -397,7 +374,6 @@ test.serial('POST /api/actions/suppress-notice handles duplicate suppression', a
 });
 
 test.serial('POST /api/actions/suppress-notice rejects invalid notice types', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const agent = supertest.agent(app);
   const username = `InvalidNoticeUser-${Date.now()}`;
@@ -421,7 +397,6 @@ test.serial('POST /api/actions/suppress-notice rejects invalid notice types', as
 });
 
 test.serial('POST /api/actions/suppress-notice requires authentication', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const response = await supertest(app)
     .post('/api/actions/suppress-notice')
@@ -437,7 +412,6 @@ test.serial('POST /api/actions/suppress-notice requires authentication', async t
 // ============================================================================
 
 test.serial('POST /api/actions/upload successfully uploads a valid file', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const pngBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
@@ -509,7 +483,6 @@ test.serial('POST /api/actions/upload successfully uploads a valid file', async 
 });
 
 test.serial('POST /api/actions/upload rejects files with unrecognized signature', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const uploadAgent = supertest.agent(app);
   const username = `Uploader ${Date.now()} invalid`;
@@ -555,7 +528,6 @@ test.serial('POST /api/actions/upload rejects files with unrecognized signature'
 });
 
 test.serial('POST /api/actions/upload requires authentication', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const pngBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
@@ -579,7 +551,6 @@ test.serial('POST /api/actions/upload requires authentication', async t => {
 });
 
 test.serial('POST /api/actions/upload requires trusted user permission', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const pngBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',

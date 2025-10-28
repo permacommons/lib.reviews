@@ -5,7 +5,7 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 const require = createRequire(import.meta.url);
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'slug_helpers',
   cleanupTables: ['thing_slugs', 'reviews', 'things', 'users']
 });
@@ -14,38 +14,20 @@ const slugs = require('../routes/helpers/slugs');
 
 let User, Thing;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
-  try {
-    const models = await dalFixture.initializeModels([
-      { key: 'users', alias: 'User' },
-      { key: 'things', alias: 'Thing' },
-      { key: 'thing_slugs', alias: 'ThingSlug' }
-    ]);
+  const models = await dalFixture.initializeModels([
+    { key: 'users', alias: 'User' },
+    { key: 'things', alias: 'Thing' },
+    { key: 'thing_slugs', alias: 'ThingSlug' }
+  ]);
 
-    User = models.User;
-    Thing = models.Thing;
-  } catch (error) {
-    const skipMessage = `Skipping slug helper tests - PostgreSQL DAL unavailable: ${error.message}`;
-    t.log(skipMessage);
-    t.pass('Skipping tests - PostgreSQL not configured');
-  }
+  User = models.User;
+  Thing = models.Thing;
 });
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!User || !Thing) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const creator = await User.create({
     name: `SlugCreator-${randomUUID()}`,
@@ -78,7 +60,6 @@ test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
 });
 
 test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const creator = await User.create({
     name: `RedirectCreator-${randomUUID()}`,
@@ -114,7 +95,6 @@ test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', a
 });
 
 test.serial('resolveAndLoadThing throws DocumentNotFound for unknown slug', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const req = { originalUrl: '/missing-slug' };
   const res = { redirect: () => {} };

@@ -24,12 +24,11 @@ const routeTests = [
   { path: '/+not+a+thing+', status: 404, regex: /Thing not found/ }
 ];
 
-const { skipIfUnavailable } = setupPostgresTest(test, {
+setupPostgresTest(test, {
   schemaNamespace: 'integration_signed_out'
 });
 
 test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
   mockSearch();
 });
 

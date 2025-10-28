@@ -7,15 +7,15 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'thing_model',
   cleanupTables: ['things', 'users']
 });
 
 let Thing;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   mockSearch();
 
@@ -28,19 +28,7 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-async function skipIfNoThing(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!Thing) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 test('Thing model: create first revision and lookup by URL', async t => {
-  if (await skipIfNoThing(t)) return;
 
   const { actor: creator } = await dalFixture.createTestUser('Thing Creator');
   const url = `https://example.com/${randomUUID()}`;
@@ -65,7 +53,6 @@ test('Thing model: create first revision and lookup by URL', async t => {
 });
 
 test('Thing model: populateUserInfo sets permission flags', async t => {
-  if (await skipIfNoThing(t)) return;
 
   const { actor: creatorActor } = await dalFixture.createTestUser('Thing Creator');
   const { actor: otherUserActor } = await dalFixture.createTestUser('Thing Moderator');

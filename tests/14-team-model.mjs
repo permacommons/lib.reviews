@@ -7,7 +7,7 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'team_integration',
   cleanupTables: [
     'review_teams',
@@ -22,8 +22,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 
 let User, Thing, Review, Team;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   mockSearch();
 
@@ -34,8 +34,6 @@ test.before(async t => {
     { key: 'teams', alias: 'Team' }
   ]);
 
-  t.log(`Schema prefix: ${dalFixture.tablePrefix}`);
-
   User = models.User;
   Thing = models.Thing;
   Review = models.Review;
@@ -44,17 +42,6 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!User || !Thing || !Review || !Team) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 // ============================================================================
 // TEAM MODEL TESTS
 // ============================================================================
@@ -62,7 +49,6 @@ async function skipIfNoModels(t) {
 // ============================================================================
 
 test.serial('Team model: create team with JSONB multilingual fields', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const founder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -128,7 +114,6 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
 });
 
 test.serial('Team model: create team with members and moderators using saveAll and getWithData', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const founder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -180,7 +165,6 @@ test.serial('Team model: create team with members and moderators using saveAll a
 });
 
 test.serial('Team model: populateUserInfo sets permission flags correctly', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const founder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -281,7 +265,6 @@ test.serial('Team model: populateUserInfo sets permission flags correctly', asyn
 // ============================================================================
 
 test.serial('Integration: Thing-Review relationship and metrics', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const thingCreator = await User.create({
     name: `ThingCreator-${randomUUID()}`,
@@ -356,7 +339,6 @@ test.serial('Integration: Thing-Review relationship and metrics', async t => {
 });
 
 test.serial('Integration: Team-Review association', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
     name: `TeamFounder-${randomUUID()}`,
@@ -429,7 +411,6 @@ test.serial('Integration: Team-Review association', async t => {
 });
 
 test.serial('Integration: Review.create with team associations', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const teamFounder = await User.create({
     name: `CreateTeamFounder-${randomUUID()}`,
@@ -490,7 +471,6 @@ test.serial('Integration: Review.create with team associations', async t => {
 });
 
 test.serial('Integration: Revision system across all models', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const user = await User.create({
     name: `RevisionUser-${randomUUID()}`,

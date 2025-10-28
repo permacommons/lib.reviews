@@ -3,6 +3,13 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import process from 'process';
 
+// Suppress unhandled rejection warnings during DAL check
+// The check will handle errors gracefully
+const rejectionHandler = () => {};
+process.on('unhandledRejection', rejectionHandler);
+
+const { checkDALReadinessOrExit } = await import('./helpers/check-dal-readiness.mjs');
+
 const args = process.argv.slice(2);
 if (args.length === 0)
   args.push('--verbose', 'tests/[0-9]*-*.mjs');
@@ -34,6 +41,12 @@ const env = {
   NODE_APP_INSTANCE: process.env.NODE_APP_INSTANCE || 'testing',
   NODE_CONFIG_DISABLE_WATCH: process.env.NODE_CONFIG_DISABLE_WATCH || 'Y'
 };
+
+// Check DAL readiness before running tests
+await checkDALReadinessOrExit();
+
+// Restore normal unhandled rejection behavior
+process.off('unhandledRejection', rejectionHandler);
 
 const child = spawn('ava', args, {
   stdio: 'inherit',

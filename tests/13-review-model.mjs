@@ -7,7 +7,7 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 const require = createRequire(import.meta.url);
 
-const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
+const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'review_model',
   cleanupTables: ['reviews', 'things', 'users']
 });
@@ -15,8 +15,8 @@ const { dalFixture, skipIfUnavailable } = setupPostgresTest(test, {
 let User, Thing, Review;
 let ReviewError;
 
-test.before(async t => {
-  if (await skipIfUnavailable(t)) return;
+test.before(async () => {
+  await bootstrapPromise;
 
   mockSearch();
 
@@ -35,23 +35,11 @@ test.before(async t => {
 
 test.after.always(unmockSearch);
 
-async function skipIfNoModels(t) {
-  if (await skipIfUnavailable(t)) return true;
-  if (!User || !Thing || !Review) {
-    const skipMessage = 'Skipping - PostgreSQL DAL not available';
-    t.log(skipMessage);
-    t.pass(skipMessage);
-    return true;
-  }
-  return false;
-}
-
 // ============================================================================
 // REVIEW MODEL BASIC TESTS
 // ============================================================================
 
 test.serial('Review model: create review with JSONB multilingual content', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `ReviewAuthor-${randomUUID()}`,
@@ -105,7 +93,6 @@ test.serial('Review model: create review with JSONB multilingual content', async
 });
 
 test.serial('Review model: star rating validation works', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `RatingAuthor-${randomUUID()}`,
@@ -171,7 +158,6 @@ test.serial('Review model: star rating validation works', async t => {
 });
 
 test.serial('Review model: populateUserInfo sets permission flags correctly', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `ReviewAuthor-${randomUUID()}`,
@@ -241,7 +227,6 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
 });
 
 test.serial('Review model: deleteAllRevisionsWithThing deletes review and associated thing', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `DeleteAuthor-${randomUUID()}`,
@@ -309,7 +294,6 @@ test.serial('Review model: deleteAllRevisionsWithThing deletes review and associ
 // ============================================================================
 
 test.serial('Review model: getFeed returns reviews with pagination', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `FeedAuthor-${randomUUID()}`,
@@ -362,7 +346,6 @@ test.serial('Review model: getFeed returns reviews with pagination', async t => 
 });
 
 test.serial('Review model: getFeed joins thing data', async t => {
-  if (await skipIfNoModels(t)) return;
 
   const author = await User.create({
     name: `JoinAuthor-${randomUUID()}`,
