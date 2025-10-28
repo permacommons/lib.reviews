@@ -24,8 +24,13 @@ async function initializeTeamJoinRequestModel(dal = null) {
       id: type.string().uuid(4),
       teamID: type.string().uuid(4).required(true),
       userID: type.string().uuid(4).required(true),
-      requestedOn: type.date().default(() => new Date()),
-      message: type.string().max(500)
+      status: type.string().default('pending'),
+      requestDate: type.date(),
+      requestMessage: type.string().max(500),
+      rejectedBy: type.string().uuid(4),
+      rejectionDate: type.date(),
+      rejectionMessage: type.string(),
+      rejectedUntil: type.date()
     };
 
     const { model, isNew } = initializeModel({
@@ -35,7 +40,12 @@ async function initializeTeamJoinRequestModel(dal = null) {
       camelToSnake: {
         teamID: 'team_id',
         userID: 'user_id',
-        requestedOn: 'requested_on'
+        requestDate: 'request_date',
+        requestMessage: 'request_message',
+        rejectedBy: 'rejected_by',
+        rejectionDate: 'rejection_date',
+        rejectionMessage: 'rejection_message',
+        rejectedUntil: 'rejected_until'
       }
     });
     TeamJoinRequest = model;

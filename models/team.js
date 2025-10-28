@@ -14,6 +14,7 @@ const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
 const User = require('./user');
 const Review = require('./review');
+const TeamJoinRequest = require('./team-join-request');
 const { initializeModel } = require('../dal/lib/model-initializer');
 
 let Team = null;
@@ -240,8 +241,10 @@ function populateUserInfo(user) {
   }
 
   // Determine join permissions (can't join if already member or has pending request)
-  if (!team.userIsMember && 
-      (!team.joinRequests || !team.joinRequests.some(request => request.userID === user.id))) {
+  // Users can rejoin if their previous request was withdrawn or approved
+  if (!team.userIsMember &&
+      (!team.joinRequests || !team.joinRequests.some(request =>
+        request.userID === user.id && request.status === 'pending'))) {
     team.userCanJoin = true;
   }
 
@@ -328,27 +331,44 @@ async function _getTeamModerators(teamId) {
  * @returns {Promise<Object[]>} Array of join request objects
  */
 async function _getTeamJoinRequests(teamId, withDetails = false) {
+  let query = '';
   try {
-    const joinRequestTableName = Team.dal.tablePrefix ? 
+    const joinRequestTableName = Team.dal.tablePrefix ?
       `${Team.dal.tablePrefix}team_join_requests` : 'team_join_requests';
-    
-    let query = `SELECT * FROM ${joinRequestTableName} WHERE team_id = $1`;
-    
-    if (withDetails) {
-      const userTableName = Team.dal.tablePrefix ? 
-        `${Team.dal.tablePrefix}users` : 'users';
-      query = `
-        SELECT jr.*, u.display_name, u.url_name 
-        FROM ${joinRequestTableName} jr
-        JOIN ${userTableName} u ON jr.user_id = u.id
-        WHERE jr.team_id = $1
-      `;
-    }
-    
+
+    query = `SELECT * FROM ${joinRequestTableName} WHERE team_id = $1`;
     const result = await Team.dal.query(query, [teamId]);
-    return result.rows;
+
+    // Convert rows to TeamJoinRequest instances
+    const requests = result.rows.map(row =>
+      TeamJoinRequest._createInstance ?
+        TeamJoinRequest._createInstance(row) :
+        new TeamJoinRequest(row)
+    );
+
+    // If details requested, load the user for each request
+    if (withDetails) {
+      for (const request of requests) {
+        if (request.userID) {
+          try {
+            const user = await User.get(request.userID);
+            if (user) {
+              delete user.password;
+              request.user = user;
+            }
+          } catch (error) {
+            debug.error(`Error loading user ${request.userID} for join request:`, error);
+          }
+        }
+      }
+    }
+
+    return requests;
   } catch (error) {
-    debug.error('Error getting team join requests:', error);
+    debug.error(`Error getting team join requests: ${error.message}`);
+    debug.error(`Query: ${query}`);
+    debug.error(`Params: ${JSON.stringify([teamId])}`);
+    debug.error('Full error:', error);
     return [];
   }
 }

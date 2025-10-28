@@ -5,9 +5,7 @@
 <div class="message-box">{{{this}}}</div>
 {{/each}}
 </div>
-{{#unless team.joinRequests}}
-{{{__ "no pending join requests"}}}
-{{else}}
+{{#if team.joinRequests.length}}
 <form name="manage-join-requests" method="post">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
 <ul>
@@ -39,4 +37,6 @@
 <button type="submit" id="submit" name="manage-requests-action" value="process-requests" class="pure-button pure-button-primary button-rounded">{{{__ "process requests"}}}</button>
 
 </form>
-{{/unless}}
+{{else}}
+{{{__ "no pending join requests"}}}
+{{/if}}

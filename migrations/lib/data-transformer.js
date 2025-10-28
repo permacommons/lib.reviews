@@ -89,9 +89,12 @@ class DataTransformer {
       team_join_requests: {
         'teamID': 'team_id',
         'userID': 'user_id',
-        'createdOn': 'created_on',
         'requestDate': 'request_date',
-        'requestMessage': 'request_message'
+        'requestMessage': 'request_message',
+        'rejectedBy': 'rejected_by',
+        'rejectionDate': 'rejection_date',
+        'rejectionMessage': 'rejection_message',
+        'rejectedUntil': 'rejected_until'
       },
 
       // Slug fields
@@ -419,12 +422,6 @@ class DataTransformer {
    */
   transformTeamJoinRequest(record) {
     const transformed = this.applyFieldMappings('team_join_requests', record);
-
-    // Handle missing created_on field - use request_date as fallback
-    if (!transformed.created_on && transformed.request_date) {
-      transformed.created_on = transformed.request_date;
-    }
-
     return transformed;
   }
 

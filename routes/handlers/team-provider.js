@@ -8,11 +8,13 @@ const i18n = require('i18n');
 // Internal deps
 const AbstractBREADProvider = require('./abstract-bread-provider');
 const Team = require('../../models/team');
+const TeamJoinRequest = require('../../models/team-join-request');
 const BlogPost = require('../../models/blog-post');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
 const mlString = require('../../dal/lib/ml-string.js');
 const { getEditorMessages } = require('../../util/frontend-messages');
+const debug = require('../../util/debug');
 
 class TeamProvider extends AbstractBREADProvider {
 
@@ -96,8 +98,12 @@ class TeamProvider extends AbstractBREADProvider {
 
     team.populateUserInfo(this.req.user);
 
-    // Don't show rejected requests again. NB - modifying model, no saving.
-    team.joinRequests = team.joinRequests.filter(request => !request.rejectionDate);
+    // Only show pending requests. Filter out rejected, withdrawn, and approved.
+    if (team.joinRequests) {
+      team.joinRequests = team.joinRequests.filter(request => request.status === 'pending');
+    } else {
+      team.joinRequests = [];
+    }
 
     if (!team.userIsModerator)
       return this.renderPermissionError();
@@ -125,6 +131,9 @@ class TeamProvider extends AbstractBREADProvider {
     // approrpriate message, and know whether we have to run saveAll()
     let workToBeDone = false;
 
+    debug.db('POST body:', this.req.body);
+    debug.db('Join requests:', team.joinRequests.map(r => ({ id: r.id, userID: r.userID })));
+
     for (let key in this.req.body) {
 
       // Does it look like a request to perform an action?
@@ -132,6 +141,7 @@ class TeamProvider extends AbstractBREADProvider {
 
         // Safely extract the provided ID
         let id = (key.match(/action-(.*)$/) || [])[1];
+        debug.db(`Found action key: ${key}, extracted ID: ${id}, action: ${this.req.body[key]}`);
 
         // Check if we do in fact have a join request that matches the action ID
         let requestIndex, requestObj;
@@ -142,24 +152,38 @@ class TeamProvider extends AbstractBREADProvider {
           }
         });
 
-        // If we do, perform the appropriate wrok
+        debug.db(`Match found: ${!!requestObj}`);
+
+        // If we do, perform the appropriate work
         if (requestObj) {
           switch (this.req.body[key]) {
             case 'reject':
               {
-                team.joinRequests[requestIndex].rejectionDate = new Date();
-                team.joinRequests[requestIndex].rejectedBy = this.req.user.id;
+                requestObj.rejectionDate = new Date();
+                requestObj.rejectedBy = this.req.user.id;
+                requestObj.status = 'rejected';
                 let reason = this.req.body[`reject-reason-${id}`];
                 if (reason)
-                  team.joinRequests[requestIndex].rejectionMessage = escapeHTML(reason);
+                  requestObj.rejectionMessage = escapeHTML(reason);
+                // Save the join request immediately
+                requestObj.save().catch(this.next);
                 workToBeDone = true;
                 break;
               }
             case 'accept':
-              team.members.push(team.joinRequests[requestIndex].user);
-              team.joinRequests.splice(requestIndex, 1);
-              workToBeDone = true;
-              break;
+              {
+                requestObj.status = 'approved';
+                // Save the join request status, then add user to team
+                requestObj.save()
+                  .then(() => {
+                    team.members.push(requestObj.user);
+                    // Remove from the array after accepting
+                    team.joinRequests.splice(requestIndex, 1);
+                  })
+                  .catch(this.next);
+                workToBeDone = true;
+                break;
+              }
               // no default
           }
 
@@ -252,19 +276,22 @@ class TeamProvider extends AbstractBREADProvider {
     if (this.req.user && !team.userIsModerator && !team.userIsMember)
       team.joinRequests.forEach(request => {
         if (request.userID === this.req.user.id) {
-          if (!request.rejectionDate)
+          // Only show messages for pending or rejected requests, not withdrawn/approved
+          if (request.status === 'pending') {
             this.req.flash('pageMessages', this.req.__('application received'));
-          else
-          if (request.rejectionMessage)
-            this.req.flash('pageMessages',
-              this.req.__('application rejected with reason', request.rejectionDate, request.rejectionMessage));
-          else
-            this.req.flash('pageMessages', this.req.__('application rejected', request.rejectionDate));
+          } else if (request.status === 'rejected') {
+            if (request.rejectionMessage)
+              this.req.flash('pageMessages',
+                this.req.__('application rejected with reason', request.rejectionDate, request.rejectionMessage));
+            else
+              this.req.flash('pageMessages', this.req.__('application rejected', request.rejectionDate));
+          }
+          // Don't show anything for withdrawn or approved status
         }
       });
 
     if (team.userIsModerator) {
-      let joinRequestCount = team.joinRequests.filter(request => !request.rejectionDate).length;
+      let joinRequestCount = team.joinRequests.filter(request => request.status === 'pending').length;
       let url = `/team/${team.urlID}/manage-requests`;
       if (joinRequestCount == 1)
         this.req.flash('pageMessages', this.req.__('pending join request', url));

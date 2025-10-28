@@ -117,16 +117,34 @@ router.post('/team/:id/join', function(req, res, next) {
       }
 
       if (team.modApprovalToJoin) {
-        let teamJoinRequest = new TeamJoinRequest({
-          teamID: team.id,
-          userID: req.user.id,
-          requestMessage: escapeHTML(req.body['join-request-message'].trim()),
-          requestDate: new Date()
-        });
-        teamJoinRequest.save().then(() => {
-          res.redirect(`/team/${id}`);
-        })
-        .catch(next); // Problem saving join request
+        // Check if there's an existing join request (withdrawn, rejected, or approved)
+        const existingRequest = team.joinRequests.find(jr => jr.userID === req.user.id);
+
+        if (existingRequest) {
+          // Update existing request
+          existingRequest.status = 'pending';
+          existingRequest.requestMessage = escapeHTML(req.body['join-request-message'].trim());
+          existingRequest.requestDate = new Date();
+          existingRequest.rejectionDate = null;
+          existingRequest.rejectedBy = null;
+          existingRequest.rejectionMessage = null;
+          existingRequest.save().then(() => {
+            res.redirect(`/team/${id}`);
+          })
+          .catch(next);
+        } else {
+          // Create new request
+          let teamJoinRequest = new TeamJoinRequest({
+            teamID: team.id,
+            userID: req.user.id,
+            requestMessage: escapeHTML(req.body['join-request-message'].trim()),
+            requestDate: new Date()
+          });
+          teamJoinRequest.save().then(() => {
+            res.redirect(`/team/${id}`);
+          })
+          .catch(next); // Problem saving join request
+        }
 
       } else { // No approval required, just add the new member
 
@@ -155,8 +173,17 @@ router.post('/team/:id/leave', function(req, res, next) {
 
       team.members = team.members.filter(member => member.id !== req.user.id);
       team.moderators = team.moderators.filter(moderator => moderator.id !== req.user.id);
-      team
-        .saveAll()
+
+      // Mark any existing join request as withdrawn
+      const existingRequest = team.joinRequests.find(jr => jr.userID === req.user.id);
+      const savePromises = [team.saveAll()];
+
+      if (existingRequest) {
+        existingRequest.status = 'withdrawn';
+        savePromises.push(existingRequest.save());
+      }
+
+      Promise.all(savePromises)
         .then(() => {
           req.flash('pageMessages', req.__('goodbye team'));
           res.redirect(`/team/${id}`);

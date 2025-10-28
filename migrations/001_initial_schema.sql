@@ -223,14 +223,18 @@ CREATE TABLE team_join_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL,
   user_id UUID NOT NULL,
-  created_on TIMESTAMP WITH TIME ZONE NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'withdrawn')),
   request_date TIMESTAMP WITH TIME ZONE,
   request_message TEXT,
+  rejected_by UUID,
+  rejection_date TIMESTAMP WITH TIME ZONE,
+  rejection_message TEXT,
+  rejected_until TIMESTAMP WITH TIME ZONE,
 
   -- Foreign key constraints
   CONSTRAINT team_join_requests_team_id_fkey FOREIGN KEY (team_id) REFERENCES teams(id),
   CONSTRAINT team_join_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT team_join_requests_rejected_by_fkey FOREIGN KEY (rejected_by) REFERENCES users(id),
 
   -- Unique constraint to prevent duplicate requests
   CONSTRAINT team_join_requests_unique UNIQUE (team_id, user_id)
