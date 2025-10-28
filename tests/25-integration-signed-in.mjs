@@ -135,6 +135,82 @@ test.serial('We can create and edit a review', async t => {
   t.pass();
 });
 
+test.serial('We can edit a thing description', async t => {
+
+  const agent = supertest.agent(app);
+  const username = `ThingEditor-${Date.now()}`;
+  await registerTestUser(agent, {
+    username,
+    password: 'password123'
+  });
+
+  // Make user trusted so they can edit things
+  const urlName = username.replace(/ /g, '_');
+  const user = await User.findByURLName(urlName, { withPassword: true });
+  user.isTrusted = true;
+  await user.save();
+
+  // Create a review first (which creates a thing)
+  const newReviewResponse = await agent.get('/new/review')
+    .expect(200)
+    .expect(/New review/);
+
+  let csrf = extractCSRF(newReviewResponse.text);
+
+  const reviewPostResponse = await agent
+    .post('/new/review')
+    .type('form')
+    .send({
+      _csrf: csrf,
+      'review-url': 'https://example.com/test-thing',
+      'review-title': 'Test Thing Review',
+      'review-text': 'This is a test review for description editing.',
+      'review-rating': '4',
+      'review-language': 'en',
+      'review-action': 'publish'
+    })
+    .expect(302);
+
+  // Get the thing page
+  const thingURL = reviewPostResponse.headers.location;
+  const thingResponse = await agent
+    .get(thingURL)
+    .expect(200)
+    .expect(/Add a description here/);
+
+  // Find the edit description link
+  const editDescMatch = thingResponse.text.match(/<a href="([^"]*\/edit\/description)"/);
+  if (!editDescMatch) {
+    return t.fail('Could not find edit description link');
+  }
+
+  const editDescURL = editDescMatch[1];
+  const editDescResponse = await agent.get(editDescURL)
+    .expect(200)
+    .expect(/Edit description/);
+
+  csrf = extractCSRF(editDescResponse.text);
+
+  // Submit the description
+  const editDescPostResponse = await agent
+    .post(editDescURL)
+    .type('form')
+    .send({
+      _csrf: csrf,
+      'thing-description': 'This is a test description for the thing.',
+      'thing-language': 'en'
+    })
+    .expect(302);
+
+  // Verify the description appears on the thing page
+  await agent
+    .get(editDescPostResponse.headers.location)
+    .expect(200)
+    .expect(/This is a test description for the thing\./);
+
+  t.pass();
+});
+
 test.serial('We can create a new team', async t => {
 
   const agent = supertest.agent(app);

@@ -252,13 +252,25 @@ function processTextFieldUpdate(req, res, next) {
       thing
         .newRevision(req.user)
         .then(newRev => {
-          if (!newRev[field])
-            newRev[field] = {};
-
           let language = req.body['thing-language'];
           languages.validate(language);
           let text = req.body[`thing-${field}`];
-          newRev[field][language] = escapeHTML(text);
+          
+          // Handle metadata fields (description, subtitle, authors) differently
+          const metadataFields = ['description', 'subtitle', 'authors'];
+          if (metadataFields.includes(field)) {
+            if (!newRev.metadata)
+              newRev.metadata = {};
+            if (!newRev.metadata[field])
+              newRev.metadata[field] = {};
+            newRev.metadata[field][language] = escapeHTML(text);
+          } else {
+            // Handle direct fields like label
+            if (!newRev[field])
+              newRev[field] = {};
+            newRev[field][language] = escapeHTML(text);
+          }
+          
           if (!newRev.originalLanguage)
             newRev.originalLanguage = language;
 
