@@ -1,10 +1,10 @@
 # PostgreSQL Data Access Layer (DAL)
 
-This directory contains the PostgreSQL Data Access Layer implementation for the lib.reviews application migration from RethinkDB to PostgreSQL.
+This directory contains the PostgreSQL Data Access Layer for lib.reviews.
 
 ## Overview
 
-The DAL provides a compatible interface with the existing Thinky ORM while using PostgreSQL as the backend database. It maintains the same API patterns to minimize changes to existing application code.
+The DAL provides the database interface for PostgreSQL, featuring a Model-based system with camelCase accessors, revision tracking, and JSONB support for multilingual content.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ The DAL provides a compatible interface with the existing Thinky ORM while using
    - Base model class with CRUD operations
    - Virtual field support
    - Schema validation
-   - Compatible with existing Thinky model patterns
+   - CamelCase to snake_case field mapping
 
 3. **QueryBuilder** (`lib/query-builder.js`)
    - Fluent query interface
@@ -29,13 +29,12 @@ The DAL provides a compatible interface with the existing Thinky ORM while using
 
 4. **Type System** (`lib/type.js`)
    - Type definitions and validation
-   - Compatible with Thinky type system
    - Support for string, number, boolean, date, array, and object types
+   - Virtual field support
 
 5. **Error Handling** (`lib/errors.js`)
-   - Custom error classes
+   - Custom error classes (ValidationError, DocumentNotFound, etc.)
    - PostgreSQL error conversion
-   - Compatible with existing error handling
 
 6. **Multilingual Strings** (`lib/ml-string.js`)
    - JSONB-based multilingual string handling
@@ -117,35 +116,23 @@ The schema migration is located in `migrations/001_create_postgresql_schema.sql`
 - Foreign key constraints for data integrity
 - JSONB GIN indexes for multilingual content search
 
-## Compatibility
-
-The DAL maintains compatibility with the existing Thinky ORM interface:
-
-- Same method signatures for CRUD operations
-- Compatible error handling
-- Virtual field support
-- Query builder patterns
-- Model definition syntax
-
 ## Implementation Status
 
-✅ **Completed:**
+Completed:
+
 - Core DAL infrastructure
 - Connection pooling and transaction support
 - Base Model class with CRUD operations
-- Query builder foundation
+- Query builder with filters, joins, and ordering
 - Type system with validation
 - Error handling and conversion
-- PostgreSQL schema definition
-- Migration system
+- PostgreSQL schema
+- Migration execution
 - Multilingual string handling and validation for JSONB columns
-
-🔄 **Future Enhancements:**
-- Advanced join operations
-- Full revision system integration
-- Complex query patterns (function-based filters)
-- Performance optimizations
-- Comprehensive test coverage
+- Revision tracking system
+- Many-to-many relations
+- CamelCase to snake_case field mapping
+- Virtual field generation
 
 ## Files
 

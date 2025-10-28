@@ -1,9 +1,7 @@
 # DAL Modernization Roadmap
 
-We are finishing the migration from the legacy RethinkDB stack to a PostgreSQL
-Data Access Layer (DAL). This roadmap describes the target architecture, the
-remaining phases, and the clean‑up items that keep the current DAL pleasant to
-work with.
+This roadmap describes the migration from RethinkDB to PostgreSQL and the
+target architecture for the Data Access Layer (DAL).
 
 ## Guiding Principles
 
@@ -22,21 +20,24 @@ work with.
 
 ## Roadmap Phases
 
-### Phase 1 – Finish the PostgreSQL Cutover
+### Phase 1 – Finish the PostgreSQL Cutover ✅ COMPLETE
 
 - ✅ Keep migrated routes stable under the Postgres DAL.
-- ✅ Document RethinkDB holdouts so migration work is planned rather than ad
-  hoc.
+- ✅ Document RethinkDB holdouts so migration work is planned rather than ad hoc.
 - ✅ Eliminate regressions that make model imports harder to use.
-- ☐ Fix the remaining routes, jobs, and helpers that still fail under the
-  Postgres DAL.
+- ✅ Fix the remaining routes, jobs, and helpers that still fail under the Postgres DAL.
+- ✅ Remove `models-legacy/` directory.
 
-### Phase 2 – Remove the RethinkDB Path
+### Phase 2 – Remove the RethinkDB Path (In Progress)
 
-- ☐ Delete code that references `db-dual.js`, `db.js`, and Thinky models.
-- ☐ Port the final routes/workers/tests to Postgres and verify behaviour.
-- ☐ Drop dual-database toggles, bridges, and config once parity is confirmed.
-- ☐ Update deployment/runtime docs for Postgres-only operation.
+- ✅ Delete `models-legacy/` directory and legacy model code.
+- ✅ Update documentation to reflect PostgreSQL-only operation.
+- ⏳ Awaiting production cutover to remove:
+  - `db.js` (RethinkDB connection)
+  - `orm/` directory (Thinky wrapper, needed for data import)
+  - `migrations/` directory (RethinkDB migration scripts, needed for data import)
+  - RethinkDB npm dependencies
+  - RethinkDB config settings
 
 ### Phase 3 – Bootstrap & Model Ergonomics (completed)
 
