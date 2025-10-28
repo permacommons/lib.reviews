@@ -95,7 +95,6 @@
   "snyk": true,
   "ava": {
     "files": [
-      "tests-legacy/*-*.mjs",
       "tests/[0-9]*-*.mjs"
     ],
     "concurrency": 4,

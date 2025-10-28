@@ -1,9 +1,5 @@
 # PostgreSQL Test Harness
 
-The files in this directory exercise the in-progress PostgreSQL DAL and models.
-They run independently from the legacy RethinkDB suites under `tests-legacy/`
-and use the AVA runner in `tests/run-ava.mjs`.
-
 ## Prerequisites
 
 Complete the steps in `POSTGRES-SETUP.md` before running these tests. That

@@ -3,14 +3,8 @@ import path from 'path';
 import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 
-process.env.NODE_ENV = 'development';
-process.env.NODE_CONFIG_DISABLE_WATCH = 'Y';
-process.env.NODE_APP_INSTANCE = 'testing-markdown';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-process.env.NODE_CONFIG_DIR = path.join(__dirname, '../config');
 
 const require = createRequire(import.meta.url);
 const i18n = require('i18n');
