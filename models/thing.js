@@ -76,7 +76,21 @@ async function initializeThingModel(dal = null) {
       
       // Metrics virtual fields (populated asynchronously)
       numberOfReviews: type.virtual().default(0),
-      averageStarRating: type.virtual().default(0)
+      averageStarRating: type.virtual().default(0),
+
+      // Virtual accessors for nested metadata JSONB fields
+      description: type.virtual().default(function() {
+        const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
+        return metadata?.description;
+      }),
+      subtitle: type.virtual().default(function() {
+        const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
+        return metadata?.subtitle;
+      }),
+      authors: type.virtual().default(function() {
+        const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
+        return metadata?.authors;
+      })
     };
 
     const { model } = initializeModel({

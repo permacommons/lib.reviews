@@ -586,15 +586,15 @@ class NewUserError extends ReportedError {
     if (typeof options == 'object' && options.parentError instanceof Error &&
       typeof options.payload.user == 'object') {
       switch (options.parentError.message) {
-        case 'Value for [email] must be a valid email.':
+        case 'Must be a valid email address':
           options.userMessage = 'invalid email format';
           options.userMessageParams = [options.payload.user.email];
           break;
-        case `Value for [display_name] must be shorter than ${userOptions.maxChars}.`:
+        case `displayName must be shorter than ${userOptions.maxChars} characters`:
           options.userMessage = 'username too long';
           options.userMessageParams = [String(userOptions.maxChars)];
           break;
-        case `Value for [email] must be shorter than ${userOptions.maxChars}.`:
+        case `email must be shorter than ${userOptions.maxChars} characters`:
           options.userMessage = 'email too long';
           options.userMessageParams = [String(userOptions.maxChars)];
           break;

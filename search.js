@@ -262,19 +262,10 @@ let search = {
     }
 
     // Extract multilingual content from PostgreSQL JSONB structure
-    let description, subtitle, authors;
-    
-    if (thing.metadata && typeof thing.metadata === 'object') {
-      // PostgreSQL structure: metadata is grouped in JSONB
-      description = thing.metadata.description;
-      subtitle = thing.metadata.subtitle;
-      authors = thing.metadata.authors;
-    } else {
-      // RethinkDB structure: fields are separate
-      description = thing.description;
-      subtitle = thing.subtitle;
-      authors = thing.authors;
-    }
+    // Access via virtual getters that map to metadata JSONB structure
+    const description = thing.description;
+    const subtitle = thing.subtitle;
+    const authors = thing.authors;
     
     return getClient().index({
         index: 'libreviews',
