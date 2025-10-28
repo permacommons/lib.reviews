@@ -48,44 +48,35 @@ test.after.always(unmockSearch);
 
 test.serial('Thing-Review: lookupByURL attaches reviews for requesting user', async t => {
 
-  const reviewer = await User.create({
-    name: `Reviewer-${randomUUID()}`,
-    password: 'secret123',
-    email: `reviewer-${randomUUID()}@example.com`
-  });
-
-  const otherUser = await User.create({
-    name: `Other-${randomUUID()}`,
-    password: 'secret123',
-    email: `other-${randomUUID()}@example.com`
-  });
+  const reviewerData = await dalFixture.createTestUser('Reviewer');
+  const otherUserData = await dalFixture.createTestUser('Other User');
 
   const url = `https://example.com/review-${randomUUID()}`;
 
-  const thingRev = await Thing.createFirstRevision(reviewer, { tags: ['create'] });
+  const thingRev = await Thing.createFirstRevision(reviewerData.actor, { tags: ['create'] });
   thingRev.urls = [url];
   thingRev.label = { en: 'Review Target' };
   thingRev.createdOn = new Date();
-  thingRev.createdBy = reviewer.id;
+  thingRev.createdBy = reviewerData.id;
   const thing = await thingRev.save();
 
-  const reviewRev = await Review.createFirstRevision(reviewer, { tags: ['create'] });
+  const reviewRev = await Review.createFirstRevision(reviewerData.actor, { tags: ['create'] });
   reviewRev.thingID = thing.id;
   reviewRev.starRating = 4;
   reviewRev.createdOn = new Date();
-  reviewRev.createdBy = reviewer.id;
+  reviewRev.createdBy = reviewerData.id;
   reviewRev.originalLanguage = 'en';
   reviewRev.title = { en: 'Solid review' };
   reviewRev.text = { en: 'Plenty of useful detail.' };
   const review = await reviewRev.save();
 
-  const resultsForReviewer = await Thing.lookupByURL(url, reviewer.id);
+  const resultsForReviewer = await Thing.lookupByURL(url, reviewerData.id);
   t.is(resultsForReviewer.length, 1, 'Lookup returns the thing for reviewer');
   t.true(Array.isArray(resultsForReviewer[0].reviews), 'Reviews array is present for reviewer');
   t.is(resultsForReviewer[0].reviews.length, 1, 'Reviewer sees their review');
   t.is(resultsForReviewer[0].reviews[0].id, review.id, 'Reviewer review is returned');
 
-  const resultsForOtherUser = await Thing.lookupByURL(url, otherUser.id);
+  const resultsForOtherUser = await Thing.lookupByURL(url, otherUserData.id);
   t.is(resultsForOtherUser.length, 1, 'Lookup returns the thing for other user');
   t.true(Array.isArray(resultsForOtherUser[0].reviews), 'Reviews array present for other user');
   t.is(resultsForOtherUser[0].reviews.length, 0, 'Other user sees no reviews');
@@ -93,43 +84,29 @@ test.serial('Thing-Review: lookupByURL attaches reviews for requesting user', as
 
 test.serial('Thing-Review: relationship and metrics', async t => {
 
-  const thingCreator = await User.create({
-    name: `ThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `thingcreator-${randomUUID()}@example.com`
-  });
+  const thingCreatorData = await dalFixture.createTestUser('Thing Creator');
+  const reviewer1Data = await dalFixture.createTestUser('Reviewer 1');
+  const reviewer2Data = await dalFixture.createTestUser('Reviewer 2');
 
-  const reviewer1 = await User.create({
-    name: `Reviewer1-${randomUUID()}`,
-    password: 'secret123',
-    email: `reviewer1-${randomUUID()}@example.com`
-  });
-
-  const reviewer2 = await User.create({
-    name: `Reviewer2-${randomUUID()}`,
-    password: 'secret123',
-    email: `reviewer2-${randomUUID()}@example.com`
-  });
-
-  const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
+  const thingRev = await Thing.createFirstRevision(thingCreatorData.actor, { tags: ['create'] });
   thingRev.urls = [`https://example.com/integration-test-${randomUUID()}`];
   thingRev.label = { en: 'Integration Test Thing' };
   thingRev.createdOn = new Date();
-  thingRev.createdBy = thingCreator.id;
+  thingRev.createdBy = thingCreatorData.id;
   const thing = await thingRev.save();
 
   const { randomUUID: uuid } = require('crypto');
-  
+
   const review1 = new Review({
     thing_id: thing.id,
     title: { en: 'Great Product' },
     text: { en: 'I love this product!' },
     star_rating: 5,
     created_on: new Date(),
-    created_by: reviewer1.id,
+    created_by: reviewer1Data.id,
     original_language: 'en',
     _rev_id: uuid(),
-    _rev_user: reviewer1.id,
+    _rev_user: reviewer1Data.id,
     _rev_date: new Date(),
     _rev_tags: ['create']
   });
@@ -141,10 +118,10 @@ test.serial('Thing-Review: relationship and metrics', async t => {
     text: { en: 'It has some issues but overall good.' },
     star_rating: 3,
     created_on: new Date(),
-    created_by: reviewer2.id,
+    created_by: reviewer2Data.id,
     original_language: 'en',
     _rev_id: uuid(),
-    _rev_user: reviewer2.id,
+    _rev_user: reviewer2Data.id,
     _rev_date: new Date(),
     _rev_tags: ['create']
   });
@@ -167,35 +144,21 @@ test.serial('Thing-Review: relationship and metrics', async t => {
 
 test.serial('Team-Review: association', async t => {
 
-  const teamFounder = await User.create({
-    name: `TeamFounder-${randomUUID()}`,
-    password: 'secret123',
-    email: `teamfounder-${randomUUID()}@example.com`
-  });
+  const teamFounderData = await dalFixture.createTestUser('Team Founder');
+  const reviewerData = await dalFixture.createTestUser('Team Reviewer');
+  const thingCreatorData = await dalFixture.createTestUser('Thing Creator');
 
-  const reviewer = await User.create({
-    name: `TeamReviewer-${randomUUID()}`,
-    password: 'secret123',
-    email: `teamreviewer-${randomUUID()}@example.com`
-  });
-
-  const thingCreator = await User.create({
-    name: `ThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `thingcreator-${randomUUID()}@example.com`
-  });
-
-  const teamRev = await Team.createFirstRevision(teamFounder, { tags: ['create'] });
+  const teamRev = await Team.createFirstRevision(teamFounderData.actor, { tags: ['create'] });
   teamRev.name = { en: 'Review Team' };
-  teamRev.createdBy = teamFounder.id;
+  teamRev.createdBy = teamFounderData.id;
   teamRev.createdOn = new Date();
   const team = await teamRev.save();
 
-  const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
+  const thingRev = await Thing.createFirstRevision(thingCreatorData.actor, { tags: ['create'] });
   thingRev.urls = [`https://example.com/team-review-test-${randomUUID()}`];
   thingRev.label = { en: 'Team Review Test Thing' };
   thingRev.createdOn = new Date();
-  thingRev.createdBy = thingCreator.id;
+  thingRev.createdBy = thingCreatorData.id;
   const thing = await thingRev.save();
 
   const { randomUUID: uuid } = require('crypto');
@@ -205,10 +168,10 @@ test.serial('Team-Review: association', async t => {
     text: { en: 'This is a review from our team.' },
     star_rating: 4,
     created_on: new Date(),
-    created_by: reviewer.id,
+    created_by: reviewerData.id,
     original_language: 'en',
     _rev_id: uuid(),
-    _rev_user: reviewer.id,
+    _rev_user: reviewerData.id,
     _rev_date: new Date(),
     _rev_tags: ['create']
   });
@@ -234,21 +197,12 @@ test.serial('Team-Review: association', async t => {
 
 test.serial('Team-Review: Review.create with team associations', async t => {
 
-  const teamFounder = await User.create({
-    name: `CreateTeamFounder-${randomUUID()}`,
-    password: 'secret123',
-    email: `createteamfounder-${randomUUID()}@example.com`
-  });
+  const teamFounderData = await dalFixture.createTestUser('Create Team Founder');
+  const reviewerData = await dalFixture.createTestUser('Create Reviewer');
 
-  const reviewer = await User.create({
-    name: `CreateReviewer-${randomUUID()}`,
-    password: 'secret123',
-    email: `createreviewer-${randomUUID()}@example.com`
-  });
-
-  const teamRev = await Team.createFirstRevision(teamFounder, { tags: ['create'] });
+  const teamRev = await Team.createFirstRevision(teamFounderData.actor, { tags: ['create'] });
   teamRev.name = { en: 'Create Review Team' };
-  teamRev.createdBy = teamFounder.id;
+  teamRev.createdBy = teamFounderData.id;
   teamRev.createdOn = new Date();
   const team = await teamRev.save();
 
@@ -260,7 +214,7 @@ test.serial('Team-Review: Review.create with team associations', async t => {
     html: { en: '<p>This review was created with team associations.</p>' },
     starRating: 5,
     createdOn: new Date(),
-    createdBy: reviewer.id,
+    createdBy: reviewerData.id,
     originalLanguage: 'en',
     teams: [team]
   };
@@ -294,30 +248,26 @@ test.serial('Team-Review: Review.create with team associations', async t => {
 
 test.serial('Revision system across Thing, Review, and Team models', async t => {
 
-  const user = await User.create({
-    name: `RevisionUser-${randomUUID()}`,
-    password: 'secret123',
-    email: `revisionuser-${randomUUID()}@example.com`
-  });
+  const userData = await dalFixture.createTestUser('Revision User');
 
-  const thingRev1 = await Thing.createFirstRevision(user, { tags: ['create'] });
+  const thingRev1 = await Thing.createFirstRevision(userData.actor, { tags: ['create'] });
   thingRev1.urls = [`https://example.com/revision-integration-${randomUUID()}`];
   thingRev1.label = { en: 'Original Thing Label' };
   thingRev1.createdOn = new Date();
-  thingRev1.createdBy = user.id;
+  thingRev1.createdBy = userData.id;
   await thingRev1.save();
 
-  const thingRev2 = await thingRev1.newRevision(user, { tags: ['edit'] });
+  const thingRev2 = await thingRev1.newRevision(userData.actor, { tags: ['edit'] });
   thingRev2.label = { en: 'Updated Thing Label' };
   await thingRev2.save();
 
-  const teamRev1 = await Team.createFirstRevision(user, { tags: ['create'] });
+  const teamRev1 = await Team.createFirstRevision(userData.actor, { tags: ['create'] });
   teamRev1.name = { en: 'Original Team Name' };
-  teamRev1.createdBy = user.id;
+  teamRev1.createdBy = userData.id;
   teamRev1.createdOn = new Date();
   await teamRev1.save();
 
-  const teamRev2 = await teamRev1.newRevision(user, { tags: ['edit'] });
+  const teamRev2 = await teamRev1.newRevision(userData.actor, { tags: ['edit'] });
   teamRev2.name = { en: 'Updated Team Name' };
   await teamRev2.save();
 
@@ -328,16 +278,16 @@ test.serial('Revision system across Thing, Review, and Team models', async t => 
     text: { en: 'Original review content' },
     star_rating: 3,
     created_on: new Date(),
-    created_by: user.id,
+    created_by: userData.id,
     original_language: 'en',
     _rev_id: uuid(),
-    _rev_user: user.id,
+    _rev_user: userData.id,
     _rev_date: new Date(),
     _rev_tags: ['create']
   });
   await reviewRev1.save();
 
-  const reviewRev2 = await reviewRev1.newRevision(user, { tags: ['edit'] });
+  const reviewRev2 = await reviewRev1.newRevision(userData.actor, { tags: ['edit'] });
   reviewRev2.title = { en: 'Updated Review Title' };
   reviewRev2.text = { en: 'Updated review content' };
   await reviewRev2.save();

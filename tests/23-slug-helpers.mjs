@@ -12,28 +12,22 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
 
 const slugs = require('../routes/helpers/slugs');
 
-let User, Thing;
+let Thing;
 
 test.before(async () => {
   await bootstrapPromise;
 
   const models = await dalFixture.initializeModels([
-    { key: 'users', alias: 'User' },
     { key: 'things', alias: 'Thing' },
     { key: 'thing_slugs', alias: 'ThingSlug' }
   ]);
 
-  User = models.User;
   Thing = models.Thing;
 });
 
 test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
 
-  const creator = await User.create({
-    name: `SlugCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `slugcreator-${randomUUID()}@example.com`
-  });
+  const { actor: creator } = await dalFixture.createTestUser('Slug Creator');
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/thing-${randomUUID()}`];
@@ -61,11 +55,7 @@ test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
 
 test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', async t => {
 
-  const creator = await User.create({
-    name: `RedirectCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `redirectcreator-${randomUUID()}@example.com`
-  });
+  const { actor: creator } = await dalFixture.createTestUser('Redirect Creator');
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/redirect-${randomUUID()}`];

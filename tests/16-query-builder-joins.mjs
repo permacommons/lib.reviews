@@ -61,11 +61,8 @@ test.before(async () => {
 test.serial('QueryBuilder supports simple boolean joins', async t => {
 
   // Create a test user
-  const testUser = await User.create({
-    name: `TestUser-${randomUUID()}`,
-    password: 'secret123',
-    email: `test-${randomUUID()}@example.com`
-  });
+  const { actor: testUserActor } = await dalFixture.createTestUser('Test User');
+  const testUser = await User.get(testUserActor.id);
   await ensureUserExists(dalFixture, testUser.id, testUser.displayName);
   
   // Test simple join syntax: { teams: true }
@@ -511,17 +508,13 @@ test.serial('QueryBuilder supports count operations', async t => {
 });
 
 test.serial('QueryBuilder supports first() operation', async t => {
-  
+
   // Create a test user
-  const testUser = await User.create({
-    name: `FirstTestUser-${randomUUID()}`,
-    password: 'secret123',
-    email: `first-test-${randomUUID()}@example.com`
-  });
-  
+  const { actor: testUser } = await dalFixture.createTestUser('First Test User');
+
   // Test first - should return the user we created
   const user = await User.filter({ id: testUser.id }).first();
-  
+
   t.truthy(user);
   t.is(user.id, testUser.id);
 });

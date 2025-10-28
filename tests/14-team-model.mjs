@@ -41,11 +41,7 @@ test.after.always(unmockSearch);
 
 test.serial('Team model: create team with JSONB multilingual fields', async t => {
 
-  const founder = await User.create({
-    name: `TeamFounder-${randomUUID()}`,
-    password: 'secret123',
-    email: `teamfounder-${randomUUID()}@example.com`
-  });
+  const { actor: founder } = await dalFixture.createTestUser('Team Founder');
 
   const teamRev = await Team.createFirstRevision(founder, { tags: ['create'] });
   teamRev.name = {
@@ -106,31 +102,17 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
 
 test.serial('Team model: create team with members and moderators using saveAll and getWithData', async t => {
 
-  const founder = await User.create({
-    name: `TeamFounder-${randomUUID()}`,
-    password: 'secret123',
-    email: `teamfounder-${randomUUID()}@example.com`
-  });
+  const founderData = await dalFixture.createTestUser('Team Founder');
+  const member1Data = await dalFixture.createTestUser('Member 1');
+  const member2Data = await dalFixture.createTestUser('Member 2');
 
-  const member1 = await User.create({
-    name: `Member1-${randomUUID()}`,
-    password: 'secret123',
-    email: `member1-${randomUUID()}@example.com`
-  });
-
-  const member2 = await User.create({
-    name: `Member2-${randomUUID()}`,
-    password: 'secret123',
-    email: `member2-${randomUUID()}@example.com`
-  });
-
-  const teamRev = await Team.createFirstRevision(founder, { tags: ['create'] });
+  const teamRev = await Team.createFirstRevision(founderData.actor, { tags: ['create'] });
   teamRev.name = { en: 'Test Team with Members' };
-  teamRev.createdBy = founder.id;
+  teamRev.createdBy = founderData.id;
   teamRev.createdOn = new Date();
-  
-  teamRev.members = [founder, member1, member2];
-  teamRev.moderators = [founder, member1];
+
+  teamRev.members = [founderData.actor, member1Data.actor, member2Data.actor];
+  teamRev.moderators = [founderData.actor, member1Data.actor];
 
   const saved = await teamRev.saveAll({
     members: true,
@@ -147,55 +129,40 @@ test.serial('Team model: create team with members and moderators using saveAll a
   t.is(teamWithData.moderators.length, 2, 'Team has 2 moderators');
 
   const memberIds = teamWithData.members.map(m => m.id).sort();
-  const expectedMemberIds = [founder.id, member1.id, member2.id].sort();
+  const expectedMemberIds = [founderData.id, member1Data.id, member2Data.id].sort();
   t.deepEqual(memberIds, expectedMemberIds, 'All members retrieved correctly');
 
   const moderatorIds = teamWithData.moderators.map(m => m.id).sort();
-  const expectedModeratorIds = [founder.id, member1.id].sort();
+  const expectedModeratorIds = [founderData.id, member1Data.id].sort();
   t.deepEqual(moderatorIds, expectedModeratorIds, 'All moderators retrieved correctly');
 });
 
 test.serial('Team model: populateUserInfo sets permission flags correctly', async t => {
 
-  const founder = await User.create({
-    name: `TeamFounder-${randomUUID()}`,
-    password: 'secret123',
-    email: `teamfounder-${randomUUID()}@example.com`
-  });
+  const founderData = await dalFixture.createTestUser('Team Founder');
+  const moderatorData = await dalFixture.createTestUser('Team Moderator');
+  const memberData = await dalFixture.createTestUser('Team Member');
+  const outsiderData = await dalFixture.createTestUser('Outsider');
+  const siteModeratorData = await dalFixture.createTestUser('Site Moderator');
 
-  const moderator = await User.create({
-    name: `TeamModerator-${randomUUID()}`,
-    password: 'secret123',
-    email: `teammoderator-${randomUUID()}@example.com`
-  });
-
-  const member = await User.create({
-    name: `TeamMember-${randomUUID()}`,
-    password: 'secret123',
-    email: `teammember-${randomUUID()}@example.com`
-  });
-
-  const outsider = await User.create({
-    name: `Outsider-${randomUUID()}`,
-    password: 'secret123',
-    email: `outsider-${randomUUID()}@example.com`
-  });
-
-  const siteModerator = await User.create({
-    name: `SiteModerator-${randomUUID()}`,
-    password: 'secret123',
-    email: `sitemoderator-${randomUUID()}@example.com`
-  });
+  // Need to load and update site moderator
+  const siteModerator = await User.get(siteModeratorData.id);
   siteModerator.isSiteModerator = true;
   await siteModerator.save();
 
   // Create team
-  const teamRev = await Team.createFirstRevision(founder, { tags: ['create'] });
+  const teamRev = await Team.createFirstRevision(founderData.actor, { tags: ['create'] });
   teamRev.name = { en: 'Permission Test Team' };
-  teamRev.createdBy = founder.id;
+  teamRev.createdBy = founderData.id;
   teamRev.createdOn = new Date();
   teamRev.onlyModsCanBlog = true;
   const team = await teamRev.save();
+
+  // Need full User objects for populateUserInfo
+  const founder = await User.get(founderData.id);
+  const moderator = await User.get(moderatorData.id);
+  const member = await User.get(memberData.id);
+  const outsider = await User.get(outsiderData.id);
 
   // Add members and moderators to team (simulate join table data)
   team.members = [member, moderator];

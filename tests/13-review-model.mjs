@@ -41,17 +41,8 @@ test.after.always(unmockSearch);
 
 test.serial('Review model: create review with JSONB multilingual content', async t => {
 
-  const author = await User.create({
-    name: `ReviewAuthor-${randomUUID()}`,
-    password: 'secret123',
-    email: `reviewauthor-${randomUUID()}@example.com`
-  });
-
-  const thingCreator = await User.create({
-    name: `ThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `thingcreator-${randomUUID()}@example.com`
-  });
+  const { actor: author } = await dalFixture.createTestUser('Review Author');
+  const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/reviewable-${randomUUID()}`];
@@ -94,17 +85,8 @@ test.serial('Review model: create review with JSONB multilingual content', async
 
 test.serial('Review model: star rating validation works', async t => {
 
-  const author = await User.create({
-    name: `RatingAuthor-${randomUUID()}`,
-    password: 'secret123',
-    email: `ratingauthor-${randomUUID()}@example.com`
-  });
-
-  const thingCreator = await User.create({
-    name: `ThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `thingcreator-${randomUUID()}@example.com`
-  });
+  const { actor: author } = await dalFixture.createTestUser('Rating Author');
+  const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/rating-test-${randomUUID()}`];
@@ -159,31 +141,15 @@ test.serial('Review model: star rating validation works', async t => {
 
 test.serial('Review model: populateUserInfo sets permission flags correctly', async t => {
 
-  const author = await User.create({
-    name: `ReviewAuthor-${randomUUID()}`,
-    password: 'secret123',
-    email: `reviewauthor-${randomUUID()}@example.com`
-  });
+  const { actor: author } = await dalFixture.createTestUser('Review Author');
+  const { actor: moderatorActor } = await dalFixture.createTestUser('Review Moderator');
+  const { actor: otherUser } = await dalFixture.createTestUser('Other User');
+  const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
-  const moderator = await User.create({
-    name: `ReviewModerator-${randomUUID()}`,
-    password: 'secret123',
-    email: `reviewmoderator-${randomUUID()}@example.com`
-  });
+  // Load and configure moderator
+  const moderator = await User.get(moderatorActor.id);
   moderator.isSiteModerator = true;
   await moderator.save();
-
-  const otherUser = await User.create({
-    name: `OtherUser-${randomUUID()}`,
-    password: 'secret123',
-    email: `otheruser-${randomUUID()}@example.com`
-  });
-
-  const thingCreator = await User.create({
-    name: `ThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `thingcreator-${randomUUID()}@example.com`
-  });
 
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/reviewable-${randomUUID()}`];
@@ -208,7 +174,11 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
   });
   await review.save();
 
-  review.populateUserInfo(author);
+  // Load full User objects for populateUserInfo
+  const fullAuthor = await User.get(author.id);
+  const fullOtherUser = await User.get(otherUser.id);
+
+  review.populateUserInfo(fullAuthor);
   t.true(review.userIsAuthor, 'Author recognized');
   t.true(review.userCanEdit, 'Author can edit');
   t.true(review.userCanDelete, 'Author can delete');
@@ -220,7 +190,7 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
   t.true(moderatorView.userCanDelete, 'Moderator can delete');
 
   const otherView = await Review.get(review.id);
-  otherView.populateUserInfo(otherUser);
+  otherView.populateUserInfo(fullOtherUser);
   t.false(otherView.userIsAuthor, 'Other user not author');
   t.false(otherView.userCanEdit, 'Other user cannot edit');
   t.false(otherView.userCanDelete, 'Other user cannot delete');
@@ -228,17 +198,8 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
 
 test.serial('Review model: deleteAllRevisionsWithThing deletes review and associated thing', async t => {
 
-  const author = await User.create({
-    name: `DeleteAuthor-${randomUUID()}`,
-    password: 'secret123',
-    email: `deleteauthor-${randomUUID()}@example.com`
-  });
-
-  const thingCreator = await User.create({
-    name: `ThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `thingcreator-${randomUUID()}@example.com`
-  });
+  const { actor: author } = await dalFixture.createTestUser('Delete Author');
+  const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   thingRev.urls = [`https://example.com/delete-test-${randomUUID()}`];
@@ -295,17 +256,8 @@ test.serial('Review model: deleteAllRevisionsWithThing deletes review and associ
 
 test.serial('Review model: getFeed returns reviews with pagination', async t => {
 
-  const author = await User.create({
-    name: `FeedAuthor-${randomUUID()}`,
-    password: 'secret123',
-    email: `feedauthor-${randomUUID()}@example.com`
-  });
-
-  const thingCreator = await User.create({
-    name: `ThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `thingcreator-${randomUUID()}@example.com`
-  });
+  const { actor: author } = await dalFixture.createTestUser('Feed Author');
+  const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
   const baseTime = new Date('2025-01-01T12:00:00Z');
 
@@ -347,17 +299,8 @@ test.serial('Review model: getFeed returns reviews with pagination', async t => 
 
 test.serial('Review model: getFeed joins thing data', async t => {
 
-  const author = await User.create({
-    name: `JoinAuthor-${randomUUID()}`,
-    password: 'secret123',
-    email: `joinauthor-${randomUUID()}@example.com`
-  });
-
-  const thingCreator = await User.create({
-    name: `JoinThingCreator-${randomUUID()}`,
-    password: 'secret123',
-    email: `jointhingcreator-${randomUUID()}@example.com`
-  });
+  const { actor: author } = await dalFixture.createTestUser('Join Author');
+  const { actor: thingCreator } = await dalFixture.createTestUser('Join Thing Creator');
 
   const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
   const reviewUrl = `https://example.com/reviewable-${randomUUID()}`;
