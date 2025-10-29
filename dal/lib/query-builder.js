@@ -1237,9 +1237,18 @@ class QueryBuilder {
     for (const row of rows) {
       const mainData = {};
       const joinedData = {};
-      
-      // Separate main data from joined data
+
+      // Separate main data from joined data (including JSON columns)
       for (const [key, value] of Object.entries(row)) {
+        // Check if this is a JSON column from a join
+        const jsonMatch = key.match(/^(.+)_json$/);
+        if (jsonMatch && this._simpleJoins && this._simpleJoins[jsonMatch[1]]) {
+          // This is a JSON column from a joined table
+          joinedData[jsonMatch[1]] = value;
+          continue;
+        }
+
+        // Check for traditional prefixed columns (backwards compatibility)
         let isJoinedField = false;
         for (const relationName of Object.keys(this._simpleJoins)) {
           if (key.startsWith(`${relationName}_`)) {
@@ -1252,18 +1261,18 @@ class QueryBuilder {
             break;
           }
         }
-        
+
         if (!isJoinedField) {
           mainData[key] = value;
         }
       }
-      
+
       // Create main model instance
       const instance = this.modelClass._createInstance(mainData);
-      
+
       // Attach joined data
       for (const [relationName, data] of Object.entries(joinedData)) {
-        if (data && Object.keys(data).some(key => data[key] !== null)) {
+        if (data && (typeof data === 'object' || Object.keys(data).some(key => data[key] !== null))) {
           // Create model instance for joined data if possible
           const joinInfo = this._simpleJoins ? this._simpleJoins[relationName] : null;
           const RelatedModel = this._getRelatedModel(relationName, joinInfo);
@@ -1272,7 +1281,7 @@ class QueryBuilder {
           instance[relationName] = null;
         }
       }
-      
+
       processedRows.push(instance);
     }
     
@@ -1571,6 +1580,21 @@ class QueryBuilder {
     let selectClause = this._select.join(', ');
     if (this._joins.length > 0 && this._select.includes('*')) {
       selectClause = `${this.tableName}.*`;
+
+      // Add columns from simple joins as JSON objects
+      if (this._simpleJoins) {
+        const joinSelects = [];
+        for (const [relationName, joinInfo] of Object.entries(this._simpleJoins)) {
+          if (joinInfo && joinInfo.table) {
+            // Select the entire joined row as a JSON object
+            // This avoids column name conflicts and makes processing easier
+            joinSelects.push(`row_to_json(${joinInfo.table}.*) AS "${relationName}_json"`);
+          }
+        }
+        if (joinSelects.length > 0) {
+          selectClause += ', ' + joinSelects.join(', ');
+        }
+      }
     }
 
     let query = `SELECT ${selectClause} FROM ${this.tableName}`;

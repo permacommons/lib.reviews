@@ -158,8 +158,12 @@ async function initializeReviewModel(dal = null) {
  * @returns {Review} the review and associated data
  */
 async function getWithData(id) {
-  // Get the review first
-  const review = await Review.getNotStaleOrDeleted(id);
+  // Get the review with socialImage relation
+  const joinOptions = {
+    socialImage: true
+  };
+
+  const review = await Review.getNotStaleOrDeleted(id, joinOptions);
 
   if (!review) {
     return null;
@@ -195,7 +199,7 @@ async function getWithData(id) {
   // Manually join thing data
   if (review.thingID) {
     try {
-      const thing = await Thing.getNotStaleOrDeleted(review.thingID);
+      const thing = await Thing.getWithData(review.thingID);
       if (thing) {
         review.thing = thing;
       }

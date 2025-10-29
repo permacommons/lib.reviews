@@ -99,10 +99,10 @@ class ReviewProvider extends AbstractBREADProvider {
       formValues.hasTeam = {};
       if (Array.isArray(formValues.teams))
         formValues.teams.forEach(team => (formValues.hasTeam[team.id] = true));
-        if (formValues.socialImageID)
-          formValues.hasSocialImageID = {
-            [formValues.socialImageID]: true
-          };
+      if (formValues.socialImageID)
+        formValues.hasSocialImageID = {
+          [formValues.socialImageID]: true
+        };
       if (thing && thing.files)
         formValues.uploads = thing.files;
     }
