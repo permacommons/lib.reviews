@@ -788,14 +788,14 @@ class QueryBuilder {
   }
 
   /**
-   * Get table name with optional prefix
+   * Get table name with optional schema namespace
    * @param {string} baseName - Base table name
    * @returns {string} Full table name
    * @private
    */
   _getTableName(baseName) {
-    const prefix = this.dal.tablePrefix || '';
-    return prefix + baseName;
+    const namespace = this.dal.schemaNamespace || '';
+    return namespace + baseName;
   }
 
   /**
@@ -1426,9 +1426,9 @@ class QueryBuilder {
     }
 
     const normalizedTable = tableReference || null;
-    const tablePrefix = this.dal && typeof this.dal.tablePrefix === 'string' ? this.dal.tablePrefix : '';
-    const unprefixedTableName = tablePrefix && this.tableName.startsWith(tablePrefix)
-      ? this.tableName.slice(tablePrefix.length)
+    const schemaNamespace = this.dal && typeof this.dal.schemaNamespace === 'string' ? this.dal.schemaNamespace : '';
+    const unprefixedTableName = schemaNamespace && this.tableName.startsWith(schemaNamespace)
+      ? this.tableName.slice(schemaNamespace.length)
       : this.tableName;
     const isBaseTable = normalizedTable === null ||
       normalizedTable === this.tableName ||

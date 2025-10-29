@@ -548,8 +548,8 @@ class Model {
     }
 
     const { through } = config;
-    const tablePrefix = this.constructor.dal.tablePrefix || '';
-    const joinTableName = tablePrefix ? `${tablePrefix}${through.table}` : through.table;
+    const schemaNamespace = this.constructor.dal.schemaNamespace || '';
+    const joinTableName = schemaNamespace ? `${schemaNamespace}${through.table}` : through.table;
 
     const getBaseName = value => {
       if (!value) return '';

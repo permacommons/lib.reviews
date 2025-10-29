@@ -286,7 +286,7 @@ export async function createTestData(dal) {
   };
   
   // Insert users directly into database
-  const userTableName = dal.tablePrefix ? `${dal.tablePrefix}users` : 'users';
+  const userTableName = dal.schemaNamespace ? `${dal.schemaNamespace}users` : 'users';
   await dal.query(`
     INSERT INTO ${userTableName} (id, display_name, canonical_name, email, password, registration_date, is_trusted, is_site_moderator, is_super_user)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -344,7 +344,7 @@ export async function createTestData(dal) {
   };
   
   // Insert things directly into database
-  const thingTableName = dal.tablePrefix ? `${dal.tablePrefix}things` : 'things';
+  const thingTableName = dal.schemaNamespace ? `${dal.schemaNamespace}things` : 'things';
   await dal.query(`
     INSERT INTO ${thingTableName} (id, urls, label, aliases, metadata, original_language, canonical_slug_name, created_on, created_by, _rev_id, _rev_user, _rev_date, _rev_tags, _old_rev_of, _rev_deleted)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
@@ -396,7 +396,7 @@ export async function createTestData(dal) {
   };
   
   // Insert reviews directly into database
-  const reviewTableName = dal.tablePrefix ? `${dal.tablePrefix}reviews` : 'reviews';
+  const reviewTableName = dal.schemaNamespace ? `${dal.schemaNamespace}reviews` : 'reviews';
   await dal.query(`
     INSERT INTO ${reviewTableName} (id, thing_id, title, text, html, star_rating, created_on, created_by, original_language, _rev_id, _rev_user, _rev_date, _rev_tags, _old_rev_of, _rev_deleted)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)

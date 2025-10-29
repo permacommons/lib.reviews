@@ -38,7 +38,7 @@ class DALFixtureAVA {
     this.userModel = null;
     this.loaded = false;
     this.testInstance = testInstance;
-    this.tablePrefix = `${this.schemaName}.`;
+    this.schemaNamespace = `${this.schemaName}.`;
     this.connected = false;
     this.bootstrapError = null;
     this.skipReason = null;
@@ -81,7 +81,7 @@ class DALFixtureAVA {
       const { createTestHarness } = require('../../bootstrap/dal');
       harness = await createTestHarness({
         schemaName: this.schemaName,
-        tablePrefix: this.tablePrefix,
+        schemaNamespace: this.schemaNamespace,
         registerModels: true
       });
     } catch (error) {
@@ -93,7 +93,7 @@ class DALFixtureAVA {
 
     this.harness = harness;
     this.dal = harness.dal;
-    this.tablePrefix = harness.tablePrefix || this.tablePrefix;
+    this.schemaNamespace = harness.schemaNamespace || this.schemaNamespace;
     this.connected = true;
     this.models = Object.fromEntries(harness.registeredModels);
     this.customModels = new Map();
@@ -164,7 +164,7 @@ class DALFixtureAVA {
     
     if (!Array.isArray(tableNames) || tableNames.length === 0) return;
 
-    const qualifiedTables = tableNames.map(name => `${this.tablePrefix}${name}`);
+    const qualifiedTables = tableNames.map(name => `${this.schemaNamespace}${name}`);
     try {
       await this.dal.query(
         `TRUNCATE ${qualifiedTables.join(', ')} RESTART IDENTITY CASCADE`
@@ -184,7 +184,7 @@ class DALFixtureAVA {
 
     for (const tableDef of tableDefinitions) {
       const baseName = tableDef.name;
-      const fullTableName = `${this.tablePrefix}${baseName}`;
+      const fullTableName = `${this.schemaNamespace}${baseName}`;
       try {
         const tableRegex = new RegExp(`\\b${baseName}\\b`, 'g');
         const createSql = tableDef.sql.replace(tableRegex, fullTableName);
@@ -214,7 +214,7 @@ class DALFixtureAVA {
     if (!this.dal || !this.connected) return;
     
     for (const tableName of tableNames) {
-      const fullTableName = this.tablePrefix + tableName;
+      const fullTableName = this.schemaNamespace + tableName;
       try {
         await this.dal.query(`DROP TABLE IF EXISTS ${fullTableName} CASCADE`);
       } catch (error) {
@@ -347,7 +347,7 @@ class DALFixtureAVA {
    * @returns {string} Full table name with prefix
    */
   getTableName(tableName) {
-    return this.tablePrefix + tableName;
+    return this.schemaNamespace + tableName;
   }
 
   /**

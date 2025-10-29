@@ -39,6 +39,9 @@ async function initializeTeamSlugModel(dal = null) {
         createdOn: 'created_on',
         createdBy: 'created_by'
       },
+      staticMethods: {
+        getByName
+      },
       instanceMethods: {
         qualifiedSave
       }
@@ -74,10 +77,27 @@ async function getPostgresTeamSlugModel(dal = null) {
 }
 
 /**
+ * Get a team slug by its name field.
+ *
+ * @param {string} name - The slug name to look up
+ * @returns {Promise<TeamSlug|null>} The team slug instance or null if not found
+ * @static
+ * @memberof TeamSlug
+ */
+async function getByName(name) {
+  try {
+    return await this.filter({ name }).first();
+  } catch (error) {
+    debug.error(`Error getting team slug by name '${name}':`, error);
+    return null;
+  }
+}
+
+/**
  * For team slugs, we don't do automatic de-duplication (like thing-2, thing-3).
  * A qualifiedSave is just a regular save, but it translates constraint violations
  * into business logic errors that routes can handle.
- * 
+ *
  * @returns {Promise<TeamSlug>} This slug instance
  * @throws {DuplicateSlugNameError} If a slug with this name already exists
  * @memberof TeamSlug

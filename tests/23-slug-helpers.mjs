@@ -38,7 +38,7 @@ test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
   const thing = await thingRev.save();
 
   const dal = Thing.dal;
-  const slugTable = dal.tablePrefix ? `${dal.tablePrefix}thing_slugs` : 'thing_slugs';
+  const slugTable = dal.schemaNamespace ? `${dal.schemaNamespace}thing_slugs` : 'thing_slugs';
   await dal.query(
     `INSERT INTO ${slugTable} (slug, name, base_name, qualifier_part, thing_id, created_on, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -66,7 +66,7 @@ test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', a
   const thing = await thingRev.save();
 
   const dal = Thing.dal;
-  const slugTable = dal.tablePrefix ? `${dal.tablePrefix}thing_slugs` : 'thing_slugs';
+  const slugTable = dal.schemaNamespace ? `${dal.schemaNamespace}thing_slugs` : 'thing_slugs';
   await dal.query(
     `INSERT INTO ${slugTable} (slug, name, base_name, qualifier_part, thing_id, created_on, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,

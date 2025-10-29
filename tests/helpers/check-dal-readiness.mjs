@@ -38,7 +38,7 @@ export async function checkDALReadiness() {
     // This will automatically handle migrations
     const harness = await createTestHarness({
       schemaName: 'test_readiness_check',
-      tablePrefix: 'test_readiness_check.',
+      schemaNamespace: 'test_readiness_check.',
       registerModels: false,
       autoMigrate: true
     });

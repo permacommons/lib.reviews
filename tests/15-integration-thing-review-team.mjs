@@ -177,8 +177,8 @@ test.serial('Team-Review: association', async t => {
   });
   await review.save();
 
-  const reviewTeamTableName = dalFixture.tablePrefix ? 
-    `${dalFixture.tablePrefix}review_teams` : 'review_teams';
+  const reviewTeamTableName = dalFixture.schemaNamespace ? 
+    `${dalFixture.schemaNamespace}review_teams` : 'review_teams';
   
   await dalFixture.query(
     `INSERT INTO ${reviewTeamTableName} (review_id, team_id) VALUES ($1, $2)`,
@@ -224,8 +224,8 @@ test.serial('Team-Review: Review.create with team associations', async t => {
   t.truthy(review.id, 'Review created successfully');
   t.truthy(review.thingID, 'Thing created for review');
 
-  const reviewTeamTableName = dalFixture.tablePrefix ? 
-    `${dalFixture.tablePrefix}review_teams` : 'review_teams';
+  const reviewTeamTableName = dalFixture.schemaNamespace ? 
+    `${dalFixture.schemaNamespace}review_teams` : 'review_teams';
   
   const associationResult = await dalFixture.query(
     `SELECT * FROM ${reviewTeamTableName} WHERE review_id = $1 AND team_id = $2`,

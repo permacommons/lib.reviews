@@ -49,6 +49,9 @@ async function initializeThingSlugModel(dal = null) {
         baseName: 'base_name',
         qualifierPart: 'qualifier_part'
       },
+      staticMethods: {
+        getByName
+      },
       instanceMethods: {
         qualifiedSave
       }
@@ -79,6 +82,23 @@ ThingSlugHandle.reservedSlugs = reservedSlugs;
 async function getPostgresThingSlugModel(dal = null) {
   ThingSlug = await initializeThingSlugModel(dal);
   return ThingSlug;
+}
+
+/**
+ * Get a thing slug by its name field.
+ *
+ * @param {string} name - The slug name to look up
+ * @returns {Promise<ThingSlug|null>} The thing slug instance or null if not found
+ * @static
+ * @memberof ThingSlug
+ */
+async function getByName(name) {
+  try {
+    return await this.filter({ name }).first();
+  } catch (error) {
+    debug.error(`Error getting thing slug by name '${name}':`, error);
+    return null;
+  }
 }
 
 async function qualifiedSave() {

@@ -384,7 +384,7 @@ async function attachUserTeams(user) {
 
   const dal = Team.dal;
   const teamTable = Team.tableName;
-  const prefix = dal.tablePrefix || '';
+  const prefix = dal.schemaNamespace || '';
   const memberTable = `${prefix}team_members`;
   const moderatorTable = `${prefix}team_moderators`;
 

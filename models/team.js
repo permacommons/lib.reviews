@@ -273,10 +273,10 @@ function populateUserInfo(user) {
  */
 async function _getTeamMembers(teamId) {
   try {
-    const memberTableName = Team.dal.tablePrefix ? 
-      `${Team.dal.tablePrefix}team_members` : 'team_members';
-    const userTableName = Team.dal.tablePrefix ? 
-      `${Team.dal.tablePrefix}users` : 'users';
+    const memberTableName = Team.dal.schemaNamespace ? 
+      `${Team.dal.schemaNamespace}team_members` : 'team_members';
+    const userTableName = Team.dal.schemaNamespace ? 
+      `${Team.dal.schemaNamespace}users` : 'users';
     
     const query = `
       SELECT u.* FROM ${userTableName} u
@@ -302,10 +302,10 @@ async function _getTeamMembers(teamId) {
  */
 async function _getTeamModerators(teamId) {
   try {
-    const moderatorTableName = Team.dal.tablePrefix ? 
-      `${Team.dal.tablePrefix}team_moderators` : 'team_moderators';
-    const userTableName = Team.dal.tablePrefix ? 
-      `${Team.dal.tablePrefix}users` : 'users';
+    const moderatorTableName = Team.dal.schemaNamespace ? 
+      `${Team.dal.schemaNamespace}team_moderators` : 'team_moderators';
+    const userTableName = Team.dal.schemaNamespace ? 
+      `${Team.dal.schemaNamespace}users` : 'users';
     
     const query = `
       SELECT u.* FROM ${userTableName} u
@@ -333,8 +333,8 @@ async function _getTeamModerators(teamId) {
 async function _getTeamJoinRequests(teamId, withDetails = false) {
   let query = '';
   try {
-    const joinRequestTableName = Team.dal.tablePrefix ?
-      `${Team.dal.tablePrefix}team_join_requests` : 'team_join_requests';
+    const joinRequestTableName = Team.dal.schemaNamespace ?
+      `${Team.dal.schemaNamespace}team_join_requests` : 'team_join_requests';
 
     query = `SELECT * FROM ${joinRequestTableName} WHERE team_id = $1`;
     const result = await Team.dal.query(query, [teamId]);
@@ -382,10 +382,10 @@ async function _getTeamJoinRequests(teamId, withDetails = false) {
  */
 async function _getTeamReviews(teamId, limit, offsetDate) {
   try {
-    const reviewTeamTableName = Team.dal.tablePrefix ? 
-      `${Team.dal.tablePrefix}review_teams` : 'review_teams';
-    const reviewTableName = Team.dal.tablePrefix ? 
-      `${Team.dal.tablePrefix}reviews` : 'reviews';
+    const reviewTeamTableName = Team.dal.schemaNamespace ? 
+      `${Team.dal.schemaNamespace}review_teams` : 'review_teams';
+    const reviewTableName = Team.dal.schemaNamespace ? 
+      `${Team.dal.schemaNamespace}reviews` : 'reviews';
     let query = `
       SELECT r.id, r.created_on FROM ${reviewTableName} r
       JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id

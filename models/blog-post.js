@@ -177,7 +177,7 @@ async function _attachCreator(post) {
 
   try {
     const dal = BlogPost.dal;
-    const userTable = dal.tablePrefix ? `${dal.tablePrefix}users` : 'users';
+    const userTable = dal.schemaNamespace ? `${dal.schemaNamespace}users` : 'users';
     const query = `
       SELECT *
       FROM ${userTable}

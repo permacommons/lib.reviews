@@ -619,7 +619,7 @@ async function getReviewsByUser(user) {
  */
 async function getAverageStarRating() {
   try {
-    const reviewTableName = Thing.dal.tablePrefix ? `${Thing.dal.tablePrefix}reviews` : 'reviews';
+    const reviewTableName = Thing.dal.schemaNamespace ? `${Thing.dal.schemaNamespace}reviews` : 'reviews';
     const query = `
       SELECT AVG(star_rating) as avg_rating
       FROM ${reviewTableName}
@@ -645,7 +645,7 @@ async function getAverageStarRating() {
  */
 async function getReviewCount() {
   try {
-    const reviewTableName = Thing.dal.tablePrefix ? `${Thing.dal.tablePrefix}reviews` : 'reviews';
+    const reviewTableName = Thing.dal.schemaNamespace ? `${Thing.dal.schemaNamespace}reviews` : 'reviews';
     const query = `
       SELECT COUNT(*) as review_count
       FROM ${reviewTableName}
@@ -776,7 +776,7 @@ async function addFilesByIDsAndSave(files, userID) {
       return this;
     }
 
-    const junctionTable = Thing.dal.tablePrefix ? `${Thing.dal.tablePrefix}thing_files` : 'thing_files';
+    const junctionTable = Thing.dal.schemaNamespace ? `${Thing.dal.schemaNamespace}thing_files` : 'thing_files';
     const insertValues = [];
     const valueClauses = [];
     let paramIndex = 1;

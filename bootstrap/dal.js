@@ -236,21 +236,58 @@ async function shutdown() {
 }
 
 /**
+ * Validate a PostgreSQL schema namespace to prevent SQL injection.
+ * A schema namespace is a PostgreSQL schema name that will be used to qualify
+ * table names in queries (e.g., "test_schema." becomes "test_schema.users").
+ *
+ * This validation is more restrictive than PostgreSQL's actual identifier rules
+ * to provide defense-in-depth against SQL injection.
+ *
+ * @param {string} schemaNamespace - The schema namespace to validate (may or may not have trailing dot)
+ * @returns {string} The validated schema name (without trailing dot)
+ * @throws {Error} If schema namespace is invalid
+ */
+function validateSchemaNamespace(schemaNamespace) {
+    if (!schemaNamespace || typeof schemaNamespace !== 'string') {
+        throw new Error('Schema namespace must be a non-empty string');
+    }
+
+    // Strip trailing dot for validation
+    const schemaName = schemaNamespace.replace(/\.$/, '');
+
+    // PostgreSQL identifiers: alphanumeric, underscore, hyphen. Start with letter or underscore.
+    // More restrictive than PostgreSQL's actual rules for security.
+    if (!/^[a-z_][a-z0-9_-]*$/i.test(schemaName)) {
+        throw new Error(
+            `Invalid schema namespace: '${schemaNamespace}'. ` +
+            `Must start with letter or underscore and contain only alphanumeric, underscore, or hyphen characters.`
+        );
+    }
+
+    // PostgreSQL identifier length limit
+    if (schemaName.length > 63) {
+        throw new Error(`Schema namespace too long: ${schemaNamespace} (max 63 characters)`);
+    }
+
+    return schemaName;
+}
+
+/**
  * Create an isolated DAL harness for tests.
  * @param {Object} options - Harness configuration.
  * @param {Object} [options.configOverride] - Overrides merged into the postgres config.
  * @param {string} [options.schemaName] - Optional schema name to create and scope the harness to.
- * @param {string} [options.tablePrefix] - Optional table prefix (defaults to `${schemaName}.`).
+ * @param {string} [options.schemaNamespace] - Optional schema namespace (defaults to `${schemaName}.`).
  * @param {boolean} [options.autoMigrate=true] - Whether to run migrations automatically.
  * @param {boolean} [options.registerModels=true] - Whether to register default models.
  * @param {Array} [options.modelInitializers] - Custom model initializers to run.
- * @returns {Promise<{dal: DataAccessLayer, registeredModels: Map, schemaName: string|null, tablePrefix: string|null, cleanup: Function}>}
+ * @returns {Promise<{dal: DataAccessLayer, registeredModels: Map, schemaName: string|null, schemaNamespace: string|null, cleanup: Function}>}
  */
 async function createTestHarness(options = {}) {
     const {
         configOverride = {},
         schemaName = null,
-        tablePrefix = null,
+        schemaNamespace = null,
         autoMigrate = true,
         registerModels: shouldRegisterModels = true,
         modelInitializers = DEFAULT_MODEL_INITIALIZERS
@@ -272,23 +309,30 @@ async function createTestHarness(options = {}) {
     await testDAL.connect();
 
     let activeSchema = schemaName || null;
-    let activePrefix = tablePrefix || null;
+    let activeNamespace = schemaNamespace || null;
 
     if (activeSchema) {
-        await testDAL.query(`CREATE SCHEMA IF NOT EXISTS ${activeSchema}`);
-        await testDAL.query(`SET search_path TO ${activeSchema}, public`);
+        // Validate schema namespace to prevent SQL injection
+        const safeSchema = validateSchemaNamespace(activeSchema);
+
+        await testDAL.query(`CREATE SCHEMA IF NOT EXISTS ${safeSchema}`);
+        await testDAL.query(`SET search_path TO ${safeSchema}, public`);
 
         if (testDAL.pool?.on) {
             testDAL.pool.on('connect', client => {
-                client.query(`SET search_path TO ${activeSchema}, public`).catch(() => {});
+                client.query(`SET search_path TO ${safeSchema}, public`).catch(() => {});
             });
         }
 
-        activePrefix = activePrefix || `${activeSchema}.`;
+        activeNamespace = activeNamespace || `${safeSchema}.`;
     }
 
-    if (activePrefix) {
-        testDAL.tablePrefix = activePrefix;
+    if (activeNamespace) {
+        // Set schema namespace for test isolation.
+        // This is prepended to all table names (e.g., "test_schema.users")
+        // to allow parallel test execution without table name conflicts.
+        // Only used in test harnesses, never set in production.
+        testDAL.schemaNamespace = activeNamespace;
     }
 
     if (autoMigrate) {
@@ -315,7 +359,9 @@ async function createTestHarness(options = {}) {
     async function cleanup({ dropSchema = true } = {}) {
         if (activeSchema && dropSchema) {
             try {
-                await testDAL.query(`DROP SCHEMA IF EXISTS ${activeSchema} CASCADE`);
+                // Re-validate for safety (activeSchema was already validated, but be defensive)
+                const safeSchema = validateSchemaNamespace(activeSchema);
+                await testDAL.query(`DROP SCHEMA IF EXISTS ${safeSchema} CASCADE`);
             } catch (error) {
                 debug.error(`Failed to drop schema ${activeSchema}:`, error);
             }
@@ -334,7 +380,7 @@ async function createTestHarness(options = {}) {
     return {
         dal: testDAL,
         schemaName: activeSchema,
-        tablePrefix: activePrefix,
+        schemaNamespace: activeNamespace,
         registeredModels: registered,
         cleanup
     };

@@ -24,25 +24,11 @@ const slugs = {
       slugForeignKey: 'teamID',
       getDocumentModel: () => Team,
       loadSlug: async (slugName, DocumentModel) => {
-        const dal = DocumentModel && DocumentModel.dal;
-        if (!dal) {
-          return null;
-        }
         const TeamSlugModel = TeamSlug;
-        if (!TeamSlugModel) {
+        if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function') {
           return null;
         }
-        const tableName = dal.tablePrefix ? `${dal.tablePrefix}team_slugs` : 'team_slugs';
-        const result = await dal.query(`SELECT * FROM ${tableName} WHERE name = $1`, [slugName]);
-        if (!result.rows.length) {
-          return null;
-        }
-
-        const row = result.rows[0];
-        if (TeamSlugModel && typeof TeamSlugModel._createInstance === 'function') {
-          return TeamSlugModel._createInstance(row);
-        }
-        return new TeamSlugModel(row);
+        return await TeamSlugModel.getByName(slugName);
       },
       slugLabel: 'team'
     });
@@ -57,25 +43,11 @@ const slugs = {
       slugForeignKey: 'thingID',
       getDocumentModel: () => Thing,
       loadSlug: async (slugName, DocumentModel) => {
-        const dal = DocumentModel && DocumentModel.dal;
-        if (!dal) {
-          return null;
-        }
         const ThingSlugModel = ThingSlug;
-        if (!ThingSlugModel) {
+        if (!ThingSlugModel || typeof ThingSlugModel.getByName !== 'function') {
           return null;
         }
-        const tableName = dal.tablePrefix ? `${dal.tablePrefix}thing_slugs` : 'thing_slugs';
-        const result = await dal.query(`SELECT * FROM ${tableName} WHERE name = $1`, [slugName]);
-        if (!result.rows.length) {
-          return null;
-        }
-
-        const row = result.rows[0];
-        if (ThingSlugModel && typeof ThingSlugModel._createInstance === 'function') {
-          return ThingSlugModel._createInstance(row);
-        }
-        return new ThingSlugModel(row);
+        return await ThingSlugModel.getByName(slugName);
       },
       slugLabel: 'thing'
     });

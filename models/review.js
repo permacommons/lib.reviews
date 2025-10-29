@@ -576,10 +576,10 @@ async function getFeed({
         if (reviewIds.length > 0) {
           debug.db(`Batch fetching teams for ${reviewIds.length} reviews in feed...`);
 
-          const reviewTeamTableName = Review.dal.tablePrefix ? 
-            `${Review.dal.tablePrefix}review_teams` : 'review_teams';
-          const teamTableName = Review.dal.tablePrefix ? 
-            `${Review.dal.tablePrefix}teams` : 'teams';
+          const reviewTeamTableName = Review.dal.schemaNamespace ? 
+            `${Review.dal.schemaNamespace}review_teams` : 'review_teams';
+          const teamTableName = Review.dal.schemaNamespace ? 
+            `${Review.dal.schemaNamespace}teams` : 'teams';
 
           // Get all review-team associations
           const placeholders = reviewIds.map((_, index) => `$${index + 1}`).join(', ');
@@ -684,10 +684,10 @@ async function deleteAllRevisionsWithThing(user) {
  */
 async function _getReviewTeams(reviewId) {
   try {
-    const reviewTeamTableName = Review.dal.tablePrefix ? 
-      `${Review.dal.tablePrefix}review_teams` : 'review_teams';
-    const teamTableName = Review.dal.tablePrefix ? 
-      `${Review.dal.tablePrefix}teams` : 'teams';
+    const reviewTeamTableName = Review.dal.schemaNamespace ? 
+      `${Review.dal.schemaNamespace}review_teams` : 'review_teams';
+    const teamTableName = Review.dal.schemaNamespace ? 
+      `${Review.dal.schemaNamespace}teams` : 'teams';
 
     const query = `
       SELECT t.* FROM ${teamTableName} t

@@ -26,7 +26,7 @@ function initializeModel({
   if (!dal) throw new Error('Model initialization requires a DAL instance');
   if (!baseTable) throw new Error('Model initialization requires a base table name');
 
-  const tableName = dal.tablePrefix ? `${dal.tablePrefix}${baseTable}` : baseTable;
+  const tableName = dal.schemaNamespace ? `${dal.schemaNamespace}${baseTable}` : baseTable;
   const schemaDefinition = schema ? { ...schema } : {};
   if (withRevision) Object.assign(schemaDefinition, revision.getSchema());
   const { model, isNew } = getOrCreateModel(dal, tableName, schemaDefinition, { registryKey: registryKey || baseTable });
