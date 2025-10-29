@@ -9,6 +9,19 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     strategy:
       matrix:
         node-version: [22.x, 20.x]
@@ -23,17 +36,26 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - name: Add RethinkDB apt repository
+      - name: Install PostgreSQL client tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl gnupg
-          curl -fsSL https://download.rethinkdb.com/repository/raw/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/rethinkdb-archive-keyring.gpg
-          source /etc/lsb-release
-          echo "deb [signed-by=/usr/share/keyrings/rethinkdb-archive-keyring.gpg] https://download.rethinkdb.com/repository/ubuntu-${DISTRIB_CODENAME} ${DISTRIB_CODENAME} main" | sudo tee /etc/apt/sources.list.d/rethinkdb.list
-          sudo apt-get update
+          sudo apt-get install -y postgresql-client
 
-      - name: Install RethinkDB
-        run: sudo apt-get install -y rethinkdb
+      - name: Prepare PostgreSQL databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          until pg_isready -h localhost -U postgres; do sleep 1; done
+
+          psql -h localhost -U postgres -c "DROP ROLE IF EXISTS libreviews_user;"
+          psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS libreviews WITH (FORCE);"
+          psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS libreviews_test WITH (FORCE);"
+
+          psql -h localhost -U postgres -c "CREATE ROLE libreviews_user LOGIN PASSWORD 'libreviews_password';"
+          psql -h localhost -U postgres -c "CREATE DATABASE libreviews OWNER libreviews_user;"
+          psql -h localhost -U postgres -c "CREATE DATABASE libreviews_test OWNER libreviews_user;"
+
+          psql -h localhost -U postgres -f dal/setup-db-grants.sql
 
       - name: Install dependencies
         run: npm ci
