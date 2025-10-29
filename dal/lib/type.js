@@ -56,6 +56,17 @@ class Type {
   }
 
   /**
+   * Mark field as sensitive (e.g., passwords, tokens)
+   * Sensitive fields are excluded from joins and other operations by default
+   * @param {boolean} isSensitive - Whether field contains sensitive data
+   * @returns {Type} This instance for chaining
+   */
+  sensitive(isSensitive = true) {
+    this.isSensitive = isSensitive;
+    return this;
+  }
+
+  /**
    * Validate a value against this type
    * @param {*} value - Value to validate
    * @param {string} fieldName - Field name for error messages

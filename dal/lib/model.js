@@ -195,6 +195,30 @@ class Model {
   }
 
   /**
+   * Get list of non-sensitive database column names for safe querying
+   * Excludes fields marked as sensitive and virtual fields
+   * @returns {string[]} Array of database column names
+   * @static
+   */
+  static getSafeColumnNames() {
+    const schema = this.schema;
+    if (!schema) return [];
+
+    const safeColumns = [];
+    for (const [fieldName, fieldDef] of Object.entries(schema)) {
+      // Skip virtual fields and sensitive fields
+      if (fieldDef && fieldDef.isVirtual) continue;
+      if (fieldDef && fieldDef.isSensitive) continue;
+
+      // Get the database column name
+      const dbColumnName = this._getDbFieldName(fieldName);
+      safeColumns.push(dbColumnName);
+    }
+
+    return safeColumns;
+  }
+
+  /**
    * Create a new model class
    * @param {string} tableName - Database table name
    * @param {Object} schema - Model schema definition

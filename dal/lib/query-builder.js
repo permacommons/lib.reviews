@@ -1238,17 +1238,8 @@ class QueryBuilder {
       const mainData = {};
       const joinedData = {};
 
-      // Separate main data from joined data (including JSON columns)
+      // Separate main data from joined data
       for (const [key, value] of Object.entries(row)) {
-        // Check if this is a JSON column from a join
-        const jsonMatch = key.match(/^(.+)_json$/);
-        if (jsonMatch && this._simpleJoins && this._simpleJoins[jsonMatch[1]]) {
-          // This is a JSON column from a joined table
-          joinedData[jsonMatch[1]] = value;
-          continue;
-        }
-
-        // Check for traditional prefixed columns (backwards compatibility)
         let isJoinedField = false;
         for (const relationName of Object.keys(this._simpleJoins)) {
           if (key.startsWith(`${relationName}_`)) {
@@ -1581,14 +1572,19 @@ class QueryBuilder {
     if (this._joins.length > 0 && this._select.includes('*')) {
       selectClause = `${this.tableName}.*`;
 
-      // Add columns from simple joins as JSON objects
+      // Add columns from simple joins with prefixed aliases
       if (this._simpleJoins) {
         const joinSelects = [];
         for (const [relationName, joinInfo] of Object.entries(this._simpleJoins)) {
           if (joinInfo && joinInfo.table) {
-            // Select the entire joined row as a JSON object
-            // This avoids column name conflicts and makes processing easier
-            joinSelects.push(`row_to_json(${joinInfo.table}.*) AS "${relationName}_json"`);
+            // Get the related model to get safe (non-sensitive) column names
+            const RelatedModel = this._getRelatedModel(relationName, joinInfo);
+            const safeColumns = RelatedModel.getSafeColumnNames();
+
+            // Select each safe column with a prefixed alias (e.g., creator_id, creator_display_name)
+            for (const col of safeColumns) {
+              joinSelects.push(`${joinInfo.table}.${col} AS "${relationName}_${col}"`);
+            }
           }
         }
         if (joinSelects.length > 0) {

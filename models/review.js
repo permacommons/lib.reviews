@@ -158,42 +158,16 @@ async function initializeReviewModel(dal = null) {
  * @returns {Review} the review and associated data
  */
 async function getWithData(id) {
-  // Get the review with socialImage relation
+  // Get the review with socialImage and creator relations via joins
   const joinOptions = {
-    socialImage: true
+    socialImage: true,
+    creator: true
   };
 
   const review = await Review.getNotStaleOrDeleted(id, joinOptions);
 
   if (!review) {
     return null;
-  }
-
-  // Manually join creator data
-  if (review.createdBy) {
-    try {
-      const userQuery = `
-        SELECT id, display_name, canonical_name, email, registration_date, 
-               is_trusted, is_site_moderator, is_super_user
-        FROM users 
-        WHERE id = $1
-      `;
-
-      const userResult = await Review.dal.query(userQuery, [review.createdBy]);
-
-      if (userResult.rows.length > 0) {
-        const creator = userResult.rows[0];
-        // Map snake_case to camelCase for template compatibility
-        const safeCreator = {
-          ...creator,
-          displayName: creator.display_name,
-          urlName: creator.display_name ? encodeURIComponent(creator.display_name.replace(/ /g, '_')) : undefined
-        };
-        review.creator = safeCreator;
-      }
-    } catch (error) {
-      debug.db('Failed to fetch creator for review:', error.message);
-    }
   }
 
   // Manually join thing data

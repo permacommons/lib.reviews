@@ -54,7 +54,7 @@ async function initializeUserModel(dal = null) {
       canonicalName: type.string()
         .max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
       email: type.string().max(userOptions.maxChars).email(),
-      password: type.string(),
+      password: type.string().sensitive(),
       userMetaID: type.string().uuid(4),
       inviteLinkCount: type.number().integer().default(0),
       registrationDate: type.date().default(() => new Date()),
