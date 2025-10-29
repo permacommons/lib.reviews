@@ -13,6 +13,75 @@ const revision = require('./revision');
 const debug = require('../../util/debug');
 
 /**
+ * Deep equality comparison for detecting actual changes in validated values
+ * @param {*} a - First value
+ * @param {*} b - Second value
+ * @returns {boolean} True if values are deeply equal
+ * @private
+ */
+function deepEqual(a, b) {
+  // Strict equality check (handles primitives, null, undefined, same reference)
+  if (a === b) return true;
+
+  // Different types or one is null/undefined
+  if (a == null || b == null || typeof a !== typeof b) return false;
+
+  // Date comparison
+  if (a instanceof Date && b instanceof Date) {
+    return a.getTime() === b.getTime();
+  }
+
+  // Array comparison
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  // Object comparison
+  if (typeof a === 'object' && typeof b === 'object') {
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+
+    if (keysA.length !== keysB.length) return false;
+
+    for (const key of keysA) {
+      if (!keysB.includes(key) || !deepEqual(a[key], b[key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Other types (functions, symbols, etc.) - use strict equality
+  return false;
+}
+
+/**
+ * Deep clone for tracking original values of JSONB fields
+ * @param {*} value - Value to clone
+ * @returns {*} Cloned value
+ * @private
+ */
+function deepClone(value) {
+  if (value === null || value === undefined) return value;
+  if (value instanceof Date) return new Date(value.getTime());
+  if (Array.isArray(value)) return value.map(item => deepClone(item));
+  if (typeof value === 'object') {
+    const cloned = {};
+    for (const key in value) {
+      if (value.hasOwnProperty(key)) {
+        cloned[key] = deepClone(value[key]);
+      }
+    }
+    return cloned;
+  }
+  return value;
+}
+
+/**
  * Base Model class
  */
 class Model {
@@ -21,6 +90,7 @@ class Model {
     this._virtualFields = {};
     this._changed = new Set();
     this._isNew = true;
+    this._originalData = {}; // Track original values for detecting in-place JSONB modifications
 
     // Set up property accessors before applying data so setters map correctly
     this._setupPropertyAccessors();
@@ -452,11 +522,13 @@ class Model {
   static _createInstance(data) {
     // If data is already a Model instance, extract the raw database data
     const rawData = data && data._data && typeof data._data === 'object' ? data._data : data;
-    
+
     const instance = new this(rawData);
     instance._isNew = false;
     instance._changed.clear();
     instance._setupPropertyAccessors();
+    instance._trackOriginalValues();
+
     return instance;
   }
 
@@ -483,18 +555,24 @@ class Model {
    */
   async save(options = {}) {
     try {
-      // Validate data
+      // Detect in-place modifications to JSONB fields before validation
+      this._detectInPlaceChanges();
+
+      // Validate data (may also mark fields as changed if validation transforms them)
       this._validate();
-      
+
       if (this._isNew) {
         await this._insert(options);
       } else {
         await this._update(options);
       }
-      
+
       this._isNew = false;
       this._changed.clear();
-      
+
+      // Refresh original values after successful save to track future in-place modifications
+      this._trackOriginalValues();
+
       // Regenerate virtual fields after save in case they depend on saved data
       this.generateVirtualValues();
       
@@ -691,13 +769,13 @@ class Model {
    */
   _setupPropertyAccessors() {
     const schema = this.constructor.schema;
-    
+
     for (const fieldName of Object.keys(schema)) {
       // Skip if property already exists
       if (this.hasOwnProperty(fieldName)) {
         continue;
       }
-      
+
       // Create getter/setter for each schema field
       Object.defineProperty(this, fieldName, {
         get() {
@@ -713,7 +791,61 @@ class Model {
   }
 
   /**
+   * Store deep copies of JSONB fields to detect in-place modifications
+   * This allows detection of changes to nested properties without calling setters
+   * @private
+   */
+  _trackOriginalValues() {
+    const schema = this.constructor.schema || {};
+    for (const [fieldName, fieldDef] of Object.entries(schema)) {
+      if (fieldDef && !fieldDef.isVirtual) {
+        const dbFieldName = this.constructor._getDbFieldName(fieldName);
+        const value = this._data[dbFieldName];
+
+        // Deep clone objects and arrays to track original state
+        if (value !== null && value !== undefined && typeof value === 'object') {
+          this._originalData[dbFieldName] = deepClone(value);
+        } else {
+          // Clear tracking for non-object values (primitives don't need tracking)
+          delete this._originalData[dbFieldName];
+        }
+      }
+    }
+  }
+
+  /**
+   * Detect in-place modifications to JSONB fields
+   * For objects/arrays loaded from database, detect if they were mutated without calling setters
+   * @private
+   */
+  _detectInPlaceChanges() {
+    // Only check persisted records (new records have no "original" state to compare)
+    if (this._isNew) return;
+
+    const schema = this.constructor.schema;
+
+    for (const [fieldName, fieldDef] of Object.entries(schema)) {
+      if (fieldDef && !fieldDef.isVirtual && !fieldName.startsWith('_')) {
+        const dbFieldName = this.constructor._getDbFieldName(fieldName);
+        const originalValue = this._originalData[dbFieldName];
+
+        // Only check fields we're tracking (objects/arrays from DB load)
+        if (originalValue !== undefined) {
+          const currentValue = this.getValue(fieldName);
+
+          // Compare current state to original snapshot
+          if (!deepEqual(currentValue, originalValue)) {
+            // Mark as changed by calling setValue with current value
+            this.setValue(fieldName, currentValue);
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Validate model data against schema
+   * Validates types, runs custom validators, and may transform values
    * @private
    */
   _validate() {
@@ -730,7 +862,11 @@ class Model {
           // Regular fields use the camelCase property accessor
           const value = this.getValue(fieldName);
           const validatedValue = fieldDef.validate(value, fieldName);
-          this.setValue(fieldName, validatedValue);
+
+          // If validation transformed the value, update it and mark as changed
+          if (!deepEqual(validatedValue, value)) {
+            this.setValue(fieldName, validatedValue);
+          }
         }
       }
     }

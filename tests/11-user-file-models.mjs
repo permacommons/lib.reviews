@@ -187,6 +187,79 @@ test.serial('User model: password preserved during bio creation flow', async t =
   t.is(userWithMeta.meta.bio.text.en, 'My new bio', 'Bio content is correct');
 });
 
+test.serial('User model: in-place JSONB modification is detected and saved', async t => {
+  const name = `JsonbEdit-${randomUUID()}`;
+  const email = `${name.toLowerCase()}@example.com`;
+  const password = 'secret123';
+
+  // Create user with bio
+  const user = await User.create({ name, password, email });
+  const bio = {
+    bio: {
+      text: { en: 'Original bio text' },
+      html: { en: '<p>Original bio text</p>' }
+    },
+    originalLanguage: 'en'
+  };
+  await User.createBio(user, bio);
+
+  // Load user with metadata
+  const userWithMeta = await User.findByURLName(name, { withData: true });
+  t.is(userWithMeta.meta.bio.text.en, 'Original bio text', 'Original bio loaded');
+
+  // Modify bio in-place (not reassigning the whole object)
+  userWithMeta.meta.bio.text.en = 'Updated bio text';
+  userWithMeta.meta.bio.html.en = '<p>Updated bio text</p>';
+  userWithMeta.meta.bio.text.es = 'Texto actualizado';
+  userWithMeta.meta.bio.html.es = '<p>Texto actualizado</p>';
+
+  // Save the changes
+  await userWithMeta.meta.save();
+
+  // Reload and verify changes persisted
+  const reloadedUser = await User.findByURLName(name, { withData: true });
+  t.is(reloadedUser.meta.bio.text.en, 'Updated bio text', 'English bio update persisted');
+  t.is(reloadedUser.meta.bio.html.en, '<p>Updated bio text</p>', 'English HTML update persisted');
+  t.is(reloadedUser.meta.bio.text.es, 'Texto actualizado', 'Spanish bio added');
+  t.is(reloadedUser.meta.bio.html.es, '<p>Texto actualizado</p>', 'Spanish HTML added');
+});
+
+test.serial('User model: unchanged JSONB fields are not marked dirty during save', async t => {
+  const name = `UnchangedJsonb-${randomUUID()}`;
+  const email = `${name.toLowerCase()}@example.com`;
+  const password = 'secret123';
+
+  // Create user with bio
+  const user = await User.create({ name, password, email });
+  const bio = {
+    bio: {
+      text: { en: 'Bio text', es: 'Texto biográfico' },
+      html: { en: '<p>Bio text</p>', es: '<p>Texto biográfico</p>' }
+    },
+    originalLanguage: 'en'
+  };
+  await User.createBio(user, bio);
+
+  // Load user with metadata
+  const userWithMeta = await User.findByURLName(name, { withData: true });
+
+  // Simulate save prep steps without any modifications
+  // The _changed set should be empty since nothing was modified
+  userWithMeta.meta._detectInPlaceChanges();
+  userWithMeta.meta._validate();
+  t.is(userWithMeta.meta._changed.size, 0, 'No fields marked as changed when nothing modified');
+
+  // Now modify only originalLanguage (not the bio JSONB field)
+  userWithMeta.meta.originalLanguage = 'es';
+  userWithMeta.meta._detectInPlaceChanges();
+  userWithMeta.meta._validate();
+
+  // Only originalLanguage should be in _changed, not bio
+  t.true(userWithMeta.meta._changed.has('original_language'), 'Modified field is in _changed');
+  t.false(userWithMeta.meta._changed.has('bio'), 'Unchanged JSONB field not in _changed');
+  t.is(userWithMeta.meta._changed.size, 1, 'Only one field marked as changed');
+});
+
 test.serial('User model: password can be updated with updateSensitive option', async t => {
   const name = `PasswordUpdate-${randomUUID()}`;
   const email = `${name.toLowerCase()}@example.com`;
