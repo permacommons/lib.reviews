@@ -6,6 +6,7 @@
     "build": "vite build",
     "start": "NODE_ENV=production node bin/www.js",
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.js",
+    "start-dev-yad": "bash bin/dev-with-tray.sh",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.mjs",
     "snyk-protect": "snyk-protect",
     "prepare": "npm run snyk-protect",

@@ -39,6 +39,23 @@ See `POSTGRES-SETUP.md` for instructions on setting up the PostgreSQL database.
 
 You can customize your development configuration by copying `config/default.json5` to `config/development.json5`. Finally, run `npm run start-dev` and visit `localhost` at the configured port number. The npm scripts invoke `node bin/www.js` directly; in production we recommend adapting the sample systemd unit in `deployment/libreviews.service.sample`.
 
+## Alternative: Dev server with system tray icon
+
+If you're using a GNOME/GTK-based desktop environment (or any Linux system with a system tray), you can run the dev server with a handy tray icon:
+
+```bash
+npm run start-dev-yad
+```
+
+This requires `yad` (Yet Another Dialog), which is available in most Linux distribution repositories. The tray icon allows you to:
+- Click to toggle the server on/off
+- See server state at a glance (stop icon when running, play icon when stopped)
+- Keep the dev server accessible without cluttering your workspace
+
+Note: This is a GNOME-centric feature and may not work well on other desktop environments.
+
+# Licensing and conduct
+
 Any pull requests must be under the [CC-0 License](./LICENSE). This project has adopted a [code of conduct](./CODE_OF_CONDUCT.md) to make sure all contributors feel welcome.
 
 # Running tests
