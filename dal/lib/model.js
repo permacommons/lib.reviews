@@ -746,13 +746,13 @@ class Model {
     const fields = Object.keys(this._data).filter(key => this._data[key] !== undefined);
     const values = fields.map(key => this._data[key]);
     const placeholders = fields.map((_, index) => `$${index + 1}`);
-    
+
     const query = `
       INSERT INTO ${tableName} (${fields.join(', ')})
       VALUES (${placeholders.join(', ')})
       RETURNING *
     `;
-    
+
     const result = await this.constructor.dal.query(query, values);
     Object.assign(this._data, result.rows[0]);
   }  /*

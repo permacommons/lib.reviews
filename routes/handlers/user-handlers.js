@@ -31,7 +31,7 @@ let userHandlers = {
         return res.redirect(`/user/${user.urlName}/edit/bio`);
       }
 
-      if (user.meta === undefined || user.meta.bio === undefined) {
+      if (user.meta === undefined || user.meta === null || user.meta.bio === undefined) {
         let bioObj = {
           bio: {
             text: {},

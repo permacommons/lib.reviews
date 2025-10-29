@@ -1274,12 +1274,17 @@ class QueryBuilder {
 
       // Attach joined data
       for (const [relationName, data] of Object.entries(joinedData)) {
-        if (data && (typeof data === 'object' || Object.keys(data).some(key => data[key] !== null))) {
-          // Create model instance for joined data if possible
+        // When a LEFT JOIN finds no matching row, all joined columns are NULL
+        // Only create a model instance if at least one field has a non-null value
+        const hasMatchingRow = data && typeof data === 'object' && Object.keys(data).some(key => data[key] !== null);
+
+        if (hasMatchingRow) {
+          // Create model instance for joined data
           const joinInfo = this._simpleJoins ? this._simpleJoins[relationName] : null;
           const RelatedModel = this._getRelatedModel(relationName, joinInfo);
           instance[relationName] = RelatedModel ? RelatedModel._createInstance(data) : data;
         } else {
+          // No matching row found in join
           instance[relationName] = null;
         }
       }
