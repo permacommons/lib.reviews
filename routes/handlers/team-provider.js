@@ -118,7 +118,7 @@ class TeamProvider extends AbstractBREADProvider {
     });
   }
 
-  manageRequests_POST(team) {
+  async manageRequests_POST(team) {
 
     // We use a safe loop function in this method - quiet, jshint:
 
@@ -130,6 +130,7 @@ class TeamProvider extends AbstractBREADProvider {
     // We keep track of whether we've done any work, so we can show an
     // approrpriate message, and know whether we have to run saveAll()
     let workToBeDone = false;
+    const savePromises = [];
 
     debug.db('POST body:', this.req.body);
     debug.db('Join requests:', team.joinRequests.map(r => ({ id: r.id, userID: r.userID })));
@@ -165,8 +166,7 @@ class TeamProvider extends AbstractBREADProvider {
                 let reason = this.req.body[`reject-reason-${id}`];
                 if (reason)
                   requestObj.rejectionMessage = escapeHTML(reason);
-                // Save the join request immediately
-                requestObj.save().catch(this.next);
+                savePromises.push(requestObj.save());
                 workToBeDone = true;
                 break;
               }
@@ -174,13 +174,13 @@ class TeamProvider extends AbstractBREADProvider {
               {
                 requestObj.status = 'approved';
                 // Save the join request status, then add user to team
-                requestObj.save()
+                const savePromise = requestObj.save()
                   .then(() => {
                     team.members.push(requestObj.user);
                     // Remove from the array after accepting
                     team.joinRequests.splice(requestIndex, 1);
-                  })
-                  .catch(this.next);
+                  });
+                savePromises.push(savePromise);
                 workToBeDone = true;
                 break;
               }
@@ -193,13 +193,15 @@ class TeamProvider extends AbstractBREADProvider {
 
     }
     if (workToBeDone) {
-      team
-        .saveAll()
-        .then(() => {
-          this.req.flash('pageMessages', this.req.__('requests have been processed'));
-          this.res.redirect(`/team/${team.urlID}/manage-requests`);
-        })
-        .catch(this.next);
+      try {
+        // Wait for all request saves to complete before saving team
+        await Promise.all(savePromises);
+        await team.saveAll();
+        this.req.flash('pageMessages', this.req.__('requests have been processed'));
+        this.res.redirect(`/team/${team.urlID}/manage-requests`);
+      } catch (error) {
+        this.next(error);
+      }
     } else {
       this.req.flash('pageErrors', this.req.__('no requests to process'));
       this.res.redirect(`/team/${team.urlID}/manage-requests`);

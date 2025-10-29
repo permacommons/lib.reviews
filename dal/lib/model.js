@@ -718,7 +718,7 @@ class Model {
    */
   _validate() {
     const schema = this.constructor.schema;
-    
+
     for (const [fieldName, fieldDef] of Object.entries(schema)) {
       if (fieldDef && !fieldDef.isVirtual) {
         // Revision fields (starting with _) are internal database fields
@@ -755,34 +755,55 @@ class Model {
 
     const result = await this.constructor.dal.query(query, values);
     Object.assign(this._data, result.rows[0]);
-  }  /*
-*
+  }  /**
    * Update existing record
    * @param {Object} options - Update options
+   * @param {string[]} options.updateSensitive - Array of sensitive field names to include in update
    * @private
    */
   async _update(options) {
     if (this._changed.size === 0) {
       return; // No changes to save
     }
-    
+
     const tableName = this.constructor.tableName;
-    const changedFields = Array.from(this._changed);
+    const allowedSensitive = new Set(options.updateSensitive || []);
+    const sensitiveFields = new Set(this.constructor.getSensitiveFieldNames());
+
+    // Build reverse map: db field name -> schema field name
+    const dbToSchemaMap = new Map();
+    for (const [schemaName, dbName] of this.constructor._fieldMappings) {
+      dbToSchemaMap.set(dbName, schemaName);
+    }
+
+    const changedFields = Array.from(this._changed).filter(dbFieldName => {
+      const schemaFieldName = dbToSchemaMap.get(dbFieldName) || dbFieldName;
+      if (sensitiveFields.has(schemaFieldName)) {
+        return allowedSensitive.has(schemaFieldName);
+      }
+
+      return true;
+    });
+
+    if (changedFields.length === 0) {
+      return; // No non-sensitive changes to save
+    }
+
     const values = changedFields.map(key => this._data[key]);
     const setClause = changedFields.map((key, index) => `${key} = $${index + 1}`);
-    
+
     const query = `
       UPDATE ${tableName}
       SET ${setClause.join(', ')}
       WHERE id = $${values.length + 1}
       RETURNING *
     `;
-    
+
     const result = await this.constructor.dal.query(query, [...values, this.id]);
     if (result.rows.length === 0) {
       throw new DocumentNotFound(`${tableName} with id ${this.id} not found`);
     }
-    
+
     Object.assign(this._data, result.rows[0]);
   }
 

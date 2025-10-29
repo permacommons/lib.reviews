@@ -287,6 +287,7 @@ async function _getTeamMembers(teamId) {
     const result = await Team.dal.query(query, [teamId]);
     return result.rows.map(row => {
       delete row.password;
+      delete row.email;
       return User._createInstance(row);
     });
   } catch (error) {
@@ -316,6 +317,7 @@ async function _getTeamModerators(teamId) {
     const result = await Team.dal.query(query, [teamId]);
     return result.rows.map(row => {
       delete row.password;
+      delete row.email;
       return User._createInstance(row);
     });
   } catch (error) {
