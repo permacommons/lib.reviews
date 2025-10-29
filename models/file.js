@@ -155,52 +155,27 @@ function getValidLicenses() {
  * @async
  */
 async function getFileFeed({ offsetDate, limit = 10 } = {}) {
-  // Get the User model table name (might have prefix in tests)
-  const userTableName = File.dal.tablePrefix ? `${File.dal.tablePrefix}users` : 'users';
-  
-  let query = `
-    SELECT f.*, 
-           u.display_name as uploader_display_name,
-           u.url_name as uploader_url_name
-    FROM ${File.tableName} f
-    LEFT JOIN ${userTableName} u ON f.uploaded_by = u.id
-    WHERE f.completed = true 
-      AND (f._rev_deleted IS NULL OR f._rev_deleted = false)
-      AND (f._old_rev_of IS NULL)
-  `;
-  
-  const params = [];
-  let paramIndex = 1;
-  
+  let query = File.filter({ completed: true })
+    .filterNotStaleOrDeleted()
+    .getJoin({ uploader: true })
+    .orderBy('uploadedOn', 'DESC');
+
   if (offsetDate && offsetDate.valueOf) {
-    query += ` AND f.uploaded_on < $${paramIndex}`;
-    params.push(offsetDate);
-    paramIndex++;
+    query = query.filter(row => row('uploadedOn').lt(offsetDate));
   }
-  
-  query += ` ORDER BY f.uploaded_on DESC LIMIT $${paramIndex}`;
-  params.push(limit + 1); // Get one extra to check for more results
-  
-  const result = await File.dal.query(query, params);
-  const items = result.rows.slice(0, limit).map(row => {
-    const file = File._createInstance(row);
-    // Add uploader info if available
-    if (row.uploader_display_name) {
-      file.uploader = {
-        display_name: row.uploader_display_name,
-        url_name: row.uploader_url_name
-      };
-    }
-    return file;
-  });
-  
-  const feed = { items };
-  
+
+  // Get one extra to check for more results
+  const items = await query.limit(limit + 1).run();
+
+  const feed = {
+    items: items.slice(0, limit)
+  };
+
   // At least one additional document available, set offset for pagination
-  if (result.rows.length === limit + 1) {
-    feed.offsetDate = items[limit - 1].uploaded_on;
+  if (items.length === limit + 1) {
+    feed.offsetDate = feed.items[limit - 1].uploadedOn;
   }
-  
+
   return feed;
 }
 

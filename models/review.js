@@ -170,7 +170,9 @@ async function getWithData(id) {
     return null;
   }
 
-  // Manually join thing data
+  // Manually load thing data instead of using a join because Thing.getWithData()
+  // itself loads the thing's associated files (a one-to-many relation), which
+  // would require more complex join logic than the simple one-to-one join support
   if (review.thingID) {
     try {
       const thing = await Thing.getWithData(review.thingID);
