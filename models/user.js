@@ -299,13 +299,19 @@ async function findByURLName(name, {
 
   let query = User.filter({ canonicalName: User.canonicalize(name) });
 
+  // Add joins for requested data
+  const joinOptions = {};
+  if (withData) {
+    joinOptions.meta = true;
+  }
+
+  if (Object.keys(joinOptions).length > 0) {
+    query = query.getJoin(joinOptions);
+  }
+
   const users = await query.run();
   if (users.length) {
     const user = users[0];
-
-    if (withData) {
-      await attachUserMeta(user);
-    }
 
     if (withTeams) {
       await attachUserTeams(user);
@@ -358,31 +364,6 @@ async function createBio(user, bioObj) {
   user.meta = metaRev;
   await user.save();
   return user;
-}
-
-/**
- * Attach the associated UserMeta record to the given user instance
- *
- * @param {User} user - user instance to enrich with metadata
- * @returns {Promise<void>}
- * @async
- */
-async function attachUserMeta(user) {
-  if (!user || !user.userMetaID) {
-    user.meta = undefined;
-    return;
-  }
-
-  try {
-    const meta = await UserMeta.getNotStaleOrDeleted(user.userMetaID);
-    user.meta = meta;
-  } catch (error) {
-    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError') {
-      user.meta = undefined;
-    } else {
-      throw error;
-    }
-  }
 }
 
 /**
