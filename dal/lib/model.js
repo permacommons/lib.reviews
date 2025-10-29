@@ -195,27 +195,61 @@ class Model {
   }
 
   /**
+   * Get list of database column names filtered by criteria
+   * @param {Function} filterFn - Filter function for field entries
+   * @returns {string[]} Array of database column names
+   * @private
+   * @static
+   */
+  static _getFilteredColumnNames(filterFn) {
+    const schema = this.schema;
+    if (!schema) return [];
+
+    return Object.entries(schema)
+      .filter(filterFn)
+      .map(([fieldName]) => this._getDbFieldName(fieldName));
+  }
+
+  /**
    * Get list of non-sensitive database column names for safe querying
    * Excludes fields marked as sensitive and virtual fields
    * @returns {string[]} Array of database column names
    * @static
    */
   static getSafeColumnNames() {
+    return this._getFilteredColumnNames(
+      ([, fieldDef]) => fieldDef && !fieldDef.isVirtual && !fieldDef.isSensitive
+    );
+  }
+
+  /**
+   * Get list of database column names including specified sensitive fields
+   * @param {string[]} includeSensitive - Array of sensitive field names to include
+   * @returns {string[]} Array of database column names
+   * @static
+   */
+  static getColumnNames(includeSensitive = []) {
+    return this._getFilteredColumnNames(
+      ([fieldName, fieldDef]) => {
+        if (!fieldDef || fieldDef.isVirtual) return false;
+        if (fieldDef.isSensitive && !includeSensitive.includes(fieldName)) return false;
+        return true;
+      }
+    );
+  }
+
+  /**
+   * Get list of sensitive field names in the schema
+   * @returns {string[]} Array of field names (camelCase)
+   * @static
+   */
+  static getSensitiveFieldNames() {
     const schema = this.schema;
     if (!schema) return [];
 
-    const safeColumns = [];
-    for (const [fieldName, fieldDef] of Object.entries(schema)) {
-      // Skip virtual fields and sensitive fields
-      if (fieldDef && fieldDef.isVirtual) continue;
-      if (fieldDef && fieldDef.isSensitive) continue;
-
-      // Get the database column name
-      const dbColumnName = this._getDbFieldName(fieldName);
-      safeColumns.push(dbColumnName);
-    }
-
-    return safeColumns;
+    return Object.entries(schema)
+      .filter(([, fieldDef]) => fieldDef && fieldDef.isSensitive)
+      .map(([fieldName]) => fieldName);
   }
 
   /**
@@ -242,20 +276,30 @@ class Model {
 
    * Get a record by ID
    * @param {string} id - Record ID
-   * @param {Object} joinOptions - Join options for related data
+   * @param {Object} options - Query options
+   * @param {string[]} options.includeSensitive - Array of sensitive field names to include
+   * @param {Object} options (other properties) - Join options for related data (e.g., {teams: true})
    * @returns {Promise<Model>} Model instance
    */
-  static async get(id, joinOptions = {}) {
+  static async get(id, options = {}) {
     const query = new QueryBuilder(this, this.dal);
+
+    // Extract includeSensitive option, rest are join options
+    const { includeSensitive, ...joinOptions } = options;
+
+    if (includeSensitive && includeSensitive.length > 0) {
+      query.includeSensitive(includeSensitive);
+    }
+
     const result = await query
       .filter({ id })
       .getJoin(joinOptions)
       .first();
-    
+
     if (!result) {
       throw new DocumentNotFound(`${this.tableName} with id ${id} not found`);
     }
-    
+
     return this._createInstance(result);
   }
 

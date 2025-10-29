@@ -146,7 +146,7 @@ test.serial('We can edit a thing description', async t => {
 
   // Make user trusted so they can edit things
   const urlName = username.replace(/ /g, '_');
-  const user = await User.findByURLName(urlName, { withPassword: true });
+  const user = await User.findByURLName(urlName);
   user.isTrusted = true;
   await user.save();
 
@@ -225,7 +225,7 @@ test.serial('We can create a new team', async t => {
     .expect(/do not have permission/);
 
   const urlName = username.replace(/ /g, '_');
-  const user = await User.findByURLName(urlName, { withPassword: true });
+  const user = await User.findByURLName(urlName);
   t.true(isUUID.v4(user.id), 'Previously created user could be found through model');
 
   user.isTrusted = true;
@@ -274,7 +274,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
   });
 
   const modUrlName = modUsername.replace(/ /g, '_');
-  const moderator = await User.findByURLName(modUrlName, { withPassword: true });
+  const moderator = await User.findByURLName(modUrlName);
   moderator.isTrusted = true;
   await moderator.save();
 
@@ -309,7 +309,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
   });
 
   const userUrlName = username.replace(/ /g, '_');
-  const user = await User.findByURLName(userUrlName, { withPassword: true });
+  const user = await User.findByURLName(userUrlName);
 
   // User visits team page and requests to join
   const teamPageResponse = await userAgent.get(teamURL).expect(200);

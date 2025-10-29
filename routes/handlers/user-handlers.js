@@ -17,8 +17,7 @@ let userHandlers = {
     try {
 
       const user = await User.findByURLName(name, {
-        withData: true,
-        withPassword: true // Since user needs to be updated
+        withData: true
       });
 
       user.populateUserInfo(req.user);

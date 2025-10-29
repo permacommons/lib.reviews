@@ -11,7 +11,10 @@ const require = createRequire(import.meta.url);
 
 test('QueryBuilder can be instantiated', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -22,7 +25,10 @@ test('QueryBuilder can be instantiated', t => {
 
 test('QueryBuilder supports filter method', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -34,7 +40,10 @@ test('QueryBuilder supports filter method', t => {
 
 test('QueryBuilder supports orderBy method', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -47,7 +56,10 @@ test('QueryBuilder supports orderBy method', t => {
 
 test('QueryBuilder supports limit method', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -59,7 +71,10 @@ test('QueryBuilder supports limit method', t => {
 
 test('QueryBuilder supports offset method', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -71,7 +86,10 @@ test('QueryBuilder supports offset method', t => {
 
 test('QueryBuilder supports revision filtering', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -91,9 +109,12 @@ test('QueryBuilder supports revision filtering', t => {
 
 test('QueryBuilder supports revision tag filtering', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filterByRevisionTags(['test-tag']);
 
@@ -109,7 +130,10 @@ test('QueryBuilder supports revision tag filtering', t => {
 
 test('QueryBuilder supports between date ranges', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const startDate = new Date('2024-01-01');
@@ -127,7 +151,10 @@ test('QueryBuilder supports between date ranges', t => {
 
 test('QueryBuilder supports array contains operations', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -178,7 +205,10 @@ test('QueryBuilder supports complex joins with _apply', t => {
 
 test('QueryBuilder builds SELECT queries correctly', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -200,7 +230,10 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 
 test('QueryBuilder builds COUNT queries correctly', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -216,7 +249,10 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 
 test('QueryBuilder builds DELETE queries correctly', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -279,7 +315,10 @@ test('QueryBuilder handles join information lookup', t => {
 
 test('QueryBuilder handles table name prefixing', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: 'test_prefix_' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -296,7 +335,10 @@ test('QueryBuilder handles table name prefixing', t => {
 
 test('QueryBuilder method chaining works correctly', t => {
   const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'test_table' };
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name', 'created_on']
+  };
   const mockDAL = { tablePrefix: '' };
 
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -362,4 +404,180 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
 
   const defaultedInstance = new TestModel();
   t.is(defaultedInstance._data.camel_case_field, 'fallback');
+});
+
+test('Model.getSafeColumnNames excludes sensitive fields', t => {
+  const Model = require('../dal/lib/model');
+  const type = require('../dal/lib/type');
+
+  const mockDAL = {
+    tablePrefix: '',
+    query: async () => ({ rows: [] })
+  };
+
+  const schema = {
+    id: type.string(),
+    name: type.string(),
+    password: type.string().sensitive(),
+    email: type.string()
+  };
+
+  const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
+  TestModel._registerFieldMapping('name', 'name');
+  TestModel._registerFieldMapping('password', 'password');
+  TestModel._registerFieldMapping('email', 'email');
+
+  const safeColumns = TestModel.getSafeColumnNames();
+
+  t.true(safeColumns.includes('id'));
+  t.true(safeColumns.includes('name'));
+  t.true(safeColumns.includes('email'));
+  t.false(safeColumns.includes('password'), 'Password should be excluded from safe columns');
+});
+
+test('Model.getColumnNames includes sensitive fields when requested', t => {
+  const Model = require('../dal/lib/model');
+  const type = require('../dal/lib/type');
+
+  const mockDAL = {
+    tablePrefix: '',
+    query: async () => ({ rows: [] })
+  };
+
+  const schema = {
+    id: type.string(),
+    name: type.string(),
+    password: type.string().sensitive(),
+    token: type.string().sensitive(),
+    email: type.string()
+  };
+
+  const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
+  TestModel._registerFieldMapping('name', 'name');
+  TestModel._registerFieldMapping('password', 'password');
+  TestModel._registerFieldMapping('token', 'token');
+  TestModel._registerFieldMapping('email', 'email');
+
+  const allColumns = TestModel.getColumnNames(['password', 'token']);
+
+  t.true(allColumns.includes('id'));
+  t.true(allColumns.includes('name'));
+  t.true(allColumns.includes('email'));
+  t.true(allColumns.includes('password'), 'Password should be included when explicitly requested');
+  t.true(allColumns.includes('token'), 'Token should be included when explicitly requested');
+});
+
+test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
+  const Model = require('../dal/lib/model');
+  const type = require('../dal/lib/type');
+
+  const mockDAL = {
+    tablePrefix: '',
+    query: async () => ({ rows: [] })
+  };
+
+  const schema = {
+    id: type.string(),
+    name: type.string(),
+    password: type.string().sensitive(),
+    token: type.string().sensitive(),
+    apiKey: type.string().sensitive(),
+    email: type.string()
+  };
+
+  const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
+
+  const sensitiveFields = TestModel.getSensitiveFieldNames();
+
+  t.is(sensitiveFields.length, 3);
+  t.true(sensitiveFields.includes('password'));
+  t.true(sensitiveFields.includes('token'));
+  t.true(sensitiveFields.includes('apiKey'));
+  t.false(sensitiveFields.includes('id'));
+  t.false(sensitiveFields.includes('name'));
+  t.false(sensitiveFields.includes('email'));
+});
+
+test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
+  const QueryBuilder = require('../dal/lib/query-builder');
+  const Model = require('../dal/lib/model');
+  const type = require('../dal/lib/type');
+
+  const mockDAL = {
+    tablePrefix: '',
+    query: async () => ({ rows: [] })
+  };
+
+  const schema = {
+    id: type.string(),
+    name: type.string(),
+    password: type.string().sensitive(),
+    email: type.string()
+  };
+
+  const TestModel = Model.createModel('users', schema, {}, mockDAL);
+  TestModel._registerFieldMapping('name', 'name');
+  TestModel._registerFieldMapping('password', 'password');
+  TestModel._registerFieldMapping('email', 'email');
+
+  const qb = new QueryBuilder(TestModel, mockDAL);
+  qb.filter({ id: 'test-id' });
+
+  const { sql } = qb._buildSelectQuery();
+
+  t.true(sql.includes('users.id'));
+  t.true(sql.includes('users.name'));
+  t.true(sql.includes('users.email'));
+  t.false(sql.includes('users.password'), 'Password should not be in SELECT clause');
+});
+
+test('QueryBuilder includes sensitive fields when includeSensitive is called', t => {
+  const QueryBuilder = require('../dal/lib/query-builder');
+  const Model = require('../dal/lib/model');
+  const type = require('../dal/lib/type');
+
+  const mockDAL = {
+    tablePrefix: '',
+    query: async () => ({ rows: [] })
+  };
+
+  const schema = {
+    id: type.string(),
+    name: type.string(),
+    password: type.string().sensitive(),
+    email: type.string()
+  };
+
+  const TestModel = Model.createModel('users', schema, {}, mockDAL);
+  TestModel._registerFieldMapping('name', 'name');
+  TestModel._registerFieldMapping('password', 'password');
+  TestModel._registerFieldMapping('email', 'email');
+
+  const qb = new QueryBuilder(TestModel, mockDAL);
+  qb.filter({ id: 'test-id' });
+  qb.includeSensitive(['password']);
+
+  const { sql } = qb._buildSelectQuery();
+
+  t.true(sql.includes('users.id'));
+  t.true(sql.includes('users.name'));
+  t.true(sql.includes('users.email'));
+  t.true(sql.includes('users.password'), 'Password should be included when explicitly requested');
+});
+
+test('QueryBuilder.includeSensitive accepts string or array', t => {
+  const QueryBuilder = require('../dal/lib/query-builder');
+  const mockModel = {
+    tableName: 'test_table',
+    getColumnNames: () => ['id', 'name']
+  };
+  const mockDAL = { tablePrefix: '' };
+
+  const qb1 = new QueryBuilder(mockModel, mockDAL);
+  qb1.includeSensitive('password');
+  t.deepEqual(qb1._includeSensitive, ['password']);
+
+  const qb2 = new QueryBuilder(mockModel, mockDAL);
+  qb2.includeSensitive(['password', 'token']);
+  t.deepEqual(qb2._includeSensitive, ['password', 'token']);
 });

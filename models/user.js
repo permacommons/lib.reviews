@@ -53,7 +53,7 @@ async function initializeUserModel(dal = null) {
         .max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
       canonicalName: type.string()
         .max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
-      email: type.string().max(userOptions.maxChars).email(),
+      email: type.string().max(userOptions.maxChars).email().sensitive(),
       password: type.string().sensitive(),
       userMetaID: type.string().uuid(4),
       inviteLinkCount: type.number().integer().default(0),
@@ -165,7 +165,9 @@ async function initializeUserModel(dal = null) {
     // Pre-save validation
     User.prototype._originalValidate = User.prototype._validate;
     User.prototype._validate = function() {
-      if (!this.password || typeof this.password != 'string') {
+      // For new users, password is required
+      // For updates, password is only required if it's being set
+      if (this._isNew && (!this.password || typeof this.password != 'string')) {
         throw new Error('Password must be set to a non-empty string.');
       }
       return this._originalValidate();
@@ -269,11 +271,14 @@ async function ensureUnique(name) {
  * Obtain user and all associated teams
  *
  * @param {String} id - user ID to look up
+ * @param {Object} options - query options
+ * @param {String[]} options.includeSensitive - array of sensitive fields to include
  * @returns {Promise<User>} user with associated teams
  */
-async function getWithTeams(id) {
+async function getWithTeams(id, options = {}) {
   return User.get(id, {
-    teams: true
+    teams: true,
+    ...options
   });
 }
 
@@ -282,7 +287,7 @@ async function getWithTeams(id) {
  *
  * @param {String} name - decoded URL name
  * @param {Object} [options] - query criteria
- * @param {Boolean} options.withPassword=false - if false, password will be filtered from result
+ * @param {String[]} options.includeSensitive - array of sensitive fields to include (e.g., ['password'])
  * @param {Boolean} options.withData=false - if true, the associated user-metadata object will be joined
  * @param {Boolean} options.withTeams=false - if true, the associated teams will be joined
  * @returns {User} the matching user object
@@ -290,7 +295,7 @@ async function getWithTeams(id) {
  * @async
  */
 async function findByURLName(name, {
-  withPassword = false,
+  includeSensitive = [],
   withData = false,
   withTeams = false
 } = {}) {
@@ -298,6 +303,11 @@ async function findByURLName(name, {
   name = name.trim().replace(/_/g, ' ');
 
   let query = User.filter({ canonicalName: User.canonicalize(name) });
+
+  // Include sensitive fields if requested
+  if (includeSensitive.length > 0) {
+    query = query.includeSensitive(includeSensitive);
+  }
 
   // Add joins for requested data
   const joinOptions = {};
@@ -315,11 +325,6 @@ async function findByURLName(name, {
 
     if (withTeams) {
       await attachUserTeams(user);
-    }
-
-    if (!withPassword) {
-      // Remove password from result
-      delete user._data.password;
     }
 
     return user;

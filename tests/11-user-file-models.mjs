@@ -74,7 +74,7 @@ test.serial('User model: checkPassword validates bcrypt hash', async t => {
   const password = 'supersecret';
 
   const user = await User.create({ name, password, email });
-  const storedUser = await User.get(user.id);
+  const storedUser = await User.get(user.id, { includeSensitive: ['password'] });
 
   t.true(await storedUser.checkPassword(password), 'Correct password matches hash');
   t.false(await storedUser.checkPassword('incorrect'), 'Wrong password fails');

@@ -110,7 +110,7 @@ test.serial('GET /api/thing?url=<url> returns thing data with review metrics', a
   });
 
   const urlName = username.replace(/ /g, '_');
-  const user = await User.findByURLName(urlName, { withPassword: true });
+  const user = await User.findByURLName(urlName);
 
   // Create a thing with a review
   const userActor = { id: user.id, is_super_user: user.isSuperUser, is_trusted: user.isTrusted };
@@ -320,7 +320,7 @@ test.serial('POST /api/actions/suppress-notice suppresses a valid notice type', 
   });
 
   const urlName = username.replace(/ /g, '_');
-  let user = await User.findByURLName(urlName, { withPassword: true });
+  let user = await User.findByURLName(urlName);
   t.falsy(user.suppressedNotices, 'User should not have suppressed notices initially');
 
   const response = await agent
@@ -335,7 +335,7 @@ test.serial('POST /api/actions/suppress-notice suppresses a valid notice type', 
   t.deepEqual(body.errors, []);
 
   // Verify it was actually saved
-  user = await User.findByURLName(urlName, { withPassword: true });
+  user = await User.findByURLName(urlName);
   t.true(Array.isArray(user.suppressedNotices));
   t.true(user.suppressedNotices.includes('language-notice-review'));
   t.pass();
@@ -367,7 +367,7 @@ test.serial('POST /api/actions/suppress-notice handles duplicate suppression', a
     .expect(200);
 
   // Verify only one entry exists
-  const user = await User.findByURLName(urlName, { withPassword: true });
+  const user = await User.findByURLName(urlName);
   const count = user.suppressedNotices.filter(n => n === 'language-notice-thing').length;
   t.is(count, 1, 'Should not have duplicate entries');
   t.pass();
@@ -426,7 +426,7 @@ test.serial('POST /api/actions/upload successfully uploads a valid file', async 
   });
 
   const urlName = username.replace(/ /g, '_');
-  const uploader = await User.findByURLName(urlName, { withPassword: true });
+  const uploader = await User.findByURLName(urlName);
   uploader.isTrusted = true;
   await uploader.save();
 
@@ -492,7 +492,7 @@ test.serial('POST /api/actions/upload rejects files with unrecognized signature'
   });
 
   const urlName = username.replace(/ /g, '_');
-  const uploader = await User.findByURLName(urlName, { withPassword: true });
+  const uploader = await User.findByURLName(urlName);
   uploader.isTrusted = true;
   await uploader.save();
 

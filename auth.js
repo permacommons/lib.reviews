@@ -29,6 +29,7 @@ passport.use(new LocalStrategy(
         .filter({
           canonicalName: User.canonicalize(username)
         })
+        .includeSensitive(['password'])
         .limit(1)
         .run();
 

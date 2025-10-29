@@ -145,7 +145,7 @@ class QueryBuilder {
     this.modelClass = modelClass;
     this.dal = dal;
     this.tableName = modelClass.tableName;
-    
+
     // Query components
     this._select = ['*'];
     this._where = [];
@@ -155,6 +155,17 @@ class QueryBuilder {
     this._offset = null;
     this._params = [];
     this._paramIndex = 1;
+    this._includeSensitive = [];
+  }
+
+  /**
+   * Include sensitive fields in query results
+   * @param {string[]} fields - Array of sensitive field names to include
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  includeSensitive(fields) {
+    this._includeSensitive = Array.isArray(fields) ? fields : [fields];
+    return this;
   }
 
   /**
@@ -1569,27 +1580,39 @@ class QueryBuilder {
    */
   _buildSelectQuery() {
     let selectClause = this._select.join(', ');
-    if (this._joins.length > 0 && this._select.includes('*')) {
-      selectClause = `${this.tableName}.*`;
 
-      // Add columns from simple joins with prefixed aliases
-      if (this._simpleJoins) {
-        const joinSelects = [];
-        for (const [relationName, joinInfo] of Object.entries(this._simpleJoins)) {
-          if (joinInfo && joinInfo.table) {
-            // Get the related model to get safe (non-sensitive) column names
-            const RelatedModel = this._getRelatedModel(relationName, joinInfo);
-            const safeColumns = RelatedModel.getSafeColumnNames();
+    // Replace SELECT * with explicit column list to exclude sensitive fields
+    // (e.g., passwords). For models without sensitive fields, getColumnNames()
+    // returns all columns, equivalent to SELECT *.
+    if (this._select.includes('*')) {
+      const columns = this.modelClass.getColumnNames(this._includeSensitive);
+      const mainTableColumns = columns.map(col => `${this.tableName}.${col}`);
 
-            // Select each safe column with a prefixed alias (e.g., creator_id, creator_display_name)
-            for (const col of safeColumns) {
-              joinSelects.push(`${joinInfo.table}.${col} AS "${relationName}_${col}"`);
+      if (this._joins.length > 0) {
+        selectClause = mainTableColumns.join(', ');
+
+        // Add columns from simple joins with prefixed aliases
+        if (this._simpleJoins) {
+          const joinSelects = [];
+          for (const [relationName, joinInfo] of Object.entries(this._simpleJoins)) {
+            if (joinInfo && joinInfo.table) {
+              // Get the related model to get safe (non-sensitive) column names
+              const RelatedModel = this._getRelatedModel(relationName, joinInfo);
+              const safeColumns = RelatedModel.getSafeColumnNames();
+
+              // Select each safe column with a prefixed alias (e.g., creator_id, creator_display_name)
+              for (const col of safeColumns) {
+                joinSelects.push(`${joinInfo.table}.${col} AS "${relationName}_${col}"`);
+              }
             }
           }
+          if (joinSelects.length > 0) {
+            selectClause += ', ' + joinSelects.join(', ');
+          }
         }
-        if (joinSelects.length > 0) {
-          selectClause += ', ' + joinSelects.join(', ');
-        }
+      } else {
+        // No joins, just list the columns
+        selectClause = mainTableColumns.join(', ');
       }
     }
 
