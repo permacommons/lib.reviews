@@ -149,7 +149,7 @@ async function getMostRecentBlogPosts(teamID, {
 }
 
 async function getMostRecentBlogPostsBySlug(teamSlugName, options) {
-  const slug = await TeamSlug.get(teamSlugName);
+  const slug = await TeamSlug.getByName(teamSlugName);
   if (!slug || !slug.teamID) {
     throw new DocumentNotFound(`Slug '${teamSlugName}' not found for team`);
   }
