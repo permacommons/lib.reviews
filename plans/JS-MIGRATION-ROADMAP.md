@@ -6,7 +6,7 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 
 - 109 `.js` files remain in CommonJS across the repository (runtime + tooling; excludes `.mjs` tests and generated `build/` artifacts).
 - Backend entry points: `bin/www.mjs` and `app.mjs` now run as ESM and share the ESM-native `bootstrap/dal.mjs`; the legacy `bootstrap/dal.js` entry has been removed so stale `require` calls fail fast.
-- Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.js`, `db-postgres.js`, `search.js`, `tools/*.js`, `locales/languages.js`).
+- Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.js`, `db-postgres.mjs`, `search.js`, `tools/*.js`, `locales/languages.js`).
 - `createRequire(import.meta.url)` still appears in `app.mjs` plus 21 test helpers/specs to reach CommonJS modules; these call sites should switch to direct ESM imports as their dependencies expose compatible entry points.
 - TypeScript-ready surface already exists for tests (`tests/*.mjs`) and Vite (`vite.config.mjs`), easing eventual `allowJs` adoption.
 - Next focus: migrate high-churn route handlers to ESM, starting with `/routes/reviews.js` and `/routes/actions.js` to keep DAL-facing logic consistent.
@@ -29,13 +29,13 @@ Convert the entire codebase from CommonJS to ESM modules.
 - Direct consumers of `bootstrap/dal.mjs` to watch during migration:
   - `app.mjs` (ESM): imports `initializeDAL()` directly.
   - Tests: `setupPostgresTest.mjs` and DAL fixtures rely on the exported test harness helpers.
-  - `db-postgres.js`: reuses/exports DAL helpers for other parts of the app.
+  - `db-postgres.mjs`: reuses/exports DAL helpers for other parts of the app.
   - Maintenance scripts (`maintenance/*.js`) and sync adapters (`adapters/sync/*.js`) import it lazily from CommonJS.
   - DAL internals (`dal/lib/model-handle.js`) rely on `setBootstrapResolver` for handle wiring.
 - Migration guardrails:
   - Preserve singleton semantics for DAL initialization; confirm `initializeDAL` continues to de-duplicate concurrent callers after conversion.
   - Evaluate exposing explicit ESM exports for model bootstrap so tests can tree-shake unwanted work.
-  - Ensure CommonJS consumers (`db-postgres.js`, models) retain compatibility during incremental rollout—consider adding a thin `dal.cjs` compatibility shim if needed.
+  - Ensure CommonJS consumers retain compatibility during incremental rollout—consider adding a thin compatibility shim if needed.
 
 #### `bootstrap/dal` conversion staging (completed)
 - [x] Ship `bootstrap/dal.mjs` that re-exports the existing CommonJS API, giving ESM modules a forward-compatible import path.
@@ -69,7 +69,7 @@ Convert the entire codebase from CommonJS to ESM modules.
 
 ### Configuration & Infrastructure
 - [ ] Update `config/` files for ESM
-- [ ] Convert `db-postgres.js` database layer
+- [x] Convert `db-postgres` database layer
 - [ ] Update any module proxy patterns (module-handle.js)
 
 ### Testing

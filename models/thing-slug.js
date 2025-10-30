@@ -1,6 +1,18 @@
 'use strict';
 
-const { getPostgresDAL } = require('../db-postgres');
+let postgresModulePromise;
+async function loadDbPostgres() {
+  if (!postgresModulePromise) {
+    postgresModulePromise = import('../db-postgres.mjs');
+  }
+  return postgresModulePromise;
+}
+
+async function getPostgresDAL() {
+  const module = await loadDbPostgres();
+  return module.getPostgresDAL();
+}
+
 const type = require('../dal').type;
 const { ConstraintError } = require('../dal/lib/errors');
 const { initializeModel } = require('../dal/lib/model-initializer');

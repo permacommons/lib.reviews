@@ -1,5 +1,18 @@
 'use strict';
 
+let postgresModulePromise;
+async function loadDbPostgres() {
+  if (!postgresModulePromise) {
+    postgresModulePromise = import('../db-postgres.mjs');
+  }
+  return postgresModulePromise;
+}
+
+async function getPostgresDAL() {
+  const module = await loadDbPostgres();
+  return module.getPostgresDAL();
+}
+
 const { createModelModule } = require('../dal/lib/model-handle');
 const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
@@ -7,7 +20,6 @@ const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
 
 module.exports = UserHandle;
 
-const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const bcrypt = require('bcrypt');
 const ReportedError = require('../util/reported-error');

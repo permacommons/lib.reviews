@@ -1,5 +1,18 @@
 'use strict';
 
+let postgresModulePromise;
+async function loadDbPostgres() {
+  if (!postgresModulePromise) {
+    postgresModulePromise = import('../db-postgres.mjs');
+  }
+  return postgresModulePromise;
+}
+
+async function getPostgresDAL() {
+  const module = await loadDbPostgres();
+  return module.getPostgresDAL();
+}
+
 const { createModelModule } = require('../dal/lib/model-handle');
 const { proxy: ReviewHandle, register: registerReviewHandle } = createModelModule({
   tableName: 'reviews'
@@ -7,7 +20,6 @@ const { proxy: ReviewHandle, register: registerReviewHandle } = createModelModul
 
 module.exports = ReviewHandle;
 
-const { getPostgresDAL } = require('../db-postgres');
 const type = require('../dal').type;
 const mlString = require('../dal').mlString;
 const revision = require('../dal').revision;

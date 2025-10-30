@@ -60,13 +60,13 @@ function getPostgresConfig() {
 }
 
 async function tryReuseSharedDAL() {
-  const dbModule = await import('../db-postgres.js');
+  const dbModule = await import('../db-postgres.mjs');
   const exported = (dbModule && typeof dbModule.default === 'object')
     ? dbModule.default
     : dbModule;
   const { getPostgresDAL } = exported;
   if (typeof getPostgresDAL !== 'function') {
-    throw new Error('getPostgresDAL is not available from db-postgres.js');
+    throw new Error('getPostgresDAL is not available from db-postgres.mjs');
   }
   return getPostgresDAL();
 }
@@ -234,7 +234,7 @@ export async function shutdown() {
   }
 
   try {
-    const postgresModule = await import('../db-postgres.js');
+    const postgresModule = await import('../db-postgres.mjs');
     const exported = (postgresModule && typeof postgresModule.default === 'object')
       ? postgresModule.default
       : postgresModule;

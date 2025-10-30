@@ -4,7 +4,7 @@ The DAL provides the database interface for lib.reviews, featuring a Model-based
 
 ## Architecture
 
-The DAL is initialized once at application startup via `../db-postgres.js`. Models use a handle-based pattern that allows definitions to load synchronously while deferring actual initialization until the DAL is ready.
+The DAL is initialized once at application startup via `../db-postgres.mjs`. Models use a handle-based pattern that allows definitions to load synchronously while deferring actual initialization until the DAL is ready.
 
 ### Core Components
 
