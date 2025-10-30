@@ -26,6 +26,7 @@ import csp from 'helmet-csp'; // Content security policy
 import expressUserAgent from 'express-useragent';
 
 import { csrfSynchronisedProtection } from './util/csrf.js';
+import { initializeDAL } from './bootstrap/dal.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -70,9 +71,8 @@ async function getApp() {
   // Create directories for uploads and deleted files if needed
   asyncJobs.push(...['deleted', 'static/uploads', 'static/downloads'].map(setupDirectory));
 
-  const { initializeDAL } = require('./bootstrap/dal');
-  const dalPromise = initializeDAL();
-  asyncJobs.push(dalPromise);
+const dalPromise = initializeDAL();
+asyncJobs.push(dalPromise);
 
   // Auth setup
   require('./auth');

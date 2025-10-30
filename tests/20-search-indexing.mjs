@@ -2,6 +2,7 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+import { initializeDAL, isInitialized } from '../bootstrap/dal.mjs';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
@@ -291,7 +292,6 @@ test.serial('indexReview skips old and deleted revisions', async t => {
 });
 
 test.serial('maintenance script ensures DAL bootstrap before indexing', async t => {
-  const { initializeDAL, isInitialized } = require('../bootstrap/dal');
   await initializeDAL();
   t.true(isInitialized(), 'DAL should initialize for maintenance script');
 

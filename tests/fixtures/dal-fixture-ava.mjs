@@ -1,6 +1,7 @@
 import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
 import { logNotice, logOK } from '../helpers/test-helpers.mjs';
+import { createTestHarness } from '../../bootstrap/dal.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -78,7 +79,6 @@ class DALFixtureAVA {
 
     let harness;
     try {
-      const { createTestHarness } = require('../../bootstrap/dal');
       harness = await createTestHarness({
         schemaName: this.schemaName,
         schemaNamespace: this.schemaNamespace,

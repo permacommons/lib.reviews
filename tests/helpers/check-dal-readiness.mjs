@@ -8,6 +8,7 @@
  */
 
 import { createRequire } from 'module';
+import { createTestHarness } from '../../bootstrap/dal.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -32,8 +33,6 @@ export async function checkDALReadiness() {
 
     // This will trigger db-postgres auto-initialization
     // We need to catch both sync and async errors
-    const { createTestHarness } = require('../../bootstrap/dal');
-
     // Try to create a test harness with a temporary schema
     // This will automatically handle migrations
     const harness = await createTestHarness({
