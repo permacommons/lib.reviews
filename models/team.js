@@ -34,6 +34,14 @@ async function loadTeamJoinRequestHandle() {
   const module = await teamJoinRequestHandlePromise;
   return module.default;
 }
+let teamSlugHandlePromise;
+async function loadTeamSlugHandle() {
+  if (!teamSlugHandlePromise) {
+    teamSlugHandlePromise = import('./team-slug.mjs');
+  }
+  const module = await teamSlugHandlePromise;
+  return module.default;
+}
 const { initializeModel } = require('../dal/lib/model-initializer');
 
 let Team = null;
@@ -537,7 +545,7 @@ function _validateConfersPermissions(value) {
  * @instance
  */
 async function updateSlug(userID, language) {
-  const TeamSlug = require('./team-slug');
+  const TeamSlug = await loadTeamSlugHandle();
   const originalLanguage = this.originalLanguage || 'en';
   const slugLanguage = language || originalLanguage;
 

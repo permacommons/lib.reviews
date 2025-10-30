@@ -18,7 +18,14 @@ const mlString = require('../dal/lib/ml-string');
 const isValidLanguage = require('../locales/languages').isValid;
 const debug = require('../util/debug');
 const { DocumentNotFound } = require('../dal/lib/errors');
-const TeamSlug = require('./team-slug');
+let teamSlugHandlePromise;
+async function loadTeamSlugHandle() {
+  if (!teamSlugHandlePromise) {
+    teamSlugHandlePromise = import('./team-slug.mjs');
+  }
+  const module = await teamSlugHandlePromise;
+  return module.default;
+}
 const User = require('./user');
 const { initializeModel } = require('../dal/lib/model-initializer');
 
@@ -161,6 +168,7 @@ async function getMostRecentBlogPosts(teamID, {
 }
 
 async function getMostRecentBlogPostsBySlug(teamSlugName, options) {
+  const TeamSlug = await loadTeamSlugHandle();
   const slug = await TeamSlug.getByName(teamSlugName);
   if (!slug || !slug.teamID) {
     throw new DocumentNotFound(`Slug '${teamSlugName}' not found for team`);

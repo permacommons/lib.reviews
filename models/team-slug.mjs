@@ -1,19 +1,12 @@
 'use strict';
 
-let postgresModulePromise;
-async function loadDbPostgres() {
-  if (!postgresModulePromise) {
-    postgresModulePromise = import('../db-postgres.mjs');
-  }
-  return postgresModulePromise;
-}
+import { createRequire } from 'node:module';
+import { getPostgresDAL } from '../db-postgres.mjs';
 
-async function getPostgresDAL() {
-  const module = await loadDbPostgres();
-  return module.getPostgresDAL();
-}
+const require = createRequire(import.meta.url);
 
-const type = require('../dal').type;
+const dal = require('../dal');
+const type = dal.type;
 const debug = require('../util/debug');
 const { initializeModel } = require('../dal/lib/model-initializer');
 const { ConstraintError, DuplicateSlugNameError } = require('../dal/lib/errors');
@@ -136,8 +129,9 @@ async function qualifiedSave() {
   }
 }
 
-module.exports = TeamSlugHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeTeamSlugModel;
-module.exports.getPostgresTeamSlugModel = getPostgresTeamSlugModel;
+export default TeamSlugHandle;
+export {
+  initializeTeamSlugModel as initializeModel,
+  initializeTeamSlugModel,
+  getPostgresTeamSlugModel
+};

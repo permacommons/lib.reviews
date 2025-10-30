@@ -5,9 +5,17 @@ const isUUID = require('is-uuid');
 // Internal dependencies
 const { DocumentNotFound } = require('../../dal/lib/errors');
 const Team = require('../../models/team');
-const TeamSlug = require('../../models/team-slug');
 const Thing = require('../../models/thing');
 const ThingSlug = require('../../models/thing-slug');
+
+let teamSlugModulePromise;
+async function getTeamSlugModel() {
+  if (!teamSlugModulePromise) {
+    teamSlugModulePromise = import('../../models/team-slug.mjs');
+  }
+  const module = await teamSlugModulePromise;
+  return module.default;
+}
 
 const slugs = {
 
@@ -24,7 +32,7 @@ const slugs = {
       slugForeignKey: 'teamID',
       getDocumentModel: () => Team,
       loadSlug: async (slugName, DocumentModel) => {
-        const TeamSlugModel = TeamSlug;
+        const TeamSlugModel = await getTeamSlugModel();
         if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function') {
           return null;
         }

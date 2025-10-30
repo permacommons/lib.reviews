@@ -49,6 +49,7 @@ Convert the entire codebase from CommonJS to ESM modules.
 ### Models Layer (~140 KB)
 - [x] Convert `/models/invite-link.js`
 - [x] Convert `/models/team-join-request.js`
+- [x] Convert `/models/team-slug.js`
 - [ ] Convert `/models/thing.js`
 - [ ] Convert `/models/review.js`
 - [ ] Convert `/models/user.js`

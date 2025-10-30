@@ -14,7 +14,7 @@ import userModule from '../models/user.js';
 import userMetaModule from '../models/user-meta.js';
 import teamModule from '../models/team.js';
 import teamJoinRequestModule from '../models/team-join-request.mjs';
-import teamSlugModule from '../models/team-slug.js';
+import teamSlugModule from '../models/team-slug.mjs';
 import thingModule from '../models/thing.js';
 import thingSlugModule from '../models/thing-slug.js';
 import reviewModule from '../models/review.js';
