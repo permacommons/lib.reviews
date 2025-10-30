@@ -1,5 +1,26 @@
 'use strict';
 
+let bootstrapResolver = () => {
+    throw new Error(
+        'DAL bootstrap resolver not configured. Import bootstrap/dal.mjs before using model handles.'
+    );
+};
+
+function setBootstrapResolver(resolver) {
+    if (typeof resolver !== 'function') {
+        throw new Error('setBootstrapResolver expects a function');
+    }
+    bootstrapResolver = resolver;
+}
+
+function getBootstrapModule() {
+    const module = bootstrapResolver();
+    if (!module) {
+        throw new Error('bootstrap/dal resolver did not return a module');
+    }
+    return module;
+}
+
 /**
  * Model Handle Factory
  * 
@@ -23,7 +44,7 @@ function createModelHandle(tableName, staticMethods = {}, staticProperties = {})
 
     // Helper to get the registered model
     function getRegisteredModel() {
-        const { getModel } = require('../../bootstrap/dal');
+        const { getModel } = getBootstrapModule();
         const model = getModel(tableName);
         if (!model) {
             throw new Error(`${tableName} model not registered. Ensure DAL is initialized.`);
@@ -132,7 +153,7 @@ function createAutoModelHandle(tableName, initializeModel, options = {}) {
 
     // Helper to get the registered model
     function getRegisteredModel() {
-        const { getModel } = require('../../bootstrap/dal');
+        const { getModel } = getBootstrapModule();
         const model = getModel(tableName);
         if (!model) {
             throw new Error(`${tableName} model not registered. Ensure DAL is initialized.`);
@@ -433,6 +454,7 @@ function createModelModule({
 }
 
 module.exports = {
+    setBootstrapResolver,
     createModelHandle,
     createAutoModelHandle,
     createLazyHandleExport,

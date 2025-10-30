@@ -11,7 +11,7 @@ suite without additional setup.
 ## Harness Architecture
 
 The `setupPostgresTest` helper (`tests/helpers/setup-postgres-test.mjs`) wires
-AVA into the shared PostgreSQL DAL bootstrap (`bootstrap/dal.js`):
+AVA into the shared PostgreSQL DAL bootstrap (`bootstrap/dal.mjs`):
 
 - It sets `NODE_APP_INSTANCE=testing`, which loads the `libreviews_test`
   connection settings from `config/development-testing.json5`.
