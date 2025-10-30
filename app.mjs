@@ -118,11 +118,11 @@ asyncJobs.push(dalPromise);
   const { default: actions } = await import('./routes/actions.mjs');
   const { default: users } = await import('./routes/users.mjs');
   const { default: teams } = await import('./routes/teams.mjs');
+  const { default: things } = await import('./routes/things.mjs');
   const pages = require('./routes/pages');
   const files = require('./routes/files');
   const blogPosts = require('./routes/blog-posts');
   const api = require('./routes/api');
-  const things = require('./routes/things');
   const apitest = require('./routes/apitest');
   const { stage1Router, stage2Router } = require('./routes/uploads');
 
