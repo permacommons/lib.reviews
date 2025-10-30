@@ -236,7 +236,7 @@ const users = await User.filter({ isTrusted: false }).run();
 
 ### Historical Note
 
-Historical database dumps are available in RethinkDB format and can be accessed with the last version of lib.reviews with RethinkDB (tagged `last-rethinkdb`). Migration tooling for RethinkDB dumps to PostgreSQL is available in the migrations/ directory checked in at tag `psql-switch`.
+Historical database dumps (from before 2025-10-30) are available in RethinkDB format and can be accessed with the last version of lib.reviews with RethinkDB (tagged `last-rethinkdb`). Migration tooling for RethinkDB dumps to PostgreSQL is available in the migrations/ directory checked in at tag `psql-switch`.
 
 ## Front-end Development
 
