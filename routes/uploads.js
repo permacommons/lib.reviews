@@ -17,7 +17,7 @@ const is = require('type-is');
 const { promisify } = require('util');
 
 // Internal dependencies
-const { getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } = require('../util/csrf');
+const { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } = require('../util/csrf');
 const File = require('../models/file');
 const getResourceErrorHandler = require('./handlers/resource-error-handler');
 const render = require('./helpers/render');
@@ -131,21 +131,11 @@ stage1Router.post('/:id/upload', function(req, res, next) {
 });
 
 
-// We need to handle CSRF issues manually at this stage.
-//
 // Note that at the time the filter runs, we won't have the complete file yet,
 // so we may temporarily store files and delete them later if, after
 // investigation, they turn out to contain unacceptable content.
 function getFileFilter(req, res) {
   return (req, file, done) => {
-    // Manually validate CSRF token
-    const submittedToken = getTokenFromRequest(req);
-    const storedToken = getTokenFromState(req);
-
-    if (!submittedToken || !storedToken || submittedToken !== storedToken) {
-      return done(invalidCsrfTokenError); // Bad CSRF token, reject upload
-    }
-
     const { fileTypeError, isPermitted } = checkMIMEType(file);
     return done(fileTypeError, isPermitted);
   };
@@ -182,6 +172,15 @@ function getUploadHandler(req, res, next, thing) {
       res.redirect(`/${thing.urlID}`);
     };
 
+    // Validate CSRF token first (now that req.body is populated by multer).
+    // This ensures temp files are immediately cleaned up if CSRF is invalid.
+    const submittedToken = getTokenFromRequest(req);
+    const storedToken = getTokenFromState(req);
+
+    if (!submittedToken || !storedToken || submittedToken !== storedToken) {
+      return abortUpload(invalidCsrfTokenError);
+    }
+
     // An error at this stage most likely means an unsupported file type was among the batch.
     // We reject the whole batch and report the bad apple.
     if (error)
@@ -196,7 +195,8 @@ function getUploadHandler(req, res, next, thing) {
           render.template(req, res, 'thing-upload-step-2', {
             titleKey: 'add media',
             thing,
-            uploadedFiles
+            uploadedFiles,
+            csrfToken: generateToken(req)
           })
         )
         .catch(abortUpload);
