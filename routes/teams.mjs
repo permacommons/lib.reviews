@@ -1,17 +1,15 @@
-'use strict';
-const escapeHTML = require('escape-html');
+import escapeHTML from 'escape-html';
 
-const TeamProvider = require('./handlers/team-provider');
-const TeamJoinRequest = require('../models/team-join-request');
-const getResourceErrorHandler = require('./handlers/resource-error-handler');
-const render = require('./helpers/render');
-const mlString = require('../dal/lib/ml-string');
-const languages = require('../locales/languages');
-const slugs = require('./helpers/slugs');
-
+import TeamProvider from './handlers/team-provider.mjs';
+import TeamJoinRequest from '../models/team-join-request.mjs';
+import getResourceErrorHandler from './handlers/resource-error-handler.js';
+import render from './helpers/render.js';
+import mlString from '../dal/lib/ml-string.js';
+import languages from '../locales/languages.js';
+import slugs from './helpers/slugs.js';
 
 // Default routes for read, edit, add, delete
-let router = TeamProvider.bakeRoutes('team');
+const router = TeamProvider.bakeRoutes('team');
 
 router.get('/team', (req, res) => res.redirect('/teams'));
 
@@ -193,4 +191,4 @@ router.post('/team/:id/leave', function(req, res, next) {
     .catch(getResourceErrorHandler(req, res, next, 'team', id));
 });
 
-module.exports = router;
+export default router;

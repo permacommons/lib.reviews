@@ -47,6 +47,8 @@ Convert the entire codebase from CommonJS to ESM modules.
 - [ ] Re-run DAL bootstrap/search integration tests after each stage to ensure singleton semantics and migrations remain stable.
 
 ### Models Layer (~140 KB)
+- [x] Convert `/models/invite-link.js`
+- [x] Convert `/models/team-join-request.js`
 - [ ] Convert `/models/thing.js`
 - [ ] Convert `/models/review.js`
 - [ ] Convert `/models/user.js`
@@ -59,7 +61,9 @@ Convert the entire codebase from CommonJS to ESM modules.
 - [ ] Verify revision system compatibility
 
 ### Routes Layer (~236 KB)
-- [ ] Convert `/routes/*.js` route handlers
+- [x] Convert `/routes/actions.js` route handler
+- [x] Convert `/routes/teams.js` route handler (+ `handlers/team-provider.js`)
+- [ ] Convert remaining `/routes/*.js` route handlers
 - [ ] Update Express route registrations
 
 ### Utilities & Helpers

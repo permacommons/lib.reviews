@@ -1,20 +1,20 @@
-'use strict';
-// External deps
-const escapeHTML = require('escape-html');
-const config = require('config');
-const url = require('url');
-const i18n = require('i18n');
+import escapeHTML from 'escape-html';
+import config from 'config';
+import url from 'node:url';
+import i18n from 'i18n';
+import { randomUUID } from 'node:crypto';
 
-// Internal deps
-const AbstractBREADProvider = require('./abstract-bread-provider');
-const Team = require('../../models/team');
-const TeamJoinRequest = require('../../models/team-join-request');
-const BlogPost = require('../../models/blog-post');
-const feeds = require('../helpers/feeds');
-const slugs = require('../helpers/slugs');
-const mlString = require('../../dal/lib/ml-string.js');
-const { getEditorMessages } = require('../../util/frontend-messages');
-const debug = require('../../util/debug');
+import AbstractBREADProvider from './abstract-bread-provider.js';
+import Team from '../../models/team.js';
+import TeamJoinRequest from '../../models/team-join-request.mjs';
+import BlogPost from '../../models/blog-post.js';
+import feeds from '../helpers/feeds.js';
+import slugs from '../helpers/slugs.js';
+import mlString from '../../dal/lib/ml-string.js';
+import frontendMessages from '../../util/frontend-messages.js';
+import debug from '../../util/debug.js';
+
+const { getEditorMessages } = frontendMessages;
 
 class TeamProvider extends AbstractBREADProvider {
 
@@ -492,7 +492,6 @@ class TeamProvider extends AbstractBREADProvider {
         
         // Ensure team has an ID before proceeding
         if (!team.id) {
-          const { randomUUID } = require('crypto');
           team.id = randomUUID();
         }
 
@@ -604,4 +603,4 @@ TeamProvider.formDefs = {
 
 TeamProvider.formDefs['edit-team'] = TeamProvider.formDefs['new-team'];
 
-module.exports = TeamProvider;
+export default TeamProvider;

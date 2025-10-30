@@ -1,21 +1,11 @@
-'use strict';
+import debug from '../util/debug.js';
+import dal from '../dal/index.js';
+import modelHandle from '../dal/lib/model-handle.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { getPostgresDAL } from '../db-postgres.mjs';
 
-let postgresModulePromise;
-async function loadDbPostgres() {
-  if (!postgresModulePromise) {
-    postgresModulePromise = import('../db-postgres.mjs');
-  }
-  return postgresModulePromise;
-}
-
-async function getPostgresDAL() {
-  const module = await loadDbPostgres();
-  return module.getPostgresDAL();
-}
-
-const type = require('../dal').type;
-const debug = require('../util/debug');
-const { initializeModel } = require('../dal/lib/model-initializer');
+const { type } = dal;
+const { createAutoModelHandle } = modelHandle;
 
 let TeamJoinRequest = null;
 
@@ -74,13 +64,7 @@ async function initializeTeamJoinRequestModel(dal = null) {
   }
 }
 
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
 const TeamJoinRequestHandle = createAutoModelHandle('team_join_requests', initializeTeamJoinRequestModel);
 
-module.exports = TeamJoinRequestHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeTeamJoinRequestModel;
+export default TeamJoinRequestHandle;
+export { initializeTeamJoinRequestModel as initializeModel, initializeTeamJoinRequestModel };

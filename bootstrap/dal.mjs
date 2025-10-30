@@ -13,14 +13,14 @@ import PostgresDAL from '../dal/index.js';
 import userModule from '../models/user.js';
 import userMetaModule from '../models/user-meta.js';
 import teamModule from '../models/team.js';
-import teamJoinRequestModule from '../models/team-join-request.js';
+import teamJoinRequestModule from '../models/team-join-request.mjs';
 import teamSlugModule from '../models/team-slug.js';
 import thingModule from '../models/thing.js';
 import thingSlugModule from '../models/thing-slug.js';
 import reviewModule from '../models/review.js';
 import blogPostModule from '../models/blog-post.js';
 import fileModule from '../models/file.js';
-import inviteLinkModule from '../models/invite-link.js';
+import inviteLinkModule from '../models/invite-link.mjs';
 
 import modelHandleModule from '../dal/lib/model-handle.js';
 

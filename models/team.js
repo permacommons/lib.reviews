@@ -26,7 +26,14 @@ const debug = require('../util/debug');
 const isValidLanguage = require('../locales/languages').isValid;
 const User = require('./user');
 const Review = require('./review');
-const TeamJoinRequest = require('./team-join-request');
+let teamJoinRequestHandlePromise;
+async function loadTeamJoinRequestHandle() {
+  if (!teamJoinRequestHandlePromise) {
+    teamJoinRequestHandlePromise = import('./team-join-request.mjs');
+  }
+  const module = await teamJoinRequestHandlePromise;
+  return module.default;
+}
 const { initializeModel } = require('../dal/lib/model-initializer');
 
 let Team = null;
@@ -345,6 +352,7 @@ async function _getTeamModerators(teamId) {
  * @returns {Promise<Object[]>} Array of join request objects
  */
 async function _getTeamJoinRequests(teamId, withDetails = false) {
+  const TeamJoinRequest = await loadTeamJoinRequestHandle();
   let query = '';
   try {
     const joinRequestTableName = Team.dal.schemaNamespace ?
