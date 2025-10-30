@@ -10,7 +10,6 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const checkCSRF = require('csurf')();
 const fs = require('fs');
 const isSVG = require('is-svg');
 const config = require('config');
@@ -18,6 +17,7 @@ const is = require('type-is');
 const { promisify } = require('util');
 
 // Internal dependencies
+const { getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } = require('../util/csrf');
 const File = require('../models/file');
 const getResourceErrorHandler = require('./handlers/resource-error-handler');
 const render = require('./helpers/render');
@@ -138,13 +138,16 @@ stage1Router.post('/:id/upload', function(req, res, next) {
 // investigation, they turn out to contain unacceptable content.
 function getFileFilter(req, res) {
   return (req, file, done) => {
-    checkCSRF(req, res, csrfError => {
-      if (csrfError)
-        return done(csrfError); // Bad CSRF token, reject upload
+    // Manually validate CSRF token
+    const submittedToken = getTokenFromRequest(req);
+    const storedToken = getTokenFromState(req);
 
-      const { fileTypeError, isPermitted } = checkMIMEType(file);
-      return done(fileTypeError, isPermitted);
-    });
+    if (!submittedToken || !storedToken || submittedToken !== storedToken) {
+      return done(invalidCsrfTokenError); // Bad CSRF token, reject upload
+    }
+
+    const { fileTypeError, isPermitted } = checkMIMEType(file);
+    return done(fileTypeError, isPermitted);
   };
 }
 

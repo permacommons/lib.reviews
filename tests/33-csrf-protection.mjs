@@ -1,0 +1,172 @@
+import test from 'ava';
+import supertest from 'supertest';
+import { createRequire } from 'module';
+import { extractCSRF, registerTestUser } from './helpers/integration-helpers.mjs';
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
+
+const require = createRequire(import.meta.url);
+
+// Mock search before loading any modules that depend on it (e.g. bootstrap/dal).
+mockSearch();
+
+const { setupPostgresTest } = await import('./helpers/setup-postgres-test.mjs');
+
+setupPostgresTest(test, {
+  schemaNamespace: 'csrf_protection'
+});
+
+test.before(async t => {
+  mockSearch();
+});
+
+test.beforeEach(async t => {
+  // Ensure we initialize from scratch
+  Reflect.deleteProperty(require.cache, require.resolve('../app'));
+  const getApp = require('../app');
+  t.context.app = await getApp();
+  t.context.agent = supertest.agent(t.context.app);
+});
+
+test('POST to /signin without CSRF token is rejected with 403', async t => {
+  await t.context.agent
+    .post('/signin')
+    .type('form')
+    .send({
+      username: 'testuser',
+      password: 'testpassword'
+      // Deliberately omitting _csrf token
+    })
+    .expect(403);
+
+  t.pass();
+});
+
+test('POST to /signin with invalid CSRF token is rejected with 403', async t => {
+  await t.context.agent
+    .post('/signin')
+    .type('form')
+    .send({
+      _csrf: 'invalid-token-that-does-not-match',
+      username: 'testuser',
+      password: 'testpassword'
+    })
+    .expect(403);
+
+  t.pass();
+});
+
+test('POST to /signin with valid CSRF token is accepted (even if credentials are wrong)', async t => {
+  // Get a valid CSRF token from the signin page
+  const signinResponse = await t.context.agent.get('/signin');
+  const csrf = extractCSRF(signinResponse.text);
+
+  if (!csrf) return t.fail('Could not obtain CSRF token');
+
+  // POST with the valid token but wrong credentials
+  // Should NOT get 403 (CSRF error), but should fail authentication
+  const response = await t.context.agent
+    .post('/signin')
+    .type('form')
+    .send({
+      _csrf: csrf,
+      username: 'nonexistent',
+      password: 'wrongpassword'
+    });
+
+  // Should not be 403 (CSRF error)
+  t.not(response.status, 403, 'Valid CSRF token should not result in 403');
+
+  // Should be either 302 (redirect back with error) or 401/200 with error message
+  t.true(
+    response.status === 302 || response.status === 401 || response.status === 200,
+    `Expected redirect or auth error, got ${response.status}`
+  );
+
+  t.pass();
+});
+
+test('POST to /register without CSRF token is rejected with 403', async t => {
+  await t.context.agent
+    .post('/register')
+    .type('form')
+    .send({
+      username: 'newuser',
+      password: 'password123'
+      // Deliberately omitting _csrf token
+    })
+    .expect(403);
+
+  t.pass();
+});
+
+test('POST to /actions/change-language without CSRF token is rejected with 403', async t => {
+  await t.context.agent
+    .post('/actions/change-language')
+    .type('form')
+    .send({
+      lang: 'de'
+      // Deliberately omitting _csrf token
+    })
+    .expect(403);
+
+  t.pass();
+});
+
+test.serial('Authenticated POST to /signout without CSRF token is rejected with 403', async t => {
+  const agent = t.context.agent;
+  const username = `CSRFTestUser-${Date.now()}`;
+
+  // Register and login a user (with valid CSRF)
+  await registerTestUser(agent, {
+    username,
+    password: 'password123'
+  });
+
+  // Try to sign out without CSRF token
+  await agent
+    .post('/signout')
+    .type('form')
+    .send({
+      // Deliberately omitting _csrf token
+    })
+    .expect(403);
+
+  t.pass();
+});
+
+test.serial('Authenticated POST to create review without CSRF token is rejected with 403', async t => {
+  const agent = t.context.agent;
+  const username = `CSRFTestUser2-${Date.now()}`;
+
+  // Register and login a user (with valid CSRF)
+  await registerTestUser(agent, {
+    username,
+    password: 'password123'
+  });
+
+  // Try to create a review without CSRF token
+  await agent
+    .post('/new/review')
+    .type('form')
+    .send({
+      'review-url': 'https://example.com',
+      'review-label': 'Test Product',
+      'review-title': 'Test Review',
+      'review-text': 'This is a test review'
+      // Deliberately omitting _csrf token
+    })
+    .expect(403);
+
+  t.pass();
+});
+
+test.after.always(async t => {
+  if (t.context.agent && typeof t.context.agent.close === 'function') {
+    await new Promise(resolve => t.context.agent.close(resolve));
+    t.context.agent = null;
+  }
+  unmockSearch();
+  if (t.context.app && t.context.app.locals.dal) {
+    await t.context.app.locals.dal.cleanup();
+  }
+});

@@ -22,7 +22,7 @@
     "config": "^4.1.1",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "~1.4.7",
-    "csurf": "^1.11.0",
+    "csrf-sync": "^4.2.1",
     "debug": "^4.4.3",
     "elasticsearch": "^16.7.3",
     "entities": "^1.1.2",
