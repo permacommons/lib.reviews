@@ -160,6 +160,47 @@ test.serial('Authenticated POST to create review without CSRF token is rejected 
   t.pass();
 });
 
+test.serial('File upload stage 2 (metadata) without CSRF token is rejected with 403', async t => {
+  const agent = t.context.agent;
+
+  // Test 1: POST without CSRF token should fail with 403
+  const responseWithoutCsrf = await agent
+    .post('/test-thing/upload')
+    .type('form')
+    .send({
+      // Deliberately omitting _csrf token
+      'upload-language': 'en',
+      'upload-fakeid': '1',
+      'upload-fakeid-description': 'Test description',
+      'upload-fakeid-by': 'uploader'
+    });
+
+  t.is(responseWithoutCsrf.status, 403, 'Request without CSRF should return 403');
+
+  // Test 2: POST with valid CSRF token should pass CSRF check
+  // (will fail for other reasons like missing thing, but NOT 403 for CSRF)
+  const pageResponse = await agent.get('/');
+  const validCsrf = extractCSRF(pageResponse.text);
+
+  if (!validCsrf) return t.fail('Could not obtain valid CSRF token');
+
+  const responseWithCsrf = await agent
+    .post('/test-thing/upload')
+    .type('form')
+    .send({
+      _csrf: validCsrf,
+      'upload-language': 'en',
+      'upload-fakeid': '1',
+      'upload-fakeid-description': 'Test description',
+      'upload-fakeid-by': 'uploader'
+    });
+
+  // Should NOT be 403 (CSRF passed, will fail for other reasons like 404 for missing thing)
+  t.not(responseWithCsrf.status, 403, 'Request with valid CSRF should not return 403');
+
+  t.pass();
+});
+
 test.after.always(async t => {
   if (t.context.agent && typeof t.context.agent.close === 'function') {
     await new Promise(resolve => t.context.agent.close(resolve));
