@@ -80,6 +80,9 @@
     "supertest": "^7.1.4",
     "vite": "^7.1.11"
   },
+  "overrides": {
+    "agentkeepalive": "^4.6.0"
+  },
   "ava": {
     "files": [
       "tests/[0-9]*-*.mjs"
