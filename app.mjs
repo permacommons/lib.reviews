@@ -124,7 +124,7 @@ asyncJobs.push(dalPromise);
   const { default: pages } = await import('./routes/pages.mjs');
   const { default: blogPosts } = await import('./routes/blog-posts.mjs');
   const apitest = require('./routes/apitest');
-  const { stage1Router, stage2Router } = require('./routes/uploads');
+  const { stage1Router, stage2Router } = await import('./routes/uploads.mjs');
 
   const store = new pgSession({
     pool: dal.pool,

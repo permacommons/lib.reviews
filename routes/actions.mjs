@@ -8,7 +8,7 @@ import forms from './helpers/forms.js';
 import User from '../models/user.js';
 import InviteLink from '../models/invite-link.mjs';
 import debug from '../util/debug.js';
-import actionHandler from './handlers/action-handler.js';
+import actionHandler from './handlers/action-handler.mjs';
 import signinRequiredRoute from './handlers/signin-required-route.js';
 import languages from '../locales/languages.js';
 import search from '../search.js';
