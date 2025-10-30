@@ -116,7 +116,7 @@ asyncJobs.push(dalPromise);
   // Load routes after database is ready
   const { default: reviews } = await import('./routes/reviews.mjs');
   const { default: actions } = await import('./routes/actions.mjs');
-  const users = require('./routes/users');
+  const { default: users } = await import('./routes/users.mjs');
   const { default: teams } = await import('./routes/teams.mjs');
   const pages = require('./routes/pages');
   const files = require('./routes/files');
