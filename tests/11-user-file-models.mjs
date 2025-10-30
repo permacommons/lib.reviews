@@ -80,6 +80,45 @@ test.serial('User model: checkPassword validates bcrypt hash', async t => {
   t.false(await storedUser.checkPassword('incorrect'), 'Wrong password fails');
 });
 
+test.serial('User model: account without password is treated as locked', async t => {
+
+  const name = `LockedAccount-${randomUUID()}`;
+  const email = `${name.toLowerCase()}@example.com`;
+  const password = 'secret123';
+
+  // Create a user normally with a password
+  const user = await User.create({ name, password, email });
+  const userId = user.id;
+
+  // Load user with password and remove it (simulating a locked account)
+  const userToLock = await User.get(userId, { includeSensitive: ['password'] });
+  userToLock.password = null;
+  await userToLock.save({ updateSensitive: ['password'] });
+
+  // Verify password was cleared
+  const lockedUser = await User.get(userId, { includeSensitive: ['password'] });
+  t.is(lockedUser.password, null, 'Password is null for locked account');
+
+  // Verify authentication fails with locked account message
+  const passport = require('passport');
+  const LocalStrategy = require('passport-local').Strategy;
+
+  // We need to test through the auth strategy
+  await require('../auth');
+
+  const authenticatePromise = new Promise((resolve) => {
+    const strategy = passport._strategy('local');
+    strategy._verify(name, 'anypassword', (error, user, info) => {
+      resolve({ error, user, info });
+    });
+  });
+
+  const result = await authenticatePromise;
+  t.falsy(result.error, 'No error thrown');
+  t.falsy(result.user, 'Authentication failed');
+  t.is(result.info.message, 'account locked', 'Correct locked account message');
+});
+
 test.serial('User model: increaseInviteLinkCount increments atomically', async t => {
 
   const name = `Invites-${randomUUID()}`;
