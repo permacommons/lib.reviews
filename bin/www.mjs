@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-'use strict';
+import config from 'config';
+import fs from 'node:fs';
+import https from 'node:https';
 
-const config = require('config');
-const fs = require('fs');
-const https = require('https');
+import getApp from '../app.js';
+import dbPostgres from '../db-postgres.js';
 
-const getApp = require('../app');
-const getDB = require('../db-postgres').getDB;
+const { getDB } = dbPostgres;
 
 async function runWebsite() {
   const db = await getDB();
