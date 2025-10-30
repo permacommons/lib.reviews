@@ -23,11 +23,11 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const useragent = require('express-useragent');
 const passport = require('passport');
-const csrf = require('csurf'); // protect against request forgery using tokens
 const config = require('config');
 const compression = require('compression');
 const csp = require('helmet-csp'); // Content security policy
 const WebHookDispatcher = require('./util/webhooks');
+const { csrfSynchronisedProtection } = require('./util/csrf');
 
 // Internal dependencies
 const languages = require('./locales/languages');
@@ -243,7 +243,7 @@ async function getApp() {
   const uploads = require('./routes/uploads');
   app.use('/', uploads.stage1Router);
 
-  app.use(csrf());
+  app.use(csrfSynchronisedProtection);
   app.use('/', pages);
   app.use('/', reviews);
   app.use('/', actions);
