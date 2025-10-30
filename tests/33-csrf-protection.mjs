@@ -1,10 +1,8 @@
 import test from 'ava';
 import supertest from 'supertest';
-import { createRequire } from 'module';
 import { extractCSRF, registerTestUser } from './helpers/integration-helpers.mjs';
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
-
-const require = createRequire(import.meta.url);
+const loadAppModule = () => import('../app.mjs');
 
 // Mock search before loading any modules that depend on it (e.g. bootstrap/dal).
 mockSearch();
@@ -20,9 +18,9 @@ test.before(async t => {
 });
 
 test.beforeEach(async t => {
-  // Ensure we initialize from scratch
-  Reflect.deleteProperty(require.cache, require.resolve('../app'));
-  const getApp = require('../app');
+  const { default: getApp, resetAppForTesting } = await loadAppModule();
+  if (typeof resetAppForTesting === 'function')
+    await resetAppForTesting();
   t.context.app = await getApp();
   t.context.agent = supertest.agent(t.context.app);
 });
@@ -206,6 +204,9 @@ test.after.always(async t => {
     await new Promise(resolve => t.context.agent.close(resolve));
     t.context.agent = null;
   }
+  const { resetAppForTesting } = await loadAppModule();
+  if (typeof resetAppForTesting === 'function')
+    await resetAppForTesting();
   unmockSearch();
   if (t.context.app && t.context.app.locals.dal) {
     await t.context.app.locals.dal.cleanup();

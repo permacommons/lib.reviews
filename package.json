@@ -8,7 +8,7 @@
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.mjs",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.mjs",
-    "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
+    "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.mjs -d static/devdocs/backend"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",

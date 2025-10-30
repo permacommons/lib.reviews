@@ -4,12 +4,12 @@ import isUUID from 'is-uuid';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
+import config from 'config';
 import { registerTestUser } from './helpers/integration-helpers.mjs';
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
-const require = createRequire(import.meta.url);
+const loadAppModule = () => import('../app.mjs');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
@@ -45,11 +45,11 @@ test.before(async () => {
   Review = models.Review;
   File = models.File;
 
-  const config = require('config');
   await fs.mkdir(config.uploadTempDir, { recursive: true });
 
-  Reflect.deleteProperty(require.cache, require.resolve('../app'));
-  const getApp = require('../app');
+  const { default: getApp, resetAppForTesting } = await loadAppModule();
+  if (typeof resetAppForTesting === 'function')
+    await resetAppForTesting();
   app = await getApp();
 });
 
@@ -587,5 +587,8 @@ test.serial('POST /api/actions/upload requires trusted user permission', async t
 
 test.after.always(async () => {
   unmockSearch();
+  const { resetAppForTesting } = await loadAppModule();
+  if (typeof resetAppForTesting === 'function')
+    await resetAppForTesting();
   await dalFixture.cleanup();
 });

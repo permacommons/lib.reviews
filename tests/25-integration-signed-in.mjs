@@ -2,12 +2,11 @@ import test from 'ava';
 import supertest from 'supertest';
 import isUUID from 'is-uuid';
 import { promises as fs } from 'fs';
-import { createRequire } from 'module';
+import config from 'config';
 import { extractCSRF, registerTestUser } from './helpers/integration-helpers.mjs';
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
-
-const require = createRequire(import.meta.url);
+const loadAppModule = () => import('../app.mjs');
 
 mockSearch();
 
@@ -43,11 +42,11 @@ test.before(async () => {
   Team = models.Team;
   TeamJoinRequest = models.TeamJoinRequest;
 
-  const config = require('config');
   await fs.mkdir(config.uploadTempDir, { recursive: true });
 
-  Reflect.deleteProperty(require.cache, require.resolve('../app'));
-  const getApp = require('../app');
+  const { default: getApp, resetAppForTesting } = await loadAppModule();
+  if (typeof resetAppForTesting === 'function')
+    await resetAppForTesting();
   app = await getApp();
 });
 
@@ -406,5 +405,8 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
 
 test.after.always(async () => {
   unmockSearch();
+  const { resetAppForTesting } = await loadAppModule();
+  if (typeof resetAppForTesting === 'function')
+    await resetAppForTesting();
   await dalFixture.cleanup();
 });

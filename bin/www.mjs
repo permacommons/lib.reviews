@@ -4,14 +4,14 @@ import config from 'config';
 import fs from 'node:fs';
 import https from 'node:https';
 
-import getApp from '../app.js';
+import getApp from '../app.mjs';
 import dbPostgres from '../db-postgres.js';
 
 const { getDB } = dbPostgres;
 
 async function runWebsite() {
-  const db = await getDB();
-  const app = await getApp(db);
+  await getDB();
+  const app = await getApp();
 
   const httpsConfig = config.has('https') ? config.get('https') : {};
   const httpsEnabled = app.get('env') === 'production' && httpsConfig.enabled;

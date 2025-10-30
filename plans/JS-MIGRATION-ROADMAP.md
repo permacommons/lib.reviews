@@ -4,11 +4,11 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 
 ## Current State Snapshot (2025-10-30)
 
-- 111 `.js` files remain in CommonJS across the repository (includes backend and tooling; excludes `.mjs` tests).
-- Backend entry points: `bin/www.mjs` now runs as ESM while bridging into CommonJS `app.js` and `bootstrap/dal.js`, which remain to be migrated.
+- 110 `.js` files remain in CommonJS across the repository (includes backend and tooling; excludes `.mjs` tests).
+- Backend entry points: `bin/www.mjs` and `app.mjs` now run as ESM while bridging into CommonJS `bootstrap/dal.js`, which remains to be migrated.
 - Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (14), maintenance (5), build scripts (2), frontend legacy (25), single-file modules (`auth.js`, `db-postgres.js`, `search.js`, `tools/*.js`, `locales/languages.js`).
 - TypeScript-ready surface already exists for tests (`tests/*.mjs`) and Vite (`vite.config.mjs`), easing eventual `allowJs` adoption.
-- Next focus: convert `app.js` (Express bootstrap) without breaking the remaining CommonJS modules it pulls in—evaluate side-effect imports (`./auth`, `./util/handlebars-helpers.js`) carefully.
+- Next focus: convert `bootstrap/dal.js` while coordinating its shared initialization with the new ESM entry points.
 
 ## Phase 1: ESM Migration
 
@@ -22,18 +22,18 @@ Convert the entire codebase from CommonJS to ESM modules.
 
 ### Backend Core (74 CommonJS files)
 - [x] Convert `/bin/www` entry point
-- [ ] Convert `/app.js` main application file
+- [x] Convert `/app` main application file
 - [ ] Convert `/bootstrap/*.js` initialization files
 - Current inventory (2025-10-30):
-  - `app.js`
   - `bootstrap/dal.js`
-- Direct `require` targets inside `app.js` that must keep working when it moves to ESM:
-  - External: express, path, fs, serve-favicon, serve-index, morgan, cookie-parser, body-parser, i18n, hbs, hbs-utils, express-session, connect-pg-simple, express-useragent, passport, csurf, config, compression, helmet-csp.
-  - Internal: `./util/webhooks`, `./locales/languages`, `./routes/helpers/api`, `./routes/helpers/flash`, `./routes/errors`, `./util/debug`, `./util/client-assets`, `./util/flash-store`, `./util/handlebars-helpers.js`, `./bootstrap/dal`, `./auth`, `./routes/*`, `./routes/uploads`.
+- Direct consumers of `bootstrap/dal.js` to watch during migration:
+  - `app.mjs` (ESM): imports `initializeDAL()` via dynamic import helper.
+  - Tests: `setupPostgresTest.mjs` and DAL fixtures rely on existing CommonJS shape.
+  - `db-postgres.js`: reuses/exports DAL helpers for other parts of the app.
 - Migration guardrails:
-  - Prefer `import pkg from 'pkg'` + `.default` shims only when required (most dependencies expose CommonJS defaults that map cleanly).
-  - Use `createRequire` for modules that export configured functions (`hbs-utils`, `connect-pg-simple`) until their ESM equivalents are confirmed.
-  - Keep `require`-driven side effects (`./auth`, `./util/handlebars-helpers.js`) via dynamic `await import()` to avoid reordering initialization.
+  - Preserve singleton semantics for DAL initialization; confirm `initializeDAL` continues to de-duplicate concurrent callers after conversion.
+  - Evaluate exposing explicit ESM exports for model bootstrap so tests can tree-shake unwanted work.
+  - Ensure CommonJS consumers (`db-postgres.js`, models) retain compatibility during incremental rollout—consider adding a thin `dal.cjs` compatibility shim if needed.
 
 ### Models Layer (~140 KB)
 - [ ] Convert `/models/thing.js`
