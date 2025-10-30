@@ -6,16 +6,12 @@
     "build": "vite build",
     "start": "NODE_ENV=production node bin/www.js",
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.js",
-    "test": "NODE_ENV=development node tests/helpers/run-ava.mjs",
-    "test-debug": "NODE_ENV=development DEBUG=libreviews:* node tests/helpers/run-ava.mjs",
-    "test-watch": "NODE_ENV=development DEBUG=libreviews:tests node tests/helpers/run-ava.mjs --watch",
+    "start-dev-yad": "bash bin/dev-with-tray.sh",
+    "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.mjs",
     "snyk-protect": "snyk-protect",
     "prepare": "npm run snyk-protect",
     "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
   },
-  "pre-commit": [
-    "test"
-  ],
   "dependencies": {
     "@babel/core": "^7.28.4",
     "@fortawesome/fontawesome-free": "^7.1.0",
@@ -26,6 +22,7 @@
     "cldr-localenames-full": "^29.0.0",
     "compression": "^1.8.1",
     "config": "^4.1.1",
+    "connect-pg-simple": "^10.0.0",
     "cookie-parser": "~1.4.7",
     "csurf": "^1.11.0",
     "debug": "^4.4.3",
@@ -57,6 +54,8 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "pg": "^8.13.1",
+    "pg-pool": "^3.7.0",
     "promise-limit": "^2.7.0",
     "prosemirror-commands": "^1.7.1",
     "prosemirror-dropcursor": "^1.8.2",
@@ -90,7 +89,6 @@
     "jsdom": "^24.0.0",
     "less": "^4.2.0",
     "nock": "^14.0.10",
-    "pre-commit": "^1.2.2",
     "snyk": "^1.1300.0",
     "supertest": "^7.1.4",
     "vite": "^7.1.10"
@@ -98,8 +96,9 @@
   "snyk": true,
   "ava": {
     "files": [
-      "tests/*-*.mjs"
+      "tests/[0-9]*-*.mjs"
     ],
-    "concurrency": 4
+    "concurrency": 4,
+    "timeout": "2m"
   }
 }

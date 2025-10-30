@@ -17,7 +17,7 @@ function getClient() {
     client = createClient();
   return client;
 }
-const mlString = require('./models/helpers/ml-string');
+const mlString = require('./dal/lib/ml-string');
 const languages = require('./locales/languages');
 
 // All supported stemmers as of ElasticSearch 5.2.0
@@ -72,8 +72,21 @@ let search = {
   searchThings(query, lang = 'en') {
     let options = search.getSearchOptions('label', lang);
     let descriptionOptions = search.getSearchOptions('description', lang);
-    options.fields = options.fields.concat(descriptionOptions.fields);
-    Object.assign(options.highlight.fields, descriptionOptions.highlight.fields);
+    let subtitleOptions = search.getSearchOptions('subtitle', lang);
+    let authorsOptions = search.getSearchOptions('authors', lang);
+    
+    // Combine all search fields
+    options.fields = options.fields
+      .concat(descriptionOptions.fields)
+      .concat(subtitleOptions.fields)
+      .concat(authorsOptions.fields);
+    
+    // Combine all highlight fields
+    Object.assign(options.highlight.fields, 
+      descriptionOptions.highlight.fields,
+      subtitleOptions.highlight.fields,
+      authorsOptions.highlight.fields
+    );
 
     return getClient().search({
       index: 'libreviews',
@@ -213,6 +226,12 @@ let search = {
 
   // Index a new review. Returns a promise; logs errors
   indexReview(review) {
+    // Skip indexing if this is an old or deleted revision
+    if (review._oldRevOf || review._revDeleted) {
+      debug.util(`Skipping indexing of review ${review.id} - old or deleted revision`);
+      return Promise.resolve();
+    }
+
     return getClient().index({
         index: 'libreviews',
         id: review.id,
@@ -236,6 +255,18 @@ let search = {
 
   // Index a new review subject (thing). Returns a promise; logs errors
   indexThing(thing) {
+    // Skip indexing if this is an old or deleted revision
+    if (thing._oldRevOf || thing._revDeleted) {
+      debug.util(`Skipping indexing of thing ${thing.id} - old or deleted revision`);
+      return Promise.resolve();
+    }
+
+    // Extract multilingual content from PostgreSQL JSONB structure
+    // Access via virtual getters that map to metadata JSONB structure
+    const description = thing.description;
+    const subtitle = thing.subtitle;
+    const authors = thing.authors;
+    
     return getClient().index({
         index: 'libreviews',
         id: thing.id,
@@ -243,7 +274,9 @@ let search = {
           createdOn: thing.createdOn,
           label: mlString.stripHTML(thing.label),
           aliases: mlString.stripHTMLFromArray(thing.aliases),
-          description: mlString.stripHTML(thing.description),
+          description: mlString.stripHTML(description),
+          subtitle: mlString.stripHTML(subtitle),
+          authors: mlString.stripHTMLFromArray(authors),
           joined: 'thing',
           type: 'thing',
           urls: thing.urls,
@@ -314,6 +347,8 @@ let search = {
               label: search.getMultilingualTextProperties(true),
               aliases: search.getMultilingualTextProperties(true),
               description: search.getMultilingualTextProperties(),
+              subtitle: search.getMultilingualTextProperties(),
+              authors: search.getMultilingualTextProperties(),
               type: {
                 type: 'keyword'
               }

@@ -8,12 +8,54 @@ const stripTags = require('striptags');
 const linkifyHTML = require('linkify-html');
 
 // Internal dependencies
-const mlString = require('../models/helpers/ml-string');
+const mlString = require('../dal/lib/ml-string');
 const languages = require('../locales/languages');
-const Thing = require('../models/thing');
+const thingModelHandle = require('../models/thing');
 const urlUtils = require('./url-utils');
 const adapters = require('../adapters/adapters');
 const getLicenseURL = require('./get-license-url');
+const debug = require('./debug');
+
+/**
+ * Resolve a thing's display label in the current locale, with safe fallbacks.
+ *
+ * @param {Object} thing - Thing object or plain data used by the template
+ * @param {string} locale - Active locale for rendering
+ * @returns {string} Localized label, prettified URL, or an empty string
+ */
+function getThingLabel(thing, locale) {
+  if (!thing) {
+    return '';
+  }
+
+  const modelGetLabel = thingModelHandle && thingModelHandle.getLabel;
+
+  if (typeof modelGetLabel === 'function') {
+    try {
+      const label = modelGetLabel(thing, locale);
+      if (label) {
+        return label;
+      }
+    } catch (err) {
+      debug && debug.error && debug.error('Failed to resolve thing label via model handle', err);
+    }
+  }
+
+  // Manual fallback mirrors Thing.getLabel behaviour without relying on the model
+  let resolved;
+  if (thing.label) {
+    resolved = mlString.resolve(locale, thing.label);
+    if (resolved && resolved.str) {
+      return resolved.str;
+    }
+  }
+
+  if (thing.urls && thing.urls.length) {
+    return urlUtils.prettify(thing.urls[0]);
+  }
+
+  return '';
+}
 
 // Current iteration value will be passed as {{this}} into the block,
 // starts at 1 for more human-readable counts. First and last set @first, @last
@@ -68,8 +110,12 @@ hbs.registerHelper('shortDate', function(date) {
 });
 
 hbs.registerHelper('longDate', function(date) {
-  if (date && date instanceof Date)
-    return date.toLocaleString();
+  if (!date)
+    return;
+
+  const value = date instanceof Date ? date : new Date(date);
+  if (value instanceof Date && !Number.isNaN(value.getTime()))
+    return value.toLocaleString();
 });
 
 // Sources are external sites we interface with; if they're known sources,
@@ -111,8 +157,7 @@ hbs.registerHelper('getLang', function(str, options) {
   return mlRv ? mlRv.lang : undefined;
 });
 
-hbs.registerHelper('getThingLabel', (thing, options) =>
-  Thing.getLabel(thing, options.data.root.locale));
+hbs.registerHelper('getThingLabel', (thing, options) => getThingLabel(thing, options.data.root.locale));
 
 // Just a simple %1, %2 substitution function for various purposes
 hbs.registerHelper('substitute', function(...args) {
@@ -129,8 +174,11 @@ hbs.registerHelper('substitute', function(...args) {
 });
 
 hbs.registerHelper('getThingLink', (thing, options) => {
-  let label = Thing.getLabel(thing, options.data.root.locale);
-  return `<a href="/${thing.urlID}">${label}</a>`;
+  if (!thing) {
+    return '';
+  }
+  const label = getThingLabel(thing, options.data.root.locale);
+  return `<a href="/${thing.urlID}">${label || ''}</a>`;
 });
 
 // Filenames cannot contain HTML metacharacters, so URL encoding is sufficient here

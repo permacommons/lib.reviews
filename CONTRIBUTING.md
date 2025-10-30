@@ -12,9 +12,9 @@ lib.reviews is a pure-JavaScript application, using modern language features whe
 | ---------------------------------------- | ---------------------------------------- |
 | [Node.js](https://nodejs.org/en/) 22.x (current release line) | lib.reviews server, API and tests        |
 | [Express](https://expressjs.com/) (V4 series) | Framework for the web application        |
-| [RethinkDB](https://rethinkdb.com/)      | Primary storage backend for text. (This may need to change in the long-run since RethinkDB no longer has a commercial parent and development has slowed down.) |
+| [PostgreSQL](https://www.postgresql.org/) | Primary storage backend for text         |
 | [ElasticSearch](https://www.elastic.co/) | Search backend                           |
-| [Thinky](http://thinky.io/)              | Object Document Mapper for modeling the data stored in RethinkDB |
+| Custom DAL (`dal/`)                      | Data Access Layer for PostgreSQL with revision tracking |
 | [Handlebars](http://handlebarsjs.com/)   | Front-end templates (currently only rendered server-side) |
 | [LESS](http://lesscss.org/)              | CSS pre-processor, makes CSS easier to use |
 | [PureCSS](https://purecss.io/)           | Grid system and basic styles             |
@@ -33,15 +33,49 @@ We aim to be multilingual in UI and content, and are exclusively using translata
 
 # Getting started
 
-This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need Node.js 22.x (the current release line we target). Switch to your check-out directory and then run `npm install`. Run `npm run build` to produce the Vite bundles. Make sure you also have RethinkDB up and running before starting the service.
+This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need Node.js 22.x (the current release line we target). Switch to your check-out directory and then run `npm install`. Run `npm run build` to produce the Vite bundles. Make sure you also have PostgreSQL up and running before starting the service.
+
+See `POSTGRES-SETUP.md` for instructions on setting up the PostgreSQL database.
 
 You can customize your development configuration by copying `config/default.json5` to `config/development.json5`. Finally, run `npm run start-dev` and visit `localhost` at the configured port number. The npm scripts invoke `node bin/www.js` directly; in production we recommend adapting the sample systemd unit in `deployment/libreviews.service.sample`.
+
+## Alternative: Dev server with system tray icon
+
+If you're using a GNOME/GTK-based desktop environment (or any Linux system with a system tray), you can run the dev server with a handy tray icon:
+
+```bash
+npm run start-dev-yad
+```
+
+This requires `yad` (Yet Another Dialog), which is available in most Linux distribution repositories. The tray icon allows you to:
+- Click to toggle the server on/off
+- See server state at a glance (stop icon when running, play icon when stopped)
+- Keep the dev server accessible without cluttering your workspace
+
+Note: This is a GNOME-centric feature and may not work well on other desktop environments.
+
+# Licensing and conduct
 
 Any pull requests must be under the [CC-0 License](./LICENSE). This project has adopted a [code of conduct](./CODE_OF_CONDUCT.md) to make sure all contributors feel welcome.
 
 # Running tests
 
 Use `npm run test` to execute the AVA suite. The helper script automatically ensures a production Vite manifest exists, running `npm run build` on your behalf when necessary before starting the tests.
+
+# Database Models
+
+lib.reviews uses PostgreSQL as its database backend. The models use a camelCase accessor pattern for application code while using snake_case database columns.
+
+## CamelCase Accessor Pattern
+
+Models expose camelCase properties (e.g., `user.displayName`, `review.starRating`) that internally map to snake_case database columns (e.g., `display_name`, `star_rating`). This design provides:
+
+- **Clean Interface**: Application code uses intuitive camelCase JavaScript conventions
+- **Database Abstraction**: Snake_case database implementation is hidden from application code
+- **Maintainability**: Clear separation between database schema and application API
+- **Performance**: Minimal overhead through efficient property descriptors and field mapping caches
+
+The mapping is handled automatically by the Model base class (`dal/lib/model.js`) using property descriptors and field mapping registries. Virtual fields (computed properties like `urlID`, `userCanEdit`) are generated dynamically and not stored in the database.
 
 # Code style
 

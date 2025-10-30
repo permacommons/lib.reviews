@@ -38,7 +38,7 @@ const formDefs = {
 };
 
 
-router.get('/actions/search', function(req, res, next) {
+router.get('/actions/search', function (req, res, next) {
   let query = (req.query.query || '').trim();
   if (query) {
     Promise
@@ -70,11 +70,13 @@ router.get('/actions/search', function(req, res, next) {
 
 router.get('/actions/invite', signinRequiredRoute('invite users', renderInviteLinkPage));
 
-router.post('/actions/invite', signinRequiredRoute('invite users', function(req, res, next) {
-  if (!req.user.inviteLinkCount) {
-    req.flash('pageErrors', res.__('out of links'));
-    return renderInviteLinkPage(req, res, next);
-  } else {
+router.post('/actions/invite', signinRequiredRoute('invite users', async function (req, res, next) {
+  try {
+    if (!req.user.inviteLinkCount) {
+      req.flash('pageErrors', res.__('out of links'));
+      return renderInviteLinkPage(req, res, next);
+    }
+
     let inviteLink = new InviteLink({});
     inviteLink.createdOn = new Date();
     inviteLink.createdBy = req.user.id;
@@ -83,49 +85,39 @@ router.post('/actions/invite', signinRequiredRoute('invite users', function(req,
     req.user.inviteLinkCount--;
     let p2 = req.user.save();
 
-    Promise.all([p1, p2])
-      .then(() => {
-        req.flash('pageMessages', res.__('link generated'));
-        return renderInviteLinkPage(req, res, next);
-      })
-      .catch(next);
-  }
+    await Promise.all([p1, p2]);
 
+    req.flash('pageMessages', res.__('link generated'));
+    return renderInviteLinkPage(req, res, next);
+  } catch (error) {
+    next(error);
+  }
 }));
 
 
-function renderInviteLinkPage(req, res, next) {
+async function renderInviteLinkPage(req, res, next) {
+  try {
+    const [pendingInviteLinks, usedInviteLinks] = await Promise.all([
+      InviteLink.getAvailable(req.user),
+      InviteLink.getUsed(req.user)
+    ]);
 
-  // Links that have been generated but not used
-  let p1 = InviteLink.getAvailable(req.user);
-
-  // Links that have been generated and used
-  let p2 = InviteLink.getUsed(req.user);
-
-  Promise
-    .all([p1, p2])
-    .then(results => {
-
-      let pendingInviteLinks = results[0];
-      let usedInviteLinks = results[1];
-
-      render.template(req, res, 'invite', {
-        titleKey: res.locals.titleKey,
-        invitePage: true, // to tell template not to show call-to-action again
-        pendingInviteLinks,
-        usedInviteLinks,
-        pageErrors: req.flash('pageErrors'),
-        pageMessages: req.flash('pageMessages')
-      });
-
-    })
-    .catch(next);
-
+    render.template(req, res, 'invite', {
+      titleKey: res.locals.titleKey,
+      invitePage: true, // to tell template not to show call-to-action again
+      pendingInviteLinks,
+      usedInviteLinks,
+      pageErrors: req.flash('pageErrors'),
+      pageMessages: req.flash('pageMessages')
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 router.post('/actions/suppress-notice', actionHandler.suppressNotice);
 
-router.post('/actions/change-language', function(req, res) {
+router.post('/actions/change-language', function (req, res) {
   let maxAge = 1000 * 60 * config.sessionCookieDuration; // cookie age: 30 days
   let lang = req.body.lang;
   let redirectTo = req.body['redirect-to'];
@@ -158,7 +150,7 @@ router.post('/actions/change-language', function(req, res) {
 
 // Below actions have shorter names for convenience
 
-router.get('/signin', function(req, res) {
+router.get('/signin', function (req, res) {
   let pageErrors = req.flash('pageErrors');
   render.template(req, res, 'signin', {
     titleKey: 'sign in',
@@ -167,7 +159,7 @@ router.get('/signin', function(req, res) {
 });
 
 
-router.post('/signin', function(req, res, next) {
+router.post('/signin', function (req, res, next) {
   if (!req.body.username || !req.body.password) {
     if (!req.body.username)
       req.flash('pageErrors', req.__('need username'));
@@ -176,7 +168,7 @@ router.post('/signin', function(req, res, next) {
     return res.redirect('/signin');
   }
 
-  passport.authenticate('local', function(error, user, info) {
+  passport.authenticate('local', function (error, user, info) {
     if (error) {
       debug.error({ req, error });
       return res.redirect('/signin');
@@ -187,7 +179,7 @@ router.post('/signin', function(req, res, next) {
       }
       return res.redirect('/signin');
     }
-    req.login(user, function(error) {
+    req.login(user, function (error) {
       if (error) {
         debug.error({ req, error });
         return res.redirect('/signin');
@@ -199,11 +191,11 @@ router.post('/signin', function(req, res, next) {
 });
 
 
-router.get('/new/user', function(req, res) {
+router.get('/new/user', function (req, res) {
   res.redirect('/register');
 });
 
-router.get('/register', function(req, res) {
+router.get('/register', function (req, res, next) {
   viewInSignupLanguage(req);
   if (config.requireInviteLinks)
     return render.template(req, res, 'invite-needed', {
@@ -213,37 +205,38 @@ router.get('/register', function(req, res) {
     return sendRegistrationForm(req, res);
 });
 
-router.get('/register/:code', function(req, res, next) {
+router.get('/register/:code', async function (req, res, next) {
   viewInSignupLanguage(req);
   const { code } = req.params;
-  InviteLink
-    .get(code)
-    .then(inviteLink => {
-      if (inviteLink.usedBy)
-        return render.permissionError(req, res, {
-          titleKey: 'invite link already used title',
-          detailsKey: 'invite link already used'
-        });
-      else
-        return sendRegistrationForm(req, res);
-    })
-    .catch(error => {
-      if (error.name === 'DocumentNotFoundError')
-        return render.permissionError(req, res, {
-          titleKey: 'invite link invalid title',
-          detailsKey: 'invite link invalid'
-        });
-      else
-        return next(error);
-    });
+
+  try {
+    const inviteLink = await InviteLink.get(code);
+
+    if (inviteLink.usedBy) {
+      return render.permissionError(req, res, {
+        titleKey: 'invite link already used title',
+        detailsKey: 'invite link already used'
+      });
+    } else {
+      return sendRegistrationForm(req, res);
+    }
+  } catch (error) {
+    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError')
+      return render.permissionError(req, res, {
+        titleKey: 'invite link invalid title',
+        detailsKey: 'invite link invalid'
+      });
+    else
+      return next(error);
+  }
 });
 
-router.post('/signout', function(req, res) {
+router.post('/signout', function (req, res) {
   req.logout(() => res.redirect('/'));
 });
 
 if (!config.requireInviteLinks) {
-  router.post('/register', function(req, res) {
+  router.post('/register', async function (req, res, next) {
     viewInSignupLanguage(req);
 
     let formInfo = forms.parseSubmission(req, {
@@ -251,93 +244,111 @@ if (!config.requireInviteLinks) {
       formKey: 'register'
     });
 
-    if (req.flashHas('pageErrors'))
-      return sendRegistrationForm(req, res, formInfo);
+    if (req.flashHas('pageErrors')) {
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (error) {
+        return next(error);
+      }
+      return;
+    }
 
-    User.create({
+    try {
+
+      const user = await User.create({
         name: req.body.username,
         password: req.body.password,
         email: req.body.email
-      })
-      .then(user => {
-        setSignupLanguage(req, res);
-        req.login(user, error => {
-          if (error) {
-            debug.error({ req, error });
-          }
-          req.flash('siteMessages', res.__('welcome new user', user.displayName));
-          returnToPath(req, res);
-        });
-      })
-      .catch(error => { // Problem creating user
-        req.flashError(error);
-        return sendRegistrationForm(req, res, formInfo);
       });
 
+      setSignupLanguage(req, res);
+      req.login(user, error => {
+        if (error) {
+          debug.error({ req, error });
+        }
+        req.flash('siteMessages', res.__('welcome new user', user.displayName));
+        returnToPath(req, res);
+      });
+    } catch (error) {
+      req.flashError(error);
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (formError) {
+        return next(formError);
+      }
+      return;
+    }
   });
 }
 
 
-router.post('/register/:code', function(req, res, next) {
+router.post('/register/:code', async function (req, res, next) {
   viewInSignupLanguage(req);
 
   const { code } = req.params;
 
-  InviteLink
-    .get(code)
-    .then(inviteLink => {
+  try {
 
-      if (inviteLink.usedBy)
-        return render.permissionError(req, res, {
-          titleKey: 'invite link already used title',
-          detailsKey: 'invite link already used'
-        });
+    const inviteLink = await InviteLink.get(code);
 
-      let formInfo = forms.parseSubmission(req, {
-        formDef: formDefs.register,
-        formKey: 'register'
+    if (inviteLink.usedBy)
+      return render.permissionError(req, res, {
+        titleKey: 'invite link already used title',
+        detailsKey: 'invite link already used'
       });
 
-      if (req.flashHas('pageErrors'))
-        return sendRegistrationForm(req, res, formInfo);
-
-
-      User.create({
-          name: req.body.username,
-          password: req.body.password,
-          email: req.body.email
-        })
-        .then(user => {
-          inviteLink.usedBy = user.id;
-          inviteLink.save().then(() => {
-              setSignupLanguage(req, res);
-              req.login(user, error => {
-                if (error) {
-                  debug.error({ req, error });
-                }
-                req.flash('siteMessages', res.__('welcome new user', user.displayName));
-                returnToPath(req, res);
-              });
-            })
-            .catch(next); // Problem updating invite code
-        })
-        .catch(error => { // Problem creating user
-          req.flashError(error);
-          return sendRegistrationForm(req, res, formInfo);
-        });
-
-    })
-    .catch(error => { // Invite link lookup problem
-      if (error.name === 'DocumentNotFoundError')
-        return render.permissionError(req, res, {
-          titleKey: 'invite link invalid title',
-          detailsKey: 'invite link invalid'
-        });
-      else
-        return next(error);
+    let formInfo = forms.parseSubmission(req, {
+      formDef: formDefs.register,
+      formKey: 'register'
     });
 
+    if (req.flashHas('pageErrors')) {
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (error) {
+        return next(error);
+      }
+      return;
+    }
 
+
+
+    try {
+      const user = await User.create({
+        name: req.body.username,
+        password: req.body.password,
+        email: req.body.email
+      });
+
+      inviteLink.usedBy = user.id;
+      await inviteLink.save();
+
+      setSignupLanguage(req, res);
+      req.login(user, error => {
+        if (error) {
+          debug.error({ req, error });
+        }
+        req.flash('siteMessages', res.__('welcome new user', user.displayName));
+        returnToPath(req, res);
+      });
+    } catch (error) {
+      req.flashError(error);
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (formError) {
+        return next(formError);
+      }
+      return;
+    }
+  } catch (error) { // Invite link lookup problem
+    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError')
+      return render.permissionError(req, res, {
+        titleKey: 'invite link invalid title',
+        detailsKey: 'invite link invalid'
+      });
+    else
+      return next(error);
+  }
 });
 
 function sendRegistrationForm(req, res, formInfo) {

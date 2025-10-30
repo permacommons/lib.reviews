@@ -1,305 +1,348 @@
 'use strict';
 
-/**
- * Model for review subjects, including metadata such as URLs, author names,
- * business hours, etc.
- *
- * @namespace Thing
- */
+const { createModelModule } = require('../dal/lib/model-handle');
+const { proxy: ThingHandle, register: registerThingHandle } = createModelModule({
+  tableName: 'things'
+});
 
-const thinky = require('../db');
-const r = thinky.r;
-const type = thinky.type;
+module.exports = ThingHandle;
 
-const urlUtils = require('../util/url-utils');
+const { getPostgresDAL } = require('../db-postgres');
+const type = require('../dal').type;
+const mlString = require('../dal').mlString;
 const debug = require('../util/debug');
-const mlString = require('./helpers/ml-string');
-const revision = require('./helpers/revision');
-const slugName = require('./helpers/slug-name');
-const getSetIDHandler = require('./helpers/set-id');
-const File = require('./file');
-const ThingSlug = require('./thing-slug');
-const isValidLanguage = require('../locales/languages').isValid;
+const urlUtils = require('../util/url-utils');
 const ReportedError = require('../util/reported-error');
 const adapters = require('../adapters/adapters');
+const isValidLanguage = require('../locales/languages').isValid;
+const { initializeModel } = require('../dal/lib/model-initializer');
+const ThingSlug = require('./thing-slug');
+const File = require('./file');
+const Review = require('./review');
+const User = require('./user');
+const isUUID = require('is-uuid');
+const decodeHTML = require('entities').decodeHTML;
 const search = require('../search');
 
-let thingSchema = {
+let Thing = null;
 
-  id: type.string(),
+/**
+ * Initialize the PostgreSQL Thing model
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+ */
+async function initializeThingModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
 
-  // First element is primary URL associated with this thing
-  urls: [type.string().validator(_isValidURL)],
+  if (!activeDAL) {
+    debug.db('PostgreSQL DAL not available, skipping Thing model initialization');
+    return null;
+  }
 
-  label: mlString.getSchema({
-    maxLength: 256
-  }),
+  try {
+    // Create the schema with revision fields
+    const thingSchema = {
+      id: type.string().uuid(4),
+      
+      // Array of URLs (first is primary)
+      urls: type.array(type.string().validator(_isValidURL)),
+      
+      // JSONB multilingual fields
+      label: mlString.getSchema({ maxLength: 256 }),
+      aliases: mlString.getSchema({ maxLength: 256, array: true }),
+      
+      // Grouped metadata in JSONB for extensibility
+      metadata: type.object().validator(_validateMetadata),
+      
+      // Complex sync data in JSONB
+      sync: type.object(),
+      
+      // CamelCase relational fields that map to snake_case database columns
+      originalLanguage: type.string().max(4).validator(isValidLanguage),
+      canonicalSlugName: type.string(),
+      createdOn: type.date().required(true),
+      createdBy: type.string().uuid(4).required(true),
+      
+      // Virtual fields for compatibility
+      urlID: type.virtual().default(function() {
+        const slugName = this.getValue ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
+        return slugName ? encodeURIComponent(slugName) : this.id;
+      }),
+      
+      // Permission virtual fields
+      userCanDelete: type.virtual().default(false),
+      userCanEdit: type.virtual().default(false),
+      userCanUpload: type.virtual().default(false),
+      userIsCreator: type.virtual().default(false),
+      
+      // Metrics virtual fields (populated asynchronously)
+      numberOfReviews: type.virtual().default(0),
+      averageStarRating: type.virtual().default(0),
 
-  aliases: mlString.getSchema({
-    maxLength: 256,
-    array: true
-  }),
+      // Virtual accessors for nested metadata JSONB fields
+      description: type.virtual().default(function() {
+        const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
+        return metadata?.description;
+      }),
+      subtitle: type.virtual().default(function() {
+        const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
+        return metadata?.subtitle;
+      }),
+      authors: type.virtual().default(function() {
+        const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
+        return metadata?.authors;
+      })
+    };
 
-  description: mlString.getSchema({
-    maxLength: 512
-  }),
+    const { model } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'things',
+      schema: thingSchema,
+      camelToSnake: {
+        originalLanguage: 'original_language',
+        canonicalSlugName: 'canonical_slug_name',
+        createdOn: 'created_on',
+        createdBy: 'created_by'
+      },
+      withRevision: {
+        static: [
+          'createFirstRevision',
+          'getNotStaleOrDeleted',
+          'filterNotStaleOrDeleted',
+          'getMultipleNotStaleOrDeleted'
+        ],
+        instance: ['deleteAllRevisions']
+      },
+      staticMethods: {
+        lookupByURL,
+        getWithData,
+        getLabel
+      },
+      instanceMethods: {
+        initializeFieldsFromAdapter,
+        populateUserInfo,
+        populateReviewMetrics,
+        setURLs,
+        updateActiveSyncs,
+        getSourceIDsOfActiveSyncs,
+        updateSlug,
+        getReviewsByUser,
+        getAverageStarRating,
+        getReviewCount,
+        addFile,
+        addFilesByIDsAndSave
+      },
+      relations: [
+        {
+          name: 'reviews',
+          targetTable: 'reviews',
+          sourceKey: 'id',
+          targetKey: 'thing_id',
+          hasRevisions: true,
+          cardinality: 'many'
+        },
+        {
+          name: 'files',
+          targetTable: 'files',
+          sourceKey: 'id',
+          targetKey: 'id',
+          hasRevisions: true,
+          through: {
+            table: 'thing_files',
+            sourceForeignKey: 'thing_id',
+            targetForeignKey: 'file_id'
+          },
+          cardinality: 'many'
+        }
+      ]
+    });
+    Thing = model;
 
-  // Many creative works have a subtitle that we don't typically include as part
-  // of the label.
-  subtitle: mlString.getSchema({
-    maxlength: 256
-  }),
-
-  // For creative works like books, magazine articles. Author names can be
-  // transliterated, hence also a multilingual field. However, it is advisable
-  // to treat it as monolingual in presentation (i.e. avoid indicating language),
-  // since cross-language differences are the exception and not the norm.
-  authors: [mlString.getSchema({
-    maxLength: 256
-  })],
-
-
-  // Data for fields can be pulled from external sources. For fields that
-  // support this, we record whether a sync is currently active (in which
-  // case the field is not editable), when the last sync took place,
-  // and from where.
-  //
-  // Note we don't initialize the "active" property -- if (and only if) it is
-  // undefined, it may be switched on by the /adapters/sync scripts.
-  sync: {
-    description: {
-      active: type.boolean(),
-      updated: type.date(),
-      source: type.string().enum(['wikidata'])
-    }
-  },
-
-  originalLanguage: type
-    .string()
-    .max(4)
-    .validator(isValidLanguage),
-
-  canonicalSlugName: type.string(),
-
-  urlID: type.virtual().default(function() {
-    return this.canonicalSlugName ? encodeURIComponent(this.canonicalSlugName) : this.id;
-  }),
-
-  // Track original authorship across revisions
-  createdOn: type.date().required(true),
-  createdBy: type.string().uuid(4).required(true),
-
-  // These can only be populated from the outside using a user object
-  userCanDelete: type.virtual().default(false),
-  userCanEdit: type.virtual().default(false),
-  userCanUpload: type.virtual().default(false),
-  userIsCreator: type.virtual().default(false),
-
-  // Populated asynchronously using the populateReviewMetrics method
-  numberOfReviews: type.virtual().default(0),
-  averageStarRating: type.virtual().default(0)
-};
-
-// Add versioning related fields
-Object.assign(thingSchema, revision.getSchema());
-
-let Thing = thinky.createModel("things", thingSchema);
-
-Thing.hasAndBelongsToMany(File, "files", "id", "id", {
-  type: 'media_usage'
-});
-
-File.hasAndBelongsToMany(Thing, "things", "id", "id", {
-  type: 'media_usage'
-});
-
-Thing.hasOne(ThingSlug, "slug", "id", "thingID");
-
-ThingSlug.belongsTo(Thing, "thing", "thingID", "thing");
+    debug.db('PostgreSQL Thing model initialized with all methods');
+    return Thing;
+  } catch (error) {
+    debug.error('Failed to initialize PostgreSQL Thing model:', error);
+    return null;
+  }
+}
 
 // NOTE: STATIC METHODS --------------------------------------------------------
-
-// Standard handlers -----------------------------------------------------------
-
-Thing.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(Thing);
-Thing.filterNotStaleOrDeleted = revision.getNotStaleOrDeletedFilterHandler(Thing);
-
-// Custom methods --------------------------------------------------------------
 
 /**
  * Find a Thing object using a URL. May return multiple matches (but ordinarily
  * should not).
  *
- * @param {String} url
- *  the URL to look up
- * @param {String} [userID]
- *  include any review(s) of this thing by the given user
- * @returns {Query}
- *  query for current revisions that contain this URL
+ * @param {String} url - the URL to look up
+ * @param {String} [userID] - include any review(s) of this thing by the given user
+ * @returns {Promise<Thing[]>} array of matching things
  */
-Thing.lookupByURL = function(url, userID) {
-  let query = Thing
-    .filter(thing => thing('urls').contains(url))
-    .filter({ _oldRevOf: false }, { default: true })
-    .filter({ _revDeleted: false }, { default: true });
+async function lookupByURL(url, userID) {
+  const query = `
+    SELECT * FROM ${Thing.tableName}
+    WHERE urls @> ARRAY[$1]
+      AND (_old_rev_of IS NULL)
+      AND (_rev_deleted IS NULL OR _rev_deleted = false)
+  `;
+  
+  const result = await Thing.dal.query(query, [url]);
+  const things = result.rows.map(row => Thing._createInstance(row));
+  
+  if (typeof userID === 'string') {
+    const lookupUserID = typeof userID.trim === 'function' ? userID.trim() : userID;
+    const thingIDs = things
+      .map(thing => thing.id)
+      .filter(id => typeof id === 'string' && id.length > 0);
 
-  if (typeof userID == 'string')
-    query = query.getJoin({
-      reviews: {
-        _apply: seq => seq
-          .filter({ createdBy: userID })
-          .filter({ _oldRevOf: false }, { default: true })
-          .filter({ _revDeleted: false }, { default: true })
-      }
+    // Default to empty arrays so API consumers can rely on the property
+    things.forEach(thing => {
+      thing.reviews = [];
     });
 
-  return query;
+    if (thingIDs.length > 0) {
+      try {
+        const reviews = await Review
+          .filterNotStaleOrDeleted()
+          .whereIn('thing_id', thingIDs, { cast: 'uuid[]' })
+          .filter({ createdBy: lookupUserID })
+          .orderBy('created_on', 'DESC')
+          .limit(50)
+          .run();
 
-};
+        const reviewsByThing = new Map();
+        for (const review of reviews) {
+          if (typeof review.populateUserInfo === 'function') {
+            review.populateUserInfo({ id: lookupUserID });
+          }
+
+          const reviewThingID = review.thingID;
+          if (!reviewThingID) {
+            continue;
+          }
+
+          if (!reviewsByThing.has(reviewThingID)) {
+            reviewsByThing.set(reviewThingID, []);
+          }
+
+          reviewsByThing.get(reviewThingID).push(review);
+        }
+
+        things.forEach(thing => {
+          const userReviews = reviewsByThing.get(thing.id);
+          if (Array.isArray(userReviews)) {
+            thing.reviews = userReviews;
+          }
+        });
+      } catch (error) {
+        debug.db('Failed to include user reviews in Thing.lookupByURL:', error.message);
+      }
+    }
+  }
+  
+  return things;
+}
 
 /**
  * Get a Thing object by ID, plus some of the data linked to it.
  *
  * @async
- * @param {String} id
- *  the unique ID of the Thing object
- * @param {Object} [options]
- *  which data to include
- * @param {Boolean} options.withFiles=true
- *  include metadata about file upload via join
- * @param {Boolean} options.withReviewMetrics=true
- *  obtain review metrics (e.g., average rating); requires additional table
- *  lookup
- * @returns {Thing}
- *  the Thing object
+ * @param {String} id - the unique ID of the Thing object
+ * @param {Object} [options] - which data to include
+ * @param {Boolean} options.withFiles=true - include metadata about file upload via join
+ * @param {Boolean} options.withReviewMetrics=true - obtain review metrics
+ * @returns {Thing} the Thing object
  */
-Thing.getWithData = async function(id, {
-  // First-level joins
+async function getWithData(id, {
   withFiles = true,
   withReviewMetrics = true
 } = {}) {
 
-  let join;
-  if (withFiles)
-    join = {
-      files: {
-        uploader: true,
-        _apply: seq => seq
-          .filter({ completed: true }) // We don't show unfinished uploads
-          .filter({ _revDeleted: false }, { default: true })
-          .filter({ _oldRevOf: false }, { default: true })
-      }
+  const joinOptions = {};
+  if (withFiles) {
+    joinOptions.files = {
+      _apply: seq => seq.filter({ completed: true })
     };
+  }
 
-  const thing = await Thing.getNotStaleOrDeleted(id, join);
-  if (thing._revDeleted)
-    throw revision.deletedError;
+  const thing = Object.keys(joinOptions).length
+    ? await Thing.getNotStaleOrDeleted(id, joinOptions)
+    : await Thing.getNotStaleOrDeleted(id);
 
-  if (thing._oldRevOf)
-    throw revision.staleError;
-
-  if (withReviewMetrics)
+  if (withFiles) {
+    thing.files = Array.isArray(thing.files) ? thing.files : [];
+    await _attachUploadersToFiles(thing.files);
+  }
+  
+  if (withReviewMetrics) {
     await thing.populateReviewMetrics();
+  }
 
   return thing;
-};
+}
 
 /**
  * Get label for a given thing in the provided language, or fall back to a
  * prettified URL.
  *
- * @param  {Thing} thing
- *  the thing object to get a label for
- * @param  {String} language
- *  the language code of the preferred language
- * @returns {String}
- *  the best available label
+ * @param  {Thing} thing - the thing object to get a label for
+ * @param  {String} language - the language code of the preferred language
+ * @returns {String} the best available label
  */
-Thing.getLabel = function(thing, language) {
-
-  if (!thing || !thing.id)
+function getLabel(thing, language) {
+  if (!thing || !thing.id) {
     return undefined;
+  }
 
   let str;
-  if (thing.label)
-    str = mlString.resolve(language, thing.label).str;
+  if (thing.label) {
+    const resolved = mlString.resolve(language, thing.label);
+    str = resolved ? resolved.str : undefined;
+  }
 
-  if (str)
+  if (str) {
     return str;
+  }
 
   // If we have no proper label, we can at least show the URL
-  if (thing.urls && thing.urls.length)
+  if (thing.urls && thing.urls.length) {
     return urlUtils.prettify(thing.urls[0]);
+  }
 
   return undefined;
+}
 
-};
-
-// INSTANCE METHODS ------------------------------------------------------------
-
-// Standard handlers -----------------------------------------------------------
-
-// See helpers/revision.js
-Thing.define("newRevision", revision.getNewRevisionHandler(Thing));
-Thing.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(Thing));
-
-// See helpers/slug-name.js
-Thing.define("updateSlug", slugName.getUpdateSlugHandler({
-  SlugModel: ThingSlug,
-  slugForeignKey: 'thingID',
-  slugSourceField: 'label'
-}));
-
-// See helpers/set-id.js
-Thing.define("setID", getSetIDHandler());
-
-// Custom methods --------------------------------------------------------------
-
-Thing.define("initializeFieldsFromAdapter", initializeFieldsFromAdapter);
-Thing.define("populateUserInfo", populateUserInfo);
-Thing.define("populateReviewMetrics", populateReviewMetrics);
-Thing.define("setURLs", setURLs);
-Thing.define("updateActiveSyncs", updateActiveSyncs);
-Thing.define("getSourceIDsOfActiveSyncs", getSourceIDsOfActiveSyncs);
-Thing.define("getReviewsByUser", getReviewsByUser);
-Thing.define("getAverageStarRating", getAverageStarRating);
-Thing.define("getReviewCount", getReviewCount);
-Thing.define("addFile", addFile);
-Thing.define("addFilesByIDsAndSave", addFilesByIDsAndSave);
+// NOTE: INSTANCE METHODS ------------------------------------------------------
 
 /**
- * Initialize field values from the lookup result of an adapter. Each adapter
- * has a whitelist of supported fields which we check against before assigning
- * values to the thing instance.
+ * Initialize field values from the lookup result of an adapter.
  *
- * This function does not save and can therefore run synchronously.
- * It resets all sync settings (whether a sync for a given field is active or
- * not), so it should only be invoked on new Thing objects.
- *
- * Silently ignores empty results.
- *
- * @param {Object} adapterResult
- *  the result from any backend adapter
- * @param {Object} adapterResult.data
- *  data for this result
- * @param {String} adapterResult.sourceID
- *  canonical source identifier
- * @throws
- *  on malformed adapterResult object
+ * @param {Object} adapterResult - the result from any backend adapter
+ * @param {Object} adapterResult.data - data for this result
+ * @param {String} adapterResult.sourceID - canonical source identifier
  * @instance
  * @memberof Thing
  */
 function initializeFieldsFromAdapter(adapterResult) {
-  if (typeof adapterResult != 'object')
+  if (typeof adapterResult !== 'object') {
     return;
+  }
 
-  let responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID);
-  let supportedFields = responsibleAdapter.getSupportedFields();
-  for (let field in adapterResult.data) {
+  const responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID);
+  const supportedFields = responsibleAdapter.getSupportedFields();
+  
+  for (const field in adapterResult.data) {
     if (supportedFields.includes(field)) {
-      this[field] = adapterResult.data[field];
-      if (typeof this.sync != 'object')
+      // Handle metadata grouping for PostgreSQL
+      if (['description', 'subtitle', 'authors'].includes(field)) {
+        if (!this.metadata) {
+          this.metadata = {};
+        }
+        this.metadata[field] = adapterResult.data[field];
+      } else {
+        this[field] = adapterResult.data[field];
+      }
+      
+      if (typeof this.sync !== 'object') {
         this.sync = {};
+      }
       this.sync[field] = {
         active: true,
         source: adapterResult.sourceID,
@@ -313,17 +356,15 @@ function initializeFieldsFromAdapter(adapterResult) {
  * Populate virtual permission fields in a Thing object with the rights of a
  * given user.
  *
- * @param {User} user
- *  the user whose permissions to check
+ * @param {User} user - the user whose permissions to check
  * @memberof Thing
  * @instance
  */
 function populateUserInfo(user) {
-  if (!user)
+  if (!user) {
     return; // Permissions will be at their default value (false)
+  }
 
-  // For now, we don't let users delete things they've created,
-  // since things are collaborative in nature
   this.userCanDelete = user.isSuperUser || user.isSiteModerator || false;
   this.userCanEdit = user.isSuperUser || user.isTrusted || user.id === this.createdBy;
   this.userCanUpload = user.isSuperUser || user.isTrusted;
@@ -331,11 +372,9 @@ function populateUserInfo(user) {
 }
 
 /**
- * Set this Thing object's virtual data fields for review metrics (performs
- * table lookups, hence asynchronous). Does not save.
+ * Set this Thing object's virtual data fields for review metrics.
  *
- * @returns {Thing}
- *  the modified thing object
+ * @returns {Thing} the modified thing object
  * @memberof Thing
  * @instance
  */
@@ -350,40 +389,32 @@ async function populateReviewMetrics() {
 }
 
 /**
- * Update URLs and reset a Thing object's synchronization settings, based on
- * which adapters report that they can retrieve external metadata for a given
- * URL. Does not save.
+ * Update URLs and reset synchronization settings.
  *
- * @param  {String[]} urls
- *  the *complete* array of URLs to assign (previously assigned URLs will be
- *  overwritten)
+ * @param  {String[]} urls - the complete array of URLs to assign
  * @instance
  * @memberof Thing
  */
 function setURLs(urls) {
-
   // Turn off all synchronization
-  if (typeof this.sync == 'object') {
-    for (let field in this.sync) {
+  if (typeof this.sync === 'object') {
+    for (const field in this.sync) {
       this.sync[field].active = false;
     }
   }
 
-  // Turn on synchronization for supported fields. The first adapter
-  // from the getAll() array to claim a supported field will be responsible
-  // for it. The order of the URLs also matters -- adapters handling earlier
-  // URLs can claim fields before adapters handling later URLs get to them.
-  // We could change the order to enforce precedence, but for now, we leave
-  // it up to the editor.
+  // Turn on synchronization for supported fields
   urls.forEach(url => {
     adapters.getAll().forEach(adapter => {
       if (adapter.ask(url)) {
         adapter.supportedFields.forEach(field => {
           // Another adapter is already handling this field
-          if (this.sync && this.sync[field] && this.sync[field].active)
+          if (this.sync && this.sync[field] && this.sync[field].active) {
             return;
-          if (!this.sync)
+          }
+          if (!this.sync) {
             this.sync = {};
+          }
 
           this.sync[field] = {
             active: true,
@@ -397,306 +428,543 @@ function setURLs(urls) {
 }
 
 /**
- * Fetch new external data for all fields set to be synchronized. Saves.
- * - Does not create a new revision, so if you need one, create it first.
- * - Performs search index update.
- * - Resolves with updated thing object.
- * - May result in a slug update, so if initiated by a user, should be passed the
- *   user ID. Otherwise, any slug changes will be without attribution
+ * Fetch new external data for all fields set to be synchronized.
  *
- * @param {String} userID
- *  the user to associate with any slug changes
- * @returns {Thing}
- *  the updated thing
+ * @param {String} userID - the user to associate with any slug changes
+ * @returns {Thing} the updated thing
  * @memberof Thing
  * @instance
  */
 async function updateActiveSyncs(userID) {
-  const thing = this; // For readability
+  const thing = this;
 
-  // No URLs? Just give the thing back.
-  if (!thing.urls || !thing.urls.length)
+  if (!thing.urls || !thing.urls.length) {
     return thing;
-
-  // No known syncs? We'll still fall through to the save/index operation at
-  // the end.
-  if (typeof thing.sync !== 'object')
-    thing.sync = {};
-
-  // Determine which external sources we need to contact. While one source
-  // may give us updates for many fields, we obviously only want to contact
-  // it once.
-  let sources = [];
-  for (let field in thing.sync) {
-    if (thing.sync[field].active && thing.sync[field].source &&
-      !sources.includes(thing.sync[field].source))
-      sources.push(thing.sync[field].source);
   }
 
-  //  Build array of lookup promises from currently used sources
-  let p = [];
+  if (typeof thing.sync !== 'object') {
+    thing.sync = {};
+  }
 
-  // Keep track of all URLs we're contacting for convenience
-  let allURLs = [];
+  // Determine which external sources we need to contact
+  const sources = [];
+  for (const field in thing.sync) {
+    if (thing.sync[field].active && thing.sync[field].source &&
+      !sources.includes(thing.sync[field].source)) {
+      sources.push(thing.sync[field].source);
+    }
+  }
+
+  // Build array of lookup promises from currently used sources
+  const promises = [];
+  const allURLs = [];
 
   sources.forEach(source => {
-    let adapter = adapters.getAdapterForSource(source);
-    // Find all matching URLs in array (we might have, e.g., a URL for
-    // a work and one for an edition, and need to contact both).
-    let relevantURLs = thing.urls.filter(url => adapter.ask(url));
-    allURLs = allURLs.concat(relevantURLs);
-    // Add relevant lookups as individual elements to array, log errors
-    p.push(...relevantURLs.map(url =>
+    const adapter = adapters.getAdapterForSource(source);
+    const relevantURLs = thing.urls.filter(url => adapter.ask(url));
+    allURLs.push(...relevantURLs);
+    
+    promises.push(...relevantURLs.map(url =>
       adapter
-      .lookup(url)
-      .catch(error => {
-        debug.error(`Problem contacting adapter "${adapter.getSourceID()}" for URL ${url}.`);
-        debug.error({ error });
-      })
+        .lookup(url)
+        .catch(error => {
+          debug.error(`Problem contacting adapter "${adapter.getSourceID()}" for URL ${url}.`);
+          debug.error({ error });
+        })
     ));
   });
 
-  if (allURLs.length)
+  if (allURLs.length) {
     debug.app(`Retrieving item metadata for ${thing.id} from the following URL(s):\n` +
       allURLs.join(', '));
+  }
 
-  // Perform all lookups, then update thing from the results, which will be
-  // returned in the same order as the sources array.
-  const results = await Promise.all(p);
+  const results = await Promise.all(promises);
+  let needSlugUpdate = false;
 
-  // If the label has changed, we need to update the short identifier
-  // (slug). This means a possible URL change! Redirects are put in
-  // place automatically.
-  let needSlugUpdate;
-
-  // Get obj w/ key = source ID, value = reverse order array of
-  // result.data objects
-  let dataBySource = _organizeDataBySource(results);
+  // Organize data by source and update fields
+  const dataBySource = _organizeDataBySource(results);
+  
   sources.forEach((source) => {
-    for (let field in thing.sync) {
-      // Only update if everything looks good: sync is active, source
-      // ID matches, we may have new data
+    for (const field in thing.sync) {
       if (thing.sync[field].active && thing.sync[field].source === source &&
         Array.isArray(dataBySource[source])) {
-        // Earlier results get priority, i.e. need to be assigned last
-        for (let d of dataBySource[source]) {
-          if (d[field] !== undefined) {
-            thing.sync[field].updated = new Date();
-            this[field] = d[field];
-            if (field == 'label')
+        
+        for (const data of dataBySource[source]) {
+          if (data[field] !== undefined) {
+            // Create a new sync object to ensure change detection works
+            const newSync = { ...thing.sync };
+            newSync[field] = { ...newSync[field], updated: new Date() };
+            thing.sync = newSync;
+            
+            // Handle metadata grouping for PostgreSQL
+            if (['description', 'subtitle', 'authors'].includes(field)) {
+              if (!thing.metadata) {
+                thing.metadata = {};
+              }
+              thing.metadata[field] = data[field];
+            } else {
+              thing[field] = data[field];
+            }
+            
+            if (field === 'label') {
               needSlugUpdate = true;
+            }
           }
         }
       }
     }
   });
 
-  if (needSlugUpdate)
-    await thing.updateSlug(userID, thing.originalLanguage || 'en');
+  if (needSlugUpdate) {
+    try {
+      await thing.updateSlug(userID, thing.originalLanguage || 'en');
+    } catch (error) {
+      debug.error('Failed to update slug after sync:', error);
+    }
+  }
 
   await thing.save();
 
-  // Index update can keep running after we resolve this promise, hence no "await"
+  // Index update can keep running after we resolve this promise
   search.indexThing(thing);
 
   return thing;
 
-
   /**
-   * Put valid data from results array into an object with sourceID as
-   * the key and data as a reverse-order array. There may be multiple
-   * URLs from one source, assigning value to the same field. URLs earlier
-   * in the original thing.urls array take priority, so we have to ensure
-   * they come last.
-   *
-   * @param {Object[]} results
-   *  results from multiple adapters
-   * @returns {Object}
-   *  key = source, value = array of data objects
-   * @memberof Thing
-   * @inner
-   * @protected
+   * Organize valid data from results array into an object with sourceID as key
+   * @param {Object[]} results - results from multiple adapters
+   * @returns {Object} key = source, value = array of data objects
    */
   function _organizeDataBySource(results) {
-    let rv = {};
+    const rv = {};
     results.forEach(result => {
-      // Correctly formatted result object with all relevant information
-      if (typeof result == 'object' && typeof result.sourceID == 'string' &&
-        typeof result.data == 'object') {
-        // Initialize array if needed
-        if (!Array.isArray(rv[result.sourceID]))
+      if (typeof result === 'object' && typeof result.sourceID === 'string' &&
+        typeof result.data === 'object') {
+        
+        if (!Array.isArray(rv[result.sourceID])) {
           rv[result.sourceID] = [];
-
-        // See above on why this array is in reverse order
+        }
         rv[result.sourceID].unshift(result.data);
       }
     });
     return rv;
   }
-
 }
 
 /**
  * Get the identifiers of all sources for which relevant information is being
  * fetched for this review subject.
  *
- * @returns {String[]}
- *  array of the source IDs
+ * @returns {String[]} array of the source IDs
  */
 function getSourceIDsOfActiveSyncs() {
   const sync = this.sync;
   const rv = [];
-  for (let key in sync) {
-    if (sync[key] && sync[key].active && sync[key].source && !rv.includes(sync[key].source))
+  for (const key in sync) {
+    if (sync[key] && sync[key].active && sync[key].source && !rv.includes(sync[key].source)) {
       rv.push(sync[key].source);
+    }
   }
   return rv;
 }
 
 /**
- * Get all reviews by the given user for this thing. The number is typically
- * 1, but there may be edge cases or bugs where a user will have multiple
- * reviews for the same thing.
+ * Fetch up to 50 reviews authored by the given user for this thing.
  *
- * @param {User} user
- *  the user whose reviews we're looking up for this thing
- * @returns {Array}
- *  array of the reviews
+ * Uses the PostgreSQL review feed to reuse join logic and populates
+ * permission flags on each returned review.
+ *
+ * @param {Object} user - Current user performing the lookup
+ * @param {string} user.id - User identifier used to filter reviews
+ * @returns {Promise<Object[]>} Reviews authored by the user (empty array if none)
  * @instance
  * @memberof Thing
  */
 async function getReviewsByUser(user) {
-
-  let Review = require('./review');
-
-  if (!user)
+  if (!user || !user.id) {
     return [];
+  }
 
-  const reviews = await Review
-    .filter({
+  try {
+    const feed = await Review.getFeed({
       thingID: this.id,
-      createdBy: user.id
-    })
-    .filter(r.row('_revDeleted').eq(false), { // Exclude deleted rows
-      default: true
-    })
-    .filter(r.row('_oldRevOf').eq(false), { // Exclude old revisions
-      default: true
-    })
-    .getJoin({
-      creator: {
-        _apply: seq => seq.without('password')
-      },
-      teams: true
+      createdBy: user.id,
+      withThing: false,
+      withTeams: true,
+      limit: 50
     });
-  reviews.forEach(review => review.populateUserInfo(user));
-  return reviews;
+
+    const reviews = Array.isArray(feed.feedItems) ? feed.feedItems : [];
+
+    reviews.forEach(review => {
+      if (typeof review.populateUserInfo === 'function') {
+        review.populateUserInfo(user);
+      }
+    });
+
+    return reviews;
+  } catch (error) {
+    debug.db('Failed to fetch user reviews in Thing.getReviewsByUser:', error.message);
+    return [];
+  }
 }
 
 /**
  * Calculate the average review rating for this Thing object
  *
- * @returns {Number}
- *  average rating, not rounded
+ * @returns {Number} average rating, not rounded
  * @memberof Thing
  * @instance
  */
 async function getAverageStarRating() {
   try {
-    return await r.table('reviews')
-      .filter({ thingID: this.id })
-      .filter({ _oldRevOf: false }, { default: true })
-      .filter({ _revDeleted: false }, { default: true })
-      .avg('starRating');
+    const reviewTableName = Thing.dal.schemaNamespace ? `${Thing.dal.schemaNamespace}reviews` : 'reviews';
+    const query = `
+      SELECT AVG(star_rating) as avg_rating
+      FROM ${reviewTableName}
+      WHERE thing_id = $1
+        AND (_old_rev_of IS NULL)
+        AND (_rev_deleted IS NULL OR _rev_deleted = false)
+    `;
+    
+    const result = await Thing.dal.query(query, [this.id]);
+    return parseFloat(result.rows[0]?.avg_rating || 0);
   } catch (error) {
-    // Throws if the stream is empty. We consider a subject with 0 reviews
-    // to have an average rating of 0.
-    if (error.name == 'ReqlRuntimeError')
-      return 0;
-    else
-      throw error;
+    debug.error('Error calculating average star rating:', error);
+    return 0;
   }
 }
 
 /**
- * Count the number of reviews associated with this Thing object (discounting
- * old/deleted revisions).
+ * Count the number of reviews associated with this Thing object.
  *
- * @returns {Number}
- *  the number of reviews
+ * @returns {Number} the number of reviews
  * @memberof Thing
  * @instance
  */
 async function getReviewCount() {
-  return await r.table('reviews')
-    .filter({ thingID: this.id })
-    .filter({ _oldRevOf: false }, { default: true })
-    .filter({ _revDeleted: false }, { default: true })
-    .count();
+  try {
+    const reviewTableName = Thing.dal.schemaNamespace ? `${Thing.dal.schemaNamespace}reviews` : 'reviews';
+    const query = `
+      SELECT COUNT(*) as review_count
+      FROM ${reviewTableName}
+      WHERE thing_id = $1
+        AND (_old_rev_of IS NULL)
+        AND (_rev_deleted IS NULL OR _rev_deleted = false)
+    `;
+    
+    const result = await Thing.dal.query(query, [this.id]);
+    return parseInt(result.rows[0]?.review_count || 0);
+  } catch (error) {
+    debug.error('Error counting reviews:', error);
+    return 0;
+  }
 }
 
 /**
- * Simple helper method to initialize files array for a Thing object if it does
- * not exist already, and then add a file.
+ * Simple helper method to initialize files array for a Thing object.
  *
- * @param {File} file
- *  File object to add
+ * @param {File} file - File object to add
  * @memberof Thing
  * @instance
  */
 function addFile(file) {
-  if (this.files === undefined)
+  if (this.files === undefined) {
     this.files = [];
-
+  }
   this.files.push(file);
 }
 
+/**
+ * Create or update the canonical slug for this Thing.
+ *
+ * @param {String} userID - User ID responsible for the slug change
+ * @param {String} [language] - Preferred language for slug generation
+ * @returns {Thing} the updated Thing instance
+ * @memberof Thing
+ * @instance
+ */
+async function updateSlug(userID, language) {
+  const originalLanguage = this.originalLanguage || 'en';
+  const slugLanguage = language || originalLanguage;
+
+  if (slugLanguage !== originalLanguage) {
+    return this;
+  }
+
+  if (!this.label) {
+    return this;
+  }
+
+  const resolved = mlString.resolve(slugLanguage, this.label);
+  if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) {
+    return this;
+  }
+
+  let baseSlug;
+  try {
+    baseSlug = _generateSlugName(resolved.str);
+  } catch (error) {
+    return this;
+  }
+
+  if (!baseSlug || baseSlug === this.canonicalSlugName) {
+    return this;
+  }
+
+  if (!this.id) {
+    const { randomUUID } = require('crypto');
+    this.id = randomUUID();
+  }
+
+  const slug = new ThingSlug({});
+  slug.slug = baseSlug;
+  slug.name = baseSlug;
+  slug.baseName = baseSlug;
+  slug.thingID = this.id;
+  slug.createdOn = new Date();
+  slug.createdBy = userID;
+
+  try {
+    const savedSlug = await slug.qualifiedSave();
+    if (savedSlug && savedSlug.name) {
+      this.canonicalSlugName = savedSlug.name;
+      this._changed.add(Thing._getDbFieldName('canonicalSlugName'));
+    }
+  } catch (error) {
+    debug.error('Failed to update Thing slug:', error);
+  }
+
+  return this;
+}
 
 /**
- * Obtain file objects for an array of file IDs, and associate them with this
- * thing. Saves.
+ * Obtain file objects for an array of file IDs, and associate them with this thing.
  *
- * @param {String[]} files
- *  IDs of the files to add
- * @param {String} [userID]
- *  if given, uploader must match this user ID. Mismatches are silently ignored.
+ * @param {String[]} files - IDs of the files to add
+ * @param {String} [userID] - if given, uploader must match this user ID
  * @memberof Thing
  * @instance
  */
 async function addFilesByIDsAndSave(files, userID) {
-  const fileRevs = await File
-    .getAll(...files)
-    .filter({ _revDeleted: false }, { default: true })
-    .filter({ _oldRevOf: false }, { default: true });
-  fileRevs.forEach(fileRev => {
-    if (!userID || fileRev.uploadedBy === userID)
-      this.addFile(fileRev);
-  });
-  await this.saveAll({ files: true });
+  if (!Array.isArray(files) || files.length === 0) {
+    return this;
+  }
+
+  const uniqueIDs = [...new Set(files.filter(id => typeof id === 'string' && id.length))];
+  if (uniqueIDs.length === 0) {
+    return this;
+  }
+
+  try {
+    const placeholders = uniqueIDs.map((_, index) => `$${index + 1}`).join(', ');
+    const query = `
+      SELECT *
+      FROM ${File.tableName}
+      WHERE id IN (${placeholders})
+        AND (_old_rev_of IS NULL)
+        AND (_rev_deleted IS NULL OR _rev_deleted = false)
+    `;
+
+    const result = await File.dal.query(query, uniqueIDs);
+    const validFiles = result.rows
+      .map(row => File._createInstance(row))
+      .filter(file => !userID || file.uploadedBy === userID);
+
+    if (!validFiles.length) {
+      return this;
+    }
+
+    const junctionTable = Thing.dal.schemaNamespace ? `${Thing.dal.schemaNamespace}thing_files` : 'thing_files';
+    const insertValues = [];
+    const valueClauses = [];
+    let paramIndex = 1;
+
+    validFiles.forEach(file => {
+      valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
+      insertValues.push(this.id, file.id);
+      paramIndex += 2;
+    });
+
+    if (valueClauses.length) {
+      const insertQuery = `
+        INSERT INTO ${junctionTable} (thing_id, file_id)
+        VALUES ${valueClauses.join(', ')}
+        ON CONFLICT DO NOTHING
+      `;
+      await Thing.dal.query(insertQuery, insertValues);
+    }
+
+    const existingIDs = new Set((this.files || []).map(file => file.id));
+    validFiles.forEach(file => {
+      if (!existingIDs.has(file.id)) {
+        this.addFile(file);
+        existingIDs.add(file.id);
+      }
+    });
+  } catch (error) {
+    debug.error('Failed to associate files with Thing:', error);
+    throw error;
+  }
+
+  return this;
 }
 
-// Internal helper functions
+// Helper functions
+
+async function _attachUploadersToFiles(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return;
+  }
+
+  const uploaderIDs = [];
+  const seen = new Set();
+  files.forEach(file => {
+    const uploaderID = file && file.uploadedBy;
+    if (typeof uploaderID === 'string' && !seen.has(uploaderID)) {
+      seen.add(uploaderID);
+      uploaderIDs.push(uploaderID);
+    }
+  });
+
+  if (!uploaderIDs.length) {
+    return;
+  }
+
+  try {
+    // Users don't have revisions, use whereIn for array of IDs
+    const result = await User.filter({}).whereIn('id', uploaderIDs, { cast: 'uuid[]' }).run();
+
+    const uploaderMap = new Map();
+    for (const uploader of result || []) {
+      if (!uploader || !uploader.id) {
+        continue;
+      }
+      uploaderMap.set(uploader.id, uploader);
+    }
+
+    files.forEach(file => {
+      if (!file || !file.uploadedBy) {
+        return;
+      }
+      const uploader = uploaderMap.get(file.uploadedBy);
+      if (uploader) {
+        file.uploader = uploader;
+      }
+    });
+  } catch (error) {
+    debug.error(`Failed to attach uploader data to files: ${error.message}`);
+    debug.error(error.stack);
+  }
+}
 
 /**
- * @param {String} url
- *  URL to check
- * @returns {Boolean}
- *  true if valid
- * @throws {ReportedError}
- *  if invalid
- * @memberof Thing
- * @protected
+ * Validate URL format
+ * @param {String} url - URL to check
+ * @returns {Boolean} true if valid
+ * @throws {ReportedError} if invalid
  */
 function _isValidURL(url) {
-  if (urlUtils.validate(url))
+  if (urlUtils.validate(url)) {
     return true;
-  else
+  } else {
     throw new ReportedError({
       message: 'Thing URL %s is not a valid URL.',
       messageParams: [url],
       userMessage: 'invalid url',
       userMessageParams: []
     });
+  }
 }
 
-module.exports = Thing;
+function _generateSlugName(str) {
+  if (typeof str !== 'string') {
+    throw new Error('Source string is undefined or not a string.');
+  }
+
+  let slug = decodeHTML(str)
+    .trim()
+    .toLowerCase()
+    .replace(/[?&"″'`’<>:]/g, '')
+    .replace(/[ _/]/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  slug = slug.replace(/[^a-z0-9-]/g, '-').replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
+
+  if (!slug) {
+    throw new Error('Source string cannot be converted to a valid slug.');
+  }
+
+  if (isUUID.v4(slug)) {
+    throw new Error('Source string cannot be a UUID.');
+  }
+
+  return slug;
+}
+
+/**
+ * Validate metadata JSONB structure
+ * @param {Object} metadata - Metadata object to validate
+ * @returns {Boolean} true if valid
+ */
+function _validateMetadata(metadata) {
+  if (metadata === null || metadata === undefined) {
+    return true;
+  }
+  
+  if (typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new Error('Metadata must be an object');
+  }
+  
+  // Validate known metadata fields
+  const validFields = ['description', 'subtitle', 'authors'];
+  for (const [key, value] of Object.entries(metadata)) {
+    if (validFields.includes(key)) {
+      if (key === 'authors') {
+        // Authors should be an array of multilingual strings
+        if (!Array.isArray(value)) {
+          throw new Error('Authors metadata must be an array');
+        }
+        // Each author should be a multilingual string
+        for (const author of value) {
+          mlString.validate(author, { maxLength: 256 });
+        }
+      } else {
+        // Description and subtitle are multilingual strings
+        mlString.validate(value, { maxLength: key === 'description' ? 512 : 256 });
+      }
+    }
+  }
+  
+  return true;
+}
+
+registerThingHandle({
+  initializeModel: initializeThingModel,
+  handleOptions: {
+    staticMethods: {
+      lookupByURL,
+      getWithData,
+      getLabel
+    },
+    instanceMethods: {
+      initializeFieldsFromAdapter,
+      populateUserInfo,
+      populateReviewMetrics,
+      setURLs,
+      updateActiveSyncs,
+      getSourceIDsOfActiveSyncs,
+      updateSlug,
+      getReviewsByUser,
+      getAverageStarRating,
+      getReviewCount,
+      addFile,
+      addFilesByIDsAndSave
+    }
+  },
+  additionalExports: {
+    initializeThingModel
+  }
+});

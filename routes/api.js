@@ -54,7 +54,7 @@ router.get('/thing', function(req, res, next) {
               rv.thing = {
                 id: result.id,
                 label: result.label,
-                aliases: result.aliaes,
+                aliases: result.aliases,
                 description: result.description,
                 originalLanguage: result.originalLanguage,
                 canonicalSlugName: result.canonicalSlugName,

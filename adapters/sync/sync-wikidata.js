@@ -8,6 +8,7 @@
 const limit = require('promise-limit')(4); // Max 4 concurrent requests
 
 // Internal deps
+const { initializeDAL } = require('../../bootstrap/dal');
 const WikidataBackendAdapter = require('../wikidata-backend-adapter');
 const wikidata = new WikidataBackendAdapter();
 const Thing = require('../../models/thing');
@@ -18,89 +19,76 @@ const search = require('../../search');
 // adapter, but keep in mind that RethinkDB uses RE2 expressions, not JS ones.
 const regexStr = '^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)$';
 
-Thing
-  .filter({ _oldRevOf: false }, { default: true })
-  .filter({ _revDeleted: false }, { default: true })
-  .filter(thing => thing('urls').contains(url => url.match(regexStr)))
-  .then(processThings);
+async function syncWikidata() {
+  await initializeDAL();
 
-// For an array of things, perform Wikidata lookups and update their
-// descriptions as appropriate
-function processThings(things) {
-  let wikidataLookups = [];
-  things.forEach(thing => {
-    let wikidataURL = getWikidataURL(thing.urls);
-    if (wikidataURL === undefined) {
-      // We want a result array that maps against the original query, so
-      // we pad it with 'null' values for any unexpectedly missing URLs
-      wikidataLookups.push(Promise.resolve(null));
-      return;
+  const allThings = await Thing.filterNotStaleOrDeleted().run();
+
+  const wikidataThings = allThings.filter(thing =>
+    thing.urls && thing.urls.some(url => new RegExp(regexStr).test(url))
+  );
+
+  const lookupTasks = wikidataThings.map(thing => {
+    const wikidataURL = getWikidataURL(thing.urls);
+    if (!wikidataURL) {
+      return Promise.resolve(null);
     }
 
-    if (thing.sync === undefined)
+    if (!thing.sync) {
       thing.sync = {};
-    if (thing.sync.description === undefined) {
+    }
+    if (!thing.sync.description) {
       thing.sync.description = {
         active: true,
         source: 'wikidata'
       };
     }
-    wikidataLookups.push(limit(() => wikidata.lookup(wikidataURL)));
+
+    return limit(() => wikidata.lookup(wikidataURL));
   });
-  Promise
-    .all(wikidataLookups)
-    .then(wikidataResults => {
-      let thingUpdates = [];
 
-      things.forEach((thing, index) => {
+  const wikidataResults = await Promise.all(lookupTasks);
 
-        let syncActive = thing.sync && thing.sync.description && thing.sync.description.active,
-          hasDescription = wikidataResults[index] &&
-          wikidataResults[index].data && wikidataResults[index].data.description;
+  const updates = [];
+  wikidataThings.forEach((thing, index) => {
+    const syncActive = thing.sync && thing.sync.description && thing.sync.description.active;
+    const result = wikidataResults[index];
+    const hasDescription = result?.data?.description;
 
-        if (syncActive && hasDescription) {
-          thing.description = wikidataResults[index].data.description;
-          thing.sync.description.updated = new Date();
-          thing.sync.description.source = 'wikidata';
-          thingUpdates.push(thing.save());
-        }
-      });
-      Promise
-        .all(thingUpdates)
-        .then(updatedThings => {
-          console.log(`Sync complete. ${updatedThings.length} items updated.`);
-          console.log(`Updating search index now.`);
-          Promise
-            .all(updatedThings.map(search.indexThing))
-            .then(() => {
-              console.log('Search index updated.');
-              process.exit();
-            })
-            .catch(error => {
-              console.log('Problem updating search index. The error was:');
-              console.log(error);
-              process.exit(1);
-            });
-        })
-        .catch(error => {
-          console.log('Problem performing updates. The error was:');
-          console.log(error);
-          process.exit(1);
-        });
-    })
-    .catch(error => {
-      console.log('Problem performing lookups for sync. The error was:');
-      console.log(error);
-      process.exit(1);
-    });
+    if (syncActive && hasDescription) {
+      if (!thing.metadata) {
+        thing.metadata = {};
+      }
+      thing.metadata.description = result.data.description;
+      thing.sync.description.updated = new Date();
+      thing.sync.description.source = 'wikidata';
+      updates.push(thing.save());
+    }
+  });
 
+  const updatedThings = await Promise.all(updates);
+  console.log(`Sync complete. ${updatedThings.length} items updated.`);
+  console.log('Updating search index now.');
+
+  await Promise.all(updatedThings.map(search.indexThing));
+  console.log('Search index updated.');
 }
 
 // From an array of URLs, return the first one (if any) that matches the
 // Wikidata regular expression.
 function getWikidataURL(arr) {
-  let r = new RegExp(regexStr);
-  for (let url of arr)
-    if (r.test(url))
+  const r = new RegExp(regexStr);
+  for (const url of arr) {
+    if (r.test(url)) {
       return url;
+    }
+  }
+  return null;
 }
+
+syncWikidata()
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error('Problem performing Wikidata sync:', error);
+    process.exit(1);
+  });

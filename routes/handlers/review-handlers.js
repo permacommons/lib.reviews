@@ -34,7 +34,7 @@ let reviewHandlers = {
       htmlURL: '/feed'
     }, options);
 
-    return function(req, res, next) {
+    return async function(req, res, next) {
 
       let language, offsetDate;
       if (req.params.utcisodate) {
@@ -56,7 +56,9 @@ let reviewHandlers = {
           onlyTrusted: options.onlyTrusted,
           limit: options.limit,
           offsetDate,
-          createdBy: options.createdBy
+          createdBy: options.createdBy,
+          withThing: true,
+          withTeams: true
         })
         .then(result => {
 

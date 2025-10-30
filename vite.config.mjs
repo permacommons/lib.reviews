@@ -9,6 +9,7 @@ export default defineConfig({
   base: '/assets/',
   appType: 'mpa',
   plugins: [],
+  server: { allowedHosts: ['dev.test'] } ,
   build: {
     outDir: 'build/vite',
     emptyOutDir: false,

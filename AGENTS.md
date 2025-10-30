@@ -1,17 +1,10 @@
 # lib.reviews Agent Notes
 
-This repository powers the lib.reviews platform. The codebase dates back several years and still reflects legacy patterns (Express 5 migration in flight, Vite-based frontend pipeline, Thinky/RethinkDB). We are in the middle of a long-running modernization effort.
+This repository powers the lib.reviews platform. The codebase dates back several years and still reflects legacy patterns. We are in the middle of a long-running modernization effort.
 
-## Current Focus
-- Target runtime: Node.js 22.x (update dependencies, code, and tooling with this version in mind).
-- Progressive refactors: favor incremental improvements over big bangs; prefer adding tests when touching fragile areas.
-- Asset/build pipeline: Vite bundles everything (production builds under `build/vite`, middleware HMR when `NODE_ENV=development`); legacy Grunt tasks are gone.
-- Database: still Thinky + RethinkDB; evaluate migration paths carefully before making breaking changes.
-- Modernization roadmap (dependency upgrades, testing quirks, external service notes) lives in `plans/modernization-roadmap.md`.
+The database migration from RethinkDB to PostgreSQL is almost complete. Legacy RethinkDB code (`orm/`, `migrations/`, `db.js`) remains temporarily to support data import from the old production database.
 
 ## Guidance for Agents
 - Preserve existing behavior unless instructions say otherwise; many routes have implicit dependencies.
-- Document notable trade-offs or open questions in PR descriptions or this file to keep future contributors aligned.
-- When in doubt about a legacy pattern, surface findings before refactoring; the maintainers value visibility over surprises.
-- When asked to draft a commit message, use conventional commit format. Keep the first line ≤50 chars, subsequent lines ≤72 chars, and limit bullet lists to at most four items. Only describe changes that remain in the current diff.
-- Run the test suite outside the sandbox environment; local sandbox networking blocks RethinkDB and Elasticsearch, leading to cascading failures.
+- When asked to draft a commit message, use conventional commit format. Keep the first line ≤50 chars, subsequent lines ≤72 chars, and limit bullet lists to at most four items (but do use bullets to expand on the headline). Only describe changes that remain in the current diff.
+- Run the test suite outside the sandbox environment; local sandbox networking blocks PostgreSQL and Elasticsearch, leading to cascading failures.

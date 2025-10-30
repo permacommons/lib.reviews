@@ -1,111 +1,208 @@
 'use strict';
 
-/**
- * Model for short human-readable identifiers used in URLs pointing to review
- * subjects ({@link Thing} objects). RethinkDB only enforces uniqueness for
- * primary keys, so we keep these in a separate table.
- *
- * This model is not versioned.
- *
- * @namespace ThingSlug
- */
-const thinky = require('../db');
-const r = thinky.r;
-const type = thinky.type;
+const { getPostgresDAL } = require('../db-postgres');
+const type = require('../dal').type;
+const { ConstraintError } = require('../dal/lib/errors');
+const { initializeModel } = require('../dal/lib/model-initializer');
+const debug = require('../util/debug');
 
-// You can use these slugs, but they'll be automatically be qualified with a number
-const reservedSlugs = ['register', 'actions', 'signin', 'login', 'teams', 'user', 'new', 'signout', 'logout', 'api', 'faq', 'static', 'terms'];
+let ThingSlug = null;
 
-// Model for unique, human-readable identifiers ('slugs') for review subjects
-// ('things')
-
-let thingSlugSchema = {
-  name: type.string().max(125),
-
-  baseName: type.string().max(100),
-  qualifierPart: type.string().max(25),
-
-  thingID: type.string().uuid(4),
-  createdOn: type.date(),
-  createdBy: type.string().uuid(4)
-};
-
-let ThingSlug = thinky.createModel("thing_slugs", thingSlugSchema, {
-  pk: 'name'
-});
-
-ThingSlug.ensureIndex("createdOn");
-
-
-// NOTE: INSTANCE METHODS ------------------------------------------------------
-
-ThingSlug.define("qualifiedSave", qualifiedSave);
+// Reserved slugs that must never be used without qualification
+const reservedSlugs = [
+  'register', 'actions', 'signin', 'login', 'teams', 'user', 'new',
+  'signout', 'logout', 'api', 'faq', 'static', 'terms'
+];
 
 /**
- * Save a slug update, adding a numeric qualifier if necessary because we
- * already have a slug pointing to a different thing.
- *
- * @returns {ThingSlug}
- *  the slug that should be associated with the {@link Thing} object.
- * @memberof ThingSlug
- * @instance
+ * Initialize the PostgreSQL ThingSlug model
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-async function qualifiedSave() {
-  let slug = this;
-  slug.baseName = slug.name; // Store base name for later reference
-  if (reservedSlugs.indexOf(slug.name.toLowerCase()) !== -1)
-    return await _resolveConflicts(); // saves new slug if needed
+async function initializeThingSlugModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
 
-  try {
-    return await slug.save();
-  } catch (error) {
-    if (error.name == 'DuplicatePrimaryKeyError')
-      return await _resolveConflicts(); // saves new slug if needed
-    else
-      throw error;
+  if (!activeDAL) {
+    debug.db('PostgreSQL DAL not available, skipping ThingSlug model initialization');
+    return null;
   }
 
-  /**
-   * Resolves naming conflicts by creating a new slug with a numeric qualifier
-   * if needed.
-   *
-   * @memberof ThingSlug
-   * @returns {ThingSlug}
-   *  the best available slug to use
-   * @inner
-   * @protected
-   */
-  async function _resolveConflicts() {
-    // Check first if we've used this base name before for the same target
-    let slugs = await ThingSlug
-      .filter({
-        baseName: slug.name,
-        thingID: slug.thingID
-      })
-      .orderBy(r.desc('createdOn'))
-      .limit(1);
+  try {
+    const schema = {
+      id: type.string().uuid(4),
+      thingID: type.string().uuid(4).required(true),
+      slug: type.string().max(255).required(true),
+      createdOn: type.date().default(() => new Date()),
+      createdBy: type.string().uuid(4),
+      baseName: type.string().max(255),
+      name: type.string().max(255),
+      qualifierPart: type.string().max(255)
+    };
 
-    if (slugs.length)
-      return slugs[0]; // Got a match, no need to save -- just re-use :)
+    const { model } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'thing_slugs',
+      schema,
+      camelToSnake: {
+        thingID: 'thing_id',
+        createdOn: 'created_on',
+        createdBy: 'created_by',
+        baseName: 'base_name',
+        qualifierPart: 'qualifier_part'
+      },
+      staticMethods: {
+        getByName
+      },
+      instanceMethods: {
+        qualifiedSave
+      }
+    });
 
-    // Widen search for most recent use of this base name
-    slugs = await ThingSlug
-      .filter({
-        baseName: slug.name
-      })
-      .orderBy(r.desc('createdOn'))
-      .limit(1);
+    ThingSlug = model;
+    ThingSlug.reservedSlugs = reservedSlugs;
 
-    let latestQualifierStr;
-    if (slugs.length && !isNaN(+slugs[0].qualifierPart))
-      latestQualifierStr = String(+slugs[0].qualifierPart + 1);
-    else
-      latestQualifierStr = '2';
-    slug.name = `${slug.name}-${latestQualifierStr}`;
-    slug.qualifierPart = latestQualifierStr;
-    return await slug.save();
+    debug.db('PostgreSQL ThingSlug model initialized');
+    return ThingSlug;
+  } catch (error) {
+    debug.error('Failed to initialize PostgreSQL ThingSlug model:', error);
+    return null;
   }
 }
 
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
 
-module.exports = ThingSlug;
+const ThingSlugHandle = createAutoModelHandle('thing_slugs', initializeThingSlugModel);
+ThingSlugHandle.reservedSlugs = reservedSlugs;
+
+/**
+ * Get the PostgreSQL ThingSlug model (initialize if needed)
+ * @param {DataAccessLayer|null} [dal] - Optional DAL instance for testing
+ */
+async function getPostgresThingSlugModel(dal = null) {
+  ThingSlug = await initializeThingSlugModel(dal);
+  return ThingSlug;
+}
+
+/**
+ * Get a thing slug by its name field.
+ *
+ * @param {string} name - The slug name to look up
+ * @returns {Promise<ThingSlug|null>} The thing slug instance or null if not found
+ * @static
+ * @memberof ThingSlug
+ */
+async function getByName(name) {
+  try {
+    return await this.filter({ name }).first();
+  } catch (error) {
+    debug.error(`Error getting thing slug by name '${name}':`, error);
+    return null;
+  }
+}
+
+async function qualifiedSave() {
+  const Model = this.constructor;
+  const dal = Model.dal;
+
+  if (!dal) {
+    throw new Error('ThingSlug DAL not initialized');
+  }
+
+  if (!this.baseName) {
+    this.baseName = this.name;
+  }
+
+  if (!this.createdOn) {
+    this.createdOn = new Date();
+  }
+
+  const baseName = this.baseName;
+  const thingID = this.thingID;
+  const forceQualifier = reservedSlugs.includes((this.name || '').toLowerCase());
+
+  const findByName = async name => {
+    const existing = await dal.query(
+      `SELECT * FROM ${Model.tableName} WHERE name = $1 LIMIT 1`,
+      [name]
+    );
+    return existing.rows.length ? Model._createInstance(existing.rows[0]) : null;
+  };
+
+  const attemptSave = async () => {
+    try {
+      await this.save();
+      return this;
+    } catch (error) {
+      if (error instanceof ConstraintError) {
+        return null;
+      }
+      throw error;
+    }
+  };
+
+  if (!forceQualifier) {
+    const saved = await attemptSave();
+    if (saved) {
+      return saved;
+    }
+    const existing = await findByName(this.name);
+    if (existing && existing.thingID === thingID) {
+      return existing;
+    }
+  }
+
+  const reuseQuery = `
+    SELECT *
+    FROM ${Model.tableName}
+    WHERE base_name = $1
+      AND thing_id = $2
+    ORDER BY created_on DESC
+    LIMIT 1
+  `;
+  let result = await dal.query(reuseQuery, [baseName, thingID]);
+  if (result.rows.length) {
+    return Model._createInstance(result.rows[0]);
+  }
+
+  const latestQuery = `
+    SELECT qualifier_part
+    FROM ${Model.tableName}
+    WHERE base_name = $1
+    ORDER BY created_on DESC
+    LIMIT 1
+  `;
+  result = await dal.query(latestQuery, [baseName]);
+  let nextQualifier = '2';
+  if (result.rows.length && result.rows[0].qualifier_part) {
+    const parsed = parseInt(result.rows[0].qualifier_part, 10);
+    if (!Number.isNaN(parsed)) {
+      nextQualifier = String(parsed + 1);
+    }
+  }
+
+  while (true) {
+    this.name = `${baseName}-${nextQualifier}`;
+    this.slug = this.name;
+    this.qualifierPart = nextQualifier;
+    const saved = await attemptSave();
+    if (saved) {
+      return saved;
+    }
+
+    const existing = await findByName(this.name);
+    if (existing && existing.thingID === thingID) {
+      return existing;
+    }
+
+    const parsed = parseInt(nextQualifier, 10);
+    nextQualifier = Number.isNaN(parsed) ? `${nextQualifier}2` : String(parsed + 1);
+  }
+}
+
+module.exports = ThingSlugHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeThingSlugModel;
+module.exports.getPostgresThingSlugModel = getPostgresThingSlugModel;
+module.exports.reservedSlugs = reservedSlugs;

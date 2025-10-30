@@ -3,6 +3,7 @@
 const isUUID = require('is-uuid');
 
 // Internal dependencies
+const { DocumentNotFound } = require('../../dal/lib/errors');
 const Team = require('../../models/team');
 const TeamSlug = require('../../models/team-slug');
 const Thing = require('../../models/thing');
@@ -19,10 +20,17 @@ const slugs = {
   resolveAndLoadTeam(req, res, id, loadOptions) {
 
     return _resolveAndLoad(req, res, id, loadOptions, {
-      DocumentModel: Team,
-      SlugModel: TeamSlug,
+      basePath: '/team/',
       slugForeignKey: 'teamID',
-      basePath: '/team/'
+      getDocumentModel: () => Team,
+      loadSlug: async (slugName, DocumentModel) => {
+        const TeamSlugModel = TeamSlug;
+        if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function') {
+          return null;
+        }
+        return await TeamSlugModel.getByName(slugName);
+      },
+      slugLabel: 'team'
     });
 
   },
@@ -31,10 +39,17 @@ const slugs = {
   resolveAndLoadThing(req, res, id, loadOptions) {
 
     return _resolveAndLoad(req, res, id, loadOptions, {
-      DocumentModel: Thing,
-      SlugModel: ThingSlug,
+      basePath: '/',
       slugForeignKey: 'thingID',
-      basePath: '/'
+      getDocumentModel: () => Thing,
+      loadSlug: async (slugName, DocumentModel) => {
+        const ThingSlugModel = ThingSlug;
+        if (!ThingSlugModel || typeof ThingSlugModel.getByName !== 'function') {
+          return null;
+        }
+        return await ThingSlugModel.getByName(slugName);
+      },
+      slugLabel: 'thing'
     });
   }
 
@@ -43,55 +58,68 @@ const slugs = {
 // Generic internal function to resolve a document's unique human-readable short
 // identifier (slug) or UUID. modelConfig object:
 //
-//   DocumentModel: class name of Model for document we're trying to look up
-//   SlugModel: class name of Model for relevant slugs
+//   getDocumentModel: function returning a Promise resolving to the model class
+//   slugModel: class name of Model for relevant slugs
 //   slugForeignKey: name of the ID key in the slug table that refers back to the
 //     document
 //   basePath: base URL of any canonical URL we redirect to
-function _resolveAndLoad(req, res, id, loadOptions, modelConfig) {
+async function _resolveAndLoad(req, res, id, loadOptions, modelConfig) {
+  const DocumentModel = modelConfig.getDocumentModel
+    ? await modelConfig.getDocumentModel()
+    : modelConfig.DocumentModel;
 
-  return new Promise((resolve, reject) => {
+  if (!DocumentModel || typeof DocumentModel.getWithData !== 'function') {
+    throw new Error('Document model not available for slug resolution');
+  }
 
-    if (isUUID.v4(id)) {
-      // If we have a slug for this UUID, we redirect to it,
-      // otherwise we stay on the UUID version of the URL
-      modelConfig.DocumentModel
-        .getWithData(id, loadOptions)
-        .then(document => {
-          if (document.canonicalSlugName) {
-            _redirectToCanonical(req, res, id, modelConfig.basePath, document.canonicalSlugName);
-            let e = new Error();
-            e.name = 'RedirectedError';
-            reject(e);
-          } else
-            resolve(document);
-        })
-        .catch(reject); // ID not found or other error
-
-    } else {
-      // We'll assume that the provided ID refers to a slug
-      modelConfig.SlugModel
-        .get(id)
-        .then(slug => {
-          modelConfig.DocumentModel
-            .getWithData(slug[modelConfig.slugForeignKey], loadOptions)
-            .then(document => {
-              if (document.canonicalSlugName === slug.name)
-                resolve(document);
-              // We always want to redirect to the canonical name
-              else {
-                _redirectToCanonical(req, res, id, modelConfig.basePath, document.canonicalSlugName);
-                let e = new Error();
-                e.name = 'RedirectedError';
-                reject(e);
-              }
-            })
-            .catch(reject);
-        })
-        .catch(reject); // Slug not found or other error
+  const loadDocument = async documentId => {
+    if (!documentId) {
+      throw new DocumentNotFound('Slug record does not reference a document');
     }
-  });
+    return DocumentModel.getWithData(documentId, loadOptions);
+  };
 
+  const createRedirectedError = () => {
+    const error = new Error();
+    error.name = 'RedirectedError';
+    return error;
+  };
+
+  if (isUUID.v4(id)) {
+    const document = await loadDocument(id);
+
+    if (document.canonicalSlugName) {
+      _redirectToCanonical(req, res, id, modelConfig.basePath, document.canonicalSlugName);
+      throw createRedirectedError();
+    }
+
+    return document;
+  }
+
+  let slug;
+  if (typeof modelConfig.loadSlug === 'function') {
+    slug = await modelConfig.loadSlug(id, DocumentModel);
+  } else {
+    const SlugModel = modelConfig.slugModel || modelConfig.SlugModel;
+    if (!SlugModel || typeof SlugModel.get !== 'function') {
+      throw new Error('Slug model not available for slug resolution');
+    }
+    slug = await SlugModel.get(id);
+  }
+
+  if (!slug) {
+    const label = modelConfig.slugLabel || 'document';
+    throw new DocumentNotFound(`Slug '${id}' not found for ${label}`);
+  }
+
+  const document = await loadDocument(slug[modelConfig.slugForeignKey]);
+
+  if (document.canonicalSlugName === slug.name) {
+    return document;
+  }
+
+  _redirectToCanonical(req, res, id, modelConfig.basePath, document.canonicalSlugName);
+  throw createRedirectedError();
 }
 
 // Redirect from current page to the canonical URL

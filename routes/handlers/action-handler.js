@@ -51,6 +51,7 @@ const actionHandler = {
       .save()
       .then(() => {
         res.status(200);
+        res.type('json');
         res.send(JSON.stringify({
           message,
           oldValue,

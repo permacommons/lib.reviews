@@ -15,6 +15,7 @@ module.exports = function getResourceErrorHandler(req, res, next, messageKeyPref
     switch (error.name) {
       // In "not found" case, we also attempt to redirect any URL with trailing
       // whitespace (some number of '%20's at the end) to its canonical version.
+      case 'DocumentNotFound':
       case 'DocumentNotFoundError':
         if (/%20$/.test(req.originalUrl))
           return res.redirect(req.originalUrl.replace(/(.+?)(%20)+$/, '$1'));
@@ -24,6 +25,14 @@ module.exports = function getResourceErrorHandler(req, res, next, messageKeyPref
         render.resourceError(req, res, {
           titleKey: `${messageKeyPrefix} not found title`,
           bodyKey: `${messageKeyPrefix} not found`,
+          bodyParam
+        });
+        break;
+      case 'InvalidUUIDError':
+        res.status(404);
+        render.resourceError(req, res, {
+          titleKey: `${messageKeyPrefix} address invalid title`,
+          bodyKey: `${messageKeyPrefix} address invalid`,
           bodyParam
         });
         break;

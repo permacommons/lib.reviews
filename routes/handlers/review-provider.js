@@ -8,7 +8,7 @@ const Team = require('../../models/team');
 const User = require('../../models/user');
 const File = require('../../models/file');
 const AbstractBREADProvider = require('./abstract-bread-provider');
-const mlString = require('../../models/helpers/ml-string.js');
+const mlString = require('../../dal/lib/ml-string.js');
 const urlUtils = require('../../util/url-utils');
 const ReportedError = require('../../util/reported-error.js');
 const md = require('../../util/md');
@@ -59,21 +59,36 @@ class ReviewProvider extends AbstractBREADProvider {
     // No permission checks on reads, so we have to do this manually
     review.populateUserInfo(this.req.user);
 
+    let pageMessages = this.req.flash('pageMessages');
+
     this.renderTemplate('review', {
       titleKey: titleParam ? 'review of' : 'review',
       titleParam,
       deferPageHeader: true,
       socialImage: review.socialImage ? encodeURIComponent(review.socialImage.name) : review.headerImage,
-      review
+      review,
+      pageMessages
     });
 
   }
 
-  add_GET(formValues, thing) {
+  async add_GET(formValues, thing) {
     let pageErrors = this.req.flash('pageErrors');
     let pageMessages = this.req.flash('pageMessages');
     let user = this.req.user;
     let showLanguageNotice = true;
+
+    // Load user's teams for the form
+    if (user && user.id) {
+      try {
+        const userWithTeams = await User.findByURLName(user.urlName, { withTeams: true });
+        user.teams = userWithTeams.teams;
+        user.moderatorOf = userWithTeams.moderatorOf;
+      } catch (error) {
+        // If we can't load teams, continue without them
+        console.error('Failed to load user teams for review form:', error);
+      }
+    }
 
     // For easier processing in the template
     if (formValues) {
@@ -84,10 +99,10 @@ class ReviewProvider extends AbstractBREADProvider {
       formValues.hasTeam = {};
       if (Array.isArray(formValues.teams))
         formValues.teams.forEach(team => (formValues.hasTeam[team.id] = true));
-        if (formValues.socialImageID)
-          formValues.hasSocialImageID = {
-            [formValues.socialImageID]: true
-          };
+      if (formValues.socialImageID)
+        formValues.hasSocialImageID = {
+          [formValues.socialImageID]: true
+        };
       if (thing && thing.files)
         formValues.uploads = thing.files;
     }
@@ -117,22 +132,22 @@ class ReviewProvider extends AbstractBREADProvider {
     });
   }
 
-  addFromThing_GET(thing) {
+  async addFromThing_GET(thing) {
 
-    thing
-      .getReviewsByUser(this.req.user)
-      .then(reviews => {
-        if (reviews.length) {
-          this.req.flash('pageMessages', this.req.__('you already wrote a review'));
-          return this.res.redirect(`/review/${reviews[0].id}/edit`);
-        }
-        this.add_GET(undefined, thing);
-      })
-      .catch(this.next);
+    try {
+      const reviews = await thing.getReviewsByUser(this.req.user);
+      if (reviews.length) {
+        this.req.flash('pageMessages', this.req.__('you already wrote a review'));
+        return this.res.redirect(`/review/${reviews[0].id}/edit`);
+      }
+      await this.add_GET(undefined, thing);
+    } catch (error) {
+      this.next(error);
+    }
 
   }
 
-  addFromTeam_GET(team) {
+  async addFromTeam_GET(team) {
 
     team.populateUserInfo(this.req.user);
     if (!team.userIsMember) {
@@ -146,7 +161,7 @@ class ReviewProvider extends AbstractBREADProvider {
       let formValues = {
         teams: [team]
       };
-      return this.add_GET(formValues);
+      return await this.add_GET(formValues);
     }
 
   }
@@ -185,7 +200,7 @@ class ReviewProvider extends AbstractBREADProvider {
     this
       .resolveTeamData(formData.formValues)
       .then(() => File.getMultipleNotStaleOrDeleted(formData.formValues.files))
-      .then(uploadedFiles => {
+      .then(async (uploadedFiles) => {
         const reviewObj = Object.assign({}, formData.formValues);
 
         // Pass existing and newly uploaded forms on to the form, so they
@@ -200,7 +215,7 @@ class ReviewProvider extends AbstractBREADProvider {
         // We're previewing or have basic problems with the submission -- back to form
         if (this.isPreview || this.req.flashHas('pageErrors')) {
           formData.formValues.creator = this.req.user; // Needed for username link
-          return this.add_GET(formData.formValues, thing);
+          return await this.add_GET(formData.formValues, thing);
         }
 
         Review
@@ -223,15 +238,15 @@ class ReviewProvider extends AbstractBREADProvider {
               })
               .catch(this.next); // Problem updating invite count
           })
-          .catch(error => {
+          .catch(async (error) => {
             this.req.flashError(error);
-            this.add_GET(formData.formValues, thing);
+            await this.add_GET(formData.formValues, thing);
           });
 
       })
-      .catch(error => {
+      .catch(async (error) => {
         this.req.flashError(error);
-        this.add_GET(formData.formValues, thing);
+        await this.add_GET(formData.formValues, thing);
       });
 
   }
@@ -258,10 +273,10 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
 
-  edit_GET(review) {
+  async edit_GET(review) {
 
     this.editing = true;
-    this.add_GET(review, review.thing);
+    await this.add_GET(review, review.thing);
 
   }
 
@@ -288,10 +303,10 @@ class ReviewProvider extends AbstractBREADProvider {
     formData.formValues.files = typeof formData.formValues.files == 'object' ?
       Object.keys(formData.formValues.files) : [];
 
-    const abort = error => {
+    const abort = async (error) => {
       if (error)
         this.req.flashError(error);
-      this.add_GET(formData.formValues);
+      await this.add_GET(formData.formValues);
     };
 
     this
@@ -312,7 +327,7 @@ class ReviewProvider extends AbstractBREADProvider {
           .newRevision(this.req.user, {
             tags: ['edit-via-form']
           })
-          .then(newRev => {
+          .then(async newRev => {
             let f = formData.formValues;
 
             Review.validateSocialImage({
@@ -345,11 +360,11 @@ class ReviewProvider extends AbstractBREADProvider {
   // Save an edited review, and associate any newly uploaded files with the
   // review subject
   async saveNewRevisionAndFiles(newRev, files) {
-    await newRev
-      .saveAll({ // Do not save changes to joined user
-        teams: true,
-        thing: true
-      });
+    await newRev.saveAll({
+      teams: true,
+      thing: true
+    });
+    
     if (Array.isArray(files) && typeof newRev.thing == 'object')
       await newRev.thing.addFilesByIDsAndSave(files, newRev.createdBy);
   }
@@ -358,15 +373,18 @@ class ReviewProvider extends AbstractBREADProvider {
   // formValues.
   async resolveTeamData(formValues) {
     if (typeof formValues.teams !== 'object' ||
-      !Object.keys(formValues.teams).length)
-      formValues.teams = {};
+      !Object.keys(formValues.teams).length) {
+      formValues.teams = [];
+      return;
+    }
 
-    const queries = Object.keys(formValues.teams).map(Team.getWithData);
+    const TeamModel = require('../../models/team');
+    const queries = Object.keys(formValues.teams).map(teamId => TeamModel.getWithData(teamId));
 
     try {
       formValues.teams = await Promise.all(queries);
     } catch (error) {
-      if (error.name == 'DocumentNotFoundError' || error.name == 'RevisionDeletedError')
+      if (error.name == 'DocumentNotFound' || error.name == 'DocumentNotFoundError' || error.name == 'RevisionDeletedError')
         throw new ReportedError({
           parentError: error,
           userMessage: 'submitted team could not be found'
@@ -375,13 +393,15 @@ class ReviewProvider extends AbstractBREADProvider {
         throw error;
     }
 
-    formValues.teams.forEach(team => {
-      team.populateUserInfo(this.req.user);
-      if (!team.userIsMember)
-        throw new ReportedError({
-          userMessage: 'user is not member of submitted team'
-        });
-    });
+    if (Array.isArray(formValues.teams)) {
+      formValues.teams.forEach(team => {
+        team.populateUserInfo(this.req.user);
+        if (!team.userIsMember)
+          throw new ReportedError({
+            userMessage: 'user is not member of submitted team'
+          });
+      });
+    }
   }
 
   delete_GET(review) {

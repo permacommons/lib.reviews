@@ -8,7 +8,7 @@ const i18n = require('i18n');
 // Internal dependencies
 const AbstractBREADProvider = require('./abstract-bread-provider');
 const BlogPost = require('../../models/blog-post');
-const mlString = require('../../models/helpers/ml-string.js');
+const mlString = require('../../dal/lib/ml-string.js');
 const languages = require('../../locales/languages');
 const feeds = require('../helpers/feeds');
 const slugs = require('../helpers/slugs');
@@ -42,7 +42,7 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  browse_GET(team) {
+  async browse_GET(team) {
 
     if (this.action == 'browseAtomDetectLanguage')
       return this.res.redirect(`/team/${team.urlID}/blog/atom/${this.req.locale}`);
@@ -114,7 +114,7 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.next);
   }
 
-  read_GET(team) {
+  async read_GET(team) {
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -153,7 +153,7 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  edit_GET(team) {
+  async edit_GET(team) {
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -168,7 +168,7 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.getResourceErrorHandler('post', this.postID));
   }
 
-  edit_POST(team) {
+  async edit_POST(team) {
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -202,8 +202,8 @@ class BlogPostProvider extends AbstractBREADProvider {
           })
           .then(newRev => {
             newRev.title[language] = formValues.title[language];
-            newRev.post.text[language] = formValues.post.text[language];
-            newRev.post.html[language] = formValues.post.html[language];
+            newRev.text[language] = formValues.text[language];
+            newRev.html[language] = formValues.html[language];
             newRev.save().then(() => {
                 this.req.flash('pageMessages', this.req.__('edit saved'));
                 this.res.redirect(`/team/${team.urlID}/post/${newRev.id}`);
@@ -255,7 +255,7 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.next); // Problem getting revision metadata
   }
 
-  delete_GET(team) {
+  async delete_GET(team) {
     BlogPost
       .getWithCreator(this.postID)
       .then(blogPost => {
@@ -273,7 +273,7 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  delete_POST() {
+  async delete_POST() {
 
     BlogPost
       .getWithCreator(this.postID)
@@ -347,7 +347,9 @@ BlogPostProvider.formDefs = {
     name: 'post-text',
     required: true,
     type: 'markdown',
-    key: 'post'
+    key: 'text',
+    flat: true,
+    htmlKey: 'html'
   }, {
     name: 'post-language',
     required: true,

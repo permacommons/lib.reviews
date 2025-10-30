@@ -131,10 +131,12 @@ router.get('/:id/atom/:language', function(req, res, next) {
       if (!languages.isValid(language))
         return res.redirect(`/${id}/atom/en`);
 
-      Review.getFeed({
+      getReviewModel()
+        .then(Review => Review.getFeed({
           thingID: thing.id,
-          withThing: false
-        })
+          withThing: false,
+          withTeams: true
+        }))
         .then(result => {
 
           let updatedDate;
@@ -184,41 +186,43 @@ router.get('/thing/:id/atom/:language', function(req, res) {
   return res.redirect(`/${id}/atom/${language}`);
 });
 
-function loadThingAndReviews(req, res, next, thing, offsetDate) {
+let reviewModelPromise;
+function getReviewModel() {
+  return Review;
+}
 
-  let p1, p2;
+async function loadThingAndReviews(req, res, next, thing, offsetDate) {
+  try {
+    const Review = getReviewModel();
 
-  thing.populateUserInfo(req.user);
-  if (Array.isArray(thing.files))
-    thing.files.map(file => file.populateUserInfo(req.user));
+    thing.populateUserInfo(req.user);
+    if (Array.isArray(thing.files)) {
+      thing.files.forEach(file => file.populateUserInfo(req.user));
+    }
 
-  // We don't use a join so we can use the orderBy index on this query.
-  p1 = Review.getFeed({
-    thingID: thing.id,
-    withThing: false,
-    withoutCreator: req.user ? req.user.id : false, // Obtained separately below
-    offsetDate
-  });
+    const otherReviewsPromise = Review.getFeed({
+      thingID: thing.id,
+      withThing: false,
+      withTeams: true,
+      withoutCreator: req.user ? req.user.id : false,
+      offsetDate
+    });
 
-  // Separate query for any reviews by the user (might otherwise not be
-  // within the date range captured above). Populates with user info.
-  p2 = thing.getReviewsByUser(req.user);
+    const userReviewsPromise = thing.getReviewsByUser(req.user);
 
-  Promise
-    .all([p1, p2])
-    .then(result => {
+    const [otherReviews, userReviews] = await Promise.all([otherReviewsPromise, userReviewsPromise]);
 
-      result[0].feedItems.forEach(review => {
-        review.populateUserInfo(req.user);
+    otherReviews.feedItems.forEach(review => {
+      review.populateUserInfo(req.user);
+    });
 
-      });
-      sendThing(req, res, thing, {
-        otherReviews: result[0],
-        userReviews: result[1]
-      });
-    })
-    .catch(next);
-
+    sendThing(req, res, thing, {
+      otherReviews,
+      userReviews
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 function processTextFieldUpdate(req, res, next) {
@@ -248,13 +252,25 @@ function processTextFieldUpdate(req, res, next) {
       thing
         .newRevision(req.user)
         .then(newRev => {
-          if (!newRev[field])
-            newRev[field] = {};
-
           let language = req.body['thing-language'];
           languages.validate(language);
           let text = req.body[`thing-${field}`];
-          newRev[field][language] = escapeHTML(text);
+          
+          // Handle metadata fields (description, subtitle, authors) differently
+          const metadataFields = ['description', 'subtitle', 'authors'];
+          if (metadataFields.includes(field)) {
+            if (!newRev.metadata)
+              newRev.metadata = {};
+            if (!newRev.metadata[field])
+              newRev.metadata[field] = {};
+            newRev.metadata[field][language] = escapeHTML(text);
+          } else {
+            // Handle direct fields like label
+            if (!newRev[field])
+              newRev[field] = {};
+            newRev[field][language] = escapeHTML(text);
+          }
+          
           if (!newRev.originalLanguage)
             newRev.originalLanguage = language;
 
@@ -335,7 +351,7 @@ function sendThing(req, res, thing, options) {
 
   let paginationURL;
   if (offsetDate)
-    paginationURL = `/before/${offsetDate.toISOString()}`;
+    paginationURL = `/${thing.urlID}/before/${offsetDate.toISOString()}`;
 
   // If there are URLs beyond the main URL, we show them in categorized form
   let taggedURLs = Array.isArray(thing.urls) && thing.urls.length > 1 ?
@@ -433,8 +449,7 @@ function processThingURLsUpdate(paramsObj) {
       Thing
       .filter(t => t('urls').contains(url))
       .filter(t => t('id').ne(thing.id))
-      .filter({ _oldRevOf: false }, { default: true })
-      .filter({ _revDeleted: false }, { default: true })
+      .filterNotStaleOrDeleted()
     );
   });
 

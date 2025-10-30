@@ -32,17 +32,19 @@ let router = ReviewProvider.bakeRoutes(null, routes);
 
 // We show two query results on the front-page, the team developers blog
 // and a feed of recent reviews, filtered to include only trusted ones.
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
 
+  // Models are now available directly via bootstrap initialization
   let queries = [
-    Review.getFeed({ onlyTrusted: true }),
+    Review.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
     Team.filterNotStaleOrDeleted().sample(3) // Random example teams
   ];
 
-  if (config.frontPageTeamBlog)
+  if (config.frontPageTeamBlog) {
     queries.push(BlogPost.getMostRecentBlogPostsBySlug(
       config.frontPageTeamBlog, { limit: 3 }
     ));
+  }
 
   Promise
     .all(queries)

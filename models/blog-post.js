@@ -1,187 +1,214 @@
 'use strict';
 
-/**
- * Model for blog posts. Blog posts can currently only be authored by teams: one
- * team can have many blog posts.
- *
- * @namespace BlogPost
- */
-const thinky = require('../db');
-const r = thinky.r;
-const type = thinky.type;
-const mlString = require('./helpers/ml-string');
-const revision = require('./helpers/revision');
+const { getPostgresDAL } = require('../db-postgres');
+const type = require('../dal').type;
+const mlString = require('../dal/lib/ml-string');
 const isValidLanguage = require('../locales/languages').isValid;
-const User = require('./user');
+const debug = require('../util/debug');
+const { DocumentNotFound } = require('../dal/lib/errors');
 const TeamSlug = require('./team-slug');
+const User = require('./user');
+const { initializeModel } = require('../dal/lib/model-initializer');
 
-/* eslint-disable newline-per-chained-call */
-/* for schema readability */
-
-let blogPostSchema = {
-
-  id: type.string(),
-  teamID: type.string().uuid(4),
-  title: mlString.getSchema({
-    maxLength: 100
-  }),
-  post: {
-    text: mlString.getSchema(),
-    html: mlString.getSchema()
-  },
-  // Track original authorship
-  createdOn: type.date(),
-  createdBy: type.string(),
-  originalLanguage: type.string().max(4).required().validator(isValidLanguage),
-  userCanEdit: type.virtual().default(false),
-  userCanDelete: type.virtual().default(false)
-};
-
-/* eslint-enable newline-per-chained-call */
-
-// Add versioning related fields
-Object.assign(blogPostSchema, revision.getSchema());
-let BlogPost = thinky.createModel("blog_posts", blogPostSchema);
-
-BlogPost.ensureIndex("createdOn");
-BlogPost.belongsTo(User, "creator", "createdBy", "id");
-
-// NOTE: STATIC METHODS --------------------------------------------------------
-
-// Standard handlers
-
-BlogPost.createFirstRevision = revision.getFirstRevisionHandler(BlogPost);
-BlogPost.getNotStaleOrDeleted = revision.getNotStaleOrDeletedGetHandler(BlogPost);
-
-// Custom methods
+let BlogPost = null;
 
 /**
- * Get a blog post and the user object representing its original author
- *
- * @param {String} id
- *  blog post ID
- * @returns {BlogPost}
- *  post with populated `.creator` property
- * @async
+ * Initialize the PostgreSQL BlogPost model
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
  */
-BlogPost.getWithCreator = async function(id) {
-  const post = await BlogPost
-    .get(id)
-    .getJoin({
-      creator: {
-        _apply: seq => seq.without('password')
+async function initializeBlogPostModel(dal = null) {
+  const activeDAL = dal || await getPostgresDAL();
+
+  if (!activeDAL) {
+    debug.db('PostgreSQL DAL not available, skipping BlogPost model initialization');
+    return null;
+  }
+
+  try {
+    const schema = {
+      id: type.string().uuid(4),
+      teamID: type.string().uuid(4).required(true),
+      title: mlString.getSchema({ maxLength: 100 }),
+      text: mlString.getSchema(),
+      html: mlString.getSchema(),
+      createdOn: type.date().default(() => new Date()),
+      createdBy: type.string().uuid(4).required(true),
+      originalLanguage: type.string().max(4).required(true).validator(isValidLanguage),
+      userCanEdit: type.virtual().default(false),
+      userCanDelete: type.virtual().default(false)
+    };
+
+    const { model, isNew } = initializeModel({
+      dal: activeDAL,
+      baseTable: 'blog_posts',
+      schema,
+      camelToSnake: {
+        teamID: 'team_id',
+        createdOn: 'created_on',
+        createdBy: 'created_by',
+        originalLanguage: 'original_language'
+      },
+      withRevision: {
+        static: ['createFirstRevision', 'getNotStaleOrDeleted'],
+        instance: ['deleteAllRevisions']
+      },
+      staticMethods: {
+        getWithCreator,
+        getMostRecentBlogPosts,
+        getMostRecentBlogPostsBySlug
+      },
+      instanceMethods: {
+        populateUserInfo
       }
     });
+    BlogPost = model;
 
-  if (post._revDeleted)
-    throw revision.deletedError;
+    if (!isNew) {
+      return BlogPost;
+    }
 
-  if (post._oldRevOf)
-    throw revision.staleError;
-
-  return post;
-};
+    debug.db('PostgreSQL BlogPost model initialized');
+    return BlogPost;
+  } catch (error) {
+    debug.error('Failed to initialize PostgreSQL BlogPost model:', error);
+    throw error;
+  }
+}
 
 /**
- * Get the most recent blog posts for a given team
- *
- * @param {String} teamID
- *  team ID to look up
- * @param {Object} [options]
- *  query criteria
- * @param {Number} options.limit=10
- *  number of posts to retrieve
- * @param {Date} options.offsetDate
- *  only get posts older than this date
- * @returns {BlogPosts[]}
- * @async
- */
-BlogPost.getMostRecentBlogPosts = async function(teamID, {
+ * Get the PostgreSQL BlogPost model (initialize if needed)
+ * @param {DataAccessLayer} dal - Optional DAL instance for testing
+*/
+async function getPostgresBlogPostModel(dal = null) {
+  if (!BlogPost || dal) {
+    BlogPost = await initializeBlogPostModel(dal);
+  }
+  return BlogPost;
+}
+
+async function getWithCreator(id) {
+  const post = await BlogPost.getNotStaleOrDeleted(id);
+  if (!post) {
+    return null;
+  }
+  await _attachCreator(post);
+  return post;
+}
+
+async function getMostRecentBlogPosts(teamID, {
   limit = 10,
   offsetDate = undefined
 } = {}) {
-
-  if (!teamID)
+  if (!teamID) {
     throw new Error('We require a team ID to fetch blog posts.');
-
-  let query = BlogPost;
-
-  if (offsetDate && offsetDate.valueOf)
-    query = query.between(r.minval, r.epochTime(offsetDate.valueOf() / 1000), {
-      index: 'createdOn',
-      rightBound: 'open' // Do not return previous record that exactly matches offset
-    });
-
-  query = query
-    .orderBy({ index: r.desc('createdOn') })
-    .filter({ teamID })
-    .filter({ _revDeleted: false }, { default: true })
-    .filter({ _oldRevOf: false }, { default: true })
-    .limit(limit + 1) // One over limit to check if we need potentially another set
-    .getJoin({
-      creator: {
-        _apply: seq => seq.without('password')
-      }
-    });
-
-  const posts = await query;
-  const result = {};
-
-  // At least one additional document available, set offset for pagination
-  if (posts.length == limit + 1) {
-    result.offsetDate = posts[limit - 1].createdOn;
-    posts.pop();
   }
 
-  result.blogPosts = posts;
-  return result;
-};
+  const dal = BlogPost.dal;
+  const postsTable = BlogPost.tableName;
+  const params = [teamID];
+  let paramIndex = 2;
 
-/**
- * Get blog posts for a given team slug.
- *
- * @param {String} teamSlugName
- *  slug (short human-readable identifier) for a team
- * @param {Object} [options]
- *  options supported by {@link BlogPost.getMostRecentBlogPosts}
- * @returns {BlogPost[]}
- * @async
- */
-BlogPost.getMostRecentBlogPostsBySlug = async function(teamSlugName, options) {
-  const slug = await TeamSlug.get(teamSlugName);
-  const posts = BlogPost.getMostRecentBlogPosts(slug.teamID, options);
-  return posts;
-};
+  let query = `
+    SELECT *
+    FROM ${postsTable}
+    WHERE team_id = $1
+      AND (_rev_deleted IS NULL OR _rev_deleted = false)
+      AND (_old_rev_of IS NULL)
+  `;
 
-// NOTE: INSTANCE METHODS ------------------------------------------------------
+  if (offsetDate) {
+    query += ` AND created_on < $${paramIndex}`;
+    params.push(offsetDate);
+    paramIndex++;
+  }
 
-// Standard handlers
+  query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
+  params.push(limit + 1);
 
-BlogPost.define("newRevision", revision.getNewRevisionHandler(BlogPost));
-BlogPost.define("deleteAllRevisions", revision.getDeleteAllRevisionsHandler(BlogPost));
+  const result = await dal.query(query, params);
 
-// Custom methods
+  const posts = await Promise.all(
+    result.rows.map(async row => {
+      const post = BlogPost._createInstance(row);
+      await _attachCreator(post);
+      return post;
+    })
+  );
 
-BlogPost.define("populateUserInfo", populateUserInfo);
+  const blogPosts = posts.filter(Boolean);
 
-/**
- * Populate virtual permission fields for this post based on a given user
- *
- * @param {User} user
- *  the user whose permissions to check
- * @instance
- * @memberof BlogPost
- */
-function populateUserInfo(user) {
+  const response = { blogPosts };
 
-  if (!user) // Keep at permissions at default (false)
-    return;
+  if (blogPosts.length === limit + 1) {
+    const offsetPost = blogPosts[limit - 1];
+    response.offsetDate = offsetPost.createdOn;
+    blogPosts.pop();
+  }
 
-  if (user.isSuperUser || user.id === this.createdBy)
-    this.userCanEdit = true;
-
-  if (user.isSuperUser || user.id === this.createdBy || user.isSiteModerator)
-    this.userCanDelete = true;
+  return response;
 }
 
-module.exports = BlogPost;
+async function getMostRecentBlogPostsBySlug(teamSlugName, options) {
+  const slug = await TeamSlug.getByName(teamSlugName);
+  if (!slug || !slug.teamID) {
+    throw new DocumentNotFound(`Slug '${teamSlugName}' not found for team`);
+  }
+  return getMostRecentBlogPosts(slug.teamID, options);
+}
+
+function populateUserInfo(user) {
+  if (!user) {
+    return;
+  }
+
+  if (user.isSuperUser || user.id === this.createdBy) {
+    this.userCanEdit = true;
+  }
+
+  if (user.isSuperUser || user.id === this.createdBy || user.isSiteModerator) {
+    this.userCanDelete = true;
+  }
+}
+
+async function _attachCreator(post) {
+  if (!post || !post.createdBy) {
+    return post;
+  }
+
+  try {
+    const dal = BlogPost.dal;
+    const userTable = dal.schemaNamespace ? `${dal.schemaNamespace}users` : 'users';
+    const query = `
+      SELECT *
+      FROM ${userTable}
+      WHERE id = $1
+    `;
+    const result = await dal.query(query, [post.createdBy]);
+    if (!result.rows.length) {
+      return post;
+    }
+
+    const user = User._createInstance(result.rows[0]);
+    post.creator = {
+      id: user.id,
+      displayName: user.displayName,
+      urlName: user.urlName
+    };
+  } catch (error) {
+    debug.db('Failed to load blog post creator:', error);
+  }
+
+  return post;
+}
+
+// Synchronous handle for production use - proxies to the registered model
+// Create synchronous handle using the model handle factory
+const { createAutoModelHandle } = require('../dal/lib/model-handle');
+
+const BlogPostHandle = createAutoModelHandle('blog_posts', initializeBlogPostModel);
+
+module.exports = BlogPostHandle;
+
+// Export factory function for fixtures and tests
+module.exports.initializeModel = initializeBlogPostModel;
+module.exports.getPostgresBlogPostModel = getPostgresBlogPostModel;

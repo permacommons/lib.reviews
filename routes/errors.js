@@ -36,6 +36,12 @@ class ErrorProvider {
   }
 
   generic(error, req, res, _next) {
+    // Fallback: Handle DocumentNotFound errors as 404s if they weren't caught by specific route handlers
+    // Most routes should use getResourceErrorHandler or getUserNotFoundHandler for better UX
+    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError') {
+      return this.notFound(req, res);
+    }
+
     let showDetails;
     if (this.app.get('env') === 'development')
       showDetails = true;

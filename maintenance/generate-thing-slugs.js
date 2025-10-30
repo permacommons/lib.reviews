@@ -1,43 +1,35 @@
 // Generate/update human-readable identifier strings ('slugs') for all 'things'
 // (review subjects) in the database.
 'use strict';
+
+const { initializeDAL } = require('../bootstrap/dal');
 const Thing = require('../models/thing');
 
-Thing
-  .filter({
-    _oldRevOf: false
-  }, {
-    default: true
-  })
-  .filter({
-    _revDeleted: false
-  }, {
-    default: true
-  })
-  .then(things => {
-    let p = [];
-    for (let thing of things) {
+async function generateSlugs() {
+  await initializeDAL();
 
-      // Only update slug if we have a label we can use to derive it
-      if (thing.label) {
-        p.push(thing.updateSlug(undefined, 'en')); // User will be undefined
-      }
+  const things = await Thing
+    .filter({ _oldRevOf: false }, { default: true })
+    .filter({ _revDeleted: false }, { default: true })
+    .run();
+
+  const updates = [];
+  for (const thing of things) {
+    if (!thing.label) {
+      continue;
     }
+    updates.push(thing.updateSlug(undefined, 'en'));
+  }
 
-    Promise
-      .all(p)
-      // Now we still have to save the 'thing' rows
-      .then(things => {
-        let p = [];
-        for (let thing of things)
-          p.push(thing.save());
+  const updated = await Promise.all(updates);
+  await Promise.all(updated.map(thing => thing.save()));
 
-        Promise
-          .all(p)
-          .then(() => {
-            console.log('Operation completed - all thing records now have associated slugs.');
-            process.exit();
-          });
+  console.log('Operation completed - all thing records now have associated slugs.');
+}
 
-      });
+generateSlugs()
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error('Failed to generate Thing slugs:', error);
+    process.exit(1);
   });

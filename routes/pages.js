@@ -12,7 +12,7 @@ const stat = promisify(fs.stat);
 const render = require('./helpers/render');
 const languages = require('../locales/languages');
 
-router.get('/terms', function(req, res, next) {
+router.get('/terms', function (req, res, next) {
   resolveMultilingualTemplate('terms', req.locale)
     .then(templateName =>
       render.template(req, res, templateName, {
@@ -23,7 +23,7 @@ router.get('/terms', function(req, res, next) {
     .catch(next);
 });
 
-router.get('/faq', function(req, res, next) {
+router.get('/faq', function (req, res, next) {
   resolveMultilingualTemplate('faq', req.locale)
     .then(templateName =>
       render.template(req, res, templateName, {
