@@ -28,14 +28,14 @@ target architecture for the Data Access Layer (DAL).
 - ✅ Fix the remaining routes, jobs, and helpers that still fail under the Postgres DAL.
 - ✅ Remove `models-legacy/` directory.
 
-### Phase 2 – Remove the RethinkDB Path (In Progress)
+### Phase 2 – Remove the RethinkDB Path ✅ COMPLETE
 
 - ✅ Delete `models-legacy/` directory and legacy model code.
 - ✅ Update documentation to reflect PostgreSQL-only operation.
-- ⏳ Awaiting production cutover to remove:
+- ✅ Remove RethinkDB-specific files:
   - `db.js` (RethinkDB connection)
-  - `orm/` directory (Thinky wrapper, needed for data import)
-  - `migrations/` directory (RethinkDB migration scripts, needed for data import)
+  - `orm/` directory (Thinky wrapper)
+  - `migrations/` directory (RethinkDB migration scripts)
   - RethinkDB npm dependencies
   - RethinkDB config settings
 

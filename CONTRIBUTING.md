@@ -1,122 +1,251 @@
+# Contributing to lib.reviews
+
 *Please also see the [code of conduct](https://github.com/permacommons/lib.reviews/blob/master/CODE_OF_CONDUCT.md).*
 
 Thanks for taking a look! If you just want to write reviews, please see the [instructions for getting an account](https://lib.reviews/register). For technical/design contributions, read on.
 
 We welcome contributions to [any of our open issues](https://github.com/permacommons/lib.reviews/issues), as well as new ideas. Issues tagged as "[good for new contributors](https://github.com/permacommons/lib.reviews/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+for+new+contributors%22)" don't require in-depth knowledge of the whole codebase. We're happy to set aside time for personal coaching in the codebase (e.g., via video-conference/screen-sharing). Ping `Eloquence` on **#lib.reviews** on [libera.chat](https://libera.chat/) to get started.
 
-# Technical overview
+## Quick Start
 
-lib.reviews is a pure-JavaScript application, using modern language features where appropriate. Here are some of the specific technical choices we've made.
+1. **Prerequisites:** Node.js 22.x, PostgreSQL 16+
+2. **Clone** the repository
+3. **Setup PostgreSQL** (see Database Setup below)
+4. **Install dependencies:** `npm install`
+5. **Build assets:** `npm run build`
+6. **Configure** (optional): Copy `config/default.json5` to `config/development.json5` and customize
+7. **Start dev server:** `npm run start-dev`
+8. **Run tests:** `npm run test`
 
-| Technology                               | Current use                              |
-| ---------------------------------------- | ---------------------------------------- |
-| [Node.js](https://nodejs.org/en/) 22.x (current release line) | lib.reviews server, API and tests        |
-| [Express](https://expressjs.com/) (V4 series) | Framework for the web application        |
-| [PostgreSQL](https://www.postgresql.org/) | Primary storage backend for text         |
-| [ElasticSearch](https://www.elastic.co/) | Search backend                           |
-| Custom DAL (`dal/`)                      | Data Access Layer for PostgreSQL with revision tracking |
-| [Handlebars](http://handlebarsjs.com/)   | Front-end templates (currently only rendered server-side) |
-| [LESS](http://lesscss.org/)              | CSS pre-processor, makes CSS easier to use |
-| [PureCSS](https://purecss.io/)           | Grid system and basic styles             |
-| [Vite](https://vite.dev/)                | Build pipeline for front-end assets (outputs in `build/vite`, middleware-mode HMR in development). |
-| [Babel](https://babeljs.io/)             | Transpilation of front-end code that includes ES6 Javascript language features; transpilation of tests that include ES7 features |
-| [ava](https://github.com/avajs/ava)      | Asynchronous test runner                 |
-| [systemd](https://systemd.io/)           | Production service supervision using `deployment/libreviews.service.sample` |
-| [ProseMirror](http://prosemirror.net/)   | Rich-text editor                         |
-| [jQuery](https://jquery.com/)            | DOM manipulation                         |
+## Database Setup
 
-This project follows a strong philosophy of progressive enhancement. That means that client-side UI features should always be optional, not required -- the primary functionality of the site should be available without JavaScript and on low-end devices.
+The PostgreSQL DAL expects a dedicated user with full privileges on a primary database (`libreviews`) and on a single isolated test database (`libreviews_test`). The test harness provisions schemas on the fly, but it needs permission to create tables, sequences, and the `pgcrypto` extension in each database.
 
-We also try to add keyboard shortcuts where relevant, and generally follow existing conventions for those (from Wikipedia, Google and other sites).
+### 1. Install PostgreSQL 16 or newer
 
-We aim to be multilingual in UI and content, and are exclusively using translatable strings throughout the user interface.
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install postgresql postgresql-contrib
+```
 
-# Getting started
+**macOS (Homebrew):**
+```bash
+brew install postgresql
+brew services start postgresql
+```
 
-This is very much an open project and we'd love your help! :) To get started, clone the repository to your local computer. You will need Node.js 22.x (the current release line we target). Switch to your check-out directory and then run `npm install`. Run `npm run build` to produce the Vite bundles. Make sure you also have PostgreSQL up and running before starting the service.
+### 2. Ensure PostgreSQL is running
 
-See `POSTGRES-SETUP.md` for instructions on setting up the PostgreSQL database.
+**Linux:**
+```bash
+sudo service postgresql start
+```
 
-You can customize your development configuration by copying `config/default.json5` to `config/development.json5`. Finally, run `npm run start-dev` and visit `localhost` at the configured port number. The npm scripts invoke `node bin/www.js` directly; in production we recommend adapting the sample systemd unit in `deployment/libreviews.service.sample`.
+**macOS:** The installer usually starts PostgreSQL automatically. Use `brew services list` to confirm.
 
-## Alternative: Dev server with system tray icon
+### 3. Create the application role and databases
 
-If you're using a GNOME/GTK-based desktop environment (or any Linux system with a system tray), you can run the dev server with a handy tray icon:
+**Using psql:**
+```bash
+sudo -u postgres psql
+
+-- Create the login role
+CREATE ROLE libreviews_user LOGIN PASSWORD 'libreviews_password';
+
+-- Create the databases
+CREATE DATABASE libreviews OWNER libreviews_user;
+CREATE DATABASE libreviews_test OWNER libreviews_user;
+\q
+```
+
+**Using command-line helpers:**
+```bash
+sudo -u postgres createuser --login --pwprompt libreviews_user
+sudo -u postgres createdb libreviews -O libreviews_user
+sudo -u postgres createdb libreviews_test -O libreviews_user
+```
+
+### 4. Grant permissions and enable extensions
+
+Run the provided setup script:
+
+```bash
+sudo -u postgres psql -f dal/setup-db-grants.sql
+```
+
+This script:
+- Grants `libreviews_user` all privileges on both databases
+- Sets default privileges for future tables/sequences
+- Installs the `pgcrypto` extension (needed for UUID generation)
+
+### 5. Initialize the schema
+
+Start the application once to run migrations:
+
+```bash
+npm run start-dev
+```
+
+The application automatically applies pending migrations on startup. You can stop it (Ctrl+C) after it finishes booting if you only need to initialize the database.
+
+### Troubleshooting
+
+- **Connection failures:** Verify PostgreSQL is running on `localhost:5432`
+- **Permission errors:** Re-run `dal/setup-db-grants.sql`
+- **Missing extensions:** Ensure `pgcrypto` exists in both databases
+- **Asset build issues:** Delete `build/vite` and rebuild
+
+## Development
+
+### Running the dev server
+
+```bash
+npm run start-dev
+```
+
+This starts the server with debug output enabled. Visit `localhost` at the configured port (default: 80).
+
+### Dev server with system tray icon (Linux)
+
+If you're using a GNOME/GTK-based desktop environment:
 
 ```bash
 npm run start-dev-yad
 ```
 
-This requires `yad` (Yet Another Dialog), which is available in most Linux distribution repositories. The tray icon allows you to:
-- Click to toggle the server on/off
-- See server state at a glance (stop icon when running, play icon when stopped)
-- Keep the dev server accessible without cluttering your workspace
+This requires `yad` (Yet Another Dialog), available in most Linux repositories. The tray icon allows you to toggle the server on/off and see server state at a glance.
 
-Note: This is a GNOME-centric feature and may not work well on other desktop environments.
+### Configuration
 
-# Licensing and conduct
+Copy `config/default.json5` to `config/development.json5` to customize your local settings. See comments in the default config for available options.
 
-Any pull requests must be under the [CC-0 License](./LICENSE). This project has adopted a [code of conduct](./CODE_OF_CONDUCT.md) to make sure all contributors feel welcome.
+### Running tests
 
-# Running tests
+```bash
+npm run test
+```
 
-Use `npm run test` to execute the AVA suite. The helper script automatically ensures a production Vite manifest exists, running `npm run build` on your behalf when necessary before starting the tests.
+The test script automatically ensures a production Vite manifest exists, running `npm run build` if necessary before starting the AVA test suite.
 
-# Database Models
+## Technical Overview
 
-lib.reviews uses PostgreSQL as its database backend. The models use a camelCase accessor pattern for application code while using snake_case database columns.
+lib.reviews is a pure-JavaScript application using modern language features.
 
-## CamelCase Accessor Pattern
+| Technology | Purpose |
+|-----------|---------|
+| [Node.js](https://nodejs.org/en/) 22.x | Server, API, and tests |
+| [Express](https://expressjs.com/) V5 | Web application framework |
+| [PostgreSQL](https://www.postgresql.org/) | Primary storage backend |
+| [ElasticSearch](https://www.elastic.co/) | Search backend |
+| Custom DAL (`dal/`) | Data Access Layer with revision tracking |
+| [Handlebars](http://handlebarsjs.com/) | Server-side templates |
+| [LESS](http://lesscss.org/) | CSS pre-processor |
+| [PureCSS](https://purecss.io/) | Grid system and base styles |
+| [Vite](https://vite.dev/) | Build pipeline for front-end assets |
+| [Babel](https://babeljs.io/) | JavaScript transpilation |
+| [ava](https://github.com/avajs/ava) | Asynchronous test runner |
+| [systemd](https://systemd.io/) | Production service supervision |
+| [ProseMirror](http://prosemirror.net/) | Rich-text editor |
+| [jQuery](https://jquery.com/) | DOM manipulation |
 
-Models expose camelCase properties (e.g., `user.displayName`, `review.starRating`) that internally map to snake_case database columns (e.g., `display_name`, `star_rating`). This design provides:
+### Design Philosophy
 
-- **Clean Interface**: Application code uses intuitive camelCase JavaScript conventions
-- **Database Abstraction**: Snake_case database implementation is hidden from application code
-- **Maintainability**: Clear separation between database schema and application API
-- **Performance**: Minimal overhead through efficient property descriptors and field mapping caches
+- **Progressive Enhancement:** Client-side UI features are optional. Core functionality works without JavaScript and on low-end devices.
+- **Keyboard Shortcuts:** We follow conventions from Wikipedia, Google, and other sites.
+- **Multilingual:** UI and content support multiple languages. All user-facing strings are translatable.
 
-The mapping is handled automatically by the Model base class (`dal/lib/model.js`) using property descriptors and field mapping registries. Virtual fields (computed properties like `urlID`, `userCanEdit`) are generated dynamically and not stored in the database.
+## Code Style
 
-# Code style
+- Use `// single-line comments` (easier to add/remove in bulk)
 
-- We generally use `// single-line comments` because they're more easy to add/remove in bulk.
-
-- For functions with more than two arguments, we prefer to use `options` (for optional settings with defaults) or `spec` parameters (for required settings) that are destructured, like so:
+- For functions with more than two arguments, use destructured `options` or `spec` parameters:
 
   ```javascript
   let date = new Date(), user = 'unknown';
   hello({ recipient: 'World', sender: user, date });
 
   function hello(spec) {
-    const { sender, recipient, date } = spec; // Destructuring
+    const { sender, recipient, date } = spec;
     console.log(`Hello ${recipient} from ${sender} on ${date}!`);
   }
   ```
 
-  As the example shows, this makes argument oder irrelevant and increases the readability of the calling code. Note the use of shorthand for the `date` parameter.
+  Exceptions: Functions accepting well-known standard arguments (e.g., `req, res, next` in Express).
 
-  Exceptions to this rule are functions that always accepts certain well-known standard arguments (such as the `req, res, next` convention in Express).
+- Object literals and arrow functions can be written on a single line
 
-- Object literals and arrow functions can be written on a single line.
+- We use [eslint](http://eslint.org/) with [babel-eslint](https://github.com/babel/babel-eslint). See [.eslintrc.json](https://github.com/permacommons/lib.reviews/blob/master/.eslintrc.json) for configuration.
 
-- We use [eslint](http://eslint.org/)  with the [babel-eslint](https://github.com/babel/babel-eslint) package for automatic code linting, using the [.eslintrc](https://github.com/permacommons/lib.reviews/blob/master/.eslintrc.json) that's checked into the repository. This defines most of our other assumptions.
+- Semicolons are encouraged for navigating multi-line statements:
 
-- Semicolons are nice. They help to navigate multi-line statements like this:
-
-  ````javascript
+  ```javascript
   if (true)
     Promise.resolve()
-    	.then(() => console.log('Done'))
-    	.catch(() => console.log('Oh no'));
-  ````
+      .then(() => console.log('Done'))
+      .catch(() => console.log('Oh no'));
+  ```
 
-- Break chains for readability at about ~3 or more chained calls.
+- Break chains for readability at ~3 or more chained calls
 
-# Front-end code
+## Database Architecture
 
-- Front-end assets are built via Vite (`npm run build`), the source modules live in the `frontend/` directory.
-- We're not consistently using CommonJS yet (only in the editor module). This should change to make the codebase more manageable.
-- We try to keep globals to a minimum. There's a couple global objects we do use:
-  - `window.config` stores exported settings and UI messages from the application specific for the current user and page.
-  - `window.libreviews` mostly contains progressive enhancement features that may need to be repeatedly applied if the page changes.
-    - `window.libreviews.activeRTEs` holds access to the rich-text
+lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL). See `dal/README.md` for detailed documentation.
+
+### Key Features
+
+- **Hybrid Schema:** Relational columns for structured data (IDs, timestamps, foreign keys), JSONB columns for multilingual content and flexible metadata
+- **CamelCase Accessors:** Application code uses camelCase properties (`user.displayName`) that map to snake_case database columns (`display_name`)
+- **Revision System:** Built-in versioning with partial indexes for performance
+- **Multilingual Support:** JSONB-based language-keyed content with validation and fallback resolution
+
+### Model Pattern
+
+Models use a handle-based pattern that allows synchronous imports:
+
+```javascript
+// models/user.js
+const { createModelModule } = require('../dal/lib/model-handle');
+const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
+  tableName: 'users'
+});
+
+module.exports = UserHandle;
+
+// Later in the same file: schema definition
+const { initializeModel } = require('../dal/lib/model-initializer');
+const type = require('../dal').type;
+
+const schema = {
+  id: type.string().uuid(4),
+  displayName: type.string().max(128).required(),
+  email: type.string().email()
+};
+
+registerUserHandle(initializeModel, schema, options);
+```
+
+Usage in application code:
+
+```javascript
+const User = require('./models/user');
+
+const user = await User.create({ displayName: 'Jane', email: 'jane@example.com' });
+const users = await User.filter({ isTrusted: false }).run();
+```
+
+### Historical Note
+
+Historical database dumps are available in RethinkDB format and can be accessed with the last version of lib.reviews with RethinkDB (tagged `last-rethinkdb`). Migration tooling for RethinkDB dumps to PostgreSQL is available in the migrations/ directory checked in at tag `psql-switch`.
+
+## Front-end Development
+
+- **Build system:** Vite (`npm run build`), source in `frontend/` directory
+- **Module system:** Not consistently using CommonJS yet (only in editor module)
+- **Globals:** We minimize globals, but use:
+  - `window.config` - Settings and UI messages specific to current user and page
+  - `window.libreviews` - Progressive enhancement features and active rich-text editors
+
+## Licensing and Conduct
+
+Any pull requests must be under the [CC-0 License](./LICENSE). This project has adopted a [code of conduct](./CODE_OF_CONDUCT.md) to make sure all contributors feel welcome.

@@ -206,7 +206,7 @@ CREATE TABLE blog_posts (
   CONSTRAINT blog_posts_original_language_check CHECK (char_length(original_language) <= 4)
 );
 
--- Invite links table (simple relational, matching RethinkDB structure)
+-- Invite links table
 CREATE TABLE invite_links (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_by UUID NOT NULL,

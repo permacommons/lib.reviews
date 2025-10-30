@@ -2,10 +2,8 @@
 
 /**
  * Error classes for the PostgreSQL DAL
- * 
- * Provides custom error types that match the interface expected by
- * the existing application code, maintaining compatibility with
- * the RethinkDB/Thinky error handling.
+ *
+ * Provides custom error types for database operations.
  */
 
 /**
@@ -21,7 +19,7 @@ class DALError extends Error {
 }
 
 /**
- * Document not found error - equivalent to Thinky's DocumentNotFound
+ * Document not found error
  */
 class DocumentNotFound extends DALError {
   constructor(message = 'Document not found') {
@@ -41,7 +39,7 @@ class InvalidUUIDError extends DALError {
 }
 
 /**
- * Validation error - equivalent to Thinky's ValidationError
+ * Validation error
  */
 class ValidationError extends DALError {
   constructor(message, field = null) {

@@ -38,18 +38,6 @@
     keyPath: "/etc/letsencrypt/live/lib.reviews/privkey.pem"
   },
 
-  // RethinkDB configuration. We use a connection pool, so you can add
-  // additional servers to the array if needed.
-  dbServers: [
-    {
-      host: "localhost",
-      port: 28015
-    }
-  ],
-  dbName: "libreviews",
-  dbUser: "admin",
-  dbPassword: "",
-
   postgres: {
     host: "localhost",
     port: 5432,

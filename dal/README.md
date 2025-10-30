@@ -1,86 +1,63 @@
 # PostgreSQL Data Access Layer (DAL)
 
-This directory contains the PostgreSQL Data Access Layer for lib.reviews.
-
-## Overview
-
-The DAL provides the database interface for PostgreSQL, featuring a Model-based system with camelCase accessors, revision tracking, and JSONB support for multilingual content.
+The DAL provides the database interface for lib.reviews, featuring a Model-based system with camelCase accessors, revision tracking, and JSONB support for multilingual content.
 
 ## Architecture
 
+The DAL is initialized once at application startup via `../db-postgres.js`. Models use a handle-based pattern that allows definitions to load synchronously while deferring actual initialization until the DAL is ready.
+
 ### Core Components
 
-1. **DataAccessLayer** (`lib/data-access-layer.js`)
-   - Main entry point for database operations
-   - Connection pooling and management
-   - Transaction support
-   - Migration execution
-
-2. **Model** (`lib/model.js`)
-   - Base model class with CRUD operations
-   - Virtual field support
-   - Schema validation
-   - CamelCase to snake_case field mapping
-
-3. **QueryBuilder** (`lib/query-builder.js`)
-   - Fluent query interface
-   - Filter, order, limit, and join operations
-   - SQL query generation
-
-4. **Type System** (`lib/type.js`)
-   - Type definitions and validation
-   - Support for string, number, boolean, date, array, and object types
-   - Virtual field support
-
-5. **Error Handling** (`lib/errors.js`)
-   - Custom error classes (ValidationError, DocumentNotFound, etc.)
-   - PostgreSQL error conversion
-
-6. **Multilingual Strings** (`lib/ml-string.js`)
-   - JSONB-based multilingual string handling
-   - Language validation and fallback resolution
-   - PostgreSQL query generation for JSONB fields
-   - HTML stripping and content processing
+- **DataAccessLayer** (`lib/data-access-layer.js`) - Connection pooling, transactions, migrations
+- **Model** (`lib/model.js`) - Base model class with CRUD operations, virtual fields, schema validation
+- **QueryBuilder** (`lib/query-builder.js`) - Fluent query interface with filter, order, limit, join operations
+- **Type System** (`lib/type.js`) - Type definitions and validation
+- **Error Handling** (`lib/errors.js`) - Custom error classes and PostgreSQL error conversion
+- **Multilingual Strings** (`lib/ml-string.js`) - JSONB-based multilingual string handling with language validation and fallback resolution
+- **Revision System** (`lib/revision.js`) - Revision tracking and management
+- **Model Infrastructure** - `model-handle.js`, `model-factory.js`, `model-registry.js`, `model-initializer.js` for model lifecycle management
 
 ## Database Schema
 
-The migration uses a hybrid approach:
+Hybrid approach combining relational and JSONB columns:
 
 - **Relational columns** for: IDs, timestamps, booleans, integers, simple strings, foreign keys, revision fields
 - **JSONB columns** for: Multilingual strings, complex nested objects, flexible metadata
 
-### Key Features
-
-- **Revision System**: Maintains the existing revision/versioning system with partial indexes for performance
-- **Multilingual Support**: JSONB columns for language-keyed content
-- **Performance Optimization**: Strategic indexing including GIN indexes for JSONB fields
-- **Data Integrity**: Foreign key constraints and check constraints
+Key features:
+- Revision system with partial indexes for performance
+- JSONB multilingual support with GIN indexes
+- Foreign key constraints and check constraints
+- CamelCase JavaScript properties that map to snake_case database columns
 
 ## Usage
 
-```javascript
-const DAL = require('./dal');
-const type = DAL.type;
+Models are defined using `createModelModule()` which returns a synchronous handle:
 
-// Initialize DAL
-const dal = DAL({
-  host: 'localhost',
-  port: 5432,
-  database: 'libreviews',
-  user: 'postgres',
-  password: 'password'
+```javascript
+// In models/user.js
+const { createModelModule } = require('../dal/lib/model-handle');
+const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
+  tableName: 'users'
 });
 
-await dal.connect();
-await dal.migrate();
+module.exports = UserHandle;
 
-// Create a model
-const User = dal.createModel('users', {
+// Later in the same file, define the schema
+const { initializeModel } = require('../dal/lib/model-initializer');
+const type = require('../dal').type;
+
+const schema = {
   id: type.string().uuid(4),
   displayName: type.string().max(128).required(),
   email: type.string().email(),
   isTrusted: type.boolean().default(false)
-});
+};
+
+registerUserHandle(initializeModel, schema, options);
+
+// In routes or other code
+const User = require('./models/user');
 
 // Use the model
 const user = await User.create({
@@ -88,61 +65,44 @@ const user = await User.create({
   email: 'john@example.com'
 });
 
-// Multilingual string usage
-const titleSchema = DAL.mlString.getSchema({ maxLength: 200 });
-const multilingualTitle = {
-  en: 'English Title',
-  de: 'German Title',
-  fr: 'French Title'
-};
-
-// Validate multilingual string
-titleSchema.validate(multilingualTitle, 'title');
-
-// Resolve to preferred language with fallbacks
-const resolved = DAL.mlString.resolve('es', multilingualTitle); // Falls back to English
-
-// Generate PostgreSQL queries for JSONB fields
-const query = DAL.mlString.buildQuery('title', 'en', '%search%', 'ILIKE');
-// Result: "title->>'en' ILIKE $1"
+const users = await User.filter({ isTrusted: false }).run();
 ```
 
-## Migration
+Multilingual strings:
 
-The schema migration is located in `migrations/001_create_postgresql_schema.sql` and includes:
+```javascript
+const { mlString } = require('./dal');
 
-- All table definitions with hybrid relational/JSONB structure
-- Critical indexes for performance (especially revision system)
-- Foreign key constraints for data integrity
-- JSONB GIN indexes for multilingual content search
+const titleSchema = mlString.getSchema({ maxLength: 200 });
+const multilingualTitle = {
+  en: 'English Title',
+  de: 'German Title'
+};
 
-## Implementation Status
+// Validate
+titleSchema.validate(multilingualTitle, 'title');
 
-Completed:
+// Resolve with fallbacks
+const resolved = mlString.resolve('es', multilingualTitle); // Falls back to English
 
-- Core DAL infrastructure
-- Connection pooling and transaction support
-- Base Model class with CRUD operations
-- Query builder with filters, joins, and ordering
-- Type system with validation
-- Error handling and conversion
-- PostgreSQL schema
-- Migration execution
-- Multilingual string handling and validation for JSONB columns
-- Revision tracking system
-- Many-to-many relations
-- CamelCase to snake_case field mapping
-- Virtual field generation
+// Generate PostgreSQL queries
+const query = mlString.buildQuery('title', 'en', '%search%', 'ILIKE');
+// Result: "title->>'en' ILIKE $1"
+```
 
 ## Files
 
 - `index.js` - Main entry point
 - `lib/data-access-layer.js` - Core DAL class
 - `lib/model.js` - Base model implementation
+- `lib/model-handle.js` - Model handle pattern for synchronous exports
+- `lib/model-factory.js` - Model creation and registration
+- `lib/model-registry.js` - Model registry for lookups
+- `lib/model-initializer.js` - Model initialization logic
 - `lib/query-builder.js` - Query building functionality
 - `lib/type.js` - Type system and validation
 - `lib/errors.js` - Error handling
 - `lib/ml-string.js` - Multilingual string handling
-- `example-usage.js` - Usage examples
-- `test-ml-string.js` - Multilingual string tests
-- `../migrations/001_create_postgresql_schema.sql` - Database schema
+- `lib/revision.js` - Revision tracking system
+- `setup-db-grants.sql` - Database permissions setup script
+- `../migrations/001_initial_schema.sql` - Database schema

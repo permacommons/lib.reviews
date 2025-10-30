@@ -29,9 +29,6 @@ npm-debug.log
 # Backups
 *~
 
-# Development databases
-rethinkdb_data*
-
 # Compiled at runtime
 static/css/style.css
 

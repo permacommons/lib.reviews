@@ -331,7 +331,6 @@ async function findByURLName(name, {
   }
 
   const notFoundError = new DocumentNotFound('User not found');
-  // Maintain legacy Thinky error name for compatibility with existing handlers
   notFoundError.name = 'DocumentNotFoundError';
   throw notFoundError;
 }

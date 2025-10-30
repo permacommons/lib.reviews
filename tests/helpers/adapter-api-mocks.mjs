@@ -88,7 +88,7 @@ function buildOverpassElement(name, localizedNames = {}) {
   };
 }
 
-// We still need Elasticsearch/RethinkDB connections, so allow localhost traffic.
+// We still need Elasticsearch/PostgreSQL connections, so allow localhost traffic.
 function allowLocalhost() {
   nock.enableNetConnect(host => {
     if (!host)

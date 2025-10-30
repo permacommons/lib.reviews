@@ -2,10 +2,6 @@
 version: v1.7.1
 # ignores vulnerabilities until expiry date; change duration by modifying expiry date
 ignore:
-  'npm:validator:20150313':
-    - thinky > validator:
-        reason: None given
-        expires: '2017-05-08T00:44:20.779Z'
   'npm:jquery:20170829':
     - '*':
         reason: None Given
