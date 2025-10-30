@@ -15,8 +15,7 @@ const Thing = require('../../models/thing');
 const search = require('../../search');
 
 // URL pattern a thing needs to have among its .urls to enable and perform
-// sync for descriptions. This is identical to the one used by the
-// adapter, but keep in mind that RethinkDB uses RE2 expressions, not JS ones.
+// sync for descriptions. This is identical to the one used by the adapter.
 const regexStr = '^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)$';
 
 async function syncWikidata() {

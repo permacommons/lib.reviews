@@ -2,11 +2,11 @@
 
 ## Prerequisites
 
-Complete the steps in `POSTGRES-SETUP.md` before running these tests. That
-document covers creating the `libreviews` and `libreviews_test` databases,
-granting privileges (via `dal/setup-db-grants.sql`), installing extensions, and
-priming the schema. Once those steps are done you can boot the app or execute
-the test suite without additional setup.
+Complete the Database Setup steps in `CONTRIBUTING.md` before running these tests.
+This covers creating the `libreviews` and `libreviews_test` databases, granting
+privileges (via `dal/setup-db-grants.sql`), installing extensions, and priming
+the schema. Once those steps are done you can boot the app or execute the test
+suite without additional setup.
 
 ## Harness Architecture
 

@@ -2,9 +2,8 @@
 
 /**
  * Revision system handlers for PostgreSQL DAL
- * 
- * Provides revision management functionality that maintains compatibility
- * with the existing RethinkDB revision system while leveraging PostgreSQL
+ *
+ * Provides revision management functionality leveraging PostgreSQL
  * features like partial indexes for performance.
  */
 

@@ -2,10 +2,8 @@
 
 /**
  * Type system for PostgreSQL DAL
- * 
- * Provides type definitions and validation that are compatible with
- * the existing Thinky type system, allowing for seamless migration
- * of existing model definitions.
+ *
+ * Provides type definitions and validation for model schemas.
  */
 
 const { ValidationError } = require('./errors');
@@ -362,7 +360,7 @@ class VirtualType extends Type {
   }
 }
 
-// Factory functions to match Thinky API
+// Factory functions for creating type instances
 const type = {
   string: (options) => new StringType(options),
   number: (options) => new NumberType(options),

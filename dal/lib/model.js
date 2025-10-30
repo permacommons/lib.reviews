@@ -2,9 +2,8 @@
 
 /**
  * Base Model class for PostgreSQL DAL
- * 
- * Provides CRUD operations, virtual fields, and query building functionality
- * that maintains compatibility with the existing Thinky model interface.
+ *
+ * Provides CRUD operations, virtual fields, and query building functionality.
  */
 
 const QueryBuilder = require('./query-builder');

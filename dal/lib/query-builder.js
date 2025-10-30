@@ -2,9 +2,8 @@
 
 /**
  * Query Builder for PostgreSQL DAL
- * 
- * Provides a fluent interface for building and executing database queries
- * that maintains compatibility with the existing RethinkDB/Thinky query patterns.
+ *
+ * Provides a fluent interface for building and executing database queries.
  */
 
 const { DocumentNotFound, convertPostgreSQLError } = require('./errors');
@@ -90,7 +89,7 @@ class FieldExpression {
 }
 
 /**
- * Ensure Thinky-style contains() arguments are always treated as a fresh array.
+ * Ensure contains() arguments are always treated as a fresh array.
  *
  * @param {*} args - Arguments passed to FieldExpression.contains
  * @returns {Array<*>} Copy of the supplied values
@@ -196,10 +195,10 @@ class QueryBuilder {
   }
 
   /**
-   * Attempt to translate a Thinky-style function predicate into SQL.
+   * Attempt to translate a function predicate into SQL.
    *
    * @private
-   * @param {Function} filterFunc - Legacy filter callback
+   * @param {Function} filterFunc - Filter callback
    * @returns {boolean} True if at least one predicate was generated
    */
   _applyFunctionFilter(filterFunc) {
@@ -270,10 +269,10 @@ class QueryBuilder {
   }
 
   /**
-   * Create the Thinky row proxy that powers function-style filters.
+   * Create a row proxy that powers function-style filters.
    *
    * @private
-   * @returns {Proxy} Proxy object compatible with Thinky row helpers
+   * @returns {Proxy} Proxy object for row filters
    */
   _createRowProxy() {
     const builder = this;
@@ -346,7 +345,7 @@ class QueryBuilder {
   }
 
   /**
-   * Normalize Thinky sentinel values to their SQL equivalents.
+   * Normalize sentinel values to their SQL equivalents.
    *
    * @private
    * @param {string} dbFieldName - Resolved database column name
@@ -433,7 +432,7 @@ class QueryBuilder {
   }
 
   /**
-   * Filter by date range (RethinkDB-style between)
+   * Filter by date range
    * @param {Date} startDate - Start date
    * @param {Date} endDate - End date
    * @param {Object} options - Options (leftBound, rightBound)
@@ -507,10 +506,10 @@ class QueryBuilder {
   }
 
   /**
-   * Filter using a function-like syntax (limited RethinkDB compatibility)
-  * @param {Function} filterFunc - Filter function
-  * @returns {QueryBuilder} This instance for chaining
-  */
+   * Filter using a function-like syntax
+   * @param {Function} filterFunc - Filter function
+   * @returns {QueryBuilder} This instance for chaining
+   */
   filterFunction(filterFunc) {
     this.filter(filterFunc);
     return this;
@@ -579,7 +578,7 @@ class QueryBuilder {
   }
 
   /**
-   * Add JOIN clauses with support for complex RethinkDB-style joins
+   * Add JOIN clauses with support for complex joins
    * @param {Object} joinSpec - Join specification
    * @returns {QueryBuilder} This instance for chaining
    */
