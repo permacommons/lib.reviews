@@ -24,6 +24,7 @@
     "need password": "You need to provide a password.",
     "bad username": "We don't know a user with this name.",
     "bad password": "That password doesn't look right.",
+    "account locked": "This user account is currently locked.",
     "accesskey": "Keyboard shortcut: [Modifier key(s) + %s]",
     "welcome new user": "Thank you for registering a lib.reviews account, %s! We hope you like the place and decide to stick around for a while.",
     "sign out": "Sign out",

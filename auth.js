@@ -40,6 +40,14 @@ passport.use(new LocalStrategy(
       }
 
       const user = users[0];
+
+      // Check if account is locked (no password set)
+      if (!user.password) {
+        return done(null, false, {
+          message: 'account locked'
+        });
+      }
+
       const passwordMatches = await user.checkPassword(password);
 
       if (!passwordMatches) {
