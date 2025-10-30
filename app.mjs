@@ -27,6 +27,7 @@ import expressUserAgent from 'express-useragent';
 
 import { csrfSynchronisedProtection } from './util/csrf.js';
 import { initializeDAL } from './bootstrap/dal.mjs';
+import ErrorProvider from './routes/errors.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -37,7 +38,6 @@ const WebHookDispatcher = require('./util/webhooks');
 const languages = require('./locales/languages');
 const apiHelper = require('./routes/helpers/api');
 const flashHelper = require('./routes/helpers/flash');
-const ErrorProvider = require('./routes/errors');
 const debug = require('./util/debug');
 const clientAssets = require('./util/client-assets');
 const flashStore = require('./util/flash-store');
@@ -71,8 +71,8 @@ async function getApp() {
   // Create directories for uploads and deleted files if needed
   asyncJobs.push(...['deleted', 'static/uploads', 'static/downloads'].map(setupDirectory));
 
-const dalPromise = initializeDAL();
-asyncJobs.push(dalPromise);
+  const dalPromise = initializeDAL();
+  asyncJobs.push(dalPromise);
 
   // Auth setup
   require('./auth');
@@ -123,7 +123,6 @@ asyncJobs.push(dalPromise);
   const { default: api } = await import('./routes/api.mjs');
   const { default: pages } = await import('./routes/pages.mjs');
   const { default: blogPosts } = await import('./routes/blog-posts.mjs');
-  const apitest = require('./routes/apitest');
   const { stage1Router, stage2Router } = await import('./routes/uploads.mjs');
 
   const store = new pgSession({
@@ -251,7 +250,6 @@ asyncJobs.push(dalPromise);
   app.use('/', teams);
   app.use('/', files);
   app.use('/', blogPosts);
-  app.use('/', apitest);
   app.use('/', stage2Router);
   app.use('/user', users);
 

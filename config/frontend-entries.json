@@ -6,6 +6,5 @@
   "upload": "frontend/upload.js",
   "user": "frontend/user.js",
   "manage-urls": "frontend/manage-urls.js",
-  "upload-modal": "frontend/upload-modal.js",
-  "apitest": "frontend/upload-modal.js"
+  "upload-modal": "frontend/upload-modal.js"
 }
