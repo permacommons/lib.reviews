@@ -1,15 +1,12 @@
-'use strict';
+import express from 'express';
 
-// External dependencies
-const express = require('express');
+import User from '../models/user.js';
+import Thing from '../models/thing.js';
+import actionHandler from './handlers/action-handler.js';
+import search from '../search.js';
+import urlUtils from '../util/url-utils.js';
+
 const router = express.Router();
-
-// Internal dependencies
-const User = require('../models/user');
-const Thing = require('../models/thing');
-const actionHandler = require('./handlers/action-handler');
-const search = require('../search');
-const urlUtils = require('../util/url-utils');
 
 // For true/false user preferences.
 router.post('/actions/:modify-preference', actionHandler.modifyPreference);
@@ -129,4 +126,4 @@ router.get('/user/:name', function(req, res) {
   });
 });
 
-module.exports = router;
+export default router;
