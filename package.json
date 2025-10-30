@@ -84,7 +84,7 @@
     "files": [
       "tests/[0-9]*-*.mjs"
     ],
-    "concurrency": 4,
+    "concurrency": 16,
     "timeout": "2m"
   }
 }
