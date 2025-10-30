@@ -1,10 +1,9 @@
-'use strict';
-const render = require('../helpers/render');
-const escapeHTML = require('escape-html');
+import render from '../helpers/render.mjs';
+import escapeHTML from 'escape-html';
 
 // Generic handler for 404s, missing revisions or old revisions (when we don't
 // want them!).
-module.exports = function getResourceErrorHandler(req, res, next, messageKeyPrefix, bodyParam) {
+export default function getResourceErrorHandler(req, res, next, messageKeyPrefix, bodyParam) {
 
   if (!messageKeyPrefix || !bodyParam)
     throw new Error('We need a prefix for message keys, and a parameter containing e.g. the ID fo the resource.');
@@ -50,4 +49,4 @@ module.exports = function getResourceErrorHandler(req, res, next, messageKeyPref
         return next(error);
     }
   };
-};
+}

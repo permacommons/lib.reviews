@@ -4,7 +4,7 @@ import url from 'node:url';
 import i18n from 'i18n';
 import { randomUUID } from 'node:crypto';
 
-import AbstractBREADProvider from './abstract-bread-provider.js';
+import AbstractBREADProvider from './abstract-bread-provider.mjs';
 import Team from '../../models/team.js';
 import TeamJoinRequest from '../../models/team-join-request.mjs';
 import BlogPost from '../../models/blog-post.js';

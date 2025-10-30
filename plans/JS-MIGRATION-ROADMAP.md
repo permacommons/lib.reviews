@@ -9,7 +9,7 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 - Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.js`, `db-postgres.mjs`, `search.js`, `tools/*.js`, `locales/languages.js`).
 - `createRequire(import.meta.url)` still appears in `app.mjs` plus 21 test helpers/specs to reach CommonJS modules; these call sites should switch to direct ESM imports as their dependencies expose compatible entry points.
 - TypeScript-ready surface already exists for tests (`tests/*.mjs`) and Vite (`vite.config.mjs`), easing eventual `allowJs` adoption.
-- Next focus: convert `/routes/helpers` middleware (`api.js`, `render.js`, `flash.js`) to ESM so `app.mjs` can drop its remaining `createRequire` bridge for the request pipeline.
+- Next focus: finish migrating the remaining route helper utilities (`feeds.js`, `forms.js`, `slugs.js`) so route handlers can drop their last CommonJS dependencies and `app.mjs` can move more imports to native ESM.
 
 ## Phase 1: ESM Migration
 
@@ -78,6 +78,10 @@ Convert the entire codebase from CommonJS to ESM modules.
 ### Utilities & Helpers
 - [ ] Convert `/util/*.js` utility functions
 - [ ] Convert route helpers
+  - [x] `/routes/helpers/api`
+  - [x] `/routes/helpers/flash`
+  - [x] `/routes/helpers/render`
+  - [ ] Remaining helpers (`feeds`, `forms`, `slugs`, `uploads`)
 - [ ] Convert `/adapters/*.js` (OpenLibrary, Wikidata, OSM)
 
 ### Configuration & Infrastructure

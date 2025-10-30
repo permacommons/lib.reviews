@@ -1,6 +1,4 @@
-'use strict';
-
-let api = {
+const api = {
 
   // Set the API flag for API requests, and ensure all API requests come either
   // from a browser or an application.
@@ -45,4 +43,4 @@ let api = {
   }
 };
 
-module.exports = api;
+export default api;

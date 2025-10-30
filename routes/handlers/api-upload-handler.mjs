@@ -9,7 +9,7 @@ import {
 } from '../uploads.mjs';
 import ReportedError from '../../util/reported-error.js';
 import File from '../../models/file.js';
-import api from '../helpers/api.js';
+import api from '../helpers/api.mjs';
 
 /**
  * Process uploads via the API.

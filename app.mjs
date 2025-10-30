@@ -28,6 +28,8 @@ import expressUserAgent from 'express-useragent';
 import { csrfSynchronisedProtection } from './util/csrf.js';
 import { initializeDAL } from './bootstrap/dal.mjs';
 import ErrorProvider from './routes/errors.mjs';
+import apiHelper from './routes/helpers/api.mjs';
+import flashHelper from './routes/helpers/flash.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -36,8 +38,6 @@ const hbsUtilsFactory = require('hbs-utils');
 const connectPgSimple = require('connect-pg-simple');
 const WebHookDispatcher = require('./util/webhooks');
 const languages = require('./locales/languages');
-const apiHelper = require('./routes/helpers/api');
-const flashHelper = require('./routes/helpers/flash');
 const debug = require('./util/debug');
 const clientAssets = require('./util/client-assets');
 const flashStore = require('./util/flash-store');

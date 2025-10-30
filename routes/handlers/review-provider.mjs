@@ -1,21 +1,20 @@
-'use strict';
 // External dependencies
-const config = require('config');
+import config from 'config';
 
 // Internal dependencies
-const Review = require('../../models/review');
-const Team = require('../../models/team');
-const User = require('../../models/user');
-const File = require('../../models/file');
-const AbstractBREADProvider = require('./abstract-bread-provider');
-const mlString = require('../../dal/lib/ml-string.js');
-const urlUtils = require('../../util/url-utils');
-const ReportedError = require('../../util/reported-error.js');
-const md = require('../../util/md');
-const slugs = require('../helpers/slugs');
-const search = require('../../search');
-const getMessages = require('../../util/get-messages');
-const { getAdapterMessageKeys, getEditorMessageKeys } = require('../../util/frontend-messages');
+import Review from '../../models/review.js';
+import Team from '../../models/team.js';
+import User from '../../models/user.js';
+import File from '../../models/file.js';
+import AbstractBREADProvider from './abstract-bread-provider.mjs';
+import mlString from '../../dal/lib/ml-string.js';
+import urlUtils from '../../util/url-utils.js';
+import ReportedError from '../../util/reported-error.js';
+import md from '../../util/md.js';
+import slugs from '../helpers/slugs.js';
+import search from '../../search.js';
+import getMessages from '../../util/get-messages.js';
+import frontendMessages from '../../util/frontend-messages.js';
 
 class ReviewProvider extends AbstractBREADProvider {
 
@@ -126,8 +125,8 @@ class ReviewProvider extends AbstractBREADProvider {
       editing: this.editing ? true : false,
       messages: getMessages(this.req.locale,
         md.getMarkdownMessageKeys(),
-        getEditorMessageKeys(),
-        getAdapterMessageKeys(), ['more info', 'not a url', 'add http', 'add https']
+        frontendMessages.getEditorMessageKeys(),
+        frontendMessages.getAdapterMessageKeys(), ['more info', 'not a url', 'add http', 'add https']
       )
     });
   }
@@ -378,8 +377,7 @@ class ReviewProvider extends AbstractBREADProvider {
       return;
     }
 
-    const TeamModel = require('../../models/team');
-    const queries = Object.keys(formValues.teams).map(teamId => TeamModel.getWithData(teamId));
+    const queries = Object.keys(formValues.teams).map(teamId => Team.getWithData(teamId));
 
     try {
       formValues.teams = await Promise.all(queries);
@@ -467,7 +465,7 @@ class ReviewProvider extends AbstractBREADProvider {
 
 }
 
-module.exports = ReviewProvider;
+export default ReviewProvider;
 
 
 // Shared across instances

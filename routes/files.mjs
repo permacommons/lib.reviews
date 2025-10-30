@@ -5,8 +5,8 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import File from '../models/file.js';
-import getResourceErrorHandler from './handlers/resource-error-handler.js';
-import render from './helpers/render.js';
+import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
+import render from './helpers/render.mjs';
 
 const router = express.Router();
 

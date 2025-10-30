@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url';
 
 import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.js';
 import File from '../models/file.js';
-import getResourceErrorHandler from './handlers/resource-error-handler.js';
-import render from './helpers/render.js';
+import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
+import render from './helpers/render.mjs';
 import slugs from './helpers/slugs.js';
 import debug from '../util/debug.js';
 import ReportedError from '../util/reported-error.js';

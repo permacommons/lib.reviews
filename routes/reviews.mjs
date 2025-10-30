@@ -1,11 +1,11 @@
 import config from 'config';
 
-import render from './helpers/render.js';
+import render from './helpers/render.mjs';
 import feeds from './helpers/feeds.js';
 import Team from '../models/team.js';
 import Review from '../models/review.js';
-import ReviewProvider from './handlers/review-provider.js';
-import reviewHandlers from './handlers/review-handlers.js';
+import ReviewProvider from './handlers/review-provider.mjs';
+import reviewHandlers from './handlers/review-handlers.mjs';
 import BlogPost from '../models/blog-post.js';
 
 const routes = ReviewProvider.getDefaultRoutes('review');

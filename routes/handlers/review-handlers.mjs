@@ -1,16 +1,15 @@
-'use strict';
 // External dependencies
-const url = require('url');
-const config = require('config');
-const i18n = require('i18n');
+import { resolve as resolveURL } from 'node:url';
+import config from 'config';
+import i18n from 'i18n';
 
 // Internal dependencies
-const Review = require('../../models/review.js');
-const render = require('../helpers/render');
-const feeds = require('../helpers/feeds');
-const languages = require('../../locales/languages');
+import Review from '../../models/review.js';
+import render from '../helpers/render.mjs';
+import feeds from '../helpers/feeds.js';
+import languages from '../../locales/languages.js';
 
-let reviewHandlers = {
+const reviewHandlers = {
 
   getFeedHandler(options) {
 
@@ -105,8 +104,8 @@ let reviewHandlers = {
               layout: 'layout-atom',
               language,
               updatedDate,
-              selfURL: url.resolve(config.qualifiedURL, options.atomURLPrefix) + `/${language}`,
-              htmlURL: url.resolve(config.qualifiedURL, options.htmlURL)
+              selfURL: resolveURL(config.qualifiedURL, options.atomURLPrefix) + `/${language}`,
+              htmlURL: resolveURL(config.qualifiedURL, options.htmlURL)
             });
             i18n.setLocale(req, language);
             res.type('application/atom+xml');
@@ -119,4 +118,4 @@ let reviewHandlers = {
   }
 };
 
-module.exports = reviewHandlers;
+export default reviewHandlers;

@@ -1,15 +1,14 @@
-'use strict';
-const escapeHTML = require('escape-html');
+import escapeHTML from 'escape-html';
 
-const render = require('../helpers/render');
-const feeds = require('../helpers/feeds');
-const User = require('../../models/user');
-const Review = require('../../models/review');
-const reviewHandlers = require('./review-handlers');
-const md = require('../../util/md');
-const { getEditorMessages } = require('../../util/frontend-messages');
+import render from '../helpers/render.mjs';
+import feeds from '../helpers/feeds.js';
+import User from '../../models/user.js';
+import Review from '../../models/review.js';
+import reviewHandlers from './review-handlers.mjs';
+import md from '../../util/md.js';
+import frontendMessages from '../../util/frontend-messages.js';
 
-let userHandlers = {
+const userHandlers = {
 
   async processEdit(req, res, next) {
     const { name } = req.params;
@@ -151,7 +150,7 @@ let userHandlers = {
           paginationURL,
           embeddedFeeds
         }, {
-          messages: loadEditor ? getEditorMessages(req.locale) : {}
+          messages: loadEditor ? frontendMessages.getEditorMessages(req.locale) : {}
         });
       } catch (error) {
         return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
@@ -224,4 +223,4 @@ let userHandlers = {
 
 };
 
-module.exports = userHandlers;
+export default userHandlers;

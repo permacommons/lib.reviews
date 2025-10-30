@@ -1,6 +1,6 @@
 import express from 'express';
 
-import userHandlers from './handlers/user-handlers.js';
+import userHandlers from './handlers/user-handlers.mjs';
 
 const router = express.Router();
 
