@@ -8,13 +8,10 @@
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.js",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.mjs",
-    "snyk-protect": "snyk-protect",
-    "prepare": "npm run snyk-protect",
     "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
-    "@snyk/protect": "^1.1300.0",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.0",
     "cldr-localenames-full": "^29.0.0",
@@ -80,11 +77,9 @@
     "jsdom": "^24.0.0",
     "less": "^4.2.0",
     "nock": "^14.0.10",
-    "snyk": "^1.1300.0",
     "supertest": "^7.1.4",
     "vite": "^7.1.11"
   },
-  "snyk": true,
   "ava": {
     "files": [
       "tests/[0-9]*-*.mjs"
