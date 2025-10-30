@@ -4,7 +4,7 @@ import config from 'config';
 import i18n from 'i18n';
 
 import render from './helpers/render.mjs';
-import forms from './helpers/forms.js';
+import forms from './helpers/forms.mjs';
 import User from '../models/user.js';
 import InviteLink from '../models/invite-link.mjs';
 import debug from '../util/debug.js';

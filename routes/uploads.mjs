@@ -18,11 +18,11 @@ import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfToken
 import File from '../models/file.js';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
-import slugs from './helpers/slugs.js';
+import slugs from './helpers/slugs.mjs';
 import debug from '../util/debug.js';
 import ReportedError from '../util/reported-error.js';
 import languages from '../locales/languages.js';
-import forms from './helpers/forms.js';
+import forms from './helpers/forms.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

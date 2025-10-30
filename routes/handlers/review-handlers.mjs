@@ -6,7 +6,7 @@ import i18n from 'i18n';
 // Internal dependencies
 import Review from '../../models/review.js';
 import render from '../helpers/render.mjs';
-import feeds from '../helpers/feeds.js';
+import feeds from '../helpers/feeds.mjs';
 import languages from '../../locales/languages.js';
 
 const reviewHandlers = {

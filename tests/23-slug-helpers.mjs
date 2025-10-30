@@ -1,16 +1,13 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
-
-const require = createRequire(import.meta.url);
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'slug_helpers',
   cleanupTables: ['thing_slugs', 'reviews', 'things', 'users']
 });
 
-const slugs = require('../routes/helpers/slugs');
+import slugs from '../routes/helpers/slugs.mjs';
 
 let Thing;
 

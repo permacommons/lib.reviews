@@ -11,7 +11,7 @@ import mlString from '../../dal/lib/ml-string.js';
 import urlUtils from '../../util/url-utils.js';
 import ReportedError from '../../util/reported-error.js';
 import md from '../../util/md.js';
-import slugs from '../helpers/slugs.js';
+import slugs from '../helpers/slugs.mjs';
 import search from '../../search.js';
 import getMessages from '../../util/get-messages.js';
 import frontendMessages from '../../util/frontend-messages.js';

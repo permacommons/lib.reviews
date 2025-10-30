@@ -2,7 +2,7 @@ import express from 'express';
 
 // Internal dependencies
 import render from '../helpers/render.mjs';
-import forms from '../helpers/forms.js';
+import forms from '../helpers/forms.mjs';
 import getResourceErrorHandler from './resource-error-handler.mjs';
 
 const router = express.Router();

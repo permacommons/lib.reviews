@@ -6,7 +6,7 @@ import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
 import mlString from '../dal/lib/ml-string.js';
 import languages from '../locales/languages.js';
-import slugs from './helpers/slugs.js';
+import slugs from './helpers/slugs.mjs';
 
 // Default routes for read, edit, add, delete
 const router = TeamProvider.bakeRoutes('team');
