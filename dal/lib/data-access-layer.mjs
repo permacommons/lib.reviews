@@ -6,7 +6,7 @@ import { Pool } from 'pg';
 import debug from '../../util/debug.mjs';
 import Model from './model.mjs';
 import QueryBuilder from './query-builder.mjs';
-import ModelRegistry from './model-registry.js';
+import ModelRegistry from './model-registry.mjs';
 
 /**
  * Main Data Access Layer class for PostgreSQL

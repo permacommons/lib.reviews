@@ -23,7 +23,7 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
   - Tests: `setupPostgresTest.mjs` and DAL fixtures rely on the exported test harness helpers.
   - `db-postgres.mjs`: reuses/exports DAL helpers for other parts of the app.
   - Maintenance scripts (`maintenance/*.js`) and sync adapters (`adapters/sync/*.js`) import it lazily from CommonJS.
-  - DAL internals (`dal/lib/model-handle.js`) rely on `setBootstrapResolver` for handle wiring.
+  - DAL internals (`dal/lib/model-handle.mjs`) rely on `setBootstrapResolver` for handle wiring.
 - Migration guardrails:
   - Preserve singleton semantics for DAL initialization; confirm `initializeDAL` continues to de-duplicate concurrent callers after conversion.
   - Evaluate exposing explicit ESM exports for model bootstrap so tests can tree-shake unwanted work.
@@ -52,7 +52,7 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 - [ ] Convert `/dal/*.js` data access layer
   - [x] Core libraries: `lib/errors`, `lib/type`, `lib/ml-string`, `lib/revision`
   - [x] Model infrastructure: `lib/model`, `lib/query-builder`, `lib/model-factory`, `lib/model-initializer`, `lib/data-access-layer`, `index`
-  - [ ] Remaining helpers: `lib/model-handle.js`, `lib/model-registry.js`, fixtures/tests still using CommonJS bridges
+  - [x] Remaining helpers: `lib/model-handle.mjs`, `lib/model-registry.mjs`, fixtures/tests still using CommonJS bridges
 - [ ] Update database connection handling
 - [ ] Verify revision system compatibility
 

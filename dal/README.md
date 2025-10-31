@@ -15,7 +15,7 @@ The DAL is initialized once at application startup via `../db-postgres.mjs`. Mod
 - **Error Handling** (`lib/errors.mjs`) - Custom error classes and PostgreSQL error conversion
 - **Multilingual Strings** (`lib/ml-string.mjs`) - JSONB-based multilingual string handling with language validation and fallback resolution
 - **Revision System** (`lib/revision.mjs`) - Revision tracking and management
-- **Model Infrastructure** - `model-handle.js`, `model-factory.mjs`, `model-registry.js`, `model-initializer.js` for model lifecycle management
+- **Model Infrastructure** - `model-handle.mjs`, `model-factory.mjs`, `model-registry.mjs`, `model-initializer.js` for model lifecycle management
 
 ## Database Schema
 
@@ -110,9 +110,9 @@ const query = mlString.buildQuery('title', 'en', '%search%', 'ILIKE');
 - `index.js` - Main entry point
 - `lib/data-access-layer.mjs` - Core DAL class
 - `lib/model.mjs` - Base model implementation
-- `lib/model-handle.js` - Model handle pattern for synchronous exports
+- `lib/model-handle.mjs` - Model handle pattern for synchronous exports
 - `lib/model-factory.mjs` - Model creation and registration
-- `lib/model-registry.js` - Model registry for lookups
+- `lib/model-registry.mjs` - Model registry for lookups
 - `lib/model-initializer.mjs` - Model initialization logic
 - `lib/query-builder.mjs` - Query building functionality
 - `lib/type.mjs` - Type system and validation
