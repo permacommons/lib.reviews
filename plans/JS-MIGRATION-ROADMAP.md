@@ -11,10 +11,16 @@ Completed.
 Gradually migrate to TypeScript with type safety.
 
 ### Setup
-- [ ] Install TypeScript and type definitions
-- [ ] Create `tsconfig.json` with `allowJs: true`
-- [ ] Configure Vite for TypeScript
-- [ ] Add type definitions for major dependencies
+- [x] Install TypeScript and type definitions
+- [x] Create `tsconfig.json` with `allowJs: true`
+- [x] Configure Vite for TypeScript
+- [x] Add type definitions for major dependencies
+
+### Immediate Next Steps
+
+- Target utility modules shared across routes and models for the next TypeScript conversions.
+- Introduce shared ambient type declarations for DAL and config globals to keep event handler types consistent.
+- Expand Typedoc entry points once more backend code has TypeScript coverage.
 
 ### Type Definitions First
 - [ ] Create type definitions for core models

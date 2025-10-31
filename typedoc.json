@@ -1,0 +1,14 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "tsconfig": "tsconfig.frontend.json",
+  "entryPoints": [
+    "frontend/register.ts"
+  ],
+  "entryPointStrategy": "expand",
+  "out": "static/devdocs",
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "readme": "none",
+  "githubPages": false,
+  "cleanOutputDir": false
+}

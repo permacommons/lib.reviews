@@ -49,9 +49,10 @@ config/development.json5
 static/js
 static/css/editor
 
-# Built via jsdoc
-static/devdocs/frontend
-static/devdocs/backend
+# Generated developer docs
+static/devdocs/*
+!static/devdocs/.gitignore
+!static/devdocs/README.md
 
 # Vagrant box
 /.vagrant

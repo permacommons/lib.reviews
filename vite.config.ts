@@ -1,15 +1,17 @@
 import { dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
-import entries from './config/frontend-entries.json' with { type: 'json' };
+import rawEntries from './config/frontend-entries.json' with { type: 'json' };
+
+const entries = rawEntries as Record<string, string>;
 const rootDir = dirname(fileURLToPath(import.meta.url));
-const fromRoot = (...paths) => resolve(rootDir, ...paths);
+const fromRoot = (...paths: string[]): string => resolve(rootDir, ...paths);
 
 export default defineConfig({
   base: '/assets/',
   appType: 'mpa',
   plugins: [],
-  server: { allowedHosts: ['dev.test'] } ,
+  server: { allowedHosts: ['dev.test'] },
   build: {
     outDir: 'build/vite',
     emptyOutDir: false,
@@ -21,7 +23,7 @@ export default defineConfig({
       output: {
         entryFileNames: 'js/[name]-[hash].js',
         chunkFileNames: 'js/[name]-[hash].js',
-        assetFileNames: (assetInfo) =>
+        assetFileNames: assetInfo =>
           extname(assetInfo.name ?? '') === '.css'
             ? 'css/[name]-[hash][extname]'
             : '[name]-[hash][extname]'

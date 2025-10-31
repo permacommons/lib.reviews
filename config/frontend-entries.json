@@ -2,7 +2,7 @@
   "lib": "frontend/libreviews.js",
   "editor": "frontend/editor.js",
   "review": "frontend/review.js",
-  "register": "frontend/register.js",
+  "register": "frontend/register.ts",
   "upload": "frontend/upload.js",
   "user": "frontend/user.js",
   "manage-urls": "frontend/manage-urls.js",

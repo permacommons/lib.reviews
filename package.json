@@ -9,7 +9,10 @@
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.js",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.js",
-    "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
+    "make-docs": "typedoc --options typedoc.json",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "typecheck:backend": "tsc --noEmit -p tsconfig.backend.json",
+    "typecheck:frontend": "tsc --noEmit -p tsconfig.frontend.json"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
@@ -74,12 +77,19 @@
   "devDependencies": {
     "ava": "^6.4.1",
     "chalk": "^5.6.2",
-    "jsdoc": "^4.0.5",
     "jsdom": "^24.0.0",
     "less": "^4.2.0",
     "nock": "^14.0.10",
     "supertest": "^7.1.4",
-    "vite": "^7.1.11"
+    "vite": "^7.1.11",
+    "@types/body-parser": "^1.19.5",
+    "@types/express": "^5.0.0",
+    "@types/express-session": "^1.17.10",
+    "@types/jquery": "^3.5.30",
+    "@types/node": "^22.10.1",
+    "@types/passport": "^1.0.16",
+    "typedoc": "^0.27.7",
+    "typescript": "^5.6.3"
   },
   "overrides": {
     "agentkeepalive": "^4.6.0"
