@@ -18,7 +18,7 @@ import teamSlugModule from '../models/team-slug.mjs';
 import thingModule from '../models/thing.js';
 import thingSlugModule from '../models/thing-slug.js';
 import reviewModule from '../models/review.js';
-import blogPostModule from '../models/blog-post.js';
+import blogPostModule from '../models/blog-post.mjs';
 import fileModule from '../models/file.js';
 import inviteLinkModule from '../models/invite-link.mjs';
 

@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import AbstractBREADProvider from './abstract-bread-provider.mjs';
 import Team from '../../models/team.js';
 import TeamJoinRequest from '../../models/team-join-request.mjs';
-import BlogPost from '../../models/blog-post.js';
+import BlogPost from '../../models/blog-post.mjs';
 import feeds from '../helpers/feeds.mjs';
 import slugs from '../helpers/slugs.mjs';
 import mlString from '../../dal/lib/ml-string.js';

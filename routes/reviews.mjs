@@ -6,7 +6,7 @@ import Team from '../models/team.js';
 import Review from '../models/review.js';
 import ReviewProvider from './handlers/review-provider.mjs';
 import reviewHandlers from './handlers/review-handlers.mjs';
-import BlogPost from '../models/blog-post.js';
+import BlogPost from '../models/blog-post.mjs';
 
 const routes = ReviewProvider.getDefaultRoutes('review');
 

@@ -1,4 +1,11 @@
-'use strict';
+import dal from '../dal/index.js';
+import mlString from '../dal/lib/ml-string.js';
+import languages from '../locales/languages.js';
+import debug from '../util/debug.mjs';
+import dalErrors from '../dal/lib/errors.js';
+import User from './user.js';
+import modelInitializer from '../dal/lib/model-initializer.js';
+import modelHandle from '../dal/lib/model-handle.mjs';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
@@ -13,11 +20,11 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const type = require('../dal').type;
-const mlString = require('../dal/lib/ml-string');
-const isValidLanguage = require('../locales/languages').isValid;
-const debug = require('../util/debug');
-const { DocumentNotFound } = require('../dal/lib/errors');
+const { type } = dal;
+const { isValid: isValidLanguage } = languages;
+const { DocumentNotFound } = dalErrors;
+const { initializeModel } = modelInitializer;
+const { createAutoModelHandle } = modelHandle;
 let teamSlugHandlePromise;
 async function loadTeamSlugHandle() {
   if (!teamSlugHandlePromise) {
@@ -26,8 +33,6 @@ async function loadTeamSlugHandle() {
   const module = await teamSlugHandlePromise;
   return module.default;
 }
-const User = require('./user');
-const { initializeModel } = require('../dal/lib/model-initializer');
 
 let BlogPost = null;
 
@@ -221,14 +226,7 @@ async function _attachCreator(post) {
   return post;
 }
 
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
 const BlogPostHandle = createAutoModelHandle('blog_posts', initializeBlogPostModel);
 
-module.exports = BlogPostHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeBlogPostModel;
-module.exports.getPostgresBlogPostModel = getPostgresBlogPostModel;
+export default BlogPostHandle;
+export { initializeBlogPostModel, initializeBlogPostModel as initializeModel, getPostgresBlogPostModel };
