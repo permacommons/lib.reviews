@@ -2,7 +2,7 @@
 // (review subjects) in the database.
 
 import { initializeDAL } from '../bootstrap/dal.mjs';
-import Thing from '../models/thing.js';
+import Thing from '../models/thing.mjs';
 
 async function generateSlugs() {
   await initializeDAL();

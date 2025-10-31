@@ -1,11 +1,9 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
+import { ReviewError } from '../models/review.mjs';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
-
-const require = createRequire(import.meta.url);
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'review_model',
@@ -13,8 +11,6 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
 });
 
 let User, Thing, Review;
-let ReviewError;
-
 test.before(async () => {
   await bootstrapPromise;
 
@@ -29,8 +25,6 @@ test.before(async () => {
   User = models.User;
   Thing = models.Thing;
   Review = models.Review;
-
-  ({ ReviewError } = require('../models/review'));
 });
 
 test.after.always(unmockSearch);
@@ -95,8 +89,6 @@ test.serial('Review model: star rating validation works', async t => {
   thingRev.createdBy = thingCreator.id;
   const thing = await thingRev.save();
 
-  const { randomUUID: uuid } = require('crypto');
-
   const invalidRatings = [0, 6, -1, 3.5, 'five'];
 
   for (const rating of invalidRatings) {
@@ -108,7 +100,7 @@ test.serial('Review model: star rating validation works', async t => {
       created_on: new Date(),
       created_by: author.id,
       original_language: 'en',
-      _rev_id: uuid(),
+      _rev_id: randomUUID(),
       _rev_user: author.id,
       _rev_date: new Date(),
       _rev_tags: ['create']
@@ -128,7 +120,7 @@ test.serial('Review model: star rating validation works', async t => {
       created_on: new Date(),
       created_by: author.id,
       original_language: 'en',
-      _rev_id: uuid(),
+      _rev_id: randomUUID(),
       _rev_user: author.id,
       _rev_date: new Date(),
       _rev_tags: ['create']
@@ -158,7 +150,6 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
   thingRev.createdBy = thingCreator.id;
   const thing = await thingRev.save();
 
-  const { randomUUID: uuid } = require('crypto');
   const review = new Review({
     thing_id: thing.id,
     title: { en: 'Test Review' },
@@ -167,7 +158,7 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
     created_on: new Date(),
     created_by: author.id,
     original_language: 'en',
-    _rev_id: uuid(),
+    _rev_id: randomUUID(),
     _rev_user: author.id,
     _rev_date: new Date(),
     _rev_tags: ['create']

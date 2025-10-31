@@ -35,17 +35,16 @@ Key features:
 Models are defined using `createModelModule()` which returns a synchronous handle:
 
 ```javascript
-// In models/user.js
-const { createModelModule } = require('../dal/lib/model-handle');
+// In models/user.mjs
+import dal from '../dal/index.js';
+import { createModelModule } from '../dal/lib/model-handle.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+
 const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
 });
 
-module.exports = UserHandle;
-
-// Later in the same file, define the schema
-const { initializeModel } = require('../dal/lib/model-initializer');
-const type = require('../dal').type;
+const { type } = dal;
 
 const schema = {
   id: type.string().uuid(4),
@@ -54,10 +53,24 @@ const schema = {
   isTrusted: type.boolean().default(false)
 };
 
-registerUserHandle(initializeModel, schema, options);
+async function initializeUserModel(dalInstance) {
+  const { model } = initializeModel({
+    dal: dalInstance,
+    baseTable: 'users',
+    schema
+  });
+  return model;
+}
+
+// dalInstance is supplied by the DAL bootstrap when registering models.
+registerUserHandle({
+  initializeModel: initializeUserModel
+});
+
+export default UserHandle;
 
 // In routes or other code
-const User = require('./models/user');
+import User from './models/user.mjs';
 
 // Use the model
 const user = await User.create({
@@ -71,7 +84,9 @@ const users = await User.filter({ isTrusted: false }).run();
 Multilingual strings:
 
 ```javascript
-const { mlString } = require('./dal');
+import dal from './dal/index.js';
+
+const { mlString } = dal;
 
 const titleSchema = mlString.getSchema({ maxLength: 200 });
 const multilingualTitle = {

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-import File from '../models/file.js';
+import File from '../models/file.mjs';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
 

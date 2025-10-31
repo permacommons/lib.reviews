@@ -10,16 +10,16 @@ import config from 'config';
 import debug from '../util/debug.mjs';
 import PostgresDAL from '../dal/index.js';
 
-import userModule from '../models/user.js';
-import userMetaModule from '../models/user-meta.js';
-import teamModule from '../models/team.js';
+import userModule from '../models/user.mjs';
+import userMetaModule from '../models/user-meta.mjs';
+import teamModule from '../models/team.mjs';
 import teamJoinRequestModule from '../models/team-join-request.mjs';
 import teamSlugModule from '../models/team-slug.mjs';
-import thingModule from '../models/thing.js';
-import thingSlugModule from '../models/thing-slug.js';
-import reviewModule from '../models/review.js';
+import thingModule from '../models/thing.mjs';
+import thingSlugModule from '../models/thing-slug.mjs';
+import reviewModule from '../models/review.mjs';
 import blogPostModule from '../models/blog-post.mjs';
-import fileModule from '../models/file.js';
+import fileModule from '../models/file.mjs';
 import inviteLinkModule from '../models/invite-link.mjs';
 
 import { setBootstrapResolver } from '../dal/lib/model-handle.mjs';

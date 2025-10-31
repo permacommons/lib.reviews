@@ -5,7 +5,7 @@ import i18n from 'i18n';
 
 import render from './helpers/render.mjs';
 import forms from './helpers/forms.mjs';
-import User from '../models/user.js';
+import User from '../models/user.mjs';
 import InviteLink from '../models/invite-link.mjs';
 import debug from '../util/debug.mjs';
 import actionHandler from './handlers/action-handler.mjs';

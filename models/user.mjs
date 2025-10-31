@@ -1,4 +1,12 @@
-'use strict';
+import dal from '../dal/index.js';
+import bcrypt from 'bcrypt';
+import ReportedError from '../util/reported-error.mjs';
+import debug from '../util/debug.mjs';
+import UserMeta from './user-meta.mjs';
+import Team from './team.mjs';
+import { DocumentNotFound } from '../dal/lib/errors.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { createModelModule } from '../dal/lib/model-handle.mjs';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
@@ -13,21 +21,11 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const { createModelModule } = require('../dal/lib/model-handle');
 const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
 });
 
-module.exports = UserHandle;
-
-const type = require('../dal').type;
-const bcrypt = require('bcrypt');
-const ReportedError = require('../util/reported-error');
-const debug = require('../util/debug');
-const UserMeta = require('./user-meta');
-const Team = require('./team');
-const { DocumentNotFound } = require('../dal/lib/errors');
-const { initializeModel } = require('../dal/lib/model-initializer');
+const { type } = dal;
 
 const userOptions = {
   maxChars: 128,
@@ -614,3 +612,6 @@ registerUserHandle({
     NewUserError
   }
 });
+
+export default UserHandle;
+export { initializeUserModel as initializeModel, initializeUserModel, NewUserError };

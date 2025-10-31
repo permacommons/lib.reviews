@@ -15,7 +15,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.js';
-import File from '../models/file.js';
+import File from '../models/file.mjs';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
 import slugs from './helpers/slugs.mjs';

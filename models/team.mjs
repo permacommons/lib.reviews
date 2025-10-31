@@ -1,4 +1,13 @@
-'use strict';
+import dal from '../dal/index.js';
+import debug from '../util/debug.mjs';
+import languages from '../locales/languages.js';
+import User from './user.mjs';
+import Review from './review.mjs';
+import { createModelModule } from '../dal/lib/model-handle.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import unescapeHTML from 'unescape-html';
+import isUUID from 'is-uuid';
+import { randomUUID } from 'crypto';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
@@ -13,19 +22,12 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const { createModelModule } = require('../dal/lib/model-handle');
 const { proxy: TeamHandle, register: registerTeamHandle } = createModelModule({
   tableName: 'teams'
 });
 
-module.exports = TeamHandle;
-
-const type = require('../dal').type;
-const mlString = require('../dal').mlString;
-const debug = require('../util/debug');
-const isValidLanguage = require('../locales/languages').isValid;
-const User = require('./user');
-const Review = require('./review');
+const { type, mlString } = dal;
+const { isValid: isValidLanguage } = languages;
 let teamJoinRequestHandlePromise;
 async function loadTeamJoinRequestHandle() {
   if (!teamJoinRequestHandlePromise) {
@@ -42,8 +44,6 @@ async function loadTeamSlugHandle() {
   const module = await teamSlugHandlePromise;
   return module.default;
 }
-const { initializeModel } = require('../dal/lib/model-initializer');
-
 let Team = null;
 
 /**
@@ -574,7 +574,6 @@ async function updateSlug(userID, language) {
   }
 
   if (!this.id) {
-    const { randomUUID } = require('crypto');
     this.id = randomUUID();
   }
 
@@ -600,9 +599,6 @@ async function updateSlug(userID, language) {
  * @returns {String} Slug name
  */
 function _generateSlugName(str) {
-  const unescapeHTML = require('unescape-html');
-  const isUUID = require('is-uuid');
-  
   if (typeof str !== 'string') {
     throw new Error('Source string is undefined or not a string.');
   }
@@ -637,3 +633,6 @@ registerTeamHandle({
     initializeTeamModel
   }
 });
+
+export default TeamHandle;
+export { initializeTeamModel as initializeModel, initializeTeamModel };

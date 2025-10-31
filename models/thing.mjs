@@ -1,4 +1,19 @@
-'use strict';
+import dal from '../dal/index.js';
+import debug from '../util/debug.mjs';
+import urlUtils from '../util/url-utils.mjs';
+import ReportedError from '../util/reported-error.mjs';
+import adapters from '../adapters/adapters.mjs';
+import languages from '../locales/languages.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { createModelModule } from '../dal/lib/model-handle.mjs';
+import ThingSlug from './thing-slug.mjs';
+import File from './file.mjs';
+import Review from './review.mjs';
+import User from './user.mjs';
+import isUUID from 'is-uuid';
+import { decodeHTML } from 'entities';
+import search from '../search.js';
+import { randomUUID } from 'crypto';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
@@ -13,28 +28,12 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const { createModelModule } = require('../dal/lib/model-handle');
 const { proxy: ThingHandle, register: registerThingHandle } = createModelModule({
   tableName: 'things'
 });
 
-module.exports = ThingHandle;
-
-const type = require('../dal').type;
-const mlString = require('../dal').mlString;
-const debug = require('../util/debug');
-const urlUtils = require('../util/url-utils');
-const ReportedError = require('../util/reported-error');
-const adapters = require('../adapters/adapters');
-const isValidLanguage = require('../locales/languages').isValid;
-const { initializeModel } = require('../dal/lib/model-initializer');
-const ThingSlug = require('./thing-slug');
-const File = require('./file');
-const Review = require('./review');
-const User = require('./user');
-const isUUID = require('is-uuid');
-const decodeHTML = require('entities').decodeHTML;
-const search = require('../search');
+const { type, mlString } = dal;
+const { isValid: isValidLanguage } = languages;
 
 let Thing = null;
 
@@ -726,7 +725,6 @@ async function updateSlug(userID, language) {
   }
 
   if (!this.id) {
-    const { randomUUID } = require('crypto');
     this.id = randomUUID();
   }
 
@@ -980,3 +978,6 @@ registerThingHandle({
     initializeThingModel
   }
 });
+
+export default ThingHandle;
+export { initializeThingModel as initializeModel, initializeThingModel };

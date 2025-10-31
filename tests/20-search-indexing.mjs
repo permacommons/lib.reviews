@@ -295,8 +295,8 @@ test.serial('maintenance script ensures DAL bootstrap before indexing', async t 
   await initializeDAL();
   t.true(isInitialized(), 'DAL should initialize for maintenance script');
 
-  const ThingHandle = require('../models/thing');
-  const ReviewHandle = require('../models/review');
+  const { default: ThingHandle } = await import('../models/thing.mjs');
+  const { default: ReviewHandle } = await import('../models/review.mjs');
   t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
   t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
 });

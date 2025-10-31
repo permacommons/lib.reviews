@@ -2,10 +2,10 @@
 import config from 'config';
 
 // Internal dependencies
-import Review from '../../models/review.js';
-import Team from '../../models/team.js';
-import User from '../../models/user.js';
-import File from '../../models/file.js';
+import Review from '../../models/review.mjs';
+import Team from '../../models/team.mjs';
+import User from '../../models/user.mjs';
+import File from '../../models/file.mjs';
 import AbstractBREADProvider from './abstract-bread-provider.mjs';
 import mlString from '../../dal/lib/ml-string.js';
 import urlUtils from '../../util/url-utils.mjs';

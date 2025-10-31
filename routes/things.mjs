@@ -3,8 +3,8 @@ import escapeHTML from 'escape-html';
 import * as url from 'node:url';
 import config from 'config';
 
-import Thing from '../models/thing.js';
-import Review from '../models/review.js';
+import Thing from '../models/thing.mjs';
+import Review from '../models/review.mjs';
 import render from './helpers/render.mjs';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import languages from '../locales/languages.js';

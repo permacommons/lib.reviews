@@ -3,7 +3,7 @@ import mlString from '../dal/lib/ml-string.js';
 import languages from '../locales/languages.js';
 import debug from '../util/debug.mjs';
 import dalErrors from '../dal/lib/errors.js';
-import User from './user.js';
+import User from './user.mjs';
 import modelInitializer from '../dal/lib/model-initializer.js';
 import modelHandle from '../dal/lib/model-handle.mjs';
 

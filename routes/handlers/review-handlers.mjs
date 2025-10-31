@@ -4,7 +4,7 @@ import config from 'config';
 import i18n from 'i18n';
 
 // Internal dependencies
-import Review from '../../models/review.js';
+import Review from '../../models/review.mjs';
 import render from '../helpers/render.mjs';
 import feeds from '../helpers/feeds.mjs';
 import languages from '../../locales/languages.js';

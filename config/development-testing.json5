@@ -16,8 +16,8 @@
     database: "libreviews_test", // Single test DB
     user: "libreviews_user",
     password: "libreviews_password",
-    max: 5, // Smaller pool for tests
+    max: 15, // Allow additional concurrent connections for AVA workers
     idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 2000
+    connectionTimeoutMillis: 10000
   },
 }

@@ -204,17 +204,16 @@ lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL). See `dal/READ
 Models use a handle-based pattern that allows synchronous imports:
 
 ```javascript
-// models/user.js
-const { createModelModule } = require('../dal/lib/model-handle');
+// models/user.mjs
+import dal from '../dal/index.js';
+import { createModelModule } from '../dal/lib/model-handle.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+
 const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
 });
 
-module.exports = UserHandle;
-
-// Later in the same file: schema definition
-const { initializeModel } = require('../dal/lib/model-initializer');
-const type = require('../dal').type;
+const { type } = dal;
 
 const schema = {
   id: type.string().uuid(4),
@@ -222,13 +221,28 @@ const schema = {
   email: type.string().email()
 };
 
-registerUserHandle(initializeModel, schema, options);
+async function initializeUserModel(dalInstance) {
+  const { model } = initializeModel({
+    dal: dalInstance,
+    baseTable: 'users',
+    schema
+  });
+  return model;
+}
+
+// dalInstance is provided by the DAL bootstrap when registering models.
+
+registerUserHandle({
+  initializeModel: initializeUserModel
+});
+
+export default UserHandle;
 ```
 
 Usage in application code:
 
 ```javascript
-const User = require('./models/user');
+import User from './models/user.mjs';
 
 const user = await User.create({ displayName: 'Jane', email: 'jane@example.com' });
 const users = await User.filter({ isTrusted: false }).run();

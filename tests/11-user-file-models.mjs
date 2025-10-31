@@ -1,11 +1,9 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { createRequire } from 'module';
+import passport from 'passport';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
-
-const require = createRequire(import.meta.url);
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'user_file_models',
@@ -28,7 +26,7 @@ test.before(async () => {
 
   User = userModel;
   File = fileModel;
-  ({ NewUserError } = require('../models/user'));
+  ({ NewUserError } = await import('../models/user.mjs'));
 });
 
 test.after.always(unmockSearch);
@@ -100,11 +98,8 @@ test.serial('User model: account without password is treated as locked', async t
   t.is(lockedUser.password, null, 'Password is null for locked account');
 
   // Verify authentication fails with locked account message
-  const passport = require('passport');
-  const LocalStrategy = require('passport-local').Strategy;
-
   // We need to test through the auth strategy
-  await require('../auth');
+  await import('../auth.mjs');
 
   const authenticatePromise = new Promise((resolve) => {
     const strategy = passport._strategy('local');

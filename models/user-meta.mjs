@@ -1,4 +1,9 @@
-'use strict';
+import dal from '../dal/index.js';
+import { ValidationError } from '../dal/lib/errors.js';
+import languages from '../locales/languages.js';
+import debug from '../util/debug.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
@@ -13,12 +18,8 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const type = require('../dal').type;
-const mlString = require('../dal/lib/ml-string');
-const { ValidationError } = require('../dal/lib/errors');
-const { isValid: isValidLanguage } = require('../locales/languages');
-const debug = require('../util/debug');
-const { initializeModel } = require('../dal/lib/model-initializer');
+const { type, mlString } = dal;
+const { isValid: isValidLanguage } = languages;
 
 let UserMeta = null;
 
@@ -111,14 +112,11 @@ async function getPostgresUserMetaModel(dal = null) {
   return UserMeta;
 }
 
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
 const UserMetaHandle = createAutoModelHandle('user_metas', initializeUserMetaModel);
 
-module.exports = UserMetaHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeUserMetaModel;
-module.exports.getPostgresUserMetaModel = getPostgresUserMetaModel;
+export default UserMetaHandle;
+export {
+  initializeUserMetaModel as initializeModel,
+  initializeUserMetaModel,
+  getPostgresUserMetaModel
+};

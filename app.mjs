@@ -73,7 +73,7 @@ async function getApp() {
   asyncJobs.push(dalPromise);
 
   // Auth setup
-  require('./auth');
+  await import('./auth.mjs');
 
   // i18n setup
   i18n.configure({

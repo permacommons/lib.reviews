@@ -8,7 +8,7 @@ import linkifyHTML from 'linkify-html';
 // Internal dependencies
 import mlString from '../dal/lib/ml-string.js';
 import languages from '../locales/languages.js';
-import thingModelHandle from '../models/thing.js';
+import thingModelHandle from '../models/thing.mjs';
 import urlUtils from './url-utils.mjs';
 import adapters from '../adapters/adapters.mjs';
 import getLicenseURL from './get-license-url.js';

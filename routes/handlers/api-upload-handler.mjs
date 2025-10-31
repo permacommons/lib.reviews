@@ -8,7 +8,7 @@ import {
   completeUploads
 } from '../uploads.mjs';
 import ReportedError from '../../util/reported-error.mjs';
-import File from '../../models/file.js';
+import File from '../../models/file.mjs';
 import api from '../helpers/api.mjs';
 
 /**
