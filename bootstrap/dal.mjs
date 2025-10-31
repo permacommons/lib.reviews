@@ -22,9 +22,7 @@ import blogPostModule from '../models/blog-post.js';
 import fileModule from '../models/file.js';
 import inviteLinkModule from '../models/invite-link.mjs';
 
-import modelHandleModule from '../dal/lib/model-handle.js';
-
-const { setBootstrapResolver } = modelHandleModule ?? {};
+import { setBootstrapResolver } from '../dal/lib/model-handle.mjs';
 
 const PostgresDALFactory = typeof PostgresDAL === 'function' ? PostgresDAL : PostgresDAL?.default;
 if (typeof PostgresDALFactory !== 'function') {

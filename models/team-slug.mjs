@@ -2,6 +2,7 @@
 
 import { createRequire } from 'node:module';
 import { getPostgresDAL } from '../db-postgres.mjs';
+import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -65,10 +66,6 @@ async function initializeTeamSlugModel(dal = null) {
     return null;
   }
 }
-
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
 
 const TeamSlugHandle = createAutoModelHandle('team_slugs', initializeTeamSlugModel);
 

@@ -1,12 +1,10 @@
 import debug from '../util/debug.mjs';
 import dal from '../dal/index.js';
-import modelHandle from '../dal/lib/model-handle.js';
+import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 import { getPostgresDAL } from '../db-postgres.mjs';
 
 const { type } = dal;
-const { createAutoModelHandle } = modelHandle;
-
 let TeamJoinRequest = null;
 
 /**

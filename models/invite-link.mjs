@@ -5,12 +5,10 @@ import debug from '../util/debug.mjs';
 import dal from '../dal/index.js';
 import { DocumentNotFound } from '../dal/lib/errors.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
-import modelHandle from '../dal/lib/model-handle.js';
+import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
 import { getPostgresDAL } from '../db-postgres.mjs';
 
 const { type } = dal;
-const { createAutoModelHandle } = modelHandle;
-
 let InviteLink = null;
 
 /**
