@@ -9,17 +9,9 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 - Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.mjs`, `db-postgres.mjs`, `search.js`, `tools/*.js`, `locales/languages.js`).
 - `createRequire(import.meta.url)` still appears in `app.mjs` plus 21 test helpers/specs to reach CommonJS modules; these call sites should switch to direct ESM imports as their dependencies expose compatible entry points.
 - TypeScript-ready surface already exists for tests (`tests/*.mjs`) and Vite (`vite.config.mjs`), easing eventual `allowJs` adoption.
-- Next focus: start migrating the models layer (`thing`, `review`, `user`) so we can remove the remaining adapter shims.
+- Next focus: DAL
 
 ## Phase 1: ESM Migration
-
-Convert the entire codebase from CommonJS to ESM modules.
-
-### Preparation
-- [ ] Add `"type": "module"` to package.json
-- [ ] Audit dependencies for ESM compatibility
-- [ ] Create ESM migration testing strategy
-- [ ] Set up feature branch for ESM migration
 
 ### Backend Core (74 CommonJS files)
 - [x] Convert `/bin/www` entry point
@@ -44,7 +36,7 @@ Convert the entire codebase from CommonJS to ESM modules.
 - [x] Convert runtime CommonJS consumers (maintenance scripts, sync adapters) so they can import the `.mjs` entry without shims.
 - [x] Untangle `dal/lib/model-handle.js` from `require('../../bootstrap/dal')` (or migrate the DAL library to ESM) before flipping the implementation.
 - [x] After dependents are ESM-ready, move the implementation to ESM and remove the `.cjs` entry so stale `require` paths fail fast.
-- [ ] Re-run DAL bootstrap/search integration tests after each stage to ensure singleton semantics and migrations remain stable.
+- [x] Re-run DAL bootstrap/search integration tests after each stage to ensure singleton semantics and migrations remain stable.
 
 ### Models Layer (~140 KB)
 - [x] Convert `/models/invite-link.js`
@@ -54,7 +46,7 @@ Convert the entire codebase from CommonJS to ESM modules.
 - [x] Convert `/models/review.js`
 - [x] Convert `/models/user.js`
 - [x] Convert `/models/team.js`
-- [ ] Convert all remaining model files
+- [x] Convert all remaining model files
 
 ### DAL Layer (~188 KB)
 - [ ] Convert `/dal/*.js` data access layer
@@ -76,7 +68,7 @@ Convert the entire codebase from CommonJS to ESM modules.
 - [ ] Update Express route registrations
 
 ### Utilities & Helpers
-- [ ] Convert `/util/*.js` utility functions
+- [x] Convert `/util/*.js` utility functions
   - [x] `client-assets`
   - [x] `debug`
   - [x] `flash-store`
@@ -96,7 +88,7 @@ Convert the entire codebase from CommonJS to ESM modules.
   - [x] `/routes/helpers/feeds`
   - [x] `/routes/helpers/forms`
   - [x] `/routes/helpers/slugs`
-- [ ] Convert `/adapters/*.js` (OpenLibrary, Wikidata, OSM)
+- [x] Convert `/adapters/*.js` (OpenLibrary, Wikidata, OSM)
   - [x] `adapters/index`
   - [x] `wikidata-backend-adapter`
   - [x] `openlibrary-backend-adapter`
