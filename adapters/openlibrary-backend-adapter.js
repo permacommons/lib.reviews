@@ -1,18 +1,16 @@
-'use strict';
-
 // This module performs book metadata lookups in Open Library, including title,
-// subtitle and authorship information.  Language of text strings may be set
+// subtitle and authorship information. Language of text strings may be set
 // to undetermined ('und'), since such language information is not consistently
 // present in the source.
 
 // External deps
-const config = require('config');
-const escapeHTML = require('escape-html');
-const debug = require('../util/debug');
-const { fetchJSON } = require('../util/http');
+import config from 'config';
+import escapeHTML from 'escape-html';
+import debug from '../util/debug.js';
+import { fetchJSON } from '../util/http.js';
 
 // Internal deps
-const AbstractBackendAdapter = require('./abstract-backend-adapter');
+import AbstractBackendAdapter from './abstract-backend-adapter.js';
 
 // OL uses ISO639-3 codes.
 const openLibraryToNative = {
@@ -32,7 +30,7 @@ const openLibraryToNative = {
   'chi': 'zh' // OL code does not disambiguate, assumed to be Simplified Chinese
 };
 
-class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
+export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
 
   constructor() {
     super();
@@ -105,7 +103,7 @@ class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
     try {
       authors = await this.getAuthors(data.authors);
     } catch (error) {
-      debug({ error });
+      debug.error({ error });
       return result;
     }
     Object.assign(result.data, authors);
@@ -182,5 +180,3 @@ class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
   }
 
 }
-
-module.exports = OpenLibraryBackendAdapter;

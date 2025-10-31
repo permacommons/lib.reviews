@@ -1,7 +1,6 @@
-'use strict';
-const BlogPostProvider = require('./handlers/blog-post-provider');
+import BlogPostProvider from './handlers/blog-post-provider.js';
 
-let router = BlogPostProvider.bakeRoutes(null, {
+const router = BlogPostProvider.bakeRoutes(null, {
   browse: {
     path: '/team/:id/blog',
     methods: ['GET']
@@ -36,4 +35,4 @@ let router = BlogPostProvider.bakeRoutes(null, {
   }
 });
 
-module.exports = router;
+export default router;

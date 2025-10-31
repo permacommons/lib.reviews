@@ -1,24 +1,22 @@
-'use strict';
-// External dependencies
-const express = require('express');
-const router = express.Router();
-const escapeHTML = require('escape-html');
-const url = require('url');
-const config = require('config');
+import express from 'express';
+import escapeHTML from 'escape-html';
+import * as url from 'node:url';
+import config from 'config';
 
-// Internal dependencies
-const Thing = require('../models/thing');
-const Review = require('../models/review');
-const render = require('./helpers/render');
-const getResourceErrorHandler = require('./handlers/resource-error-handler');
-const languages = require('../locales/languages');
-const feeds = require('./helpers/feeds');
-const forms = require('./helpers/forms');
-const slugs = require('./helpers/slugs');
-const search = require('../search');
-const getMessages = require('../util/get-messages');
-const urlUtils = require('../util/url-utils');
-const signinRequiredRoute = require('./handlers/signin-required-route');
+import Thing from '../models/thing.js';
+import Review from '../models/review.js';
+import render from './helpers/render.js';
+import getResourceErrorHandler from './handlers/resource-error-handler.js';
+import languages from '../locales/languages.js';
+import feeds from './helpers/feeds.js';
+import forms from './helpers/forms.js';
+import slugs from './helpers/slugs.js';
+import search from '../search.js';
+import getMessages from '../util/get-messages.js';
+import urlUtils from '../util/url-utils.js';
+import signinRequiredRoute from './handlers/signin-required-route.js';
+
+const router = express.Router();
 
 // For handling form fields
 const editableFields = ['description', 'label'];
@@ -494,4 +492,4 @@ function processThingURLsUpdate(paramsObj) {
     });
 }
 
-module.exports = router;
+export default router;

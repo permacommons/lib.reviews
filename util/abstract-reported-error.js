@@ -1,10 +1,11 @@
-'use strict';
-const escapeHTML = require('escape-html');
-const AbstractGenericError = require('./abstract-generic-error');
-const sprintf = require('sprintf-js').sprintf;
+import escapeHTML from 'escape-html';
+import AbstractGenericError from './abstract-generic-error.js';
+import sprintfJs from 'sprintf-js';
+
+const { sprintf } = sprintfJs;
 
 // Class for custom errors which can be reported out to the user as localized messages
-class AbstractReportedError extends AbstractGenericError {
+export default class AbstractReportedError extends AbstractGenericError {
   constructor(options) {
     if (new.target === AbstractReportedError)
       throw new TypeError('AbstractReportedError is an abstract class, please instantiate a derived class.');
@@ -53,5 +54,3 @@ class AbstractReportedError extends AbstractGenericError {
   }
 
 }
-
-module.exports = AbstractReportedError;

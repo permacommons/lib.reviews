@@ -1,9 +1,7 @@
-'use strict';
-
 // Internal dependencies
-const languages = require('../../locales/languages');
+import languages from '../../locales/languages.js';
 
-let feeds = {
+const feeds = {
 
   // Get the <link> feed metadata for the HTML output of a page, to enable
   // feed discoverability
@@ -49,4 +47,4 @@ let feeds = {
 
 };
 
-module.exports = feeds;
+export default feeds;

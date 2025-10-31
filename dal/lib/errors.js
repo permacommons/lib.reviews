@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Error classes for the PostgreSQL DAL
  *
@@ -164,7 +162,7 @@ function convertPostgreSQLError(pgError) {
   }
 }
 
-module.exports = {
+const errors = {
   DALError,
   DocumentNotFound,
   InvalidUUIDError,
@@ -175,4 +173,18 @@ module.exports = {
   ConstraintError,
   DuplicateSlugNameError,
   convertPostgreSQLError
+};
+
+export {
+  DALError,
+  DocumentNotFound,
+  InvalidUUIDError,
+  ValidationError,
+  ConnectionError,
+  TransactionError,
+  QueryError,
+  ConstraintError,
+  DuplicateSlugNameError,
+  convertPostgreSQLError,
+  errors as default
 };

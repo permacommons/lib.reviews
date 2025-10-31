@@ -1,10 +1,8 @@
-'use strict';
-
 /**
  * Helper utilities around Node 18+ native fetch.
  */
 
-async function fetchWithTimeout(url, {
+export async function fetchWithTimeout(url, {
   timeout,
   label = 'HTTP',
   signal,
@@ -22,7 +20,7 @@ async function fetchWithTimeout(url, {
   }
 }
 
-async function fetchJSON(url, options = {}) {
+export async function fetchJSON(url, options = {}) {
   const response = await fetchWithTimeout(url, options);
   if (!response.ok) {
     const label = options.label || 'HTTP';
@@ -30,8 +28,3 @@ async function fetchJSON(url, options = {}) {
   }
   return response.json();
 }
-
-module.exports = {
-  fetchWithTimeout,
-  fetchJSON
-};

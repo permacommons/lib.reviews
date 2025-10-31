@@ -1,5 +1,5 @@
 /* global $, AC */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
 import { msg, repaintFocusedHelp } from '../libreviews.js';
 
 /**

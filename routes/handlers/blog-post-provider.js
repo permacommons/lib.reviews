@@ -1,18 +1,16 @@
-'use strict';
-
 // External dependencies
-const config = require('config');
-const url = require('url');
-const i18n = require('i18n');
+import config from 'config';
+import { resolve as resolveURL } from 'node:url';
+import i18n from 'i18n';
 
 // Internal dependencies
-const AbstractBREADProvider = require('./abstract-bread-provider');
-const BlogPost = require('../../models/blog-post');
-const mlString = require('../../dal/lib/ml-string.js');
-const languages = require('../../locales/languages');
-const feeds = require('../helpers/feeds');
-const slugs = require('../helpers/slugs');
-const { getEditorMessages } = require('../../util/frontend-messages');
+import AbstractBREADProvider from './abstract-bread-provider.js';
+import BlogPost from '../../models/blog-post.js';
+import mlString from '../../dal/lib/ml-string.js';
+import languages from '../../locales/languages.js';
+import feeds from '../helpers/feeds.js';
+import slugs from '../helpers/slugs.js';
+import frontendMessages from '../../util/frontend-messages.js';
 
 class BlogPostProvider extends AbstractBREADProvider {
 
@@ -102,8 +100,8 @@ class BlogPostProvider extends AbstractBREADProvider {
             layout: 'layout-atom',
             language: this.language,
             updatedDate,
-            selfURL: url.resolve(config.qualifiedURL, `${atomURLPrefix}/${this.language}`),
-            htmlURL: url.resolve(config.qualifiedURL, `/team/${team.urlID}/blog`)
+            selfURL: resolveURL(config.qualifiedURL, `${atomURLPrefix}/${this.language}`),
+            htmlURL: resolveURL(config.qualifiedURL, `/team/${team.urlID}/blog`)
           });
           this.res.type('application/atom+xml');
           this.renderTemplate('blog-feed-atom', vars);
@@ -148,7 +146,7 @@ class BlogPostProvider extends AbstractBREADProvider {
       editing: this.editing,
       scripts: ['editor']
     }, {
-      messages: getEditorMessages(this.req.locale)
+      messages: frontendMessages.getEditorMessages(this.req.locale)
     });
 
   }
@@ -363,4 +361,4 @@ BlogPostProvider.formDefs = {
 
 BlogPostProvider.formDefs['edit-post'] = BlogPostProvider.formDefs['new-post'];
 
-module.exports = BlogPostProvider;
+export default BlogPostProvider;

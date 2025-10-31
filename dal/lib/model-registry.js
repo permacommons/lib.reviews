@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * ModelRegistry maintains the mapping between a DAL instance and the models
  * registered on it. Each registry enforces one-time registration per DAL
@@ -99,4 +97,5 @@ class ModelRegistry {
   }
 }
 
-module.exports = ModelRegistry;
+export { ModelRegistry };
+export default ModelRegistry;

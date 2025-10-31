@@ -3,7 +3,7 @@ import 'jquery-powertip';
 import 'jquery-modal';
 import './styles/vendor.css';
 import './styles/style.less';
-import Autocomplete from './lib/ac.mjs';
+import Autocomplete from './lib/ac.js';
 import initializeSisyphus from './lib/sisyphus.js';
 
 let initialized = false;

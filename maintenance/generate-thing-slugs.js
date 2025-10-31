@@ -1,13 +1,11 @@
 // Generate/update human-readable identifier strings ('slugs') for all 'things'
 // (review subjects) in the database.
-'use strict';
 
-const { initializeDAL } = require('../bootstrap/dal');
-const Thing = require('../models/thing');
+import { initializeDAL } from '../bootstrap/dal.js';
+import Thing from '../models/thing.js';
 
 async function generateSlugs() {
   await initializeDAL();
-
   const things = await Thing
     .filter({ _oldRevOf: false }, { default: true })
     .filter({ _revDeleted: false }, { default: true })

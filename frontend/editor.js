@@ -22,20 +22,20 @@ import { dropCursor } from 'prosemirror-dropcursor';
 import { history } from 'prosemirror-history';
 
 // Custom input rules, e.g. # for headline
-import { buildInputRules } from './editor-inputrules';
+import { buildInputRules } from './editor-inputrules.js';
 
 // Custom keymap
-import { getExtendedKeymap } from './editor-extended-keymap';
+import { getExtendedKeymap } from './editor-extended-keymap.js';
 
 // Custom menu
-import { buildMenuItems } from './editor-menu';
+import { buildMenuItems } from './editor-menu.js';
 
 // For tracking contentEditable selection
-import { saveSelection, restoreSelection } from './editor-selection';
+import { saveSelection, restoreSelection } from './editor-selection.js';
 
 // For parsing, serializing and tokenizing markdown including our custom
 // markup for spoiler/NSFW warnings
-import { markdownParser, markdownSerializer, markdownSchema } from './editor-markdown';
+import { markdownParser, markdownSerializer, markdownSchema } from './editor-markdown.js';
 import libreviews, { addHelpListeners, msg } from './libreviews.js';
 
 // ProseMirror provides no native way to enable/disable the editor, so

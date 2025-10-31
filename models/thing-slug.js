@@ -1,10 +1,23 @@
-'use strict';
+import dal from '../dal/index.js';
+import { ConstraintError } from '../dal/lib/errors.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import debug from '../util/debug.js';
+import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 
-const { getPostgresDAL } = require('../db-postgres');
-const type = require('../dal').type;
-const { ConstraintError } = require('../dal/lib/errors');
-const { initializeModel } = require('../dal/lib/model-initializer');
-const debug = require('../util/debug');
+let postgresModulePromise;
+async function loadDbPostgres() {
+  if (!postgresModulePromise) {
+    postgresModulePromise = import('../db-postgres.js');
+  }
+  return postgresModulePromise;
+}
+
+async function getPostgresDAL() {
+  const module = await loadDbPostgres();
+  return module.getPostgresDAL();
+}
+
+const { type } = dal;
 
 let ThingSlug = null;
 
@@ -67,10 +80,6 @@ async function initializeThingSlugModel(dal = null) {
     return null;
   }
 }
-
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
 
 const ThingSlugHandle = createAutoModelHandle('thing_slugs', initializeThingSlugModel);
 ThingSlugHandle.reservedSlugs = reservedSlugs;
@@ -200,9 +209,10 @@ async function qualifiedSave() {
   }
 }
 
-module.exports = ThingSlugHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeThingSlugModel;
-module.exports.getPostgresThingSlugModel = getPostgresThingSlugModel;
-module.exports.reservedSlugs = reservedSlugs;
+export default ThingSlugHandle;
+export {
+  initializeThingSlugModel as initializeModel,
+  initializeThingSlugModel,
+  getPostgresThingSlugModel,
+  reservedSlugs
+};

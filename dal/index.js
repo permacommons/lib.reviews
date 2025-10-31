@@ -1,4 +1,10 @@
-'use strict';
+import DataAccessLayer from './lib/data-access-layer.js';
+import Model from './lib/model.js';
+import QueryBuilder from './lib/query-builder.js';
+import type from './lib/type.js';
+import Errors from './lib/errors.js';
+import mlString from './lib/ml-string.js';
+import revision from './lib/revision.js';
 
 /**
  * Data Access Layer (DAL) for PostgreSQL
@@ -8,23 +14,27 @@
  * for all database interactions.
  */
 
-const DataAccessLayer = require('./lib/data-access-layer');
-const Model = require('./lib/model');
-const QueryBuilder = require('./lib/query-builder');
-const type = require('./lib/type');
-const Errors = require('./lib/errors');
-const mlString = require('./lib/ml-string');
-const revision = require('./lib/revision');
-
-module.exports = function(config) {
+function createDataAccessLayer(config) {
   return new DataAccessLayer(config);
+}
+
+createDataAccessLayer.DataAccessLayer = DataAccessLayer;
+createDataAccessLayer.Model = Model;
+createDataAccessLayer.QueryBuilder = QueryBuilder;
+createDataAccessLayer.type = type;
+createDataAccessLayer.Errors = Errors;
+createDataAccessLayer.mlString = mlString;
+createDataAccessLayer.revision = revision;
+
+export {
+  DataAccessLayer,
+  Model,
+  QueryBuilder,
+  type,
+  Errors,
+  mlString,
+  revision,
+  createDataAccessLayer
 };
 
-// Export classes and utilities
-module.exports.DataAccessLayer = DataAccessLayer;
-module.exports.Model = Model;
-module.exports.QueryBuilder = QueryBuilder;
-module.exports.type = type;
-module.exports.Errors = Errors;
-module.exports.mlString = mlString;
-module.exports.revision = revision;
+export default createDataAccessLayer;

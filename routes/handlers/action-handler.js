@@ -1,16 +1,12 @@
-'use strict';
+import multer from 'multer';
+import is from 'type-is';
+import config from 'config';
 
-// External deps
-const multer = require('multer');
-const is = require('type-is');
-const config = require('config');
+import render from '../helpers/render.js';
+import api from '../helpers/api.js';
 
-// Internal deps
-const render = require('../helpers/render');
-const api = require('../helpers/api');
-
-const apiUploadHandler = require('./api-upload-handler');
-const { checkMIMEType, assignFilename } = require('../uploads');
+import apiUploadHandler from './api-upload-handler.js';
+import { checkMIMEType, assignFilename } from '../uploads.js';
 
 const actionHandler = {
 
@@ -174,4 +170,4 @@ const actionHandler = {
 
 };
 
-module.exports = actionHandler;
+export default actionHandler;

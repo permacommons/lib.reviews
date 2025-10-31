@@ -1,4 +1,10 @@
-'use strict';
+import { randomUUID } from 'crypto';
+import isUUID from 'is-uuid';
+
+import debug from '../../util/debug.js';
+import QueryBuilder from './query-builder.js';
+import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.js';
+import type from './type.js';
 
 /**
  * Revision system handlers for PostgreSQL DAL
@@ -6,10 +12,6 @@
  * Provides revision management functionality leveraging PostgreSQL
  * features like partial indexes for performance.
  */
-
-const { randomUUID } = require('crypto');
-const { DocumentNotFound, ValidationError } = require('./errors');
-const debug = require('../../util/debug');
 
 const REVISION_FIELD_MAPPINGS = Object.freeze({
   _revID: '_rev_id',
@@ -181,9 +183,6 @@ const revision = {
      */
     const getNotStaleOrDeleted = async function(id, joinOptions = {}) {
       // Validate UUID format before querying database to avoid PostgreSQL syntax errors
-      const isUUID = require('is-uuid');
-      const { InvalidUUIDError } = require('./errors');
-      
       if (!isUUID.v4(id)) {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);
       }
@@ -192,7 +191,7 @@ const revision = {
       
       if (Object.keys(joinOptions).length > 0) {
         // Use query builder with joins
-        const query = new (require('./query-builder'))(ModelClass, ModelClass.dal);
+        const query = new QueryBuilder(ModelClass, ModelClass.dal);
         data = await query
           .filter({ id })
           .getJoin(joinOptions)
@@ -268,7 +267,6 @@ const revision = {
      * @returns {QueryBuilder} Query builder with revision filters applied
      */
     const filterNotStaleOrDeleted = function() {
-      const QueryBuilder = require('./query-builder');
       const query = new QueryBuilder(ModelClass, ModelClass.dal);
       return query.filterNotStaleOrDeleted();
     };
@@ -290,7 +288,6 @@ const revision = {
      * @returns {QueryBuilder} Query builder for chaining
      */
     const getMultipleNotStaleOrDeleted = function(idArray) {
-      const QueryBuilder = require('./query-builder');
       const query = new QueryBuilder(ModelClass, ModelClass.dal);
       
       // Add condition for multiple IDs
@@ -310,15 +307,13 @@ const revision = {
    * @returns {Object} Schema fields for revision system
    */
   getSchema() {
-    const Type = require('./type');
-    
     return {
-      _rev_user: Type.string().uuid(4).required(true),
-      _rev_date: Type.date().required(true),
-      _rev_id: Type.string().uuid(4).required(true),
-      _old_rev_of: Type.string().uuid(4),
-      _rev_deleted: Type.boolean().default(false),
-      _rev_tags: Type.array(Type.string()).default([])
+      _rev_user: type.string().uuid(4).required(true),
+      _rev_date: type.date().required(true),
+      _rev_id: type.string().uuid(4).required(true),
+      _old_rev_of: type.string().uuid(4),
+      _rev_deleted: type.boolean().default(false),
+      _rev_tags: type.array(type.string()).default([])
     };
   }
 };
@@ -345,4 +340,6 @@ revision.staleError = new Error('Outdated revision.');
 revision.deletedError.name = 'RevisionDeletedError';
 revision.staleError.name = 'RevisionStaleError';
 
-module.exports = revision;
+export { REVISION_FIELD_MAPPINGS, revision };
+export default revision;
+

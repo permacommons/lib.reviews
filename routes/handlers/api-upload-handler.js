@@ -1,22 +1,22 @@
-'use strict';
+import escapeHTML from 'escape-html';
 
-// External deps
-const escapeHTML = require('escape-html');
-
-// Internal deps
-const languages = require('../../locales/languages');
-const { validateFiles, cleanupFiles, getFileRevs, completeUploads } =
-  require('../uploads');
-const ReportedError = require('../../util/reported-error');
-const File = require('../../models/file');
-const api = require('../helpers/api');
+import languages from '../../locales/languages.js';
+import {
+  validateFiles,
+  cleanupFiles,
+  getFileRevs,
+  completeUploads
+} from '../uploads.js';
+import ReportedError from '../../util/reported-error.js';
+import File from '../../models/file.js';
+import api from '../helpers/api.js';
 
 /**
  * Process uploads via the API.
  *
  * @namespace APIUploadHandler
  */
-module.exports = apiUploadHandler;
+export default apiUploadHandler;
 
  /**
  * The main handler for processing upload attempts via the API. Kicks in after

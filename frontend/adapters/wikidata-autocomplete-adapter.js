@@ -1,5 +1,5 @@
 /* global $, config */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
 import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
 
 /**

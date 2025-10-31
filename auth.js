@@ -1,11 +1,8 @@
-'use strict';
+import passport from 'passport';
+import passportLocal from 'passport-local';
+import User from './models/user.js';
 
-// External deps
-const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-
-// Internal deps
-const User = require('./models/user');
+const { Strategy: LocalStrategy } = passportLocal;
 
 passport.serializeUser(function(user, done) {
   done(null, user.id);
@@ -62,3 +59,5 @@ passport.use(new LocalStrategy(
     }
   }
 ));
+
+export default passport;

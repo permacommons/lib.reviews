@@ -1,5 +1,4 @@
-'use strict';
-const debugModule = require('debug');
+import debugModule from 'debug';
 
 const SENSITIVE_LOG_KEYS = new Set([
   'password',
@@ -83,4 +82,5 @@ const debug = {
     }
   }
 };
-module.exports = debug;
+
+export default debug;

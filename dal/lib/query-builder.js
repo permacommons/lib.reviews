@@ -1,14 +1,13 @@
-'use strict';
+import isUUID from 'is-uuid';
+
+import debug from '../../util/debug.js';
+import { DocumentNotFound, convertPostgreSQLError } from './errors.js';
 
 /**
  * Query Builder for PostgreSQL DAL
  *
  * Provides a fluent interface for building and executing database queries.
  */
-
-const { DocumentNotFound, convertPostgreSQLError } = require('./errors');
-const debug = require('../../util/debug');
-const isUUID = require('is-uuid');
 
 /**
  * Marker object representing a single field reference in a filter predicate.
@@ -1700,4 +1699,6 @@ class QueryBuilder {
   }
 }
 
-module.exports = QueryBuilder;
+export { QueryBuilder };
+export default QueryBuilder;
+

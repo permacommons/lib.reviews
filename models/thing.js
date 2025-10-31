@@ -1,28 +1,39 @@
-'use strict';
+import dal from '../dal/index.js';
+import debug from '../util/debug.js';
+import urlUtils from '../util/url-utils.js';
+import ReportedError from '../util/reported-error.js';
+import adapters from '../adapters/adapters.js';
+import languages from '../locales/languages.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { createModelModule } from '../dal/lib/model-handle.js';
+import ThingSlug from './thing-slug.js';
+import File from './file.js';
+import Review from './review.js';
+import User from './user.js';
+import isUUID from 'is-uuid';
+import { decodeHTML } from 'entities';
+import search from '../search.js';
+import { randomUUID } from 'crypto';
 
-const { createModelModule } = require('../dal/lib/model-handle');
+let postgresModulePromise;
+async function loadDbPostgres() {
+  if (!postgresModulePromise) {
+    postgresModulePromise = import('../db-postgres.js');
+  }
+  return postgresModulePromise;
+}
+
+async function getPostgresDAL() {
+  const module = await loadDbPostgres();
+  return module.getPostgresDAL();
+}
+
 const { proxy: ThingHandle, register: registerThingHandle } = createModelModule({
   tableName: 'things'
 });
 
-module.exports = ThingHandle;
-
-const { getPostgresDAL } = require('../db-postgres');
-const type = require('../dal').type;
-const mlString = require('../dal').mlString;
-const debug = require('../util/debug');
-const urlUtils = require('../util/url-utils');
-const ReportedError = require('../util/reported-error');
-const adapters = require('../adapters/adapters');
-const isValidLanguage = require('../locales/languages').isValid;
-const { initializeModel } = require('../dal/lib/model-initializer');
-const ThingSlug = require('./thing-slug');
-const File = require('./file');
-const Review = require('./review');
-const User = require('./user');
-const isUUID = require('is-uuid');
-const decodeHTML = require('entities').decodeHTML;
-const search = require('../search');
+const { type, mlString } = dal;
+const { isValid: isValidLanguage } = languages;
 
 let Thing = null;
 
@@ -714,7 +725,6 @@ async function updateSlug(userID, language) {
   }
 
   if (!this.id) {
-    const { randomUUID } = require('crypto');
     this.id = randomUUID();
   }
 
@@ -968,3 +978,6 @@ registerThingHandle({
     initializeThingModel
   }
 });
+
+export default ThingHandle;
+export { initializeThingModel as initializeModel, initializeThingModel };

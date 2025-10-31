@@ -1,16 +1,17 @@
-'use strict';
+import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
-// External dependencies
-const express = require('express');
+import render from './helpers/render.js';
+import languages from '../locales/languages.js';
+
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-const { promisify } = require('util');
-const stat = promisify(fs.stat);
 
-// Internal dependencies
-const render = require('./helpers/render');
-const languages = require('../locales/languages');
+const stat = promisify(fs.stat);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 router.get('/terms', function (req, res, next) {
   resolveMultilingualTemplate('terms', req.locale)
@@ -62,4 +63,4 @@ async function resolveMultilingualTemplate(templateName, locale) {
   let langStr = templateLanguages.join(', ');
   throw new Error(`Template ${templateName} does not appear to exist in any of these languages: ${langStr}`);
 }
-module.exports = router;
+export default router;

@@ -1,11 +1,12 @@
-'use strict';
-const AbstractReportedError = require('./abstract-reported-error');
-const i18n = require('i18n');
-const sprintf = require('sprintf-js').sprintf;
+import AbstractReportedError from './abstract-reported-error.js';
+import i18n from 'i18n';
+import sprintfJs from 'sprintf-js';
+
+const { sprintf } = sprintfJs;
 
 // For lib.reviews use, we use our standard i18n framework to log user errors
 // in English
-class ReportedError extends AbstractReportedError {
+export default class ReportedError extends AbstractReportedError {
   constructor(options) {
     if (typeof options == 'object')
       options.translateFn = _translate;
@@ -22,5 +23,3 @@ function _translate(...args) {
     return Reflect.apply(sprintf, this, args);
   }
 }
-
-module.exports = ReportedError;

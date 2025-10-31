@@ -1,15 +1,13 @@
-'use strict';
+import debug from '../../util/debug.js';
+import { DocumentNotFound, ValidationError, convertPostgreSQLError } from './errors.js';
+import QueryBuilder from './query-builder.js';
+import revision from './revision.js';
 
 /**
  * Base Model class for PostgreSQL DAL
  *
  * Provides CRUD operations, virtual fields, and query building functionality.
  */
-
-const QueryBuilder = require('./query-builder');
-const { DocumentNotFound, ValidationError, convertPostgreSQLError } = require('./errors');
-const revision = require('./revision');
-const debug = require('../../util/debug');
 
 /**
  * Deep equality comparison for detecting actual changes in validated values
@@ -1048,4 +1046,6 @@ class Model {
   }
 }
 
-module.exports = Model;
+export { Model };
+export default Model;
+

@@ -1,18 +1,15 @@
-'use strict';
-
 // Syncs are performed in a shallow manner, that is, they do not create new
 // revisions. This is so we can adjust the sync frequency as appropriate
 // without accumulating an unwieldy number of revisions.
 
-// External deps
-const limit = require('promise-limit')(4); // Max 4 concurrent requests
+import promiseLimit from 'promise-limit';
+import { initializeDAL } from '../../bootstrap/dal.js';
+import Thing from '../../models/thing.js';
+import search from '../../search.js';
+import WikidataBackendAdapter from '../wikidata-backend-adapter.js';
 
-// Internal deps
-const { initializeDAL } = require('../../bootstrap/dal');
-const WikidataBackendAdapter = require('../wikidata-backend-adapter');
 const wikidata = new WikidataBackendAdapter();
-const Thing = require('../../models/thing');
-const search = require('../../search');
+const limit = promiseLimit(4); // Max 4 concurrent requests
 
 // URL pattern a thing needs to have among its .urls to enable and perform
 // sync for descriptions. This is identical to the one used by the adapter.
@@ -20,7 +17,6 @@ const regexStr = '^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)$';
 
 async function syncWikidata() {
   await initializeDAL();
-
   const allThings = await Thing.filterNotStaleOrDeleted().run();
 
   const wikidataThings = allThings.filter(thing =>

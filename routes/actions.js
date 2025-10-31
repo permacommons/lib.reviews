@@ -1,22 +1,19 @@
-'use strict';
+import express from 'express';
+import passport from 'passport';
+import config from 'config';
+import i18n from 'i18n';
 
-// External dependencies
-const express = require('express');
+import render from './helpers/render.js';
+import forms from './helpers/forms.js';
+import User from '../models/user.js';
+import InviteLink from '../models/invite-link.js';
+import debug from '../util/debug.js';
+import actionHandler from './handlers/action-handler.js';
+import signinRequiredRoute from './handlers/signin-required-route.js';
+import languages from '../locales/languages.js';
+import search from '../search.js';
+
 const router = express.Router();
-const passport = require('passport');
-const config = require('config');
-const i18n = require('i18n');
-
-// Internal dependencies
-const render = require('./helpers/render');
-const forms = require('./helpers/forms');
-const User = require('../models/user');
-const InviteLink = require('../models/invite-link');
-const debug = require('../util/debug');
-const actionHandler = require('./handlers/action-handler.js');
-const signinRequiredRoute = require('./handlers/signin-required-route');
-const languages = require('../locales/languages');
-const search = require('../search');
 
 const formDefs = {
   'register': [{
@@ -409,4 +406,4 @@ function setSignupLanguage(req, res) {
     });
   }
 }
-module.exports = router;
+export default router;

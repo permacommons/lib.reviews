@@ -1,10 +1,22 @@
-'use strict';
+import dal from '../dal/index.js';
+import debug from '../util/debug.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 
-const { getPostgresDAL } = require('../db-postgres');
-const type = require('../dal').type;
-const mlString = require('../dal').mlString;
-const debug = require('../util/debug');
-const { initializeModel } = require('../dal/lib/model-initializer');
+let postgresModulePromise;
+async function loadDbPostgres() {
+  if (!postgresModulePromise) {
+    postgresModulePromise = import('../db-postgres.js');
+  }
+  return postgresModulePromise;
+}
+
+async function getPostgresDAL() {
+  const module = await loadDbPostgres();
+  return module.getPostgresDAL();
+}
+
+const { type, mlString } = dal;
 
 const validLicenses = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'];
 
@@ -209,15 +221,11 @@ async function getPostgresFileModel(dal = null) {
   return File;
 }
 
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
 const FileHandle = createAutoModelHandle('files', initializeFileModel);
 
-module.exports = FileHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeFileModel;
-module.exports.initializeFileModel = initializeFileModel; // Backward compatibility
-module.exports.getPostgresFileModel = getPostgresFileModel;
+export default FileHandle;
+export {
+  initializeFileModel as initializeModel,
+  initializeFileModel,
+  getPostgresFileModel
+};

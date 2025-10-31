@@ -1,8 +1,8 @@
-'use strict';
-const express = require('express');
-const router = express.Router();
+import express from 'express';
 
-const userHandlers = require('./handlers/user-handlers');
+import userHandlers from './handlers/user-handlers.js';
+
+const router = express.Router();
 
 router.get('/:name', userHandlers.getUserHandler());
 
@@ -10,10 +10,10 @@ router.get('/:name/feed', userHandlers.getUserFeedHandler());
 
 router.get('/:name/feed/before/:utcisodate', userHandlers.getUserFeedHandler());
 
-router.get('/:name/feed/atom/:language', userHandlers.getUserFeedHandler({format: 'atom'}));
+router.get('/:name/feed/atom/:language', userHandlers.getUserFeedHandler({ format: 'atom' }));
 
-router.get('/:name/edit/bio', userHandlers.getUserHandler({editBio: true}));
+router.get('/:name/edit/bio', userHandlers.getUserHandler({ editBio: true }));
 
 router.post('/:name/edit/bio', userHandlers.processEdit);
 
-module.exports = router;
+export default router;

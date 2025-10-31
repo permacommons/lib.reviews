@@ -24,8 +24,8 @@ liftItem.spec.title = msg('decrease item indentation');
 import { NodeSelection, TextSelection } from 'prosemirror-state';
 import { toggleMark, wrapIn } from 'prosemirror-commands';
 import { wrapInList } from 'prosemirror-schema-list';
-import { TextField, openPrompt } from './editor-prompt';
-import { uploadModal } from './upload-modal';
+import { TextField, openPrompt } from './editor-prompt.js';
+import { uploadModal } from './upload-modal.js';
 import { guessMediaType } from 'markdown-it-html5-media';
 
 // Helpers to create specific types of items

@@ -1,7 +1,11 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const fs = require('node:fs');
-const path = require('node:path');
+import entryDefinitions from '../config/frontend-entries.json' with { type: 'json' };
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PROJECT_ROOT = path.join(__dirname, '..');
 const VITE_MANIFEST_PATH = path.join(PROJECT_ROOT, 'build', 'vite', '.vite', 'manifest.json');
@@ -15,8 +19,6 @@ const DEV_ENTRY_STYLES = new Map([
     'frontend/styles/style.less'
   ]]
 ]);
-
-const entryDefinitions = require('../config/frontend-entries.json');
 
 const ENTRY_MAP = new Map(Object.entries(entryDefinitions));
 
@@ -158,9 +160,18 @@ function resetManifestCache() {
   cachedManifest = null;
 }
 
-module.exports = {
+const clientAssets = {
   ENTRY_MAP,
   getClientAssets,
   getManifest,
   resetManifestCache
 };
+
+export {
+  ENTRY_MAP,
+  getClientAssets,
+  getManifest,
+  resetManifestCache
+};
+
+export default clientAssets;

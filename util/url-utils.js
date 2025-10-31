@@ -8,10 +8,7 @@
  *
  * @namespace URLUtils
  */
-'use strict';
-
-// Node's built-in module helps a little
-const url = require('url');
+import { parse as parseUrl } from 'node:url';
 
 const urlRegex = /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|\/|\?)*)*$/i;
 
@@ -105,7 +102,7 @@ const placement = {
 };
 
 
-let urlUtils = {
+const urlUtils = {
 
   validate(inputURL) {
     return urlRegex.test(inputURL);
@@ -115,7 +112,9 @@ let urlUtils = {
   // special characters are also urlencoded.
   normalize(inputURL) {
     let outputURL;
-    let parsedURL = url.parse(inputURL);
+    const parsedURL = parseUrl(inputURL);
+    if (!parsedURL)
+      return inputURL;
 
     // Normalizes trailing slashes
     outputURL = parsedURL.href;
@@ -155,7 +154,9 @@ let urlUtils = {
     const rv = {};
     for (let inputURL of inputURLs) {
       let recognized = false;
-      let parsedURL = url.parse(inputURL);
+      const parsedURL = parseUrl(inputURL);
+      if (!parsedURL)
+        continue;
       for (let rule of rules) {
         if (rule.host.test(parsedURL.hostname) && rule.tags && rule.id) {
           for (let tag of rule.tags) {
@@ -261,4 +262,4 @@ function _stripFragment(inputURL) {
   return inputURL.split('#')[0];
 }
 
-module.exports = urlUtils;
+export default urlUtils;

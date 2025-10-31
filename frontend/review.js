@@ -3,10 +3,10 @@
 
 import $ from './lib/jquery.js';
 import { polyfill as es6PromisePolyfill } from 'es6-promise';
-import NativeLookupAdapter from './adapters/native-lookup-adapter';
-import OpenStreetMapLookupAdapter from './adapters/openstreetmap-lookup-adapter';
-import WikidataAutocompleteAdapter from './adapters/wikidata-autocomplete-adapter';
-import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter';
+import NativeLookupAdapter from './adapters/native-lookup-adapter.js';
+import OpenStreetMapLookupAdapter from './adapters/openstreetmap-lookup-adapter.js';
+import WikidataAutocompleteAdapter from './adapters/wikidata-autocomplete-adapter.js';
+import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter.js';
 import libreviews, { msg, repaintFocusedHelp, trimInput, validateURL, urlHasSupportedProtocol } from './libreviews.js';
 
 es6PromisePolyfill();

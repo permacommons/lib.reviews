@@ -1,20 +1,18 @@
-'use strict';
-
 // External dependencies
-const hbs = require('hbs');
-const escapeHTML = require('escape-html');
-const i18n = require('i18n');
-const stripTags = require('striptags');
-const linkifyHTML = require('linkify-html');
+import hbs from 'hbs';
+import escapeHTML from 'escape-html';
+import i18n from 'i18n';
+import stripTags from 'striptags';
+import linkifyHTML from 'linkify-html';
 
 // Internal dependencies
-const mlString = require('../dal/lib/ml-string');
-const languages = require('../locales/languages');
-const thingModelHandle = require('../models/thing');
-const urlUtils = require('./url-utils');
-const adapters = require('../adapters/adapters');
-const getLicenseURL = require('./get-license-url');
-const debug = require('./debug');
+import mlString from '../dal/lib/ml-string.js';
+import languages from '../locales/languages.js';
+import thingModelHandle from '../models/thing.js';
+import urlUtils from './url-utils.js';
+import adapters from '../adapters/adapters.js';
+import getLicenseURL from './get-license-url.js';
+import debug from './debug.js';
 
 /**
  * Resolve a thing's display label in the current locale, with safe fallbacks.

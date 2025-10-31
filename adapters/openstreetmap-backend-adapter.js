@@ -1,21 +1,19 @@
-'use strict';
-
 // This module performs label lookups in OpenStreetMap for ways or nodes, based
-// on the 'name' property in OpenStreetMap
+// on the 'name' property in OpenStreetMap.
 
 // External deps
-const config = require('config');
-const escapeHTML = require('escape-html');
-const debug = require('../util/debug');
-const { fetchJSON } = require('../util/http');
+import config from 'config';
+import escapeHTML from 'escape-html';
+import debug from '../util/debug.js';
+import { fetchJSON } from '../util/http.js';
+import languages from '../locales/languages.js';
 
-const languages = require('../locales/languages');
 const validLanguages = languages.getValidLanguages();
 
 // Internal deps
-const AbstractBackendAdapter = require('./abstract-backend-adapter');
+import AbstractBackendAdapter from './abstract-backend-adapter.js';
 
-class OpenStreetMapBackendAdapter extends AbstractBackendAdapter {
+export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter {
 
   constructor() {
     super();
@@ -104,5 +102,3 @@ class OpenStreetMapBackendAdapter extends AbstractBackendAdapter {
   }
 
 }
-
-module.exports = OpenStreetMapBackendAdapter;

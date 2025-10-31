@@ -1,23 +1,39 @@
-'use strict';
-
 /**
- * PostgreSQL database initialization
- * 
- * This module initializes the PostgreSQL DAL as the primary database
- * for the lib.reviews application.
+ * PostgreSQL database initialization (ESM)
+ *
+ * Provides a shared DAL instance for the lib.reviews application while keeping
+ * initialization idempotent across production code and tests.
  */
 
-const config = require('config');
-const debug = require('./util/debug');
-const PostgresDAL = require('./dal');
+import config from 'config';
+import debug from './util/debug.js';
+import PostgresDALModule from './dal/index.js';
+
+const PostgresDALFactory = typeof PostgresDALModule === 'function'
+  ? PostgresDALModule
+  : PostgresDALModule?.default;
+
+if (typeof PostgresDALFactory !== 'function') {
+  throw new TypeError('Postgres DAL factory not found. Ensure ./dal/index.js exports a constructor.');
+}
 
 let postgresDAL = null;
 let connectionPromise = null;
 
+function getPostgresConfig() {
+  if (config?.postgres) {
+    return config.postgres;
+  }
+  if (typeof config.get === 'function') {
+    return config.get('postgres');
+  }
+  throw new Error('PostgreSQL configuration not found.');
+}
+
 /**
- * Initialize PostgreSQL DAL
+ * Initialize PostgreSQL DAL.
  */
-async function initializePostgreSQL() {
+export async function initializePostgreSQL() {
   if (postgresDAL) {
     return postgresDAL;
   }
@@ -29,20 +45,23 @@ async function initializePostgreSQL() {
   connectionPromise = (async () => {
     try {
       debug.db('Initializing PostgreSQL DAL...');
-      
-      postgresDAL = PostgresDAL(config.postgres);
+
+      const dalConfig = getPostgresConfig();
+      postgresDAL = PostgresDALFactory(dalConfig);
       await postgresDAL.connect();
-      
+
       debug.db('PostgreSQL DAL connected successfully');
-      
-      // Run migrations if needed
+
       try {
         await postgresDAL.migrate();
         debug.db('PostgreSQL migrations completed');
       } catch (migrationError) {
-        debug.db('PostgreSQL migration error (may be expected if DB already exists):', migrationError.message);
+        debug.db(
+          'PostgreSQL migration error (may be expected if DB already exists):',
+          migrationError.message
+        );
       }
-      
+
       return postgresDAL;
     } catch (error) {
       debug.error('Failed to initialize PostgreSQL DAL:', error);
@@ -54,51 +73,60 @@ async function initializePostgreSQL() {
 }
 
 /**
- * Get the PostgreSQL DAL instance (async)
+ * Get the PostgreSQL DAL instance (async).
  */
-async function getPostgresDAL() {
+export async function getPostgresDAL() {
   if (!postgresDAL) {
-    return await initializePostgreSQL();
+    return initializePostgreSQL();
   }
   return postgresDAL;
 }
 
 /**
- * Get database connection (compatibility method)
+ * Compatibility method for legacy callers.
  */
-async function getDB() {
+export async function getDB() {
   return initializePostgreSQL();
 }
 
 /**
- * Gracefully close database connection
+ * Gracefully close database connection.
  */
-async function closeConnection() {
-  if (postgresDAL) {
-    try {
-      await postgresDAL.disconnect();
-      debug.db('PostgreSQL connection closed');
-    } catch (err) {
-      debug.error('Error closing PostgreSQL connection:', err);
-    }
-    postgresDAL = null;
-    connectionPromise = null;
+export async function closeConnection() {
+  if (!postgresDAL) {
+    return;
   }
+
+  try {
+    await postgresDAL.disconnect();
+    debug.db('PostgreSQL connection closed');
+  } catch (err) {
+    debug.error('Error closing PostgreSQL connection:', err);
+  }
+
+  postgresDAL = null;
+  connectionPromise = null;
 }
 
-// Initialize on module load
 const dalPromise = initializePostgreSQL();
 
-// Export the DAL instance and compatibility methods
-module.exports = {
+export function getDAL() {
+  return dalPromise;
+}
+
+const dbPostgres = {
   initializePostgreSQL,
   getPostgresDAL,
   getDB,
   closeConnection,
-  // Provide direct access to the DAL promise for immediate use
-  get dal() {
-    return postgresDAL;
-  },
-  // Compatibility method for existing code that expects a promise
-  getDAL: () => dalPromise
+  getDAL
 };
+
+Object.defineProperty(dbPostgres, 'dal', {
+  enumerable: true,
+  get() {
+    return postgresDAL;
+  }
+});
+
+export default dbPostgres;

@@ -1,8 +1,9 @@
-'use strict';
-const vsprintf = require('sprintf-js').vsprintf;
+import sprintfJs from 'sprintf-js';
+
+const { vsprintf } = sprintfJs;
 
 // Class for custom errors with support for sprintf and inherited messages
-class AbstractGenericError extends Error {
+export default class AbstractGenericError extends Error {
   constructor(options) {
 
     if (new.target === AbstractGenericError)
@@ -57,5 +58,3 @@ class AbstractGenericError extends Error {
   }
 
 }
-
-module.exports = AbstractGenericError;

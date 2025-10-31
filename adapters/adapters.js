@@ -1,21 +1,20 @@
-'use strict';
-const debug = require('../util/debug');
-const WikidataBackendAdapter = require('./wikidata-backend-adapter');
-const OpenLibraryBackendAdapter = require('./openlibrary-backend-adapter');
-const OpenStreetMapBackendAdapter = require('./openstreetmap-backend-adapter');
+import debug from '../util/debug.js';
+import WikidataBackendAdapter from './wikidata-backend-adapter.js';
+import OpenLibraryBackendAdapter from './openlibrary-backend-adapter.js';
+import OpenStreetMapBackendAdapter from './openstreetmap-backend-adapter.js';
 
 const wikidata = new WikidataBackendAdapter();
 const openLibrary = new OpenLibraryBackendAdapter();
 const openStreetMap = new OpenStreetMapBackendAdapter();
 const adapters = [wikidata, openLibrary, openStreetMap];
 const sourceURLs = {};
-
-adapters.forEach(adapter => (sourceURLs[adapter.getSourceID()] = adapter.getSourceURL()));
+for (const adapter of adapters)
+  sourceURLs[adapter.getSourceID()] = adapter.getSourceURL();
 
 // General helper functions for adapters that obtain metadata about specific
 // URLs
 
-module.exports = {
+const adaptersAPI = {
 
     getAll() {
       return adapters;
@@ -37,14 +36,14 @@ module.exports = {
     // Return a lookup promise from every adapter that can support metadata
     // about this URL.
     getSupportedLookupsAsSafePromises(url) {
-      let p = [];
-      adapters.forEach(adapter => {
+      const p = [];
+      for (const adapter of adapters) {
         if (adapter.ask(url))
           p.push(adapter.lookup(url).catch(error => {
             debug.error({ error });
             return { error };
           }));
-      });
+      }
       return p;
     },
 
@@ -61,3 +60,5 @@ module.exports = {
       return firstResultWithData;
     }
 };
+
+export default adaptersAPI;

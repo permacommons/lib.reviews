@@ -1,12 +1,13 @@
 // Set up indices and update all reviews and review subjects (things)
-'use strict';
 
-const { initializeDAL } = require('../bootstrap/dal');
-const search = require('../search');
-const debug = require('../util/debug');
-const limit = require('promise-limit')(2); // Throttle index updates
-const Thing = require('../models/thing');
-const Review = require('../models/review');
+import { initializeDAL } from '../bootstrap/dal.js';
+import search from '../search.js';
+import debug from '../util/debug.js';
+import promiseLimit from 'promise-limit';
+import Thing from '../models/thing.js';
+import Review from '../models/review.js';
+
+const limit = promiseLimit(2); // Throttle index updates
 
 // Commonly run from command-line, force output
 debug.util.enabled = true;
@@ -40,7 +41,7 @@ debug.util('Initiating search index update.');
 updateIndices()
   .then(() => {
     debug.util('All search indices updated!');
-    process.exit();
+    process.exit(0);
   })
   .catch(error => {
     debug.error('Problem updating search indices. The error was:');

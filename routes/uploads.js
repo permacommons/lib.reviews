@@ -1,37 +1,37 @@
-'use strict';
-
 /**
  * Process uploads via the web (provides general functions shared by the API).
  *
  * @namespace Uploads
  */
 
-// External dependencies
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const isSVG = require('is-svg');
-const config = require('config');
-const is = require('type-is');
-const { promisify } = require('util');
+import express from 'express';
+import multer from 'multer';
+import path from 'node:path';
+import fs from 'node:fs';
+import isSVG from 'is-svg';
+import config from 'config';
+import is from 'type-is';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
-// Internal dependencies
-const { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } = require('../util/csrf');
-const File = require('../models/file');
-const getResourceErrorHandler = require('./handlers/resource-error-handler');
-const render = require('./helpers/render');
-const slugs = require('./helpers/slugs');
-const debug = require('../util/debug');
-const ReportedError = require('../util/reported-error');
-const languages = require('../locales/languages');
-const forms = require('./helpers/forms');
+import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.js';
+import File from '../models/file.js';
+import getResourceErrorHandler from './handlers/resource-error-handler.js';
+import render from './helpers/render.js';
+import slugs from './helpers/slugs.js';
+import debug from '../util/debug.js';
+import ReportedError from '../util/reported-error.js';
+import languages from '../locales/languages.js';
+import forms from './helpers/forms.js';
 
-const readFile = promisify(fs.readFile),
-  rename = promisify(fs.rename),
-  unlink = promisify(fs.unlink);
-const stage1Router = express.Router(),
-  stage2Router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const readFile = promisify(fs.readFile);
+const rename = promisify(fs.rename);
+const unlink = promisify(fs.unlink);
+const stage1Router = express.Router();
+const stage2Router = express.Router();
 
 let fileTypeFromFileFn;
 async function detectFileType(filePath) {
@@ -497,7 +497,7 @@ function assignFilename(req, file, done) {
   done(null, name);
 }
 
-module.exports = {
+export {
   stage1Router,
   stage2Router,
   checkMIMEType,

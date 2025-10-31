@@ -1,13 +1,12 @@
-'use strict';
 // External deps
-const config = require('config');
-const escapeHTML = require('escape-html');
-const debug = require('../util/debug');
-const { fetchJSON } = require('../util/http');
+import config from 'config';
+import escapeHTML from 'escape-html';
+import debug from '../util/debug.js';
+import { fetchJSON } from '../util/http.js';
 
 // Internal deps
-const AbstractBackendAdapter = require('./abstract-backend-adapter');
-const languages = require('../locales/languages');
+import AbstractBackendAdapter from './abstract-backend-adapter.js';
+import languages from '../locales/languages.js';
 
 // How do lib.reviews language code translate to Wikidata language codes?
 // Since Wikidata supports a superset of languages and most language codes
@@ -19,7 +18,7 @@ const nativeToWikidata = {
 
 const apiBaseURL = 'https://www.wikidata.org/w/api.php';
 
-class WikidataBackendAdapter extends AbstractBackendAdapter {
+export default class WikidataBackendAdapter extends AbstractBackendAdapter {
 
   constructor() {
     super();
@@ -139,5 +138,3 @@ class WikidataBackendAdapter extends AbstractBackendAdapter {
   }
 
 }
-
-module.exports = WikidataBackendAdapter;

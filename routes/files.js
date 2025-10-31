@@ -1,16 +1,18 @@
-'use strict';
+import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
-// External dependencies
-const express = require('express');
+import File from '../models/file.js';
+import getResourceErrorHandler from './handlers/resource-error-handler.js';
+import render from './helpers/render.js';
+
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-const util = require('util');
 
-// Internal dependencies
-const File = require('../models/file');
-const getResourceErrorHandler = require('./handlers/resource-error-handler');
-const render = require('./helpers/render');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rename = promisify(fs.rename);
 
 router.get('/files', function(req, res, next) {
   File.getFileFeed()
@@ -83,12 +85,11 @@ router.post('/file/:id/delete', function(req, res, next) {
 });
 
 async function deleteFile(file, user) {
-  const rename = util.promisify(fs.rename),
-    oldPath = path.join(__dirname, '../static/uploads', file.name),
-    newPath = path.join(__dirname, '../deleted', file.name);
+  const oldPath = path.join(__dirname, '../static/uploads', file.name);
+  const newPath = path.join(__dirname, '../deleted', file.name);
 
   await file.deleteAllRevisions(user);
   await rename(oldPath, newPath);
 }
 
-module.exports = router;
+export default router;

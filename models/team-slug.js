@@ -1,10 +1,13 @@
 'use strict';
 
-const { getPostgresDAL } = require('../db-postgres');
-const type = require('../dal').type;
-const debug = require('../util/debug');
-const { initializeModel } = require('../dal/lib/model-initializer');
-const { ConstraintError, DuplicateSlugNameError } = require('../dal/lib/errors');
+import { getPostgresDAL } from '../db-postgres.js';
+import { type as typeHelpers } from '../dal/index.js';
+import { createAutoModelHandle } from '../dal/lib/model-handle.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { ConstraintError, DuplicateSlugNameError } from '../dal/lib/errors.js';
+import debug from '../util/debug.js';
+
+const type = typeHelpers;
 
 let TeamSlug = null;
 
@@ -60,10 +63,6 @@ async function initializeTeamSlugModel(dal = null) {
     return null;
   }
 }
-
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
 
 const TeamSlugHandle = createAutoModelHandle('team_slugs', initializeTeamSlugModel);
 
@@ -124,8 +123,9 @@ async function qualifiedSave() {
   }
 }
 
-module.exports = TeamSlugHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeTeamSlugModel;
-module.exports.getPostgresTeamSlugModel = getPostgresTeamSlugModel;
+export default TeamSlugHandle;
+export {
+  initializeTeamSlugModel as initializeModel,
+  initializeTeamSlugModel,
+  getPostgresTeamSlugModel
+};

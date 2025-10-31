@@ -1,6 +1,6 @@
 /* global $, AC */
-import AbstractLookupAdapter from './abstract-lookup-adapter';
-import NativeLookupAdapter from './native-lookup-adapter';
+import AbstractLookupAdapter from './abstract-lookup-adapter.js';
+import NativeLookupAdapter from './native-lookup-adapter.js';
 import { msg } from '../libreviews.js';
 const nativeLookupAdapter = new NativeLookupAdapter();
 

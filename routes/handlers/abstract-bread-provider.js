@@ -1,9 +1,11 @@
-'use strict';
+import express from 'express';
+
 // Internal dependencies
-const render = require('../helpers/render');
-const forms = require('../helpers/forms');
-const router = require('express').Router();
-const getResourceErrorHandler = require('./resource-error-handler');
+import render from '../helpers/render.js';
+import forms from '../helpers/forms.js';
+import getResourceErrorHandler from './resource-error-handler.js';
+
+const router = express.Router();
 
 
 /**
@@ -293,4 +295,4 @@ AbstractBREADProvider.bakeRoutes = function(resource, routes) {
 
 };
 
-module.exports = AbstractBREADProvider;
+export default AbstractBREADProvider;

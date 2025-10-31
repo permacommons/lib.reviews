@@ -1,13 +1,22 @@
-'use strict';
 // External dependencies
-const isUUID = require('is-uuid');
+import isUUID from 'is-uuid';
 
 // Internal dependencies
-const { DocumentNotFound } = require('../../dal/lib/errors');
-const Team = require('../../models/team');
-const TeamSlug = require('../../models/team-slug');
-const Thing = require('../../models/thing');
-const ThingSlug = require('../../models/thing-slug');
+import errors from '../../dal/lib/errors.js';
+import Team from '../../models/team.js';
+import Thing from '../../models/thing.js';
+import ThingSlug from '../../models/thing-slug.js';
+
+const { DocumentNotFound } = errors;
+
+let teamSlugModulePromise;
+async function getTeamSlugModel() {
+  if (!teamSlugModulePromise) {
+    teamSlugModulePromise = import('../../models/team-slug.js');
+  }
+  const module = await teamSlugModulePromise;
+  return module.default;
+}
 
 const slugs = {
 
@@ -24,7 +33,7 @@ const slugs = {
       slugForeignKey: 'teamID',
       getDocumentModel: () => Team,
       loadSlug: async (slugName, DocumentModel) => {
-        const TeamSlugModel = TeamSlug;
+        const TeamSlugModel = await getTeamSlugModel();
         if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function') {
           return null;
         }
@@ -135,4 +144,4 @@ function _redirectToCanonical(req, res, id, basePath, canonicalSlugName) {
   res.redirect(newPath);
 }
 
-module.exports = slugs;
+export default slugs;

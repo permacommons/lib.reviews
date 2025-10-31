@@ -1,11 +1,9 @@
-'use strict';
 // We use markdown-it with a few standard settings and a plugin to
 // handle ::: spoiler fencing (using the generalized container plugin).
-// Because this adds
-const MarkdownIt = require('markdown-it');
-const container = require('markdown-it-container');
-const { html5Media } = require('markdown-it-html5-media');
-const i18n = require('i18n');
+import MarkdownIt from 'markdown-it';
+import container from 'markdown-it-container';
+import { html5Media } from 'markdown-it-html5-media';
+import i18n from 'i18n';
 
 const markdownMessages = ['nsfw warning', 'spoiler warning'];
 MarkdownIt.prototype.getMarkdownMessageKeys = () => markdownMessages.slice();
@@ -51,4 +49,4 @@ md.use(html5Media, {
     i18n.__({ locale, phrase: messageKey }, ...messageParams)
 });
 
-module.exports = md;
+export default md;

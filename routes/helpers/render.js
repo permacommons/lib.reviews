@@ -1,13 +1,12 @@
-'use strict';
 // External dependencies
-const config = require('config');
-const url = require('url');
-const clientAssets = require('../../util/client-assets');
+import config from 'config';
+import { parse as parseURL } from 'node:url';
+import clientAssets from '../../util/client-assets.js';
 
 // Internal dependencies
-const languages = require('../../locales/languages');
+import languages from '../../locales/languages.js';
 
-let render = {
+const render = {
 
   // extraVars - object containing any vars we want to pass along to template
   // extraJSConfig - object containing any vars we want to expose to client-side
@@ -69,7 +68,7 @@ let render = {
 
     vars.qualifiedURL = config.qualifiedURL;
 
-    vars.urlPath = url.parse(req.originalUrl).pathname;
+    vars.urlPath = parseURL(req.originalUrl).pathname;
 
 
     // Pass along returnTo path for post-submit redirection if not already
@@ -116,4 +115,4 @@ let render = {
 
 };
 
-module.exports = render;
+export default render;

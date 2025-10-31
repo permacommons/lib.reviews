@@ -1,9 +1,7 @@
-'use strict';
-
 // There is a corresponding abstract frontend class in the frontend/ directory.
 // While similar, due to client/server differences and likely functional
 // divergence, we are keeping these separate.
-class AbstractBackendAdapter {
+export default class AbstractBackendAdapter {
 
   constructor() {
 
@@ -50,5 +48,3 @@ class AbstractBackendAdapter {
   }
 
 }
-
-module.exports = AbstractBackendAdapter;

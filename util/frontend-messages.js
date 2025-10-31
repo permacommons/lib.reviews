@@ -1,20 +1,13 @@
-'use strict';
+import getMessages from './get-messages.js';
+import uploadModalMessagesJson from '../frontend/messages/upload-modal-keys.json' with { type: 'json' };
+import editorMessagesJson from '../frontend/messages/editor-keys.json' with { type: 'json' };
+import adapterMessagesJson from '../frontend/messages/adapter-keys.json' with { type: 'json' };
 
-const getMessages = require('./get-messages');
+const uploadModalMessageKeys = Object.freeze([...uploadModalMessagesJson]);
+const editorMessageKeys = Object.freeze([...editorMessagesJson]);
+const adapterMessageKeys = Object.freeze([...adapterMessagesJson]);
 
-const uploadModalMessageKeys = Object.freeze([
-  ...require('../frontend/messages/upload-modal-keys.json')
-]);
-
-const editorMessageKeys = Object.freeze([
-  ...require('../frontend/messages/editor-keys.json')
-]);
-
-const adapterMessageKeys = Object.freeze([
-  ...require('../frontend/messages/adapter-keys.json')
-]);
-
-module.exports = {
+const frontendMessages = {
   getUploadModalMessageKeys() {
     return [...uploadModalMessageKeys];
   },
@@ -35,3 +28,5 @@ module.exports = {
     return getMessages(locale, adapterMessageKeys);
   }
 };
+
+export default frontendMessages;

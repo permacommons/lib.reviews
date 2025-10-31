@@ -1,14 +1,14 @@
-'use strict';
+import config from 'config';
+import { randomUUID } from 'node:crypto';
+import isUUID from 'is-uuid';
+import debug from '../util/debug.js';
+import dal from '../dal/index.js';
+import { DocumentNotFound } from '../dal/lib/errors.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { createAutoModelHandle } from '../dal/lib/model-handle.js';
+import { getPostgresDAL } from '../db-postgres.js';
 
-const { getPostgresDAL } = require('../db-postgres');
-const type = require('../dal').type;
-const debug = require('../util/debug');
-const config = require('config');
-const isUUID = require('is-uuid');
-const { randomUUID } = require('crypto');
-const { DocumentNotFound } = require('../dal/lib/errors');
-const { initializeModel } = require('../dal/lib/model-initializer');
-
+const { type } = dal;
 let InviteLink = null;
 
 /**
@@ -224,10 +224,6 @@ async function getInviteByID(id) {
   }
 }
 
-// Synchronous handle for production use - proxies to the registered model
-// Create synchronous handle using the model handle factory
-const { createAutoModelHandle } = require('../dal/lib/model-handle');
-
 const InviteLinkHandle = createAutoModelHandle('invite_links', initializeInviteLinkModel);
 
 /**
@@ -241,9 +237,9 @@ async function getPostgresInviteLinkModel(dal = null) {
   return InviteLink;
 }
 
-module.exports = InviteLinkHandle;
-
-// Export factory function for fixtures and tests
-module.exports.initializeModel = initializeInviteLinkModel;
-module.exports.initializeInviteLinkModel = initializeInviteLinkModel; // Backward compatibility
-module.exports.getPostgresInviteLinkModel = getPostgresInviteLinkModel;
+export default InviteLinkHandle;
+export {
+  initializeInviteLinkModel as initializeModel,
+  initializeInviteLinkModel,
+  getPostgresInviteLinkModel
+};

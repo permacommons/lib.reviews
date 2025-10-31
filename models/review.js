@@ -1,23 +1,33 @@
-'use strict';
+import dal from '../dal/index.js';
+import debug from '../util/debug.js';
+import ReportedError from '../util/reported-error.js';
+import languages from '../locales/languages.js';
+import adapters from '../adapters/adapters.js';
+import Thing from './thing.js';
+import Team from './team.js';
+import { createModelModule } from '../dal/lib/model-handle.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
+import { randomUUID } from 'crypto';
 
-const { createModelModule } = require('../dal/lib/model-handle');
+let postgresModulePromise;
+async function loadDbPostgres() {
+  if (!postgresModulePromise) {
+    postgresModulePromise = import('../db-postgres.js');
+  }
+  return postgresModulePromise;
+}
+
+async function getPostgresDAL() {
+  const module = await loadDbPostgres();
+  return module.getPostgresDAL();
+}
+
 const { proxy: ReviewHandle, register: registerReviewHandle } = createModelModule({
   tableName: 'reviews'
 });
 
-module.exports = ReviewHandle;
-
-const { getPostgresDAL } = require('../db-postgres');
-const type = require('../dal').type;
-const mlString = require('../dal').mlString;
-const revision = require('../dal').revision;
-const debug = require('../util/debug');
-const ReportedError = require('../util/reported-error');
-const isValidLanguage = require('../locales/languages').isValid;
-const adapters = require('../adapters/adapters');
-const Thing = require('./thing');
-const Team = require('./team');
-const { initializeModel } = require('../dal/lib/model-initializer');
+const { type, mlString, revision } = dal;
+const { isValid: isValidLanguage } = languages;
 
 const reviewOptions = {
   maxTitleLength: 255
@@ -347,7 +357,6 @@ async function findOrCreateThing(reviewObj) {
   }
 
   // Create new thing
-  const { randomUUID } = require('crypto');
   const date = new Date();
 
   const thing = await Thing.createFirstRevision(
@@ -748,3 +757,6 @@ registerReviewHandle({
     ReviewError
   }
 });
+
+export default ReviewHandle;
+export { initializeReviewModel as initializeModel, initializeReviewModel, ReviewError };

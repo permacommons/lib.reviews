@@ -1,8 +1,5 @@
-'use strict';
-
-// Internal dependencies
-const render = require('./helpers/render');
-const debug = require('../util/debug');
+import render from './helpers/render.js';
+import debug from '../util/debug.js';
 
 class ErrorProvider {
 
@@ -81,4 +78,4 @@ class ErrorProvider {
   }
 }
 
-module.exports = ErrorProvider;
+export default ErrorProvider;
