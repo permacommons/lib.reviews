@@ -2,13 +2,14 @@
   "name": "lib.reviews",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "vite build",
-    "start": "NODE_ENV=production node bin/www.mjs",
-    "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.mjs",
+    "start": "NODE_ENV=production node bin/www.js",
+    "start-dev": "NODE_ENV=development DEBUG=libreviews:* node bin/www.js",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
-    "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.mjs",
-    "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.mjs -d static/devdocs/backend"
+    "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.js",
+    "make-docs": "node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r frontend -d static/devdocs/frontend && node_modules/jsdoc/jsdoc.js -c jsdocConf.json -r models/ util/ routes/ app.js -d static/devdocs/backend"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
@@ -85,7 +86,7 @@
   },
   "ava": {
     "files": [
-      "tests/[0-9]*-*.mjs"
+      "tests/[0-9]*-*.js"
     ],
     "concurrency": 16,
     "timeout": "2m"

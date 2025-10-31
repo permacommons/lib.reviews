@@ -4,11 +4,11 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 
 ## Current State Snapshot (2025-10-30)
 
-- 109 `.js` files remain in CommonJS across the repository (runtime + tooling; excludes `.mjs` tests and generated `build/` artifacts).
-- Backend entry points: `bin/www.mjs` and `app.mjs` now run as ESM and share the ESM-native `bootstrap/dal.mjs`; the legacy `bootstrap/dal.js` entry has been removed so stale `require` calls fail fast.
-- Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.mjs`, `db-postgres.mjs`, `search.mjs`, `tools/*.mjs`, `locales/languages.mjs`).
-- `createRequire(import.meta.url)` still appears in `app.mjs` plus 21 test helpers/specs to reach CommonJS modules; these call sites should switch to direct ESM imports as their dependencies expose compatible entry points.
-- TypeScript-ready surface already exists for tests (`tests/*.mjs`) and Vite (`vite.config.mjs`), easing eventual `allowJs` adoption.
+- 109 `.js` files remain in CommonJS across the repository (runtime + tooling; excludes `.js` tests and generated `build/` artifacts).
+- Backend entry points: `bin/www.js` and `app.js` now run as ESM and share the ESM-native `bootstrap/dal.js`; the legacy `bootstrap/dal.js` entry has been removed so stale `require` calls fail fast.
+- Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.js`, `db-postgres.js`, `search.js`, `tools/*.js`, `locales/languages.js`).
+- `createRequire(import.meta.url)` still appears in `app.js` plus 21 test helpers/specs to reach CommonJS modules; these call sites should switch to direct ESM imports as their dependencies expose compatible entry points.
+- TypeScript-ready surface already exists for tests (`tests/*.js`) and Vite (`vite.config.js`), easing eventual `allowJs` adoption.
 - Next focus: DAL
 
 ## Phase 1: ESM Migration
@@ -17,23 +17,23 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 - [x] Convert `/bin/www` entry point
 - [x] Convert `/app` main application file
 - [x] Convert `/bootstrap/*.js` initialization files
-- Current status: `bootstrap/dal.mjs` now provides the shared bootstrap; no CommonJS files remain in this directory.
-- Direct consumers of `bootstrap/dal.mjs` to watch during migration:
-  - `app.mjs` (ESM): imports `initializeDAL()` directly.
-  - Tests: `setupPostgresTest.mjs` and DAL fixtures rely on the exported test harness helpers.
-  - `db-postgres.mjs`: reuses/exports DAL helpers for other parts of the app.
+- Current status: `bootstrap/dal.js` now provides the shared bootstrap; no CommonJS files remain in this directory.
+- Direct consumers of `bootstrap/dal.js` to watch during migration:
+  - `app.js` (ESM): imports `initializeDAL()` directly.
+  - Tests: `setupPostgresTest.js` and DAL fixtures rely on the exported test harness helpers.
+  - `db-postgres.js`: reuses/exports DAL helpers for other parts of the app.
   - Maintenance scripts (`maintenance/*.js`) and sync adapters (`adapters/sync/*.js`) import it lazily from CommonJS.
-  - DAL internals (`dal/lib/model-handle.mjs`) rely on `setBootstrapResolver` for handle wiring.
+  - DAL internals (`dal/lib/model-handle.js`) rely on `setBootstrapResolver` for handle wiring.
 - Migration guardrails:
   - Preserve singleton semantics for DAL initialization; confirm `initializeDAL` continues to de-duplicate concurrent callers after conversion.
   - Evaluate exposing explicit ESM exports for model bootstrap so tests can tree-shake unwanted work.
   - Ensure CommonJS consumers retain compatibility during incremental rollout—consider adding a thin compatibility shim if needed.
 
 #### `bootstrap/dal` conversion staging (completed)
-- [x] Ship `bootstrap/dal.mjs` that re-exports the existing CommonJS API, giving ESM modules a forward-compatible import path.
-- [x] Update `app.mjs` to consume the `.mjs` entry and drop its `createRequire` bridge.
-- [x] Update AVA helpers/tests currently using `createRequire(import.meta.url)` to import from `bootstrap/dal.mjs`.
-- [x] Convert runtime CommonJS consumers (maintenance scripts, sync adapters) so they can import the `.mjs` entry without shims.
+- [x] Ship `bootstrap/dal.js` that re-exports the existing CommonJS API, giving ESM modules a forward-compatible import path.
+- [x] Update `app.js` to consume the `.js` entry and drop its `createRequire` bridge.
+- [x] Update AVA helpers/tests currently using `createRequire(import.meta.url)` to import from `bootstrap/dal.js`.
+- [x] Convert runtime CommonJS consumers (maintenance scripts, sync adapters) so they can import the `.js` entry without shims.
 - [x] Untangle `dal/lib/model-handle.js` from `require('../../bootstrap/dal')` (or migrate the DAL library to ESM) before flipping the implementation.
 - [x] After dependents are ESM-ready, move the implementation to ESM and remove the `.cjs` entry so stale `require` paths fail fast.
 - [x] Re-run DAL bootstrap/search integration tests after each stage to ensure singleton semantics and migrations remain stable.
@@ -52,7 +52,7 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 - [ ] Convert `/dal/*.js` data access layer
   - [x] Core libraries: `lib/errors`, `lib/type`, `lib/ml-string`, `lib/revision`
   - [x] Model infrastructure: `lib/model`, `lib/query-builder`, `lib/model-factory`, `lib/model-initializer`, `lib/data-access-layer`, `index`
-  - [x] Remaining helpers: `lib/model-handle.mjs`, `lib/model-registry.mjs`, fixtures/tests still using CommonJS bridges
+  - [x] Remaining helpers: `lib/model-handle.js`, `lib/model-registry.js`, fixtures/tests still using CommonJS bridges
 - [ ] Update database connection handling
 - [ ] Verify revision system compatibility
 
@@ -139,7 +139,7 @@ Gradually migrate to TypeScript with type safety.
 - [ ] Create type definitions for utility functions
 
 ### Tests Migration
-- [ ] Rename `.mjs` test files to `.ts`
+- [ ] Rename `.js` test files to `.ts`
 - [ ] Add types to test files
 - [ ] Update AVA configuration for TypeScript
 - [ ] Verify all tests still pass

@@ -204,10 +204,10 @@ lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL). See `dal/READ
 Models use a handle-based pattern that allows synchronous imports:
 
 ```javascript
-// models/user.mjs
-import dal from '../dal/index.mjs';
-import { createModelModule } from '../dal/lib/model-handle.mjs';
-import { initializeModel } from '../dal/lib/model-initializer.mjs';
+// models/user.js
+import dal from '../dal/index.js';
+import { createModelModule } from '../dal/lib/model-handle.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
 
 const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
@@ -242,7 +242,7 @@ export default UserHandle;
 Usage in application code:
 
 ```javascript
-import User from './models/user.mjs';
+import User from './models/user.js';
 
 const user = await User.create({ displayName: 'Jane', email: 'jane@example.com' });
 const users = await User.filter({ isTrusted: false }).run();

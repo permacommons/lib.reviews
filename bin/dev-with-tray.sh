@@ -40,7 +40,7 @@ trap cleanup SIGINT SIGTERM EXIT
 
 # Start the dev server in background
 echo -e "\033[36mdev-with-tray.sh:\033[0m Starting server"
-NODE_ENV=development DEBUG=libreviews:* node bin/www.mjs &
+NODE_ENV=development DEBUG=libreviews:* node bin/www.js &
 echo $! > "$PID_FILE"  # Save server PID for later
 
 # Create a toggle script that runs when the tray icon is clicked
@@ -59,7 +59,7 @@ else
   # Server is stopped - start it
   echo -e "\033[36mdev-with-tray.sh:\033[0m Starting server"
   cd "$PWD"
-  NODE_ENV=development DEBUG=libreviews:* node bin/www.mjs &
+  NODE_ENV=development DEBUG=libreviews:* node bin/www.js &
   echo \$! > "$PID_FILE"
   # Update tray icon to stop state
   echo "icon:media-playback-stop" > "$YAD_PIPE"

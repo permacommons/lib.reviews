@@ -4,18 +4,18 @@ The DAL provides the database interface for lib.reviews, featuring a Model-based
 
 ## Architecture
 
-The DAL is initialized once at application startup via `../db-postgres.mjs`. Models use a handle-based pattern that allows definitions to load synchronously while deferring actual initialization until the DAL is ready.
+The DAL is initialized once at application startup via `../db-postgres.js`. Models use a handle-based pattern that allows definitions to load synchronously while deferring actual initialization until the DAL is ready.
 
 ### Core Components
 
-- **DataAccessLayer** (`lib/data-access-layer.mjs`) - Connection pooling, transactions, migrations
-- **Model** (`lib/model.mjs`) - Base model class with CRUD operations, virtual fields, schema validation
-- **QueryBuilder** (`lib/query-builder.mjs`) - Fluent query interface with filter, order, limit, join operations
-- **Type System** (`lib/type.mjs`) - Type definitions and validation
-- **Error Handling** (`lib/errors.mjs`) - Custom error classes and PostgreSQL error conversion
-- **Multilingual Strings** (`lib/ml-string.mjs`) - JSONB-based multilingual string handling with language validation and fallback resolution
-- **Revision System** (`lib/revision.mjs`) - Revision tracking and management
-- **Model Infrastructure** - `model-handle.mjs`, `model-factory.mjs`, `model-registry.mjs`, `model-initializer.js` for model lifecycle management
+- **DataAccessLayer** (`lib/data-access-layer.js`) - Connection pooling, transactions, migrations
+- **Model** (`lib/model.js`) - Base model class with CRUD operations, virtual fields, schema validation
+- **QueryBuilder** (`lib/query-builder.js`) - Fluent query interface with filter, order, limit, join operations
+- **Type System** (`lib/type.js`) - Type definitions and validation
+- **Error Handling** (`lib/errors.js`) - Custom error classes and PostgreSQL error conversion
+- **Multilingual Strings** (`lib/ml-string.js`) - JSONB-based multilingual string handling with language validation and fallback resolution
+- **Revision System** (`lib/revision.js`) - Revision tracking and management
+- **Model Infrastructure** - `model-handle.js`, `model-factory.js`, `model-registry.js`, `model-initializer.js` for model lifecycle management
 
 ## Database Schema
 
@@ -35,10 +35,10 @@ Key features:
 Models are defined using `createModelModule()` which returns a synchronous handle:
 
 ```javascript
-// In models/user.mjs
-import dal from '../dal/index.mjs';
-import { createModelModule } from '../dal/lib/model-handle.mjs';
-import { initializeModel } from '../dal/lib/model-initializer.mjs';
+// In models/user.js
+import dal from '../dal/index.js';
+import { createModelModule } from '../dal/lib/model-handle.js';
+import { initializeModel } from '../dal/lib/model-initializer.js';
 
 const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
@@ -70,7 +70,7 @@ registerUserHandle({
 export default UserHandle;
 
 // In routes or other code
-import User from './models/user.mjs';
+import User from './models/user.js';
 
 // Use the model
 const user = await User.create({
@@ -84,7 +84,7 @@ const users = await User.filter({ isTrusted: false }).run();
 Multilingual strings:
 
 ```javascript
-import dal from './dal/index.mjs';
+import dal from './dal/index.js';
 
 const { mlString } = dal;
 
@@ -108,16 +108,16 @@ const query = mlString.buildQuery('title', 'en', '%search%', 'ILIKE');
 ## Files
 
 - `index.js` - Main entry point
-- `lib/data-access-layer.mjs` - Core DAL class
-- `lib/model.mjs` - Base model implementation
-- `lib/model-handle.mjs` - Model handle pattern for synchronous exports
-- `lib/model-factory.mjs` - Model creation and registration
-- `lib/model-registry.mjs` - Model registry for lookups
-- `lib/model-initializer.mjs` - Model initialization logic
-- `lib/query-builder.mjs` - Query building functionality
-- `lib/type.mjs` - Type system and validation
-- `lib/errors.mjs` - Error handling
-- `lib/ml-string.mjs` - Multilingual string handling
-- `lib/revision.mjs` - Revision tracking system
+- `lib/data-access-layer.js` - Core DAL class
+- `lib/model.js` - Base model implementation
+- `lib/model-handle.js` - Model handle pattern for synchronous exports
+- `lib/model-factory.js` - Model creation and registration
+- `lib/model-registry.js` - Model registry for lookups
+- `lib/model-initializer.js` - Model initialization logic
+- `lib/query-builder.js` - Query building functionality
+- `lib/type.js` - Type system and validation
+- `lib/errors.js` - Error handling
+- `lib/ml-string.js` - Multilingual string handling
+- `lib/revision.js` - Revision tracking system
 - `setup-db-grants.sql` - Database permissions setup script
 - `../migrations/001_initial_schema.sql` - Database schema
