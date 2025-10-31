@@ -8,7 +8,7 @@ import { initializeModel } from '../dal/lib/model-initializer.js';
 import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 import { getPostgresDAL } from '../db-postgres.js';
 
-const { type } = dal;
+const { types } = dal;
 let InviteLink = null;
 
 /**
@@ -25,11 +25,11 @@ async function initializeInviteLinkModel(dal = null) {
 
   try {
     const schema = {
-      id: type.string().uuid(4).default(() => randomUUID()),
-      createdBy: type.string().uuid(4).required(true),
-      createdOn: type.date().default(() => new Date()),
-      usedBy: type.string().uuid(4),
-      url: type.virtual().default(function() {
+      id: types.string().uuid(4).default(() => randomUUID()),
+      createdBy: types.string().uuid(4).required(true),
+      createdOn: types.date().default(() => new Date()),
+      usedBy: types.string().uuid(4),
+      url: types.virtual().default(function() {
         const identifier = this.getValue ? this.getValue('id') : this.id;
         return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
       })

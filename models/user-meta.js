@@ -18,7 +18,7 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const { type, mlString } = dal;
+const { types, mlString } = dal;
 const { isValid: isValidLanguage } = languages;
 
 let UserMeta = null;
@@ -39,7 +39,7 @@ async function initializeUserMetaModel(dal = null) {
   try {
     const multilingualStringSchema = mlString.getSchema({ maxLength: 1000 });
 
-    const bioType = type.object()
+    const bioType = types.object()
       .default(() => ({
         text: {},
         html: {}
@@ -55,9 +55,9 @@ async function initializeUserMetaModel(dal = null) {
       });
 
     const schema = {
-      id: type.string().uuid(4),
+      id: types.string().uuid(4),
       bio: bioType,
-      originalLanguage: type.string()
+      originalLanguage: types.string()
         .max(4)
         .required(true)
         .validator(lang => {

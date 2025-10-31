@@ -4,7 +4,7 @@ import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 import { getPostgresDAL } from '../db-postgres.js';
 
-const { type } = dal;
+const { types } = dal;
 let TeamJoinRequest = null;
 
 /**
@@ -21,16 +21,16 @@ async function initializeTeamJoinRequestModel(dal = null) {
 
   try {
     const schema = {
-      id: type.string().uuid(4),
-      teamID: type.string().uuid(4).required(true),
-      userID: type.string().uuid(4).required(true),
-      status: type.string().default('pending'),
-      requestDate: type.date(),
-      requestMessage: type.string().max(500),
-      rejectedBy: type.string().uuid(4),
-      rejectionDate: type.date(),
-      rejectionMessage: type.string(),
-      rejectedUntil: type.date()
+      id: types.string().uuid(4),
+      teamID: types.string().uuid(4).required(true),
+      userID: types.string().uuid(4).required(true),
+      status: types.string().default('pending'),
+      requestDate: types.date(),
+      requestMessage: types.string().max(500),
+      rejectedBy: types.string().uuid(4),
+      rejectionDate: types.date(),
+      rejectionMessage: types.string(),
+      rejectedUntil: types.date()
     };
 
     const { model, isNew } = initializeModel({

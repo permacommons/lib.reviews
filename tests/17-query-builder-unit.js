@@ -3,7 +3,7 @@ import test from 'ava';
 import * as dalModule from '../dal/index.js';
 import QueryBuilder from '../dal/lib/query-builder.js';
 import Model from '../dal/lib/model.js';
-import typeLib from '../dal/lib/type.js';
+import typesLib from '../dal/lib/type.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 
 /**
@@ -347,7 +347,7 @@ test('QueryBuilder method chaining works correctly', t => {
 });
 
 test('Model constructor maps camelCase fields to snake_case columns', async t => {
-  const type = dalModule.type;
+  const dalTypes = dalModule.types;
   const BaseModel = Model;
 
   const capturedQueries = [];
@@ -369,8 +369,8 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
     dal: mockDAL,
     baseTable: 'tmp_models',
     schema: {
-      id: type.string(),
-      camelCaseField: type.string().default('fallback')
+      id: dalTypes.string(),
+      camelCaseField: dalTypes.string().default('fallback')
     },
     camelToSnake: {
       camelCaseField: 'camel_case_field'
@@ -392,7 +392,7 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
 });
 
 test('Model.getSafeColumnNames excludes sensitive fields', t => {
-    const type = typeLib;
+    const types = typesLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -400,10 +400,10 @@ test('Model.getSafeColumnNames excludes sensitive fields', t => {
   };
 
   const schema = {
-    id: type.string(),
-    name: type.string(),
-    password: type.string().sensitive(),
-    email: type.string()
+    id: types.string(),
+    name: types.string(),
+    password: types.string().sensitive(),
+    email: types.string()
   };
 
   const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
@@ -420,19 +420,19 @@ test('Model.getSafeColumnNames excludes sensitive fields', t => {
 });
 
 test('Model.getColumnNames includes sensitive fields when requested', t => {
-    const type = typeLib;
+    const types = typesLib;
 
   const mockDAL = {
     schemaNamespace: '',
     query: async () => ({ rows: [] })
   };
 
-  const schema = {
-    id: type.string(),
-    name: type.string(),
-    password: type.string().sensitive(),
-    token: type.string().sensitive(),
-    email: type.string()
+    const schema = {
+      id: types.string(),
+      name: types.string(),
+      password: types.string().sensitive(),
+      token: types.string().sensitive(),
+      email: types.string()
   };
 
   const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
@@ -451,7 +451,7 @@ test('Model.getColumnNames includes sensitive fields when requested', t => {
 });
 
 test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
-    const type = typeLib;
+    const types = typesLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -459,12 +459,12 @@ test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
   };
 
   const schema = {
-    id: type.string(),
-    name: type.string(),
-    password: type.string().sensitive(),
-    token: type.string().sensitive(),
-    apiKey: type.string().sensitive(),
-    email: type.string()
+    id: types.string(),
+    name: types.string(),
+    password: types.string().sensitive(),
+    token: types.string().sensitive(),
+    apiKey: types.string().sensitive(),
+    email: types.string()
   };
 
   const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
@@ -481,7 +481,7 @@ test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
 });
 
 test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
-      const type = typeLib;
+      const types = typesLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -489,10 +489,10 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
   };
 
   const schema = {
-    id: type.string(),
-    name: type.string(),
-    password: type.string().sensitive(),
-    email: type.string()
+    id: types.string(),
+    name: types.string(),
+    password: types.string().sensitive(),
+    email: types.string()
   };
 
   const TestModel = Model.createModel('users', schema, {}, mockDAL);
@@ -512,7 +512,7 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
 });
 
 test('QueryBuilder includes sensitive fields when includeSensitive is called', t => {
-      const type = typeLib;
+      const types = typesLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -520,10 +520,10 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
   };
 
   const schema = {
-    id: type.string(),
-    name: type.string(),
-    password: type.string().sensitive(),
-    email: type.string()
+    id: types.string(),
+    name: types.string(),
+    password: types.string().sensitive(),
+    email: types.string()
   };
 
   const TestModel = Model.createModel('users', schema, {}, mockDAL);

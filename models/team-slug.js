@@ -1,13 +1,11 @@
 'use strict';
 
 import { getPostgresDAL } from '../db-postgres.js';
-import { type as typeHelpers } from '../dal/index.js';
+import { types } from '../dal/index.js';
 import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 import { ConstraintError, DuplicateSlugNameError } from '../dal/lib/errors.js';
 import debug from '../util/debug.js';
-
-const type = typeHelpers;
 
 let TeamSlug = null;
 
@@ -25,12 +23,12 @@ async function initializeTeamSlugModel(dal = null) {
 
   try {
     const schema = {
-      id: type.string().uuid(4),
-      teamID: type.string().uuid(4).required(true),
-      slug: type.string().max(255).required(true),
-      createdOn: type.date().default(() => new Date()),
-      createdBy: type.string().uuid(4),
-      name: type.string().max(255)
+      id: types.string().uuid(4),
+      teamID: types.string().uuid(4).required(true),
+      slug: types.string().max(255).required(true),
+      createdOn: types.date().default(() => new Date()),
+      createdBy: types.string().uuid(4),
+      name: types.string().max(255)
     };
 
     const { model, isNew } = initializeModel({

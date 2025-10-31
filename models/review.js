@@ -26,7 +26,7 @@ const { proxy: ReviewHandle, register: registerReviewHandle } = createModelModul
   tableName: 'reviews'
 });
 
-const { type, mlString, revision } = dal;
+const { types, mlString, revision } = dal;
 const { isValid: isValidLanguage } = languages;
 
 const reviewOptions = {
@@ -50,10 +50,10 @@ async function initializeReviewModel(dal = null) {
   try {
     // Create the schema with revision fields and JSONB columns
     const reviewSchema = {
-      id: type.string().uuid(4),
+      id: types.string().uuid(4),
       
       // CamelCase schema fields that map to snake_case database columns
-      thingID: type.string().uuid(4).required(true),
+      thingID: types.string().uuid(4).required(true),
 
       // JSONB multilingual content fields
       title: mlString.getSchema({ maxLength: reviewOptions.maxTitleLength }),
@@ -61,16 +61,16 @@ async function initializeReviewModel(dal = null) {
       html: mlString.getSchema(),
 
       // Relational fields
-      starRating: type.number().min(1).max(5).integer().required(true),
-      createdOn: type.date().required(true),
-      createdBy: type.string().uuid(4).required(true),
-      originalLanguage: type.string().max(4).validator(isValidLanguage),
-      socialImageID: type.string().uuid(4),
+      starRating: types.number().min(1).max(5).integer().required(true),
+      createdOn: types.date().required(true),
+      createdBy: types.string().uuid(4).required(true),
+      originalLanguage: types.string().max(4).validator(isValidLanguage),
+      socialImageID: types.string().uuid(4),
 
       // Virtual permission fields
-      userCanDelete: type.virtual().default(false),
-      userCanEdit: type.virtual().default(false),
-      userIsAuthor: type.virtual().default(false)
+      userCanDelete: types.virtual().default(false),
+      userCanEdit: types.virtual().default(false),
+      userIsAuthor: types.virtual().default(false)
     };
 
     const { model, isNew } = initializeModel({

@@ -20,7 +20,7 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const { type } = dal;
+const { types } = dal;
 const { isValid: isValidLanguage } = languages;
 const { DocumentNotFound } = dalErrors;
 const { initializeModel } = modelInitializer;
@@ -50,16 +50,16 @@ async function initializeBlogPostModel(dal = null) {
 
   try {
     const schema = {
-      id: type.string().uuid(4),
-      teamID: type.string().uuid(4).required(true),
+      id: types.string().uuid(4),
+      teamID: types.string().uuid(4).required(true),
       title: mlString.getSchema({ maxLength: 100 }),
       text: mlString.getSchema(),
       html: mlString.getSchema(),
-      createdOn: type.date().default(() => new Date()),
-      createdBy: type.string().uuid(4).required(true),
-      originalLanguage: type.string().max(4).required(true).validator(isValidLanguage),
-      userCanEdit: type.virtual().default(false),
-      userCanDelete: type.virtual().default(false)
+      createdOn: types.date().default(() => new Date()),
+      createdBy: types.string().uuid(4).required(true),
+      originalLanguage: types.string().max(4).required(true).validator(isValidLanguage),
+      userCanEdit: types.virtual().default(false),
+      userCanDelete: types.virtual().default(false)
     };
 
     const { model, isNew } = initializeModel({
