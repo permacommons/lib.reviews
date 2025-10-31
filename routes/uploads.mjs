@@ -20,7 +20,7 @@ import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
 import slugs from './helpers/slugs.mjs';
 import debug from '../util/debug.mjs';
-import ReportedError from '../util/reported-error.js';
+import ReportedError from '../util/reported-error.mjs';
 import languages from '../locales/languages.js';
 import forms from './helpers/forms.mjs';
 

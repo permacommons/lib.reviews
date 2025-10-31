@@ -9,7 +9,7 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 - Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.js`, `db-postgres.mjs`, `search.js`, `tools/*.js`, `locales/languages.js`).
 - `createRequire(import.meta.url)` still appears in `app.mjs` plus 21 test helpers/specs to reach CommonJS modules; these call sites should switch to direct ESM imports as their dependencies expose compatible entry points.
 - TypeScript-ready surface already exists for tests (`tests/*.mjs`) and Vite (`vite.config.mjs`), easing eventual `allowJs` adoption.
-- Next focus: clean up remaining CommonJS-only utilities (`abstract-generic-error.js`, `abstract-reported-error.js`) to unblock the adapters layer.
+- Next focus: start lifting the adapters directory to ESM; `adapters/adapters.js` still `require`s the error helpers and will need fresh imports once languages/model layers move.
 
 ## Phase 1: ESM Migration
 
@@ -82,6 +82,9 @@ Convert the entire codebase from CommonJS to ESM modules.
   - [x] `flash-store`
   - [x] `frontend-messages`
   - [x] `get-messages`
+  - [x] `abstract-generic-error`
+  - [x] `abstract-reported-error`
+  - [x] `reported-error`
   - [x] `handlebars-helpers`
   - [x] `md`
   - [x] `url-utils`

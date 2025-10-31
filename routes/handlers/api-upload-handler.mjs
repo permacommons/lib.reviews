@@ -7,7 +7,7 @@ import {
   getFileRevs,
   completeUploads
 } from '../uploads.mjs';
-import ReportedError from '../../util/reported-error.js';
+import ReportedError from '../../util/reported-error.mjs';
 import File from '../../models/file.js';
 import api from '../helpers/api.mjs';
 

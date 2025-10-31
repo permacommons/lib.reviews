@@ -1,7 +1,7 @@
 // Adds two helper functions to flash middleware:
 // - flashHas, to look up whether we have data for a given key in the flash
 // - flashError, to store localized error messages in the flash
-import ReportedError from '../../util/reported-error.js';
+import ReportedError from '../../util/reported-error.mjs';
 import debug from '../../util/debug.mjs';
 
 export default function flashMiddleware(req, res, next) {
