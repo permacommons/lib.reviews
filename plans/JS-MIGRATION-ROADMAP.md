@@ -17,9 +17,9 @@ Goal: fully type-check both backend and frontend without sacrificing delivery ve
 - Avoid circular dependencies introduced by splitting type-only modules.
 
 ### Pre-flight inventory
-- [ ] Document the existing module graph (use `depcruise` or similar) and check the artifact into `plans/` for reference.
-- [ ] Audit npm dependencies and record missing or outdated type packages in `plans/ts-migration-deps.md`.
-- [ ] Enable `skipLibCheck: false` locally to surface issues while adding new types.
+- [x] Document the existing module graph (use `depcruise` or similar) and check the artifact into `plans/` for reference (see `plans/module-graph.json`).
+- [x] Audit npm dependencies and record missing or outdated type packages in `plans/ts-migration-deps.md`.
+- [x] Enable `skipLibCheck: false` locally to surface issues while adding new types.
 
 ### Tooling & infrastructure
 - [x] Install TypeScript and type definitions
