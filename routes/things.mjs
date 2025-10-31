@@ -13,7 +13,7 @@ import forms from './helpers/forms.mjs';
 import slugs from './helpers/slugs.mjs';
 import search from '../search.js';
 import getMessages from '../util/get-messages.mjs';
-import urlUtils from '../util/url-utils.js';
+import urlUtils from '../util/url-utils.mjs';
 import signinRequiredRoute from './handlers/signin-required-route.mjs';
 
 const router = express.Router();

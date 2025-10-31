@@ -8,7 +8,7 @@ import User from '../../models/user.js';
 import File from '../../models/file.js';
 import AbstractBREADProvider from './abstract-bread-provider.mjs';
 import mlString from '../../dal/lib/ml-string.js';
-import urlUtils from '../../util/url-utils.js';
+import urlUtils from '../../util/url-utils.mjs';
 import ReportedError from '../../util/reported-error.js';
 import md from '../../util/md.mjs';
 import slugs from '../helpers/slugs.mjs';
