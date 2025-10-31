@@ -3,7 +3,7 @@ import entities from 'entities';
 import stripTags from 'striptags';
 
 // Internal deps
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.mjs';
 import type from './type.mjs';
 import { ValidationError } from './errors.mjs';
 

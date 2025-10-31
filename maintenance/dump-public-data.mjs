@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-'use strict';
-
 /**
  * Create sanitized database dumps for public distribution using SQL views
  *
@@ -8,13 +6,17 @@
  * filtering logic, dumps from those views, then drops them once complete.
  */
 
-const { spawn } = require('child_process');
-const { once } = require('events');
-const fs = require('fs');
-const path = require('path');
-const config = require('config');
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const EXPORT_DIR = path.join(__dirname, '../static/downloads/dumps');
+import config from 'config';
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+
+const EXPORT_DIR = path.join(moduleDir, '../static/downloads/dumps');
 const ISO_DATE = new Date().toISOString().split('T')[0];
 const SQL_FILE = `dump-${ISO_DATE}.sql`;
 const TAR_FILE = `dump-${ISO_DATE}.tgz`;
@@ -282,33 +284,33 @@ async function getTableColumnsString(tableName, env) {
   return columns.join(', ');
 }
 
-async function createViewFromConfig(config, env) {
-  const columns = await getTableColumnNames(config.baseTable, env);
+async function createViewFromConfig(configEntry, env) {
+  const columns = await getTableColumnNames(configEntry.baseTable, env);
   const selectExpressions = columns.map(column => {
-    if (config.selectOverrides && Object.prototype.hasOwnProperty.call(config.selectOverrides, column)) {
-      return `${config.selectOverrides[column]} AS ${column}`;
+    if (configEntry.selectOverrides && Object.prototype.hasOwnProperty.call(configEntry.selectOverrides, column)) {
+      return `${configEntry.selectOverrides[column]} AS ${column}`;
     }
-    return `${config.alias}.${column}`;
+    return `${configEntry.alias}.${column}`;
   });
 
   const selectSection = selectExpressions.map(expr => `  ${expr}`).join(',\n');
   const lines = [
-    `CREATE VIEW ${TEMP_SCHEMA}.${config.name} AS`,
+    `CREATE VIEW ${TEMP_SCHEMA}.${configEntry.name} AS`,
     'SELECT',
     selectSection,
-    `FROM public.${config.baseTable} ${config.alias}`
+    `FROM public.${configEntry.baseTable} ${configEntry.alias}`
   ];
 
-  if (config.joins) {
-    for (const join of config.joins) {
+  if (configEntry.joins) {
+    for (const join of configEntry.joins) {
       const joinType = join.type || 'JOIN';
       const aliasClause = join.alias ? ` ${join.alias}` : '';
       lines.push(`  ${joinType} ${join.target}${aliasClause} ON ${join.on}`);
     }
   }
 
-  if (config.where) {
-    lines.push(`WHERE ${config.where}`);
+  if (configEntry.where) {
+    lines.push(`WHERE ${configEntry.where}`);
   }
 
   const statement = `${lines.join('\n')};`;
@@ -330,8 +332,8 @@ async function copyFromView(targetTable, viewName, outputStream, env, { orderBy 
 async function ensureTempSchema(env) {
   await runCommand('psql', ['-c', `DROP SCHEMA IF EXISTS ${TEMP_SCHEMA} CASCADE`], { env });
   await runCommand('psql', ['-c', `CREATE SCHEMA ${TEMP_SCHEMA}`], { env });
-  for (const config of VIEW_CONFIGS) {
-    await createViewFromConfig(config, env);
+  for (const configEntry of VIEW_CONFIGS) {
+    await createViewFromConfig(configEntry, env);
   }
 }
 

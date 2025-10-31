@@ -2,11 +2,11 @@
 import config from 'config';
 import escapeHTML from 'escape-html';
 import debug from '../util/debug.mjs';
-import { fetchJSON } from '../util/http.js';
+import { fetchJSON } from '../util/http.mjs';
 
 // Internal deps
 import AbstractBackendAdapter from './abstract-backend-adapter.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 
 // How do lib.reviews language code translate to Wikidata language codes?
 // Since Wikidata supports a superset of languages and most language codes

@@ -3,7 +3,7 @@ import debug from '../util/debug.mjs';
 import urlUtils from '../util/url-utils.mjs';
 import ReportedError from '../util/reported-error.mjs';
 import adapters from '../adapters/adapters.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import { createModelModule } from '../dal/lib/model-handle.mjs';
 import ThingSlug from './thing-slug.mjs';

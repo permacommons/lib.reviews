@@ -5,8 +5,8 @@
 import config from 'config';
 import escapeHTML from 'escape-html';
 import debug from '../util/debug.mjs';
-import { fetchJSON } from '../util/http.js';
-import languages from '../locales/languages.js';
+import { fetchJSON } from '../util/http.mjs';
+import languages from '../locales/languages.mjs';
 
 const validLanguages = languages.getValidLanguages();
 

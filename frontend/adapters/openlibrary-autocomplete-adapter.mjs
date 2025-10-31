@@ -1,6 +1,6 @@
 /* global $, AC */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
-import { msg, repaintFocusedHelp } from '../libreviews.js';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.mjs';
+import { msg, repaintFocusedHelp } from '../libreviews.mjs';
 
 /**
  * Perform book metadata lookups on openlibrary.org. Like other frontend

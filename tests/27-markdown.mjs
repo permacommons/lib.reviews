@@ -1,6 +1,7 @@
 import test from 'ava';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import languages from '../locales/languages.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,7 +10,6 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const i18n = require('i18n');
-const languages = require('../locales/languages');
 
 i18n.configure({
   locales: languages.getValidLanguages(),

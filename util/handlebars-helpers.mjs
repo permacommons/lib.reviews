@@ -7,11 +7,11 @@ import linkifyHTML from 'linkify-html';
 
 // Internal dependencies
 import mlString from '../dal/lib/ml-string.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 import thingModelHandle from '../models/thing.mjs';
 import urlUtils from './url-utils.mjs';
 import adapters from '../adapters/adapters.mjs';
-import getLicenseURL from './get-license-url.js';
+import getLicenseURL from './get-license-url.mjs';
 import debug from './debug.mjs';
 
 /**

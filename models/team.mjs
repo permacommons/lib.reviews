@@ -1,6 +1,6 @@
 import dal from '../dal/index.mjs';
 import debug from '../util/debug.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 import User from './user.mjs';
 import Review from './review.mjs';
 import { createModelModule } from '../dal/lib/model-handle.mjs';

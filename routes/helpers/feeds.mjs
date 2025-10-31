@@ -1,5 +1,5 @@
 // Internal dependencies
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.mjs';
 
 const feeds = {
 

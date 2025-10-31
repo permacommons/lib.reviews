@@ -1,10 +1,10 @@
-import $ from './lib/jquery.js';
+import $ from './lib/jquery.mjs';
 import 'jquery-powertip';
 import 'jquery-modal';
 import './styles/vendor.css';
 import './styles/style.less';
 import Autocomplete from './lib/ac.mjs';
-import initializeSisyphus from './lib/sisyphus.js';
+import initializeSisyphus from './lib/sisyphus.mjs';
 
 let initialized = false;
 

@@ -7,7 +7,7 @@ import i18n from 'i18n';
 import Review from '../../models/review.mjs';
 import render from '../helpers/render.mjs';
 import feeds from '../helpers/feeds.mjs';
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.mjs';
 
 const reviewHandlers = {
 

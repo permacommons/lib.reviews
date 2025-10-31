@@ -1,5 +1,5 @@
-import $ from './lib/jquery.js';
-import { msg, validateURL, urlHasSupportedProtocol } from './libreviews.js';
+import $ from './lib/jquery.mjs';
+import { msg, validateURL, urlHasSupportedProtocol } from './libreviews.mjs';
 
 // Front-end code for the /some-thing/manage/urls interface
 

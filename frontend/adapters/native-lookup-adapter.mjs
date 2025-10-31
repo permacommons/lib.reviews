@@ -1,6 +1,6 @@
 /* global $, config */
-import AbstractLookupAdapter from './abstract-lookup-adapter';
-import { resolveString, validateURL } from '../libreviews.js';
+import AbstractLookupAdapter from './abstract-lookup-adapter.mjs';
+import { resolveString, validateURL } from '../libreviews.mjs';
 
 class NativeLookupAdapter extends AbstractLookupAdapter {
 

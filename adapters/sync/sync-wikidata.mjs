@@ -6,7 +6,7 @@ import promiseLimit from 'promise-limit';
 import { initializeDAL } from '../../bootstrap/dal.mjs';
 import Thing from '../../models/thing.mjs';
 import search from '../../search.mjs';
-import WikidataBackendAdapter from '../wikidata-backend-adapter.js';
+import WikidataBackendAdapter from '../wikidata-backend-adapter.mjs';
 
 const wikidata = new WikidataBackendAdapter();
 const limit = promiseLimit(4); // Max 4 concurrent requests

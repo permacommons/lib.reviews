@@ -7,7 +7,7 @@ import Thing from '../models/thing.mjs';
 import Review from '../models/review.mjs';
 import render from './helpers/render.mjs';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 import feeds from './helpers/feeds.mjs';
 import forms from './helpers/forms.mjs';
 import slugs from './helpers/slugs.mjs';

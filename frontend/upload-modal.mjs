@@ -1,8 +1,8 @@
 /* global config */
 'use strict';
 
-import $ from './lib/jquery.js';
-import { msg, trimInput } from './libreviews.js';
+import $ from './lib/jquery.mjs';
+import { msg, trimInput } from './libreviews.mjs';
 
 /**
  * Creates an overlay modal dialog which lets the user upload a single file via

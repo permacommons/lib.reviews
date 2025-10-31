@@ -13,7 +13,7 @@ import {
 } from 'prosemirror-menu';
 
 import unescapeHTML from 'unescape-html';
-import libreviews, { msg } from './libreviews.js';
+import libreviews, { msg } from './libreviews.mjs';
 
 // Load proper translations for built-in items
 undoItem.spec.title = msg('undo');
@@ -24,8 +24,8 @@ liftItem.spec.title = msg('decrease item indentation');
 import { NodeSelection, TextSelection } from 'prosemirror-state';
 import { toggleMark, wrapIn } from 'prosemirror-commands';
 import { wrapInList } from 'prosemirror-schema-list';
-import { TextField, openPrompt } from './editor-prompt';
-import { uploadModal } from './upload-modal';
+import { TextField, openPrompt } from './editor-prompt.mjs';
+import { uploadModal } from './upload-modal.mjs';
 import { guessMediaType } from 'markdown-it-html5-media';
 
 // Helpers to create specific types of items

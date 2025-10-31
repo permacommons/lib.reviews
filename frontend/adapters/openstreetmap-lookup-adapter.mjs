@@ -1,5 +1,5 @@
-import $ from '../lib/jquery.js';
-import AbstractLookupAdapter from './abstract-lookup-adapter';
+import $ from '../lib/jquery.mjs';
+import AbstractLookupAdapter from './abstract-lookup-adapter.mjs';
 
 class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
 

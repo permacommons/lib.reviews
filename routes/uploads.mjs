@@ -14,14 +14,14 @@ import is from 'type-is';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.js';
+import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.mjs';
 import File from '../models/file.mjs';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
 import slugs from './helpers/slugs.mjs';
 import debug from '../util/debug.mjs';
 import ReportedError from '../util/reported-error.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 import forms from './helpers/forms.mjs';
 
 const __filename = fileURLToPath(import.meta.url);

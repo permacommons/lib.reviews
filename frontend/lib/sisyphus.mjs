@@ -1,4 +1,4 @@
-import $ from './jquery.js';
+import $ from './jquery.mjs';
 import sisyphusSource from 'sisyphus.js/sisyphus.js?raw';
 
 let sisyphusInitialized = false;

@@ -5,7 +5,7 @@ import TeamJoinRequest from '../models/team-join-request.mjs';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
 import mlString from '../dal/lib/ml-string.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 import slugs from './helpers/slugs.mjs';
 
 // Default routes for read, edit, add, delete

@@ -8,7 +8,7 @@ import {
   defaultMarkdownSerializer
 } from 'prosemirror-markdown';
 import { Schema } from 'prosemirror-model';
-import { msg } from './libreviews.js';
+import { msg } from './libreviews.mjs';
 
 const md = new MarkdownIt('commonmark', { html: false });
 

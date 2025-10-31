@@ -1,6 +1,6 @@
 /* global $, config */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter';
-import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.mjs';
+import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.mjs';
 
 /**
  * This module performs shallow lookups on Wikidata. They are shallow in that

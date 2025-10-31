@@ -1,10 +1,10 @@
 {
-  "lib": "frontend/libreviews.js",
-  "editor": "frontend/editor.js",
-  "review": "frontend/review.js",
-  "register": "frontend/register.js",
-  "upload": "frontend/upload.js",
-  "user": "frontend/user.js",
-  "manage-urls": "frontend/manage-urls.js",
-  "upload-modal": "frontend/upload-modal.js"
+  "lib": "frontend/libreviews.mjs",
+  "editor": "frontend/editor.mjs",
+  "review": "frontend/review.mjs",
+  "register": "frontend/register.mjs",
+  "upload": "frontend/upload.mjs",
+  "user": "frontend/user.mjs",
+  "manage-urls": "frontend/manage-urls.mjs",
+  "upload-modal": "frontend/upload-modal.mjs"
 }

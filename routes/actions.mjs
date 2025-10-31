@@ -10,7 +10,7 @@ import InviteLink from '../models/invite-link.mjs';
 import debug from '../util/debug.mjs';
 import actionHandler from './handlers/action-handler.mjs';
 import signinRequiredRoute from './handlers/signin-required-route.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 import search from '../search.mjs';
 
 const router = express.Router();

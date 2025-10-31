@@ -7,7 +7,7 @@ import i18n from 'i18n';
 import AbstractBREADProvider from './abstract-bread-provider.mjs';
 import BlogPost from '../../models/blog-post.mjs';
 import mlString from '../../dal/lib/ml-string.mjs';
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.mjs';
 import feeds from '../helpers/feeds.mjs';
 import slugs from '../helpers/slugs.mjs';
 import frontendMessages from '../../util/frontend-messages.mjs';

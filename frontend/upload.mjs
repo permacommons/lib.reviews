@@ -1,5 +1,5 @@
-import $ from './lib/jquery.js';
-import { msg } from './libreviews.js';
+import $ from './lib/jquery.mjs';
+import { msg } from './libreviews.mjs';
 
 const $uploadInput = $('#upload-input');
 const $startUpload = $('#start-upload');

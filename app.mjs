@@ -15,7 +15,6 @@ import session from 'express-session';
 import favicon from 'serve-favicon';
 import fs from 'node:fs';
 import hbs from 'hbs'; // handlebars templating
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import i18n from 'i18n';
@@ -25,7 +24,7 @@ import serveIndex from 'serve-index';
 import csp from 'helmet-csp'; // Content security policy
 import expressUserAgent from 'express-useragent';
 
-import { csrfSynchronisedProtection } from './util/csrf.js';
+import { csrfSynchronisedProtection } from './util/csrf.mjs';
 import { initializeDAL } from './bootstrap/dal.mjs';
 import ErrorProvider from './routes/errors.mjs';
 import apiHelper from './routes/helpers/api.mjs';
@@ -35,13 +34,15 @@ import debug from './util/debug.mjs';
 import flashStore from './util/flash-store.mjs';
 import WebHookDispatcher from './util/webhooks.mjs';
 import './util/handlebars-helpers.mjs';
+import languages from './locales/languages.mjs';
+
+import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
 // Internal dependencies
 const hbsUtilsFactory = require('hbs-utils');
 const connectPgSimple = require('connect-pg-simple');
-const languages = require('./locales/languages');
 
 const hbsutils = hbsUtilsFactory(hbs);
 const pgSession = connectPgSimple(session);

@@ -1,5 +1,5 @@
-import $ from './lib/jquery.js';
-import { msg } from './libreviews.js';
+import $ from './lib/jquery.mjs';
+import { msg } from './libreviews.mjs';
 
 // Helper module for menu prompts. Derived from
 // https://github.com/ProseMirror/prosemirror-example-setup/blob/master/src/prompt.js

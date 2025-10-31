@@ -4,7 +4,7 @@ import { parse as parseURL } from 'node:url';
 import clientAssets from '../../util/client-assets.mjs';
 
 // Internal dependencies
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.mjs';
 
 const render = {
 

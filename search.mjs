@@ -3,7 +3,7 @@ import config from 'config';
 
 import debug from './util/debug.mjs';
 import mlString from './dal/lib/ml-string.mjs';
-import languages from './locales/languages.js';
+import languages from './locales/languages.mjs';
 
 let client;
 

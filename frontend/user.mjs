@@ -1,4 +1,4 @@
-import $ from './lib/jquery.js';
+import $ from './lib/jquery.mjs';
 
 const $bioTextarea = $('#bio-textarea');
 

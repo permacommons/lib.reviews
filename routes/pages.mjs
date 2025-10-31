@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import render from './helpers/render.mjs';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.mjs';
 
 const router = express.Router();
 

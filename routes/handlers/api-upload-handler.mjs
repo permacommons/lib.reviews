@@ -1,6 +1,6 @@
 import escapeHTML from 'escape-html';
 
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.mjs';
 import {
   validateFiles,
   cleanupFiles,

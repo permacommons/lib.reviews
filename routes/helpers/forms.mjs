@@ -2,7 +2,7 @@ import config from 'config';
 import escapeHTML from 'escape-html';
 import md from '../../util/md.mjs';
 import urlUtils from '../../util/url-utils.mjs';
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.mjs';
 
 // Used for field names in forms that support UUID wildcards
 const uuidRegex = '([a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89aAbB][a-f0-9]{3}-[a-f0-9]{12})';

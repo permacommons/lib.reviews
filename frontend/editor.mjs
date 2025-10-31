@@ -4,7 +4,7 @@ import 'prosemirror-view/style/prosemirror.css';
 import 'prosemirror-menu/style/menu.css';
 import './styles/editor-overrides.css';
 
-import $ from './lib/jquery.js';
+import $ from './lib/jquery.mjs';
 
 // This file integrates the ProseMirror RTE for textareas that have the
 // data-markdown attribute set. The switcher between the two modes is rendered
@@ -22,21 +22,21 @@ import { dropCursor } from 'prosemirror-dropcursor';
 import { history } from 'prosemirror-history';
 
 // Custom input rules, e.g. # for headline
-import { buildInputRules } from './editor-inputrules';
+import { buildInputRules } from './editor-inputrules.mjs';
 
 // Custom keymap
-import { getExtendedKeymap } from './editor-extended-keymap';
+import { getExtendedKeymap } from './editor-extended-keymap.mjs';
 
 // Custom menu
-import { buildMenuItems } from './editor-menu';
+import { buildMenuItems } from './editor-menu.mjs';
 
 // For tracking contentEditable selection
-import { saveSelection, restoreSelection } from './editor-selection';
+import { saveSelection, restoreSelection } from './editor-selection.mjs';
 
 // For parsing, serializing and tokenizing markdown including our custom
 // markup for spoiler/NSFW warnings
-import { markdownParser, markdownSerializer, markdownSchema } from './editor-markdown';
-import libreviews, { addHelpListeners, msg } from './libreviews.js';
+import { markdownParser, markdownSerializer, markdownSchema } from './editor-markdown.mjs';
+import libreviews, { addHelpListeners, msg } from './libreviews.mjs';
 
 // ProseMirror provides no native way to enable/disable the editor, so
 // we add it here
