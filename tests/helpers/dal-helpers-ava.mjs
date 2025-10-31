@@ -1,6 +1,5 @@
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
+import revision from '../../dal/lib/revision.mjs';
+import type from '../../dal/lib/type.mjs';
 
 /**
  * AVA-compatible helper functions for DAL testing
@@ -16,17 +15,14 @@ const require = createRequire(import.meta.url);
  * Get common model definitions for AVA testing
  */
 export function getTestModelDefinitionsAVA() {
-  const Type = require('../../dal/lib/type');
-  const revision = require('../../dal/lib/revision');
-  
   return [
     {
       name: 'revisions', // Will be prefixed by fixture
       hasRevisions: true,
       schema: {
-        id: Type.string().uuid(4),
-        title: Type.string().max(255),
-        content: Type.string(),
+        id: type.string().uuid(4),
+        title: type.string().max(255),
+        content: type.string(),
         ...revision.getSchema()
       },
       options: {}
@@ -35,10 +31,10 @@ export function getTestModelDefinitionsAVA() {
       name: 'users', // Will be prefixed by fixture
       hasRevisions: false,
       schema: {
-        id: Type.string().uuid(4),
-        display_name: Type.string().max(255).required(true),
-        canonical_name: Type.string().max(255).required(true),
-        email: Type.string().email().required(true)
+        id: type.string().uuid(4),
+        display_name: type.string().max(255).required(true),
+        canonical_name: type.string().max(255).required(true),
+        email: type.string().email().required(true)
       },
       options: {}
     }

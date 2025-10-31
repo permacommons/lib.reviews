@@ -1,7 +1,7 @@
 import debug from '../util/debug.mjs';
-import dal from '../dal/index.js';
+import dal from '../dal/index.mjs';
 import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import { getPostgresDAL } from '../db-postgres.mjs';
 
 const { type } = dal;

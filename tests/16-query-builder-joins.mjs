@@ -1,11 +1,9 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
-
-const require = createRequire(import.meta.url);
+import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
 /**
  * Test suite for QueryBuilder join functionality
@@ -36,14 +34,7 @@ test.before(async () => {
   await bootstrapPromise;
 
   // Stub search module to avoid starting Elasticsearch clients during tests
-  const searchPath = require.resolve('../search');
-  require.cache[searchPath] = {
-    exports: {
-      indexThing() {},
-      searchThings: async () => ({}),
-      getClient: () => ({})
-    }
-  };
+  mockSearch();
 
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
@@ -535,5 +526,6 @@ test('QueryBuilder handles empty results gracefully', async t => {
 });
 
 test.after.always(async () => {
+  unmockSearch();
   await dalFixture.cleanup();
 });

@@ -7,14 +7,14 @@
 
 import config from 'config';
 import debug from './util/debug.mjs';
-import PostgresDALModule from './dal/index.js';
+import PostgresDALModule from './dal/index.mjs';
 
 const PostgresDALFactory = typeof PostgresDALModule === 'function'
   ? PostgresDALModule
   : PostgresDALModule?.default;
 
 if (typeof PostgresDALFactory !== 'function') {
-  throw new TypeError('Postgres DAL factory not found. Ensure ./dal/index.js exports a constructor.');
+  throw new TypeError('Postgres DAL factory not found. Ensure ./dal/index.mjs exports a constructor.');
 }
 
 let postgresDAL = null;

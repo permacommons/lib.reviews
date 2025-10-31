@@ -5,7 +5,7 @@
 import promiseLimit from 'promise-limit';
 import { initializeDAL } from '../../bootstrap/dal.mjs';
 import Thing from '../../models/thing.mjs';
-import search from '../../search.js';
+import search from '../../search.mjs';
 import WikidataBackendAdapter from '../wikidata-backend-adapter.js';
 
 const wikidata = new WikidataBackendAdapter();

@@ -1,7 +1,6 @@
-import { createRequire } from 'module';
+const { default: searchModule } = await import('../../search.mjs');
 
-const require = createRequire(import.meta.url);
-const searchPath = require.resolve('../../search');
+const originalSearchEntries = Object.entries(searchModule).map(([key, value]) => [key, value]);
 
 export function mockSearch(indexedItems = []) {
   const captured = {
@@ -54,13 +53,14 @@ export function mockSearch(indexedItems = []) {
     close: () => {}
   };
 
-  require.cache[searchPath] = {
-    exports: mock
-  };
+  Object.assign(searchModule, mock);
 
   return captured;
 }
 
 export function unmockSearch() {
-  delete require.cache[searchPath];
+  for (const [key, value] of originalSearchEntries) {
+    searchModule[key] = value;
+  }
 }
+

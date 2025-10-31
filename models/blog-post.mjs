@@ -1,10 +1,10 @@
-import dal from '../dal/index.js';
-import mlString from '../dal/lib/ml-string.js';
+import dal from '../dal/index.mjs';
+import mlString from '../dal/lib/ml-string.mjs';
 import languages from '../locales/languages.js';
 import debug from '../util/debug.mjs';
-import dalErrors from '../dal/lib/errors.js';
+import dalErrors from '../dal/lib/errors.mjs';
 import User from './user.mjs';
-import modelInitializer from '../dal/lib/model-initializer.js';
+import modelInitializer from '../dal/lib/model-initializer.mjs';
 import modelHandle from '../dal/lib/model-handle.mjs';
 
 let postgresModulePromise;

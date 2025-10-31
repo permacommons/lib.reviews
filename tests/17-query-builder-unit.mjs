@@ -1,7 +1,10 @@
 import test from 'ava';
-import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
+import * as dalModule from '../dal/index.mjs';
+import QueryBuilder from '../dal/lib/query-builder.mjs';
+import Model from '../dal/lib/model.mjs';
+import typeLib from '../dal/lib/type.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 
 /**
  * Unit tests for QueryBuilder functionality
@@ -10,8 +13,7 @@ const require = createRequire(import.meta.url);
  */
 
 test('QueryBuilder can be instantiated', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -24,8 +26,7 @@ test('QueryBuilder can be instantiated', t => {
 });
 
 test('QueryBuilder supports filter method', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -39,8 +40,7 @@ test('QueryBuilder supports filter method', t => {
 });
 
 test('QueryBuilder supports orderBy method', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -55,8 +55,7 @@ test('QueryBuilder supports orderBy method', t => {
 });
 
 test('QueryBuilder supports limit method', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -70,8 +69,7 @@ test('QueryBuilder supports limit method', t => {
 });
 
 test('QueryBuilder supports offset method', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -85,8 +83,7 @@ test('QueryBuilder supports offset method', t => {
 });
 
 test('QueryBuilder supports revision filtering', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -108,8 +105,7 @@ test('QueryBuilder supports revision filtering', t => {
 });
 
 test('QueryBuilder supports revision tag filtering', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -129,8 +125,7 @@ test('QueryBuilder supports revision tag filtering', t => {
 });
 
 test('QueryBuilder supports between date ranges', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -150,8 +145,7 @@ test('QueryBuilder supports between date ranges', t => {
 });
 
 test('QueryBuilder supports array contains operations', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -172,8 +166,7 @@ test('QueryBuilder supports array contains operations', t => {
 });
 
 test('QueryBuilder supports simple joins', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'reviews' };
+    const mockModel = { tableName: 'reviews' };
   const mockDAL = { schemaNamespace: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -186,8 +179,7 @@ test('QueryBuilder supports simple joins', t => {
 });
 
 test('QueryBuilder supports complex joins with _apply', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = { tableName: 'reviews' };
+    const mockModel = { tableName: 'reviews' };
   const mockDAL = { schemaNamespace: '' };
   
   const qb = new QueryBuilder(mockModel, mockDAL);
@@ -204,8 +196,7 @@ test('QueryBuilder supports complex joins with _apply', t => {
 });
 
 test('QueryBuilder builds SELECT queries correctly', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -229,8 +220,7 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 });
 
 test('QueryBuilder builds COUNT queries correctly', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -248,8 +238,7 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 });
 
 test('QueryBuilder builds DELETE queries correctly', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -266,8 +255,7 @@ test('QueryBuilder builds DELETE queries correctly', t => {
 });
 
 test('QueryBuilder handles join information lookup', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const relationMap = new Map([
+    const relationMap = new Map([
     ['thing', {
       targetTable: 'things',
       sourceKey: 'thing_id',
@@ -314,8 +302,7 @@ test('QueryBuilder handles join information lookup', t => {
 });
 
 test('QueryBuilder handles schema namespace prefixing', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -334,8 +321,7 @@ test('QueryBuilder handles schema namespace prefixing', t => {
 });
 
 test('QueryBuilder method chaining works correctly', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name', 'created_on']
   };
@@ -361,9 +347,8 @@ test('QueryBuilder method chaining works correctly', t => {
 });
 
 test('Model constructor maps camelCase fields to snake_case columns', async t => {
-  const { initializeModel } = require('../dal/lib/model-initializer');
-  const type = require('../dal').type;
-  const BaseModel = require('../dal/lib/model');
+  const type = dalModule.type;
+  const BaseModel = Model;
 
   const capturedQueries = [];
   const mockDAL = {
@@ -407,8 +392,7 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
 });
 
 test('Model.getSafeColumnNames excludes sensitive fields', t => {
-  const Model = require('../dal/lib/model');
-  const type = require('../dal/lib/type');
+    const type = typeLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -436,8 +420,7 @@ test('Model.getSafeColumnNames excludes sensitive fields', t => {
 });
 
 test('Model.getColumnNames includes sensitive fields when requested', t => {
-  const Model = require('../dal/lib/model');
-  const type = require('../dal/lib/type');
+    const type = typeLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -468,8 +451,7 @@ test('Model.getColumnNames includes sensitive fields when requested', t => {
 });
 
 test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
-  const Model = require('../dal/lib/model');
-  const type = require('../dal/lib/type');
+    const type = typeLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -499,9 +481,7 @@ test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
 });
 
 test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const Model = require('../dal/lib/model');
-  const type = require('../dal/lib/type');
+      const type = typeLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -532,9 +512,7 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
 });
 
 test('QueryBuilder includes sensitive fields when includeSensitive is called', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const Model = require('../dal/lib/model');
-  const type = require('../dal/lib/type');
+      const type = typeLib;
 
   const mockDAL = {
     schemaNamespace: '',
@@ -566,8 +544,7 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
 });
 
 test('QueryBuilder.includeSensitive accepts string or array', t => {
-  const QueryBuilder = require('../dal/lib/query-builder');
-  const mockModel = {
+    const mockModel = {
     tableName: 'test_table',
     getColumnNames: () => ['id', 'name']
   };

@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Model factory helpers for the PostgreSQL DAL.
  */
@@ -55,6 +53,8 @@ function getOrCreateModel(dal, tableName, schema, options = {}) {
   return { model, isNew: true };
 }
 
-module.exports = {
-  getOrCreateModel
-};
+const factory = { getOrCreateModel };
+
+export { getOrCreateModel };
+export default factory;
+

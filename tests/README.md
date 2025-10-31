@@ -82,8 +82,5 @@ to scale it down.
 - Use unique `schemaNamespace` values per test file to avoid schema name clashes.
 - For suites that share mutable tables across tests, prefer `test.serial` or
   isolate the work by giving each test its own schema namespace.
-- When stubbing modules (for example `../search`), remove them from
-  `require.cache` in an `after.always` hook so the next test sees the real
-  implementation.
 - If you add asynchronous teardown logic outside the fixture, await it inside a
   `test.after.always` hook; otherwise AVA reports “Failed to exit” timeouts.

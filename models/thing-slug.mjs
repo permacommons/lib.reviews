@@ -1,6 +1,6 @@
-import dal from '../dal/index.js';
-import { ConstraintError } from '../dal/lib/errors.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import dal from '../dal/index.mjs';
+import { ConstraintError } from '../dal/lib/errors.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import debug from '../util/debug.mjs';
 import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
 

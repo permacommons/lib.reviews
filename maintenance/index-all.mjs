@@ -1,7 +1,7 @@
 // Set up indices and update all reviews and review subjects (things)
 
 import { initializeDAL } from '../bootstrap/dal.mjs';
-import search from '../search.js';
+import search from '../search.mjs';
 import debug from '../util/debug.mjs';
 import promiseLimit from 'promise-limit';
 import Thing from '../models/thing.mjs';

@@ -1,4 +1,4 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.mjs';
 import debug from '../util/debug.mjs';
 import ReportedError from '../util/reported-error.mjs';
 import languages from '../locales/languages.js';
@@ -6,7 +6,7 @@ import adapters from '../adapters/adapters.mjs';
 import Thing from './thing.mjs';
 import Team from './team.mjs';
 import { createModelModule } from '../dal/lib/model-handle.mjs';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import { randomUUID } from 'crypto';
 
 let postgresModulePromise;

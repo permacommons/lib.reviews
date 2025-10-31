@@ -1,11 +1,11 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.mjs';
 import bcrypt from 'bcrypt';
 import ReportedError from '../util/reported-error.mjs';
 import debug from '../util/debug.mjs';
 import UserMeta from './user-meta.mjs';
 import Team from './team.mjs';
-import { DocumentNotFound } from '../dal/lib/errors.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import { DocumentNotFound } from '../dal/lib/errors.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import { createModelModule } from '../dal/lib/model-handle.mjs';
 
 let postgresModulePromise;

@@ -4,7 +4,7 @@ import TeamProvider from './handlers/team-provider.mjs';
 import TeamJoinRequest from '../models/team-join-request.mjs';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
-import mlString from '../dal/lib/ml-string.js';
+import mlString from '../dal/lib/ml-string.mjs';
 import languages from '../locales/languages.js';
 import slugs from './helpers/slugs.mjs';
 

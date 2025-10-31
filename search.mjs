@@ -1,7 +1,9 @@
-'use strict';
-const elasticsearch = require('elasticsearch');
-const config = require('config');
-const debug = require('./util/debug');
+import elasticsearch from 'elasticsearch';
+import config from 'config';
+
+import debug from './util/debug.mjs';
+import mlString from './dal/lib/ml-string.mjs';
+import languages from './locales/languages.js';
 
 let client;
 
@@ -17,9 +19,6 @@ function getClient() {
     client = createClient();
   return client;
 }
-const mlString = require('./dal/lib/ml-string');
-const languages = require('./locales/languages');
-
 // All supported stemmers as of ElasticSearch 5.2.0
 let analyzers = {
   ar: 'arabic',
@@ -456,4 +455,6 @@ let search = {
 
 };
 
-module.exports = search;
+export { search };
+export default search;
+

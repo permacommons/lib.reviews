@@ -1,14 +1,14 @@
-'use strict';
-
 // External deps
-const decodeHTML = require('entities').decodeHTML;
-const stripTags = require('striptags');
+import entities from 'entities';
+import stripTags from 'striptags';
 
 // Internal deps
-const languages = require('../../locales/languages');
+import languages from '../../locales/languages.js';
+import type from './type.mjs';
+import { ValidationError } from './errors.mjs';
+
+const { decodeHTML } = entities;
 const langKeys = languages.getValidLanguagesAndUndetermined();
-const type = require('./type');
-const { ValidationError } = require('./errors');
 
 /**
  * Helper methods for handling multilingual strings in PostgreSQL JSONB columns.
@@ -284,4 +284,5 @@ const mlString = {
 
 };
 
-module.exports = mlString;
+export { mlString };
+export default mlString;

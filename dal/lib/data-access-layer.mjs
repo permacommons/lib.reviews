@@ -1,4 +1,12 @@
-'use strict';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+import { Pool } from 'pg';
+
+import debug from '../../util/debug.mjs';
+import Model from './model.mjs';
+import QueryBuilder from './query-builder.mjs';
+import ModelRegistry from './model-registry.js';
 
 /**
  * Main Data Access Layer class for PostgreSQL
@@ -7,14 +15,6 @@
  * functionality. This class serves as the main interface between the
  * application and the PostgreSQL database.
  */
-
-const { Pool } = require('pg');
-const Model = require('./model');
-const QueryBuilder = require('./query-builder');
-const debug = require('../../util/debug');
-const fs = require('fs').promises;
-const path = require('path');
-const ModelRegistry = require('./model-registry');
 
 class DataAccessLayer {
   constructor(config = {}) {
@@ -298,4 +298,5 @@ class DataAccessLayer {
   }
 }
 
-module.exports = DataAccessLayer;
+export { DataAccessLayer };
+export default DataAccessLayer;

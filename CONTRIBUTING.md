@@ -205,9 +205,9 @@ Models use a handle-based pattern that allows synchronous imports:
 
 ```javascript
 // models/user.mjs
-import dal from '../dal/index.js';
+import dal from '../dal/index.mjs';
 import { createModelModule } from '../dal/lib/model-handle.mjs';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 
 const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'

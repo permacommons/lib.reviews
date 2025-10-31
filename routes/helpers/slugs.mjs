@@ -2,7 +2,7 @@
 import isUUID from 'is-uuid';
 
 // Internal dependencies
-import errors from '../../dal/lib/errors.js';
+import errors from '../../dal/lib/errors.mjs';
 import Team from '../../models/team.mjs';
 import Thing from '../../models/thing.mjs';
 import ThingSlug from '../../models/thing-slug.mjs';

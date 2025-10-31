@@ -1,13 +1,11 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { createRequire } from 'module';
 import { setupPostgresTest } from './helpers/setup-postgres-test.mjs';
 
 import { ensureUserExists } from './helpers/dal-helpers-ava.mjs';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.mjs';
 
-const require = createRequire(import.meta.url);
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_validation',
@@ -47,7 +45,7 @@ test.beforeEach(() => {
 
 test.serial('searchThings API maintains compatibility with existing interface', async t => {
   
-  const search = require('../search');
+  const { default: search } = await import('../search.mjs');
   
   // Test basic search
   await search.searchThings('test query', 'en');
@@ -62,7 +60,7 @@ test.serial('searchThings API maintains compatibility with existing interface', 
 
 test.serial('searchReviews API maintains compatibility with existing interface', async t => {
   
-  const search = require('../search');
+  const { default: search } = await import('../search.mjs');
   
   // Test basic search
   await search.searchReviews('review query', 'de');
@@ -77,7 +75,7 @@ test.serial('searchReviews API maintains compatibility with existing interface',
 
 test.serial('suggestThing API maintains compatibility with existing interface', async t => {
   
-  const search = require('../search');
+  const { default: search } = await import('../search.mjs');
   
   // Test suggestion
   await search.suggestThing('test', 'fr');
@@ -92,7 +90,7 @@ test.serial('suggestThing API maintains compatibility with existing interface', 
 
 test.serial('search queries include new PostgreSQL fields', async t => {
   
-  const search = require('../search');
+  const { default: search } = await import('../search.mjs');
   
   // Create test data with PostgreSQL structure
   const testUserId = randomUUID();
@@ -209,7 +207,7 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
 
 test.serial('search API error handling remains consistent', async t => {
   
-  const search = require('../search');
+  const { default: search } = await import('../search.mjs');
   
   // Test with invalid parameters (should not throw)
   await t.notThrowsAsync(async () => {
@@ -227,7 +225,7 @@ test.serial('search API error handling remains consistent', async t => {
 
 test.serial('search results structure remains compatible', async t => {
   
-  const search = require('../search');
+  const { default: search } = await import('../search.mjs');
   
   // Set up mock response with expected structure
   mockSearchResponse.hits = {

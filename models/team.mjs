@@ -1,10 +1,10 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.mjs';
 import debug from '../util/debug.mjs';
 import languages from '../locales/languages.js';
 import User from './user.mjs';
 import Review from './review.mjs';
 import { createModelModule } from '../dal/lib/model-handle.mjs';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import unescapeHTML from 'unescape-html';
 import isUUID from 'is-uuid';
 import { randomUUID } from 'crypto';

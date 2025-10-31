@@ -6,7 +6,7 @@ import i18n from 'i18n';
 // Internal dependencies
 import AbstractBREADProvider from './abstract-bread-provider.mjs';
 import BlogPost from '../../models/blog-post.mjs';
-import mlString from '../../dal/lib/ml-string.js';
+import mlString from '../../dal/lib/ml-string.mjs';
 import languages from '../../locales/languages.js';
 import feeds from '../helpers/feeds.mjs';
 import slugs from '../helpers/slugs.mjs';

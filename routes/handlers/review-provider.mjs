@@ -7,12 +7,12 @@ import Team from '../../models/team.mjs';
 import User from '../../models/user.mjs';
 import File from '../../models/file.mjs';
 import AbstractBREADProvider from './abstract-bread-provider.mjs';
-import mlString from '../../dal/lib/ml-string.js';
+import mlString from '../../dal/lib/ml-string.mjs';
 import urlUtils from '../../util/url-utils.mjs';
 import ReportedError from '../../util/reported-error.mjs';
 import md from '../../util/md.mjs';
 import slugs from '../helpers/slugs.mjs';
-import search from '../../search.js';
+import search from '../../search.mjs';
 import getMessages from '../../util/get-messages.mjs';
 import frontendMessages from '../../util/frontend-messages.mjs';
 

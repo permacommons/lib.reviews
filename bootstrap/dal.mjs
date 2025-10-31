@@ -8,7 +8,7 @@
 
 import config from 'config';
 import debug from '../util/debug.mjs';
-import PostgresDAL from '../dal/index.js';
+import PostgresDAL from '../dal/index.mjs';
 
 import userModule from '../models/user.mjs';
 import userMetaModule from '../models/user-meta.mjs';
@@ -26,7 +26,7 @@ import { setBootstrapResolver } from '../dal/lib/model-handle.mjs';
 
 const PostgresDALFactory = typeof PostgresDAL === 'function' ? PostgresDAL : PostgresDAL?.default;
 if (typeof PostgresDALFactory !== 'function') {
-  throw new TypeError('Postgres DAL factory not found. Ensure ../dal/index.js exports a function.');
+  throw new TypeError('Postgres DAL factory not found. Ensure ../dal/index.mjs exports a function.');
 }
 
 const DEFAULT_MODEL_INITIALIZERS = [
@@ -72,7 +72,7 @@ async function tryReuseSharedDAL() {
 /**
  * Initialize the DAL and register all models.
  * @param {Object|null} customConfig Optional custom configuration (primarily for tests).
- * @returns {Promise<import('../dal/lib/data-access-layer.js')>}
+ * @returns {Promise<import('../dal/lib/data-access-layer.mjs')>}
  */
 export async function initializeDAL(customConfig = null) {
   if (initializationPromise) {

@@ -1,6 +1,6 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.mjs';
 import debug from '../util/debug.mjs';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
 
 let postgresModulePromise;

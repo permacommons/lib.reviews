@@ -1,9 +1,8 @@
-import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
 import { logNotice, logOK } from '../helpers/test-helpers.mjs';
 import { createTestHarness } from '../../bootstrap/dal.mjs';
-
-const require = createRequire(import.meta.url);
+import pgModule from 'pg';
+import { initializeModel } from '../../dal/lib/model-initializer.mjs';
 
 /**
  * AVA-compatible PostgreSQL DAL fixture for testing
@@ -105,8 +104,6 @@ class DALFixtureAVA {
       : [];
 
     if (modelDefinitions.length > 0) {
-      const { initializeModel } = require('../../dal/lib/model-initializer');
-
       logNotice('Creating DAL models for AVA tests.');
 
       for (const modelDef of modelDefinitions) {
@@ -258,7 +255,7 @@ class DALFixtureAVA {
     this.skipReason = null;
 
     try {
-      const pg = require('pg');
+      const pg = pgModule;
       if (pg?.pools?.all) {
         await Promise.all(Array.from(pg.pools.all).map(async ([, pool]) => {
           try {

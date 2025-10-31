@@ -6,7 +6,7 @@ import stripTags from 'striptags';
 import linkifyHTML from 'linkify-html';
 
 // Internal dependencies
-import mlString from '../dal/lib/ml-string.js';
+import mlString from '../dal/lib/ml-string.mjs';
 import languages from '../locales/languages.js';
 import thingModelHandle from '../models/thing.mjs';
 import urlUtils from './url-utils.mjs';

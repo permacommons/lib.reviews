@@ -1,12 +1,10 @@
-'use strict';
+import { ValidationError } from './errors.mjs';
 
 /**
  * Type system for PostgreSQL DAL
  *
  * Provides type definitions and validation for model schemas.
  */
-
-const { ValidationError } = require('./errors');
 
 /**
  * Base type class
@@ -369,9 +367,21 @@ const type = {
   array: (elementType, options) => new ArrayType(elementType, options),
   object: (options) => new ObjectType(options),
   virtual: (options) => new VirtualType(options),
-  
+
   // Aliases for compatibility
   any: (options) => new Type(options)
 };
 
-module.exports = type;
+export {
+  Type,
+  StringType,
+  NumberType,
+  BooleanType,
+  DateType,
+  ArrayType,
+  ObjectType,
+  VirtualType,
+  type
+};
+
+export default type;

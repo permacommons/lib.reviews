@@ -1,16 +1,13 @@
 'use strict';
 
-import { createRequire } from 'node:module';
 import { getPostgresDAL } from '../db-postgres.mjs';
+import { type as typeHelpers } from '../dal/index.mjs';
 import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
+import { ConstraintError, DuplicateSlugNameError } from '../dal/lib/errors.mjs';
+import debug from '../util/debug.mjs';
 
-const require = createRequire(import.meta.url);
-
-const dal = require('../dal');
-const type = dal.type;
-const debug = require('../util/debug');
-const { initializeModel } = require('../dal/lib/model-initializer');
-const { ConstraintError, DuplicateSlugNameError } = require('../dal/lib/errors');
+const type = typeHelpers;
 
 let TeamSlug = null;
 

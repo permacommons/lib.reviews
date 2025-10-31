@@ -6,7 +6,7 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 
 - 109 `.js` files remain in CommonJS across the repository (runtime + tooling; excludes `.mjs` tests and generated `build/` artifacts).
 - Backend entry points: `bin/www.mjs` and `app.mjs` now run as ESM and share the ESM-native `bootstrap/dal.mjs`; the legacy `bootstrap/dal.js` entry has been removed so stale `require` calls fail fast.
-- Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.mjs`, `db-postgres.mjs`, `search.js`, `tools/*.js`, `locales/languages.js`).
+- Directory breakdown: adapters (7), dal (12), models (11), routes (28 incl. helpers), util (15), maintenance (5), frontend legacy (25), single-file modules (`auth.mjs`, `db-postgres.mjs`, `search.mjs`, `tools/*.js`, `locales/languages.js`).
 - `createRequire(import.meta.url)` still appears in `app.mjs` plus 21 test helpers/specs to reach CommonJS modules; these call sites should switch to direct ESM imports as their dependencies expose compatible entry points.
 - TypeScript-ready surface already exists for tests (`tests/*.mjs`) and Vite (`vite.config.mjs`), easing eventual `allowJs` adoption.
 - Next focus: DAL
@@ -50,6 +50,9 @@ This document tracks the three-phase migration of lib.reviews to modern tooling.
 
 ### DAL Layer (~188 KB)
 - [ ] Convert `/dal/*.js` data access layer
+  - [x] Core libraries: `lib/errors`, `lib/type`, `lib/ml-string`, `lib/revision`
+  - [x] Model infrastructure: `lib/model`, `lib/query-builder`, `lib/model-factory`, `lib/model-initializer`, `lib/data-access-layer`, `index`
+  - [ ] Remaining helpers: `lib/model-handle.js`, `lib/model-registry.js`, fixtures/tests still using CommonJS bridges
 - [ ] Update database connection handling
 - [ ] Verify revision system compatibility
 

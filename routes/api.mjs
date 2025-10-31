@@ -3,7 +3,7 @@ import express from 'express';
 import User from '../models/user.mjs';
 import Thing from '../models/thing.mjs';
 import actionHandler from './handlers/action-handler.mjs';
-import search from '../search.js';
+import search from '../search.mjs';
 import urlUtils from '../util/url-utils.mjs';
 
 const router = express.Router();

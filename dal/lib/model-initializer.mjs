@@ -1,6 +1,5 @@
-'use strict';
-const { getOrCreateModel } = require('./model-factory');
-const revision = require('./revision');
+import { getOrCreateModel } from './model-factory.mjs';
+import revision from './revision.mjs';
 const DEFAULT_REVISION_STATIC = ['createFirstRevision', 'getNotStaleOrDeleted', 'filterNotStaleOrDeleted'];
 const DEFAULT_REVISION_INSTANCE = ['deleteAllRevisions'];
 const REVISION_HANDLER_MAP = {
@@ -100,6 +99,8 @@ function normalizeRelationDefinitions(relations) {
   return [];
 }
 
-module.exports = {
-  initializeModel
-};
+const initializer = { initializeModel };
+
+export { initializeModel };
+export default initializer;
+

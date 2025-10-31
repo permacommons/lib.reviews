@@ -2,9 +2,9 @@ import config from 'config';
 import { randomUUID } from 'node:crypto';
 import isUUID from 'is-uuid';
 import debug from '../util/debug.mjs';
-import dal from '../dal/index.js';
-import { DocumentNotFound } from '../dal/lib/errors.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import dal from '../dal/index.mjs';
+import { DocumentNotFound } from '../dal/lib/errors.mjs';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import { createAutoModelHandle } from '../dal/lib/model-handle.mjs';
 import { getPostgresDAL } from '../db-postgres.mjs';
 

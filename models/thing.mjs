@@ -1,10 +1,10 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.mjs';
 import debug from '../util/debug.mjs';
 import urlUtils from '../util/url-utils.mjs';
 import ReportedError from '../util/reported-error.mjs';
 import adapters from '../adapters/adapters.mjs';
 import languages from '../locales/languages.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import { initializeModel } from '../dal/lib/model-initializer.mjs';
 import { createModelModule } from '../dal/lib/model-handle.mjs';
 import ThingSlug from './thing-slug.mjs';
 import File from './file.mjs';
@@ -12,7 +12,7 @@ import Review from './review.mjs';
 import User from './user.mjs';
 import isUUID from 'is-uuid';
 import { decodeHTML } from 'entities';
-import search from '../search.js';
+import search from '../search.mjs';
 import { randomUUID } from 'crypto';
 
 let postgresModulePromise;
