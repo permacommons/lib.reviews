@@ -14,7 +14,6 @@
     "adapters/**/*.ts",
     "app.js",
     "auth.js",
-    "bin/**/*.js",
     "bootstrap/**/*.js",
     "config/**/*.js",
     "config/**/*.ts",
@@ -24,9 +23,6 @@
     "models/**/*.js",
     "routes/**/*.js",
     "search.js",
-    "tests/**/*.js",
-    "tests/**/*.ts",
-    "tools/**/*.js",
     "util/**/*.js",
     "util/**/*.ts",
     "vite.config.ts"

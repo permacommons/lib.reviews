@@ -10,9 +10,11 @@
     "start-dev-yad": "bash bin/dev-with-tray.sh",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node tests/run-ava.js",
     "make-docs": "typedoc --options typedoc.json",
-    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:node && npm run typecheck:frontend && npm run typecheck:tests",
     "typecheck:backend": "tsc --noEmit -p tsconfig.backend.json",
-    "typecheck:frontend": "tsc --noEmit -p tsconfig.frontend.json"
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:frontend": "tsc --noEmit -p tsconfig.frontend.json",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",

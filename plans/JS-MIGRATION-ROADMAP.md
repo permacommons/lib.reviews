@@ -26,8 +26,8 @@ Goal: fully type-check both backend and frontend without sacrificing delivery ve
 - [x] Create `tsconfig.json` with `allowJs: true`
 - [x] Configure Vite for TypeScript
 - [x] Add type definitions for major dependencies
-- [ ] Create `tsconfig.node.json` for scripts in `bin/` and `tools/`
-- [ ] Add `tsconfig.tests.json` that extends the main config with AVA globals
+- [x] Create `tsconfig.node.json` for scripts in `bin/` and `tools/`
+- [x] Add `tsconfig.tests.json` that extends the main config with AVA globals
 
 ### Migration waves
 Each wave should ship as a sequence of small PRs. Every box represents at most a few files (≈300 LOC) so reviews stay manageable.
