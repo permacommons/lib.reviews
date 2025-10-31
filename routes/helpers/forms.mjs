@@ -1,6 +1,6 @@
 import config from 'config';
 import escapeHTML from 'escape-html';
-import md from '../../util/md.js';
+import md from '../../util/md.mjs';
 import urlUtils from '../../util/url-utils.js';
 import languages from '../../locales/languages.js';
 

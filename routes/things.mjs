@@ -12,7 +12,7 @@ import feeds from './helpers/feeds.mjs';
 import forms from './helpers/forms.mjs';
 import slugs from './helpers/slugs.mjs';
 import search from '../search.js';
-import getMessages from '../util/get-messages.js';
+import getMessages from '../util/get-messages.mjs';
 import urlUtils from '../util/url-utils.js';
 import signinRequiredRoute from './handlers/signin-required-route.mjs';
 

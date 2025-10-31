@@ -5,7 +5,7 @@ import feeds from '../helpers/feeds.mjs';
 import User from '../../models/user.js';
 import Review from '../../models/review.js';
 import reviewHandlers from './review-handlers.mjs';
-import md from '../../util/md.js';
+import md from '../../util/md.mjs';
 import frontendMessages from '../../util/frontend-messages.mjs';
 
 const userHandlers = {
