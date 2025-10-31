@@ -7,7 +7,7 @@
  */
 
 import config from 'config';
-import debug from '../util/debug.js';
+import debug from '../util/debug.mjs';
 import PostgresDAL from '../dal/index.js';
 
 import userModule from '../models/user.js';

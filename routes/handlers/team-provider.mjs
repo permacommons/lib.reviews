@@ -11,8 +11,8 @@ import BlogPost from '../../models/blog-post.js';
 import feeds from '../helpers/feeds.mjs';
 import slugs from '../helpers/slugs.mjs';
 import mlString from '../../dal/lib/ml-string.js';
-import frontendMessages from '../../util/frontend-messages.js';
-import debug from '../../util/debug.js';
+import frontendMessages from '../../util/frontend-messages.mjs';
+import debug from '../../util/debug.mjs';
 
 const { getEditorMessages } = frontendMessages;
 

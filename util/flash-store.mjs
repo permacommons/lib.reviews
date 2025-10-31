@@ -1,6 +1,4 @@
-'use strict';
-
-module.exports = function flashStore(req, res, next) {
+export default function flashStore(req, res, next) {
   if (!req || typeof req !== 'object')
     throw new TypeError('Express request object is required for flash storage.');
 
@@ -36,4 +34,4 @@ module.exports = function flashStore(req, res, next) {
   };
 
   next();
-};
+}

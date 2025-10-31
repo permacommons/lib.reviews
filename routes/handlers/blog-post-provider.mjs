@@ -10,7 +10,7 @@ import mlString from '../../dal/lib/ml-string.js';
 import languages from '../../locales/languages.js';
 import feeds from '../helpers/feeds.mjs';
 import slugs from '../helpers/slugs.mjs';
-import frontendMessages from '../../util/frontend-messages.js';
+import frontendMessages from '../../util/frontend-messages.mjs';
 
 class BlogPostProvider extends AbstractBREADProvider {
 

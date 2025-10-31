@@ -19,7 +19,7 @@ import File from '../models/file.js';
 import getResourceErrorHandler from './handlers/resource-error-handler.mjs';
 import render from './helpers/render.mjs';
 import slugs from './helpers/slugs.mjs';
-import debug from '../util/debug.js';
+import debug from '../util/debug.mjs';
 import ReportedError from '../util/reported-error.js';
 import languages from '../locales/languages.js';
 import forms from './helpers/forms.mjs';

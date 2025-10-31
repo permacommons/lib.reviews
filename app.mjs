@@ -30,17 +30,17 @@ import { initializeDAL } from './bootstrap/dal.mjs';
 import ErrorProvider from './routes/errors.mjs';
 import apiHelper from './routes/helpers/api.mjs';
 import flashHelper from './routes/helpers/flash.mjs';
+import clientAssets from './util/client-assets.mjs';
+import debug from './util/debug.mjs';
+import flashStore from './util/flash-store.mjs';
+import WebHookDispatcher from './util/webhooks.mjs';
 
 const require = createRequire(import.meta.url);
 
 // Internal dependencies
 const hbsUtilsFactory = require('hbs-utils');
 const connectPgSimple = require('connect-pg-simple');
-const WebHookDispatcher = require('./util/webhooks');
 const languages = require('./locales/languages');
-const debug = require('./util/debug');
-const clientAssets = require('./util/client-assets');
-const flashStore = require('./util/flash-store');
 
 // Initialize custom HBS helpers
 require('./util/handlebars-helpers.js');

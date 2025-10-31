@@ -2,7 +2,7 @@
 
 import { initializeDAL } from '../bootstrap/dal.mjs';
 import search from '../search.js';
-import debug from '../util/debug.js';
+import debug from '../util/debug.mjs';
 import promiseLimit from 'promise-limit';
 import Thing from '../models/thing.js';
 import Review from '../models/review.js';

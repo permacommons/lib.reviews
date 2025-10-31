@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import debug from '../../util/debug.js';
+import debug from '../../util/debug.mjs';
 
 export const logNotice = notice => {
   debug.tests(chalk.dim(notice));

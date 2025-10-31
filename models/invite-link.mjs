@@ -1,7 +1,7 @@
 import config from 'config';
 import { randomUUID } from 'node:crypto';
 import isUUID from 'is-uuid';
-import debug from '../util/debug.js';
+import debug from '../util/debug.mjs';
 import dal from '../dal/index.js';
 import { DocumentNotFound } from '../dal/lib/errors.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';

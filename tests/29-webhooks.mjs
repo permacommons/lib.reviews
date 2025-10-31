@@ -1,9 +1,6 @@
 import test from 'ava';
 import http from 'http';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const WebHookDispatcher = require('../util/webhooks');
+import WebHookDispatcher from '../util/webhooks.mjs';
 
 function createServer(handler) {
   const server = http.createServer(handler);

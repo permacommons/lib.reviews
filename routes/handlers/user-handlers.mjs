@@ -6,7 +6,7 @@ import User from '../../models/user.js';
 import Review from '../../models/review.js';
 import reviewHandlers from './review-handlers.mjs';
 import md from '../../util/md.js';
-import frontendMessages from '../../util/frontend-messages.js';
+import frontendMessages from '../../util/frontend-messages.mjs';
 
 const userHandlers = {
 

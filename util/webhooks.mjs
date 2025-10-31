@@ -1,7 +1,5 @@
-'use strict';
-
-const { URL } = require('url');
-const debug = require('./debug');
+import { URL } from 'node:url';
+import debug from './debug.mjs';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -95,4 +93,4 @@ class WebHookDispatcher {
   }
 }
 
-module.exports = WebHookDispatcher;
+export default WebHookDispatcher;

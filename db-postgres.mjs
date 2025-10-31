@@ -6,7 +6,7 @@
  */
 
 import config from 'config';
-import debug from './util/debug.js';
+import debug from './util/debug.mjs';
 import PostgresDALModule from './dal/index.js';
 
 const PostgresDALFactory = typeof PostgresDALModule === 'function'

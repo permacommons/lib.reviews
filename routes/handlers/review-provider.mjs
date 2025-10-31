@@ -14,7 +14,7 @@ import md from '../../util/md.js';
 import slugs from '../helpers/slugs.mjs';
 import search from '../../search.js';
 import getMessages from '../../util/get-messages.js';
-import frontendMessages from '../../util/frontend-messages.js';
+import frontendMessages from '../../util/frontend-messages.mjs';
 
 class ReviewProvider extends AbstractBREADProvider {
 

@@ -1,5 +1,5 @@
 import render from './helpers/render.mjs';
-import debug from '../util/debug.js';
+import debug from '../util/debug.mjs';
 
 class ErrorProvider {
 

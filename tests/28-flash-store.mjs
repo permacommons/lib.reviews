@@ -1,8 +1,5 @@
 import test from 'ava';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const flashStore = require('../util/flash-store');
+import flashStore from '../util/flash-store.mjs';
 
 test('stores and retrieves flash messages on the session', t => {
   const req = { session: {} };

@@ -1,4 +1,4 @@
-import debug from '../util/debug.js';
+import debug from '../util/debug.mjs';
 import dal from '../dal/index.js';
 import modelHandle from '../dal/lib/model-handle.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
