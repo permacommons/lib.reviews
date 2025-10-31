@@ -16,7 +16,7 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const { type, mlString } = dal;
+const { types, mlString } = dal;
 
 const validLicenses = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'];
 
@@ -37,26 +37,26 @@ async function initializeFileModel(dal = null) {
   try {
     // Create the schema with revision fields
     const fileSchema = {
-      id: type.string().uuid(4),
-      name: type.string().max(512),
+      id: types.string().uuid(4),
+      name: types.string().max(512),
       description: mlString.getSchema(),
       
       // CamelCase fields that map to snake_case database columns
-      uploadedBy: type.string().uuid(4),
-      uploadedOn: type.date(),
-      mimeType: type.string(),
-      license: type.string().enum(validLicenses),
+      uploadedBy: types.string().uuid(4),
+      uploadedOn: types.date(),
+      mimeType: types.string(),
+      license: types.string().enum(validLicenses),
       
       // Provided by uploader: if not the author, who is?
       creator: mlString.getSchema(),
       // Provided by uploader: where does this file come from?
       source: mlString.getSchema(),
       // Uploaded files with incomplete metadata are stored in a separate directory
-      completed: type.boolean().default(false),
+      completed: types.boolean().default(false),
       
       // Virtual permission fields
-      userCanDelete: type.virtual().default(false),
-      userIsCreator: type.virtual().default(false)
+      userCanDelete: types.virtual().default(false),
+      userIsCreator: types.virtual().default(false)
     };
 
     const { model, isNew } = initializeModel({

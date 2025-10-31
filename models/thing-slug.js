@@ -17,7 +17,7 @@ async function getPostgresDAL() {
   return module.getPostgresDAL();
 }
 
-const { type } = dal;
+const { types } = dal;
 
 let ThingSlug = null;
 
@@ -41,14 +41,14 @@ async function initializeThingSlugModel(dal = null) {
 
   try {
     const schema = {
-      id: type.string().uuid(4),
-      thingID: type.string().uuid(4).required(true),
-      slug: type.string().max(255).required(true),
-      createdOn: type.date().default(() => new Date()),
-      createdBy: type.string().uuid(4),
-      baseName: type.string().max(255),
-      name: type.string().max(255),
-      qualifierPart: type.string().max(255)
+      id: types.string().uuid(4),
+      thingID: types.string().uuid(4).required(true),
+      slug: types.string().max(255).required(true),
+      createdOn: types.date().default(() => new Date()),
+      createdBy: types.string().uuid(4),
+      baseName: types.string().max(255),
+      name: types.string().max(255),
+      qualifierPart: types.string().max(255)
     };
 
     const { model } = initializeModel({

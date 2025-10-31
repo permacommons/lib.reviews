@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import revision from '../../dal/lib/revision.js';
-import type from '../../dal/lib/type.js';
+import types from '../../dal/lib/type.js';
 
 /**
  * AVA-compatible helper functions for DAL testing
@@ -21,9 +21,9 @@ export function getTestModelDefinitionsAVA() {
       name: 'revisions', // Will be prefixed by fixture
       hasRevisions: true,
       schema: {
-        id: type.string().uuid(4),
-        title: type.string().max(255),
-        content: type.string(),
+        id: types.string().uuid(4),
+        title: types.string().max(255),
+        content: types.string(),
         ...revision.getSchema()
       },
       options: {}
@@ -32,10 +32,10 @@ export function getTestModelDefinitionsAVA() {
       name: 'users', // Will be prefixed by fixture
       hasRevisions: false,
       schema: {
-        id: type.string().uuid(4),
-        display_name: type.string().max(255).required(true),
-        canonical_name: type.string().max(255).required(true),
-        email: type.string().email().required(true)
+        id: types.string().uuid(4),
+        display_name: types.string().max(255).required(true),
+        canonical_name: types.string().max(255).required(true),
+        email: types.string().email().required(true)
       },
       options: {}
     }

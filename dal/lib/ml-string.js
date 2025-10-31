@@ -4,7 +4,7 @@ import stripTags from 'striptags';
 
 // Internal deps
 import languages from '../../locales/languages.js';
-import type from './type.js';
+import types from './type.js';
 import { ValidationError } from './errors.js';
 
 const { decodeHTML } = entities;
@@ -50,7 +50,7 @@ const mlString = {
       array = false
     } = {}) {
 
-    const objectType = type.object();
+    const objectType = types.object();
     
     // Add custom validator for multilingual string structure
     objectType.validator((value) => {

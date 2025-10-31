@@ -26,7 +26,7 @@ const { proxy: TeamHandle, register: registerTeamHandle } = createModelModule({
   tableName: 'teams'
 });
 
-const { type, mlString } = dal;
+const { types, mlString } = dal;
 const { isValid: isValidLanguage } = languages;
 let teamJoinRequestHandlePromise;
 async function loadTeamJoinRequestHandle() {
@@ -61,37 +61,37 @@ async function initializeTeamModel(dal = null) {
   try {
     // Create the schema with revision fields and JSONB columns
     const teamSchema = {
-      id: type.string().uuid(4),
+      id: types.string().uuid(4),
       
       // JSONB multilingual fields
       name: mlString.getSchema({ maxLength: 100 }),
       motto: mlString.getSchema({ maxLength: 200 }),
-      description: type.object().validator(_validateTextHtmlObject),
-      rules: type.object().validator(_validateTextHtmlObject),
+      description: types.object().validator(_validateTextHtmlObject),
+      rules: types.object().validator(_validateTextHtmlObject),
       
       // CamelCase relational fields that map to snake_case database columns
-      modApprovalToJoin: type.boolean().default(false),
-      onlyModsCanBlog: type.boolean().default(false),
-      createdBy: type.string().uuid(4).required(true),
-      createdOn: type.date().required(true),
-      canonicalSlugName: type.string(),
-      originalLanguage: type.string().max(4).validator(isValidLanguage),
+      modApprovalToJoin: types.boolean().default(false),
+      onlyModsCanBlog: types.boolean().default(false),
+      createdBy: types.string().uuid(4).required(true),
+      createdOn: types.date().required(true),
+      canonicalSlugName: types.string(),
+      originalLanguage: types.string().max(4).validator(isValidLanguage),
       
       // JSONB for permissions configuration
-      confersPermissions: type.object().validator(_validateConfersPermissions),
+      confersPermissions: types.object().validator(_validateConfersPermissions),
       
       // Virtual fields for feeds and permissions
-      reviewOffsetDate: type.virtual().default(null),
-      userIsFounder: type.virtual().default(false),
-      userIsMember: type.virtual().default(false),
-      userIsModerator: type.virtual().default(false),
-      userCanBlog: type.virtual().default(false),
-      userCanJoin: type.virtual().default(false),
-      userCanLeave: type.virtual().default(false),
-      userCanEdit: type.virtual().default(false),
-      userCanDelete: type.virtual().default(false),
+      reviewOffsetDate: types.virtual().default(null),
+      userIsFounder: types.virtual().default(false),
+      userIsMember: types.virtual().default(false),
+      userIsModerator: types.virtual().default(false),
+      userCanBlog: types.virtual().default(false),
+      userCanJoin: types.virtual().default(false),
+      userCanLeave: types.virtual().default(false),
+      userCanEdit: types.virtual().default(false),
+      userCanDelete: types.virtual().default(false),
       
-      urlID: type.virtual().default(function() {
+      urlID: types.virtual().default(function() {
         const slugName = this.getValue ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
         return slugName ? encodeURIComponent(slugName) : this.id;
       })

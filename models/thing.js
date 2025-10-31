@@ -32,7 +32,7 @@ const { proxy: ThingHandle, register: registerThingHandle } = createModelModule(
   tableName: 'things'
 });
 
-const { type, mlString } = dal;
+const { types, mlString } = dal;
 const { isValid: isValidLanguage } = languages;
 
 let Thing = null;
@@ -52,53 +52,53 @@ async function initializeThingModel(dal = null) {
   try {
     // Create the schema with revision fields
     const thingSchema = {
-      id: type.string().uuid(4),
+      id: types.string().uuid(4),
       
       // Array of URLs (first is primary)
-      urls: type.array(type.string().validator(_isValidURL)),
+      urls: types.array(types.string().validator(_isValidURL)),
       
       // JSONB multilingual fields
       label: mlString.getSchema({ maxLength: 256 }),
       aliases: mlString.getSchema({ maxLength: 256, array: true }),
       
       // Grouped metadata in JSONB for extensibility
-      metadata: type.object().validator(_validateMetadata),
+      metadata: types.object().validator(_validateMetadata),
       
       // Complex sync data in JSONB
-      sync: type.object(),
+      sync: types.object(),
       
       // CamelCase relational fields that map to snake_case database columns
-      originalLanguage: type.string().max(4).validator(isValidLanguage),
-      canonicalSlugName: type.string(),
-      createdOn: type.date().required(true),
-      createdBy: type.string().uuid(4).required(true),
+      originalLanguage: types.string().max(4).validator(isValidLanguage),
+      canonicalSlugName: types.string(),
+      createdOn: types.date().required(true),
+      createdBy: types.string().uuid(4).required(true),
       
       // Virtual fields for compatibility
-      urlID: type.virtual().default(function() {
+      urlID: types.virtual().default(function() {
         const slugName = this.getValue ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
         return slugName ? encodeURIComponent(slugName) : this.id;
       }),
       
       // Permission virtual fields
-      userCanDelete: type.virtual().default(false),
-      userCanEdit: type.virtual().default(false),
-      userCanUpload: type.virtual().default(false),
-      userIsCreator: type.virtual().default(false),
+      userCanDelete: types.virtual().default(false),
+      userCanEdit: types.virtual().default(false),
+      userCanUpload: types.virtual().default(false),
+      userIsCreator: types.virtual().default(false),
       
       // Metrics virtual fields (populated asynchronously)
-      numberOfReviews: type.virtual().default(0),
-      averageStarRating: type.virtual().default(0),
+      numberOfReviews: types.virtual().default(0),
+      averageStarRating: types.virtual().default(0),
 
       // Virtual accessors for nested metadata JSONB fields
-      description: type.virtual().default(function() {
+      description: types.virtual().default(function() {
         const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
         return metadata?.description;
       }),
-      subtitle: type.virtual().default(function() {
+      subtitle: types.virtual().default(function() {
         const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
         return metadata?.subtitle;
       }),
-      authors: type.virtual().default(function() {
+      authors: types.virtual().default(function() {
         const metadata = this.getValue ? this.getValue('metadata') : this.metadata;
         return metadata?.authors;
       })

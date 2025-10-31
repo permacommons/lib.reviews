@@ -4,7 +4,7 @@ import isUUID from 'is-uuid';
 import debug from '../../util/debug.js';
 import QueryBuilder from './query-builder.js';
 import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.js';
-import type from './type.js';
+import types from './type.js';
 
 /**
  * Revision system handlers for PostgreSQL DAL
@@ -308,12 +308,12 @@ const revision = {
    */
   getSchema() {
     return {
-      _rev_user: type.string().uuid(4).required(true),
-      _rev_date: type.date().required(true),
-      _rev_id: type.string().uuid(4).required(true),
-      _old_rev_of: type.string().uuid(4),
-      _rev_deleted: type.boolean().default(false),
-      _rev_tags: type.array(type.string()).default([])
+      _rev_user: types.string().uuid(4).required(true),
+      _rev_date: types.date().required(true),
+      _rev_id: types.string().uuid(4).required(true),
+      _old_rev_of: types.string().uuid(4),
+      _rev_deleted: types.boolean().default(false),
+      _rev_tags: types.array(types.string()).default([])
     };
   }
 };

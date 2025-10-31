@@ -25,7 +25,7 @@ const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
 });
 
-const { type } = dal;
+const { types } = dal;
 
 const userOptions = {
   maxChars: 128,
@@ -56,32 +56,32 @@ async function initializeUserModel(dal = null) {
 
     debug.db('DAL available, creating User model...');
     const userSchema = {
-      id: type.string().uuid(4),
+      id: types.string().uuid(4),
       
       // CamelCase schema fields that map to snake_case database columns
-      displayName: type.string()
+      displayName: types.string()
         .max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
-      canonicalName: type.string()
+      canonicalName: types.string()
         .max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
-      email: type.string().max(userOptions.maxChars).email().sensitive(),
-      password: type.string().sensitive(),
-      userMetaID: type.string().uuid(4),
-      inviteLinkCount: type.number().integer().default(0),
-      registrationDate: type.date().default(() => new Date()),
-      showErrorDetails: type.boolean().default(false),
-      isTrusted: type.boolean().default(false),
-      isSiteModerator: type.boolean().default(false),
-      isSuperUser: type.boolean().default(false),
-      suppressedNotices: type.array(type.string()),
-      prefersRichTextEditor: type.boolean().default(false),
+      email: types.string().max(userOptions.maxChars).email().sensitive(),
+      password: types.string().sensitive(),
+      userMetaID: types.string().uuid(4),
+      inviteLinkCount: types.number().integer().default(0),
+      registrationDate: types.date().default(() => new Date()),
+      showErrorDetails: types.boolean().default(false),
+      isTrusted: types.boolean().default(false),
+      isSiteModerator: types.boolean().default(false),
+      isSuperUser: types.boolean().default(false),
+      suppressedNotices: types.array(types.string()),
+      prefersRichTextEditor: types.boolean().default(false),
       
       // Virtual fields for compatibility
-      urlName: type.virtual().default(function() {
+      urlName: types.virtual().default(function() {
         const displayName = this.getValue ? this.getValue('displayName') : this.displayName;
         return displayName ? encodeURIComponent(displayName.replace(/ /g, '_')) : undefined;
       }),
-      userCanEditMetadata: type.virtual().default(false),
-      userCanUploadTempFiles: type.virtual().default(function() {
+      userCanEditMetadata: types.virtual().default(false),
+      userCanUploadTempFiles: types.virtual().default(function() {
         const isTrusted = this.getValue ? this.getValue('isTrusted') : this.isTrusted;
         const isSuperUser = this.getValue ? this.getValue('isSuperUser') : this.isSuperUser;
         return isTrusted || isSuperUser;

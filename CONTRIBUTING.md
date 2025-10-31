@@ -213,12 +213,12 @@ const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
   tableName: 'users'
 });
 
-const { type } = dal;
+const { types } = dal;
 
 const schema = {
-  id: type.string().uuid(4),
-  displayName: type.string().max(128).required(),
-  email: type.string().email()
+  id: types.string().uuid(4),
+  displayName: types.string().max(128).required(),
+  email: types.string().email()
 };
 
 async function initializeUserModel(dalInstance) {

@@ -359,7 +359,7 @@ class VirtualType extends Type {
 }
 
 // Factory functions for creating type instances
-const type = {
+const types = {
   string: (options) => new StringType(options),
   number: (options) => new NumberType(options),
   boolean: (options) => new BooleanType(options),
@@ -381,7 +381,7 @@ export {
   ArrayType,
   ObjectType,
   VirtualType,
-  type
+  types
 };
 
-export default type;
+export default types;
