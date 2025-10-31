@@ -29,9 +29,9 @@ test.before(async () => {
   ]);
   Thing = models.Thing;
 
-  adapters = (await import('../adapters/adapters.js')).default;
-  WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.js')).default;
-  OpenLibraryBackendAdapter = (await import('../adapters/openlibrary-backend-adapter.js')).default;
+  adapters = (await import('../adapters/adapters.mjs')).default;
+  WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.mjs')).default;
+  OpenLibraryBackendAdapter = (await import('../adapters/openlibrary-backend-adapter.mjs')).default;
 });
 
 test.after.always(unmockSearch);

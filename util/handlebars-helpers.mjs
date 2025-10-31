@@ -10,7 +10,7 @@ import mlString from '../dal/lib/ml-string.js';
 import languages from '../locales/languages.js';
 import thingModelHandle from '../models/thing.js';
 import urlUtils from './url-utils.mjs';
-import adapters from '../adapters/adapters.js';
+import adapters from '../adapters/adapters.mjs';
 import getLicenseURL from './get-license-url.js';
 import debug from './debug.mjs';
 

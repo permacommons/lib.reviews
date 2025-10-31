@@ -92,7 +92,7 @@ test.serial('sync functionality works with metadata grouping', async t => {
   await thing.save();
   
   // Mock the Wikidata adapter to simulate sync
-  const WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.js')).default;
+  const WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.mjs')).default;
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
   
   WikidataBackendAdapter.prototype.lookup = async function(url) {
@@ -127,7 +127,7 @@ test.serial('sync functionality works with metadata grouping', async t => {
 test.serial('adapter integration with PostgreSQL Thing model', async t => {
   
   // Test that adapters can work with the PostgreSQL Thing model
-  const adapters = (await import('../adapters/adapters.js')).default;
+  const adapters = (await import('../adapters/adapters.mjs')).default;
   
   // Test adapter discovery
   const allAdapters = adapters.getAll();

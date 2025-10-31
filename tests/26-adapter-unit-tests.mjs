@@ -1,7 +1,7 @@
 import test from 'ava';
-import OpenLibraryBackendAdapter from '../adapters/openlibrary-backend-adapter.js';
-import WikidataBackendAdapter from '../adapters/wikidata-backend-adapter.js';
-import OpenStreetMapBackendAdapter from '../adapters/openstreetmap-backend-adapter.js';
+import OpenLibraryBackendAdapter from '../adapters/openlibrary-backend-adapter.mjs';
+import WikidataBackendAdapter from '../adapters/wikidata-backend-adapter.mjs';
+import OpenStreetMapBackendAdapter from '../adapters/openstreetmap-backend-adapter.mjs';
 import {
   setupAdapterApiMocks,
   teardownAdapterApiMocks
