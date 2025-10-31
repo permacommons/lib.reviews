@@ -34,6 +34,7 @@ import clientAssets from './util/client-assets.mjs';
 import debug from './util/debug.mjs';
 import flashStore from './util/flash-store.mjs';
 import WebHookDispatcher from './util/webhooks.mjs';
+import './util/handlebars-helpers.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -41,9 +42,6 @@ const require = createRequire(import.meta.url);
 const hbsUtilsFactory = require('hbs-utils');
 const connectPgSimple = require('connect-pg-simple');
 const languages = require('./locales/languages');
-
-// Initialize custom HBS helpers
-require('./util/handlebars-helpers.js');
 
 const hbsutils = hbsUtilsFactory(hbs);
 const pgSession = connectPgSimple(session);
