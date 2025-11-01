@@ -11,7 +11,14 @@
     "dal/lib/model-registry.ts",
     "dal/lib/model-types.ts",
     "dal/lib/type.ts",
-    "dal/lib/errors.ts"
+    "dal/lib/errors.ts",
+    "models/thing.ts",
+    "models/thing-slug.ts",
+    "models/team.ts",
+    "models/team-slug.ts",
+    "models/team-join-request.ts",
+    "models/user.ts",
+    "models/user-meta.ts"
   ],
   "entryPointStrategy": "resolve",
   "out": "static/devdocs",

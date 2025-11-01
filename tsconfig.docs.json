@@ -13,6 +13,7 @@
     "bootstrap/**/*.ts",
     "dal/**/*.ts",
     "util/**/*.ts",
+    "models/**/*.ts",
     "types/**/*.d.ts"
   ]
 }

@@ -144,7 +144,7 @@ const actionHandler = {
       return;
     }
 
-    if (!req.user.userCanUploadTempFiles) {
+    if (!req.user.userCanUploadTempFiles && !req.user.isTrusted && !req.user.isSuperUser) {
       api.error(req, res,
         `User '${req.user.displayName}' is not permitted to upload files.`);
       return;
