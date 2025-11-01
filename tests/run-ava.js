@@ -35,11 +35,14 @@ if (!existsSync(manifestPath)) {
   }
 }
 
+const nodeOptions = process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} --import tsx/esm` : '--import tsx/esm';
+
 const env = {
   ...process.env,
   LIBREVIEWS_VITE_DEV_SERVER: process.env.LIBREVIEWS_VITE_DEV_SERVER || 'off',
   NODE_APP_INSTANCE: process.env.NODE_APP_INSTANCE || 'testing',
-  NODE_CONFIG_DISABLE_WATCH: process.env.NODE_CONFIG_DISABLE_WATCH || 'Y'
+  NODE_CONFIG_DISABLE_WATCH: process.env.NODE_CONFIG_DISABLE_WATCH || 'Y',
+  NODE_OPTIONS: nodeOptions
 };
 
 // Check DAL readiness before running tests

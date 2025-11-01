@@ -39,12 +39,14 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 - [x] Add type-safe helpers for common utilities (`util/*`), starting with logging and date formatting.
 
 #### Wave 1 — low-risk utilities
-- [ ] Convert the error/reporting stack under `util/` to `.ts` (`abstract-generic-error`, `abstract-reported-error`, `reported-error`, `debug`) and install missing `@types/*` packages for `sprintf-js` and `escape-html`.
-- [ ] Rename existing `.d.ts` shims to real TypeScript modules for shared helpers (`util/date`, `util/http`, `util/webhooks`) and delete their parallel declaration files.
-- [ ] Type markdown and messaging helpers (`util/md`, `util/get-messages`, `util/frontend-messages`, `util/get-license-url`), adding minimal ambient modules for plugins like `markdown-it-html5-media`.
-- [ ] Migrate asset/session utilities that only rely on Node built-ins or Express request typing (`util/client-assets`, `util/url-utils`, `util/flash-store`).
+- [x] Convert the error/reporting stack under `util/` to `.ts` (`abstract-generic-error`, `abstract-reported-error`, `reported-error`, `debug`) and install missing `@types/*` packages for `sprintf-js` and `escape-html`.
+- [x] Rename existing `.d.ts` shims to real TypeScript modules for shared helpers (`util/date`, `util/http`, `util/webhooks`) and delete their parallel declaration files.
+- [x] Type markdown and messaging helpers (`util/md`, `util/get-messages`, `util/frontend-messages`, `util/get-license-url`), adding minimal ambient modules for plugins like `markdown-it-html5-media`.
+- [x] Migrate asset/session utilities that only rely on Node built-ins or Express request typing (`util/client-assets`, `util/url-utils`, `util/flash-store`).
 
 #### Wave 2 — data layer
+- [ ] Remove the temporary `.js` re-export shims for `util/` helpers once DAL
+  imports compile against the native TypeScript sources.
 - [ ] Convert DAL entrypoints and primitives (`dal/index`, `dal/lib/errors`, `dal/lib/type`, `dal/lib/ml-string`, `dal/lib/revision`) to `.ts`, aligning runtime exports with `dal/index.d.ts`.
 - [ ] Migrate model infrastructure (`dal/lib/model`, `dal/lib/model-factory`, `dal/lib/model-registry`) to `.ts` with generics for record payloads.
 - [ ] Port bootstrap helpers (`dal/lib/model-initializer`, `dal/lib/model-handle`, `bootstrap/dal`) to TypeScript and ensure typed registration flows.
@@ -54,6 +56,8 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 
 #### Wave 3 — HTTP surface area
 - [ ] Migrate Express middleware in `bootstrap/` and `routes/middleware/`.
+- [ ] Update middleware/route imports to target `.ts` utilities directly, then
+  delete the compatibility proxies in `util/*.js`.
 - [ ] Convert route handlers directory-by-directory (`routes/reviews`, `routes/users`, `routes/wiki`).
 - [ ] Add type-safe request/response objects using `@types/express` generics and custom `Locals` interfaces.
 
@@ -65,6 +69,8 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 
 #### Wave 5 — tests & tooling
 - [ ] Rename `.js` test files under `tests/` to `.ts` and replace CommonJS imports.
+- [ ] Add TypeDoc coverage checks for the migrated util modules to ensure
+  comments stay in sync with the runtime behaviour.
 - [ ] Create factory helpers with explicit types for fixtures and test doubles.
 - [ ] Ensure AVA configuration uses `ts-node/register` and add a `typecheck` npm script that runs `tsc --project tsconfig.tests.json --noEmit`.
 
