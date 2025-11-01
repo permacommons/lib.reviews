@@ -73,7 +73,7 @@ export class Type {
    * @param value - Value to validate
    * @param fieldName - Field name for error messages
    * @returns Validated value
-   * @throws {ValidationError} If validation fails
+   * @throws ValidationError If validation fails
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   validate(value: unknown, fieldName = 'field'): unknown {
