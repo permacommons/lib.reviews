@@ -12,6 +12,7 @@
     "bin/**/*.ts",
     "tools/**/*.js",
     "tools/**/*.ts",
-    "tests/run-ava.js"
+    "tests/run-ava.js",
+    "types/**/*.d.ts"
   ]
 }

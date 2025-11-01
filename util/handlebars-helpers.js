@@ -13,6 +13,7 @@ import urlUtils from './url-utils.js';
 import adapters from '../adapters/adapters.js';
 import getLicenseURL from './get-license-url.js';
 import debug from './debug.js';
+import { formatLongDate, formatShortDate } from './date.js';
 
 /**
  * Resolve a thing's display label in the current locale, with safe fallbacks.
@@ -103,17 +104,11 @@ hbs.registerHelper('prettify', function(url) {
 });
 
 hbs.registerHelper('shortDate', function(date) {
-  if (date && date instanceof Date)
-    return date.toLocaleDateString();
+  return formatShortDate(date);
 });
 
 hbs.registerHelper('longDate', function(date) {
-  if (!date)
-    return;
-
-  const value = date instanceof Date ? date : new Date(date);
-  if (value instanceof Date && !Number.isNaN(value.getTime()))
-    return value.toLocaleString();
+  return formatLongDate(date);
 });
 
 // Sources are external sites we interface with; if they're known sources,

@@ -33,10 +33,10 @@ Goal: fully type-check both backend and frontend without sacrificing delivery ve
 Each wave should ship as a sequence of small PRs. Every box represents at most a few files (≈300 LOC) so reviews stay manageable.
 
 #### Wave 0 — shared contracts
-- [ ] Publish shared ambient declarations in `types/` for configuration, DAL context, and Express locals.
-- [ ] Define interfaces for DAL records (`dal/*.js`) without converting implementation files yet.
-- [ ] Introduce enums/union types for user roles, permissions, and locales under `types/domain/`.
-- [ ] Add type-safe helpers for common utilities (`util/*`), starting with logging and date formatting.
+- [x] Publish shared ambient declarations in `types/` for configuration, DAL context, and Express locals.
+- [x] Define interfaces for DAL records (`dal/*.js`) without converting implementation files yet.
+- [x] Introduce enums/union types for user roles, permissions, and locales under `types/domain/`.
+- [x] Add type-safe helpers for common utilities (`util/*`), starting with logging and date formatting.
 
 #### Wave 1 — low-risk utilities
 - [ ] Convert `util/` modules that have no database or network access (`util/async`, `util/markdown`, `util/validation`).

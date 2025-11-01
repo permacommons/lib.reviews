@@ -25,7 +25,8 @@
     "search.js",
     "util/**/*.js",
     "util/**/*.ts",
-    "vite.config.ts"
+    "vite.config.ts",
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "frontend/**/*"

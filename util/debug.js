@@ -84,3 +84,4 @@ const debug = {
 };
 
 export default debug;
+export { sanitizeForLogging };
