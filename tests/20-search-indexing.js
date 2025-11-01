@@ -1,7 +1,7 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { setupPostgresTest } from './helpers/setup-postgres-test.js';
-import { initializeDAL, isInitialized } from '../bootstrap/dal.js';
+import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.js';
 

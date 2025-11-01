@@ -1,4 +1,4 @@
-import render from '../helpers/render.js';
+import render from '../helpers/render.ts';
 
 // A simple middleware wrapper that handles aborting routes that require a user
 // to be logged in, and renders an appropriate error page with the given

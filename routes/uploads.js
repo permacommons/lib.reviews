@@ -14,15 +14,15 @@ import is from 'type-is';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
-import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.js';
+import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.ts';
 import File from '../models/file.js';
 import getResourceErrorHandler from './handlers/resource-error-handler.js';
-import render from './helpers/render.js';
-import slugs from './helpers/slugs.js';
+import render from './helpers/render.ts';
+import slugs from './helpers/slugs.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import languages from '../locales/languages.js';
-import forms from './helpers/forms.js';
+import forms from './helpers/forms.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -3,15 +3,15 @@
   "entryCount": 114,
   "modules": [
     {
-      "source": "app.js",
+      "source": "app.ts",
       "dependencies": [
-        "./auth.js",
-        "./bootstrap/dal.js",
+        "./auth.ts",
+        "./bootstrap/dal.ts",
         "./locales/languages.js",
         "./routes/actions.js",
         "./routes/api.js",
         "./routes/blog-posts.js",
-        "./routes/errors.js",
+        "./routes/errors.ts",
         "./routes/files.js",
         "./routes/helpers/api.js",
         "./routes/helpers/flash.js",
@@ -45,7 +45,7 @@
       "dependencies": []
     },
     {
-      "source": "auth.js",
+      "source": "auth.ts",
       "dependencies": [
         "./models/user.js"
       ]
@@ -353,7 +353,7 @@
       ]
     },
     {
-      "source": "bootstrap/dal.js",
+      "source": "bootstrap/dal.ts",
       "dependencies": [
         "../dal/index.js",
         "../dal/lib/model-handle.js",
@@ -586,7 +586,7 @@
       ]
     },
     {
-      "source": "routes/errors.js",
+      "source": "routes/errors.ts",
       "dependencies": [
         "../util/debug.ts",
         "./helpers/render.js"

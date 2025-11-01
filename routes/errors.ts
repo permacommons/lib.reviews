@@ -1,9 +1,14 @@
-import render from './helpers/render.js';
+import type { Express, NextFunction, Request, Response } from 'express';
+
+import render from './helpers/render.ts';
 import debug from '../util/debug.ts';
 
-class ErrorProvider {
+type ErrorWithStatus = Error & { status?: number; type?: string };
 
-  constructor(app) {
+class ErrorProvider {
+  private readonly app: Express;
+
+  constructor(app: Express) {
     this.app = app;
     // Bind 'this' so we can pass methods into middleware unmodified
     this.generic = this.generic.bind(this);
@@ -11,7 +16,7 @@ class ErrorProvider {
     this.maintenanceMode = this.maintenanceMode.bind(this);
   }
 
-  maintenanceMode(req, res) {
+  maintenanceMode(req: Request, res: Response) {
     if (req.path !== '/')
       return res.redirect('/');
 
@@ -20,8 +25,7 @@ class ErrorProvider {
     });
   }
 
-  notFound(req, res) {
-
+  notFound(req: Request, res: Response) {
     // Trailing whitespace? Try again with trimmed URL before giving up
     if (/%20$/.test(req.originalUrl))
       return res.redirect(req.originalUrl.replace(/(.+?)(%20)+$/, '$1'));
@@ -32,23 +36,21 @@ class ErrorProvider {
     });
   }
 
-  generic(error, req, res, _next) {
-    // Fallback: Handle DocumentNotFound errors as 404s if they weren't caught by specific route handlers
-    // Most routes should use getResourceErrorHandler or getUserNotFoundHandler for better UX
-    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError') {
+  generic(error: ErrorWithStatus, req: Request, res: Response, _next: NextFunction) {
+    /**
+     * Fallback: handle DocumentNotFound errors as 404s if they weren't caught
+     * by specific route handlers. Most routes should use
+     * getResourceErrorHandler or getUserNotFoundHandler for better UX.
+     */
+    if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError')
       return this.notFound(req, res);
-    }
 
-    let showDetails;
-    if (this.app.get('env') === 'development')
-      showDetails = true;
-    else
-      showDetails = req.user && req.user.showErrorDetails;
+    const showDetails = this.app.get('env') === 'development' || Boolean(req.user?.showErrorDetails);
 
     res.status(error.status || 500);
 
     if (req.isAPI) {
-      let response;
+      let response: { message: string; errors: string[] };
       switch (error.type || error.message) {
         case 'entity.parse.failed':
         case 'invalid json':
@@ -67,7 +69,6 @@ class ErrorProvider {
       res.type('json');
       res.send(JSON.stringify(response, null, 2));
     } else {
-
       debug.error({ req, error });
       render.template(req, res, 'error', {
         titleKey: 'something went wrong',

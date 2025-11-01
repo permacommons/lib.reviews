@@ -7,7 +7,7 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   cleanupTables: ['thing_slugs', 'reviews', 'things', 'users']
 });
 
-import slugs from '../routes/helpers/slugs.js';
+import slugs from '../routes/helpers/slugs.ts';
 
 let Thing;
 

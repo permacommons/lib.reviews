@@ -2,8 +2,8 @@ import multer from 'multer';
 import is from 'type-is';
 import config from 'config';
 
-import render from '../helpers/render.js';
-import api from '../helpers/api.js';
+import render from '../helpers/render.ts';
+import api from '../helpers/api.ts';
 
 import apiUploadHandler from './api-upload-handler.js';
 import { checkMIMEType, assignFilename } from '../uploads.js';

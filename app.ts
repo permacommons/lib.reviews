@@ -6,6 +6,7 @@
  */
 
 // External dependencies
+import type { Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import config from 'config';
@@ -26,53 +27,46 @@ import serveIndex from 'serve-index';
 import csp from 'helmet-csp'; // Content security policy
 import expressUserAgent from 'express-useragent';
 
-import { csrfSynchronisedProtection } from './util/csrf.js';
-import { initializeDAL } from './bootstrap/dal.js';
-import ErrorProvider from './routes/errors.js';
-import apiHelper from './routes/helpers/api.js';
-import flashHelper from './routes/helpers/flash.js';
+import { csrfSynchronisedProtection } from './util/csrf.ts';
+import { initializeDAL } from './bootstrap/dal.ts';
+import ErrorProvider from './routes/errors.ts';
+import apiHelper from './routes/helpers/api.ts';
+import flashHelper from './routes/helpers/flash.ts';
 import clientAssets from './util/client-assets.ts';
 import debug from './util/debug.ts';
 import flashStore from './util/flash-store.ts';
 import WebHookDispatcher from './util/webhooks.ts';
-import './util/handlebars-helpers.js';
+import './util/handlebars-helpers.ts';
 import languages from './locales/languages.js';
 
 // Internal dependencies
 
 const hbsutils = hbsUtilsFactory(hbs);
-const pgSession = connectPgSimple(session);
+const PgSessionStore = connectPgSimple(session);
 const expressUserAgentMiddleware = expressUserAgent.express;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let initializedApp;
+let initializedApp: express.Express | undefined;
 
 /**
  * Initialize an instance of the app and provide it when it is ready for use.
- * @returns {Promise<import('express').Express>}
- *  an Express app
- * @memberof App
+ * @returns an Express app
  */
-async function getApp() {
+async function getApp(): Promise<express.Express> {
   if (initializedApp)
     return initializedApp;
 
-  // Push promises into this array that need to resolve before the app itself
-  // is ready for use
-  const asyncJobs = [];
+  const asyncJobs: Array<Promise<unknown>> = [];
 
-  // Create directories for uploads and deleted files if needed
   asyncJobs.push(...['deleted', 'static/uploads', 'static/downloads'].map(setupDirectory));
 
   const dalPromise = initializeDAL();
   asyncJobs.push(dalPromise);
 
-  // Auth setup
-  await import('./auth.js');
+  await import('./auth.ts');
 
-  // i18n setup
   i18n.configure({
     locales: languages.getValidLanguages(),
     cookie: 'locale',
@@ -83,15 +77,13 @@ async function getApp() {
     directory: path.join(__dirname, 'locales')
   });
 
-  // express setup
   const app = express();
 
-  // view engine setup
   app.set('views', path.join(__dirname, 'views'));
 
-  asyncJobs.push(new Promise(resolveJob =>
-    hbsutils.registerPartials(path.join(__dirname, 'views/partials'), undefined, () => resolveJob())
-  ));
+  asyncJobs.push(new Promise<void>(resolveJob => {
+    hbsutils.registerPartials(path.join(__dirname, 'views/partials'), undefined, () => resolveJob());
+  }));
 
   app.set('view engine', 'hbs');
 
@@ -101,14 +93,12 @@ async function getApp() {
     }));
 
   app.use(cookieParser());
-  app.use(i18n.init); // Requires cookie parser!
-  app.use(expressUserAgentMiddleware()); // expose UA object to req.useragent
+  app.use(i18n.init);
+  app.use(expressUserAgentMiddleware());
 
-  // Get the initialized DAL instance
   const dal = await dalPromise;
   app.locals.dal = dal;
 
-  // Load routes after database is ready
   const { default: reviews } = await import('./routes/reviews.js');
   const { default: actions } = await import('./routes/actions.js');
   const { default: users } = await import('./routes/users.js');
@@ -120,13 +110,13 @@ async function getApp() {
   const { default: blogPosts } = await import('./routes/blog-posts.js');
   const { stage1Router, stage2Router } = await import('./routes/uploads.js');
 
-  const store = new pgSession({
+  const store = new PgSessionStore({
     pool: dal.pool,
     tableName: 'session'
   });
 
   app.use(session({
-    key: 'libreviews_session',
+    name: 'libreviews_session',
     resave: true,
     saveUninitialized: true,
     secret: config.get('sessionSecret'),
@@ -141,7 +131,7 @@ async function getApp() {
 
   app.use(compression());
 
-  app.use(favicon(path.join(__dirname, 'static/img/favicon.ico'))); // not logged
+  app.use(favicon(path.join(__dirname, 'static/img/favicon.ico')));
 
   if (config.get('logger'))
     app.use(logger(config.get('logger')));
@@ -151,8 +141,7 @@ async function getApp() {
     template: path.join(__dirname, 'views/downloads.html')
   }));
 
-  // Cache immutable assets for one year
-  app.use('/static', (req, res, next) => {
+  app.use('/static', (req: Request, res: Response, next) => {
     if (/.*\.(svg|jpg|webm|gif|png|ogg|tgz|zip|woff2)$/.test(req.path))
       res.set('Cache-Control', 'public, max-age=31536000');
     return next();
@@ -161,7 +150,6 @@ async function getApp() {
   app.use('/static', express.static(path.join(__dirname, 'static')));
 
   if (process.env.NODE_ENV !== 'production') {
-    // Convenience endpoint: expose manifest for inspection during development
     app.get('/assets/manifest.json', (req, res, next) => {
       try {
         res.set('Cache-Control', 'no-store');
@@ -178,7 +166,7 @@ async function getApp() {
   }));
 
   if (process.env.NODE_ENV !== 'production' && process.env.LIBREVIEWS_VITE_DEV_SERVER !== 'off') {
-    const viteConfigPath = path.join(__dirname, 'vite.config.js');
+    const viteConfigPath = path.join(__dirname, 'vite.config.ts');
     const createViteServer = async() => {
       const { createServer } = await import('vite');
       return createServer({
@@ -198,18 +186,14 @@ async function getApp() {
     app.locals.vite = viteServer;
   }
 
-  app.use('/robots.txt', (req, res) => {
+  app.use('/robots.txt', (_req, res) => {
     res.type('text');
     res.send('User-agent: *\nDisallow: /api/\n');
   });
 
-  // Initialize Passport and restore authentication state, if any, from the session.
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // API requests do not require CSRF tokens (hence declared before CSRF middleware),
-  // but session-authenticated POST requests do require the X-Requested-With header to be set,
-  // which ensures they're subject to CORS rules. This middleware also sets req.isAPI to true.
   app.use('/api', apiHelper.prepareRequest);
 
   app.use(bodyParser.json());
@@ -219,25 +203,22 @@ async function getApp() {
 
   const errorProvider = new ErrorProvider(app);
 
-  if (config.maintenanceMode) {
+  if (config.maintenanceMode)
     app.use('/', errorProvider.maintenanceMode);
-  }
 
-  // ?uselang=xx changes language temporarily if xx is a valid, different code
-  app.use('/', (req, res, next) => {
-    const locale = req.query.uselang || req.query.useLang;
+  app.use('/', (req, _res, next) => {
+    const rawLocale = req.query.uselang ?? req.query.useLang;
+    const locale = Array.isArray(rawLocale) ? rawLocale[0] : rawLocale;
     if (locale && languages.isValid(locale) && locale !== req.locale) {
-      req.localeChange = { old: req.locale, new: locale };
-      i18n.setLocale(req, locale);
+      const newLocale = locale as LibReviews.LocaleCode;
+      req.localeChange = { old: req.locale ?? 'und', new: newLocale };
+      i18n.setLocale(req, newLocale);
     }
     return next();
   });
 
   app.use('/api', api);
-
-  // Upload processing has to be done before CSRF middleware kicks in
   app.use('/', stage1Router);
-
   app.use(csrfSynchronisedProtection);
   app.use('/', pages);
   app.use('/', reviews);
@@ -247,18 +228,11 @@ async function getApp() {
   app.use('/', blogPosts);
   app.use('/', stage2Router);
   app.use('/user', users);
-
-  // Goes last to avoid accidental overlap w/ reserved routes
   app.use('/', things);
 
-  // Catches 404s and serves "not found" page
   app.use(errorProvider.notFound);
-
-  // Catches bad JSON, explicit next(error) calls, and other unhandled errors
   app.use(errorProvider.generic);
 
-  // Webhooks let us notify other applications and services (local or remote) when something happens.
-  // See configuration for the webHooks block to adjust behaviour.
   app.locals.webHooks = new WebHookDispatcher(config.webHooks);
 
   await Promise.all(asyncJobs);
@@ -271,29 +245,27 @@ async function getApp() {
 /**
  * Create a directory if it does not exist
  *
- * @param {String} dir
+ * @param dir
  *  relative path name
  * @memberof App
  */
-async function setupDirectory(dir) {
+async function setupDirectory(dir: string): Promise<void> {
   const directory = path.join(__dirname, dir);
   try {
     await fs.promises.mkdir(directory);
     debug.app(`Directory '${directory}' did not exist yet, creating.`);
   } catch (error) {
-    if (error.code !== 'EEXIST')
-      throw error;
-    // Ignore collision: parallel test workers may ensure the same path.
+    const err = error as NodeJS.ErrnoException;
+    if (err.code !== 'EEXIST')
+      throw err;
   }
 }
 
 /**
  * Reset the cached Express app instance so integration tests can bootstrap
  * a fresh copy without relying on module cache hacks.
- *
- * @returns {Promise<void>}
  */
-export async function resetAppForTesting() {
+export async function resetAppForTesting(): Promise<void> {
   if (!initializedApp)
     return;
 

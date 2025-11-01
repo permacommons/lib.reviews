@@ -1,4 +1,4 @@
-import render from '../helpers/render.js';
+import render from '../helpers/render.ts';
 import escapeHTML from 'escape-html';
 
 // Generic handler for 404s, missing revisions or old revisions (when we don't

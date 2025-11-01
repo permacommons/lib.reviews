@@ -9,7 +9,7 @@ import { registerTestUser } from './helpers/integration-helpers.js';
 import { mockSearch, unmockSearch } from './helpers/mock-search.js';
 import { setupPostgresTest } from './helpers/setup-postgres-test.js';
 
-const loadAppModule = () => import('../app.js');
+const loadAppModule = () => import('../app.ts');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');

@@ -1,8 +1,9 @@
-import type WebHookDispatcher from '../util/webhooks.ts';
-import type { ViteDevServer } from 'vite';
+import type { AppLocals, RequestUser, SessionDataWithFlash } from './http/locals.ts';
 
 declare global {
   namespace Express {
+    interface User extends RequestUser {}
+
     interface Request {
       dal?: import('../dal/index.js').DalContext;
       locale?: LibReviews.LocaleCode;
@@ -13,22 +14,20 @@ declare global {
       flashError?(error: unknown): void;
       csrfToken?(): string;
       permissions?: Record<LibReviews.PermissionFlag | string, boolean>;
+      __?(message: string | { phrase: string; locale?: string }, ...args: unknown[]): string;
+      __n?(...args: unknown[]): string;
     }
 
     interface Response {
       locals: Locals;
-      __?(message: string, ...args: unknown[]): string;
+      __?(message: string | { phrase: string; locale?: string }, ...args: unknown[]): string;
       __n?(...args: unknown[]): string;
     }
 
-    interface Locals {
-      dal?: import('../dal/index.js').DalContext;
-      webHooks?: WebHookDispatcher;
-      vite?: ViteDevServer;
-      titleKey?: string;
-      locale?: LibReviews.LocaleCode;
-      permissions?: Record<LibReviews.PermissionFlag | string, boolean>;
-      [key: string]: unknown;
-    }
+    interface Locals extends AppLocals {}
   }
+}
+
+declare module 'express-session' {
+  interface SessionData extends SessionDataWithFlash {}
 }

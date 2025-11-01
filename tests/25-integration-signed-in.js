@@ -6,7 +6,7 @@ import config from 'config';
 import { extractCSRF, registerTestUser } from './helpers/integration-helpers.js';
 import { mockSearch, unmockSearch } from './helpers/mock-search.js';
 import { setupPostgresTest } from './helpers/setup-postgres-test.js';
-const loadAppModule = () => import('../app.js');
+const loadAppModule = () => import('../app.ts');
 
 mockSearch();
 

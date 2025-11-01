@@ -3,7 +3,7 @@
 // without accumulating an unwieldy number of revisions.
 
 import promiseLimit from 'promise-limit';
-import { initializeDAL } from '../../bootstrap/dal.js';
+import { initializeDAL } from '../../bootstrap/dal.ts';
 import Thing from '../../models/thing.js';
 import search from '../../search.js';
 import WikidataBackendAdapter from '../wikidata-backend-adapter.js';

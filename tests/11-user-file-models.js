@@ -99,7 +99,7 @@ test.serial('User model: account without password is treated as locked', async t
 
   // Verify authentication fails with locked account message
   // We need to test through the auth strategy
-  await import('../auth.js');
+  await import('../auth.ts');
 
   const authenticatePromise = new Promise((resolve) => {
     const strategy = passport._strategy('local');

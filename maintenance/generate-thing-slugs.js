@@ -1,7 +1,7 @@
 // Generate/update human-readable identifier strings ('slugs') for all 'things'
 // (review subjects) in the database.
 
-import { initializeDAL } from '../bootstrap/dal.js';
+import { initializeDAL } from '../bootstrap/dal.ts';
 import Thing from '../models/thing.js';
 
 async function generateSlugs() {

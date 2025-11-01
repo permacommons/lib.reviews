@@ -1,4 +1,5 @@
 // External dependencies
+import type { HelperOptions } from 'handlebars';
 import hbs from 'hbs';
 import escapeHTML from 'escape-html';
 import i18n from 'i18n';
@@ -14,20 +15,39 @@ import adapters from '../adapters/adapters.js';
 import getLicenseURL from './get-license-url.ts';
 import debug from './debug.ts';
 import { formatLongDate, formatShortDate } from './date.ts';
+import type { TemplateContext } from '../types/http/locals.ts';
+
+type ThingLike = {
+  label?: unknown;
+  urls?: string[];
+  urlID?: string;
+};
+
+type ThingModelHandle = {
+  getLabel?: (thing: ThingLike, locale: string) => string | undefined;
+};
+
+const getTemplateContext = (options: HelperOptions): TemplateContext =>
+  (options?.data?.root ?? {}) as TemplateContext;
+
+const resolveMultilingual = (locale: string, value: unknown) =>
+  mlString.resolve(locale, value as Record<string, string> | null | undefined);
 
 /**
  * Resolve a thing's display label in the current locale, with safe fallbacks.
  *
- * @param {Object} thing - Thing object or plain data used by the template
- * @param {string} locale - Active locale for rendering
- * @returns {string} Localized label, prettified URL, or an empty string
+ * @param thing
+ *  Thing object or plain data used by the template
+ * @param locale
+ *  Active locale for rendering
+ * @returns Localized label, prettified URL, or an empty string
  */
-function getThingLabel(thing, locale) {
+function getThingLabel(thing: ThingLike | null | undefined, locale: string): string {
   if (!thing) {
     return '';
   }
 
-  const modelGetLabel = thingModelHandle && thingModelHandle.getLabel;
+  const modelGetLabel = (thingModelHandle as ThingModelHandle | null | undefined)?.getLabel;
 
   if (typeof modelGetLabel === 'function') {
     try {
@@ -43,7 +63,7 @@ function getThingLabel(thing, locale) {
   // Manual fallback mirrors Thing.getLabel behaviour without relying on the model
   let resolved;
   if (thing.label) {
-    resolved = mlString.resolve(locale, thing.label);
+    resolved = resolveMultilingual(locale, thing.label);
     if (resolved && resolved.str) {
       return resolved.str;
     }
@@ -58,9 +78,9 @@ function getThingLabel(thing, locale) {
 
 // Current iteration value will be passed as {{this}} into the block,
 // starts at 1 for more human-readable counts. First and last set @first, @last
-hbs.registerHelper('times', function(n, block) {
-  let data = {},
-    rv = '';
+hbs.registerHelper('times', function(this: unknown, n: number, block: HelperOptions) {
+  let data: Record<string, unknown> = {};
+  let rv = '';
 
   if (block.data)
     data = hbs.handlebars.createFrame(block.data);
@@ -69,25 +89,23 @@ hbs.registerHelper('times', function(n, block) {
     data.zeroIndex = i - 1;
     data.first = i == 1 ? true : false;
     data.last = i == n ? true : false;
-    rv += block.fn(i, {
-      data
-    }).trim();
+    rv += (block.fn?.(i, { data }) ?? '').trim();
   }
   return rv;
 });
 
-hbs.registerHelper('escapeHTML', function(block) {
-  return escapeHTML(block.fn(this));
+hbs.registerHelper('escapeHTML', function(this: unknown, block: HelperOptions) {
+  return escapeHTML((block.fn?.(this) ?? '').toString());
 });
 
-hbs.registerHelper('link', function(url, title, singleQuotes) {
-  let q = singleQuotes ? "'" : '"';
+hbs.registerHelper('link', function(url: string, title: string, singleQuotes?: boolean) {
+  const q = singleQuotes ? "'" : '"';
   return `<a href=${q}${url}${q}>${title}</a>`;
 });
 
 // Strips HTML and shortens to specified length
-hbs.registerHelper('summarize', function(html, length) {
-  let stripped = stripTags(html);
+hbs.registerHelper('summarize', function(html: string, length: number) {
+  const stripped = stripTags(html ?? '');
   let shortened = stripped.substr(0, length);
   if (stripped.length > length)
     shortened += '...';
@@ -96,18 +114,18 @@ hbs.registerHelper('summarize', function(html, length) {
 
 hbs.registerHelper('userLink', userLink);
 
-hbs.registerHelper('prettify', function(url) {
+hbs.registerHelper('prettify', function(url?: string | null) {
   if (url)
     return urlUtils.prettify(url);
   else
     return '';
 });
 
-hbs.registerHelper('shortDate', function(date) {
+hbs.registerHelper('shortDate', function(date: Date | string | number) {
   return formatShortDate(date);
 });
 
-hbs.registerHelper('longDate', function(date) {
+hbs.registerHelper('longDate', function(date: Date | string | number) {
   return formatLongDate(date);
 });
 
@@ -133,24 +151,28 @@ hbs.registerHelper('getSourceURL', function(sourceID) {
   return adapters.getSourceURL(sourceID);
 });
 
-hbs.registerHelper('__', function(...args) {
-  let options = args.pop();
-  return Reflect.apply(i18n.__, options.data.root, args);
+hbs.registerHelper('__', function(...args: unknown[]) {
+  const options = args.pop() as HelperOptions;
+  return Reflect.apply(i18n.__, getTemplateContext(options), args);
 });
 
-hbs.registerHelper('__n', function(...args) {
-  let options = args.pop();
-  return Reflect.apply(i18n.__n, options.data.root, args);
+hbs.registerHelper('__n', function(...args: unknown[]) {
+  const options = args.pop() as HelperOptions;
+  return Reflect.apply(i18n.__n, getTemplateContext(options), args);
 });
 
 // Get the language code that will result from resolving a string to the
 // current request language (may be a fallback if no translation available).
-hbs.registerHelper('getLang', function(str, options) {
-  let mlRv = mlString.resolve(options.data.root.locale, str);
+hbs.registerHelper('getLang', function(str: unknown, options: HelperOptions) {
+  const context = getTemplateContext(options);
+  const mlRv = resolveMultilingual(context.locale, str);
   return mlRv ? mlRv.lang : undefined;
 });
 
-hbs.registerHelper('getThingLabel', (thing, options) => getThingLabel(thing, options.data.root.locale));
+hbs.registerHelper('getThingLabel', (thing: ThingLike | null | undefined, options: HelperOptions) => {
+  const context = getTemplateContext(options);
+  return getThingLabel(thing, context.locale);
+});
 
 // Just a simple %1, %2 substitution function for various purposes
 hbs.registerHelper('substitute', function(...args) {
@@ -166,41 +188,49 @@ hbs.registerHelper('substitute', function(...args) {
   return string;
 });
 
-hbs.registerHelper('getThingLink', (thing, options) => {
+hbs.registerHelper('getThingLink', (thing: ThingLike | null | undefined, options: HelperOptions) => {
   if (!thing) {
     return '';
   }
-  const label = getThingLabel(thing, options.data.root.locale);
-  return `<a href="/${thing.urlID}">${label || ''}</a>`;
+  const context = getTemplateContext(options);
+  const label = getThingLabel(thing, context.locale);
+  return `<a href="/${thing.urlID ?? ''}">${label || ''}</a>`;
 });
 
 // Filenames cannot contain HTML metacharacters, so URL encoding is sufficient here
 hbs.registerHelper('getFileLink', filename => `<a href="/static/uploads/${encodeURIComponent(filename)}">${filename}</a>`);
 
-hbs.registerHelper('getLanguageName', (lang, options) => languages.getTranslatedName(lang, options.data.root.locale));
-hbs.registerHelper('isoDate', date => date && date.toISOString ? date.toISOString() : undefined);
+hbs.registerHelper('getLanguageName', (lang: string, options: HelperOptions) => {
+  const context = getTemplateContext(options);
+  return languages.getTranslatedName(lang, context.locale);
+});
+
+hbs.registerHelper('isoDate', (date: { toISOString?: () => string } | null | undefined) =>
+  date && typeof date.toISOString === 'function' ? date.toISOString() : undefined
+);
 
 // Resolve a multilingual string to the current request language.
 //
 // addLanguageSpan -- Do we want a little label next to the string (default true!)
-hbs.registerHelper('mlString', function(str, addLanguageSpan, options) {
+hbs.registerHelper('mlString', function(str: unknown, addLanguageSpan: boolean | HelperOptions, options?: HelperOptions) {
   // hbs passes options object in as last parameter
   if (arguments.length == 2) {
-    options = addLanguageSpan;
+    options = addLanguageSpan as HelperOptions;
     addLanguageSpan = true;
   } else if (addLanguageSpan === undefined)
     addLanguageSpan = true;
 
-  let mlRv = mlString.resolve(options.data.root.locale, str);
+  const context = getTemplateContext(options as HelperOptions);
+  const mlRv = resolveMultilingual(context.locale, str);
 
   if (mlRv === undefined || mlRv.str === undefined || mlRv.str === '')
     return undefined;
 
   // Note that we don't show the label if we can't identify the language ('und')
-  if (!addLanguageSpan || mlRv.lang === options.data.root.locale || mlRv.lang == 'und')
+  if (!addLanguageSpan || mlRv.lang === context.locale || mlRv.lang == 'und')
     return mlRv.str;
   else {
-    let languageName = languages.getCompositeName(mlRv.lang, options.data.root.locale);
+    const languageName = languages.getCompositeName(mlRv.lang, context.locale);
     return `${mlRv.str} <span class="language-identifier" title="${languageName}">` +
       `<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>${mlRv.lang}</span>`;
   }
@@ -208,7 +238,7 @@ hbs.registerHelper('mlString', function(str, addLanguageSpan, options) {
 
 hbs.registerHelper('round', (num, dec) => +num.toFixed(dec));
 
-hbs.registerHelper('ifCond', function(v1, operator, v2, options) {
+hbs.registerHelper('ifCond', function(v1, operator, v2, options: HelperOptions) {
   switch (operator) {
     case '==':
       return v1 == v2 ? options.fn(this) : options.inverse(this);
@@ -231,7 +261,7 @@ hbs.registerHelper('ifCond', function(v1, operator, v2, options) {
   }
 });
 
-hbs.registerHelper('renderFilePreview', function(file, restricted) {
+hbs.registerHelper('renderFilePreview', function(file: { mimeType: string; name: string }, restricted: boolean) {
   const path = restricted ? 'restricted/' : '';
   const wrap = str => `<div class="file-preview">${str}</div>`;
   if (/^image\//.test(file.mimeType))
@@ -248,22 +278,23 @@ hbs.registerHelper('licenseLabel', licenseLabel);
 
 hbs.registerHelper('licenseLink', licenseLink);
 
-hbs.registerHelper('fileCredit', function(file, options) {
-  const label = licenseLabel(file.license, options),
-    link = licenseLink(file.license, label);
+hbs.registerHelper('fileCredit', function(file: { license?: string; creator?: unknown; uploader?: { urlName?: string; displayName?: string } }, options: HelperOptions) {
+  const context = getTemplateContext(options);
+  const label = licenseLabel(file.license, options);
+  const link = licenseLink(file.license, label);
 
   if (!file.creator && !file.uploader)
     return i18n.__({
       phrase: 'rights in caption, own work',
-      locale: options.data.root.locale
+      locale: context.locale
     }, link);
   else
     return i18n.__({
         phrase: 'rights in caption, someone else\'s work',
-        locale: options.data.root.locale
+        locale: context.locale
       },
       file.creator ?
-      mlString.resolve(options.data.root.locale, file.creator).str :
+      resolveMultilingual(context.locale, file.creator).str :
       userLink(file.uploader),
       link);
 });
@@ -276,16 +307,17 @@ hbs.registerHelper('linkify', str => linkifyHTML(str, {
   }
 }));
 
-function userLink(user) {
-  return user ? `<a href="/user/${user.urlName}">${user.displayName}</a>` : '';
+function userLink(user?: { urlName?: string; displayName?: string } | null) {
+  return user ? `<a href="/user/${user.urlName ?? ''}">${user.displayName ?? ''}</a>` : '';
 }
 
-function licenseLabel(license, options) {
+function licenseLabel(license: string | undefined, options: HelperOptions) {
+  const context = getTemplateContext(options);
   const key = license === 'fair-use' ? 'fair use short' : `${license} short`;
-  return i18n.__({ phrase: key, locale: options.data.root.locale });
+  return i18n.__({ phrase: key, locale: context.locale });
 }
 
-function licenseLink(license, licenseLabel) {
+function licenseLink(license: string | undefined, licenseLabel: string) {
   const url = getLicenseURL(license);
   return url ? `<a href="${url}">${licenseLabel}</a>` : licenseLabel;
 }

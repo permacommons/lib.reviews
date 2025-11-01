@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import File from '../models/file.js';
 import getResourceErrorHandler from './handlers/resource-error-handler.js';
-import render from './helpers/render.js';
+import render from './helpers/render.ts';
 
 const router = express.Router();
 

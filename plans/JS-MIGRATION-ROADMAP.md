@@ -58,10 +58,10 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 
 
 #### Wave 3 — application bootstrap & shared middleware
-- [ ] Convert entrypoints that still import `.js` shims to native `.ts` modules (`app.ts`, `auth.ts`, `bootstrap/dal.ts`).
-- [ ] Replace remaining JavaScript utilities used at startup (`util/csrf.js`, `util/handlebars-helpers.js`) with TypeScript implementations and shared ambient types for Handlebars helpers.
-- [ ] Port top-level Express infrastructure (`routes/errors.js`, `routes/helpers/*`) to `.ts`, introducing `types/http/locals.ts` and request/user augmentations for shared middleware state.
-- [ ] Ensure session, flash, and DAL locals use the new interfaces and drop obsolete `.js` re-export files once all imports resolve to `.ts`.
+- [x] Convert entrypoints that still import `.js` shims to native `.ts` modules (`app.ts`, `auth.ts`, `bootstrap/dal.ts`).
+- [x] Replace remaining JavaScript utilities used at startup (`util/csrf.js`, `util/handlebars-helpers.js`) with TypeScript implementations and shared ambient types for Handlebars helpers.
+- [x] Port top-level Express infrastructure (`routes/errors.js`, `routes/helpers/*`) to `.ts`, introducing `types/http/locals.ts` and request/user augmentations for shared middleware state.
+- [x] Ensure session, flash, and DAL locals use the new interfaces and drop obsolete `.js` re-export files once all imports resolve to `.ts`.
 
 #### Wave 4 — routers & handlers
 - [ ] Convert domain routers together with their handler stacks so each feature ships fully typed:

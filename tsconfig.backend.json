@@ -12,21 +12,25 @@
     "*.ts",
     "adapters/**/*.js",
     "adapters/**/*.ts",
-    "app.js",
-    "auth.js",
+    "app.ts",
+    "auth.ts",
     "bootstrap/**/*.js",
+    "bootstrap/**/*.ts",
     "config/**/*.js",
     "config/**/*.ts",
     "dal/**/*.js",
     "db-postgres.js",
     "deployment/**/*.js",
     "models/**/*.js",
+    "models/**/*.ts",
     "routes/**/*.js",
+    "routes/**/*.ts",
     "search.js",
     "util/**/*.js",
     "util/**/*.ts",
     "vite.config.ts",
-    "types/**/*.d.ts"
+    "types/**/*.d.ts",
+    "types/**/*.ts"
   ],
   "exclude": [
     "frontend/**/*"

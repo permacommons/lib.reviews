@@ -3,8 +3,8 @@ import passport from 'passport';
 import config from 'config';
 import i18n from 'i18n';
 
-import render from './helpers/render.js';
-import forms from './helpers/forms.js';
+import render from './helpers/render.ts';
+import forms from './helpers/forms.ts';
 import User from '../models/user.js';
 import InviteLink from '../models/invite-link.js';
 import debug from '../util/debug.ts';

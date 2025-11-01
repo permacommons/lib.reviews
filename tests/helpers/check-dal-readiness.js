@@ -7,7 +7,7 @@
  * This eliminates the need for per-test skipping logic throughout the test suite.
  */
 
-import { createTestHarness } from '../../bootstrap/dal.js';
+import { createTestHarness } from '../../bootstrap/dal.ts';
 import config from 'config';
 
 /**

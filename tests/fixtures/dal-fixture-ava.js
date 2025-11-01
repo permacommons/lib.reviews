@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { logNotice, logOK } from '../helpers/test-helpers.js';
-import { createTestHarness } from '../../bootstrap/dal.js';
+import { createTestHarness } from '../../bootstrap/dal.ts';
 import pgModule from 'pg';
 import { initializeModel } from '../../dal/lib/model-initializer.js';
 

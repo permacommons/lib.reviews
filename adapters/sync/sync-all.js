@@ -6,7 +6,7 @@
 // contacted, and which slug changes are being performed.
 
 import promiseLimit from 'promise-limit';
-import { initializeDAL } from '../../bootstrap/dal.js';
+import { initializeDAL } from '../../bootstrap/dal.ts';
 import Thing from '../../models/thing.js';
 import debug from '../../util/debug.ts';
 

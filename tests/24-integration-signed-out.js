@@ -2,7 +2,7 @@ import test from 'ava';
 import supertest from 'supertest';
 import { extractCSRF } from './helpers/integration-helpers.js';
 import { mockSearch, unmockSearch } from './helpers/mock-search.js';
-const loadAppModule = () => import('../app.js');
+const loadAppModule = () => import('../app.ts');
 
 // Mock search before loading any modules that depend on it (e.g. bootstrap/dal).
 mockSearch();

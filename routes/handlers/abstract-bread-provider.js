@@ -1,8 +1,8 @@
 import express from 'express';
 
 // Internal dependencies
-import render from '../helpers/render.js';
-import forms from '../helpers/forms.js';
+import render from '../helpers/render.ts';
+import forms from '../helpers/forms.ts';
 import getResourceErrorHandler from './resource-error-handler.js';
 
 const router = express.Router();

@@ -1,7 +1,7 @@
 import escapeHTML from 'escape-html';
 
-import render from '../helpers/render.js';
-import feeds from '../helpers/feeds.js';
+import render from '../helpers/render.ts';
+import feeds from '../helpers/feeds.ts';
 import User from '../../models/user.js';
 import Review from '../../models/review.js';
 import reviewHandlers from './review-handlers.js';

@@ -3,10 +3,10 @@ import escapeHTML from 'escape-html';
 import TeamProvider from './handlers/team-provider.js';
 import TeamJoinRequest from '../models/team-join-request.js';
 import getResourceErrorHandler from './handlers/resource-error-handler.js';
-import render from './helpers/render.js';
+import render from './helpers/render.ts';
 import mlString from '../dal/lib/ml-string.js';
 import languages from '../locales/languages.js';
-import slugs from './helpers/slugs.js';
+import slugs from './helpers/slugs.ts';
 
 // Default routes for read, edit, add, delete
 const router = TeamProvider.bakeRoutes('team');

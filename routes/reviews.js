@@ -1,7 +1,7 @@
 import config from 'config';
 
-import render from './helpers/render.js';
-import feeds from './helpers/feeds.js';
+import render from './helpers/render.ts';
+import feeds from './helpers/feeds.ts';
 import Team from '../models/team.js';
 import Review from '../models/review.js';
 import ReviewProvider from './handlers/review-provider.js';

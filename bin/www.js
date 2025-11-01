@@ -4,7 +4,7 @@ import config from 'config';
 import fs from 'node:fs';
 import https from 'node:https';
 
-import getApp from '../app.js';
+import getApp from '../app.ts';
 import dbPostgres from '../db-postgres.js';
 
 const { getDB } = dbPostgres;

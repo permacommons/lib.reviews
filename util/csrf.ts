@@ -5,7 +5,17 @@
  * @namespace CSRF
  */
 
+import type { Request } from 'express';
+
 import { csrfSync } from 'csrf-sync';
+
+type CsrfToken = string | undefined;
+
+const normalizeHeaderToken = (token: string | string[] | undefined): CsrfToken => {
+  if (Array.isArray(token))
+    return token[0];
+  return token ?? undefined;
+};
 
 // Initialize CSRF protection with custom configuration to support both
 // form submissions (body._csrf) and header-based submissions (x-csrf-token)
@@ -16,13 +26,15 @@ const {
   getTokenFromState,
   invalidCsrfTokenError
 } = csrfSync({
-  getTokenFromRequest: (req) => {
-    // Check form body first (for traditional form submissions)
-    if (req.body && req.body._csrf)
-      return req.body._csrf;
+  getTokenFromRequest: (req: Request): CsrfToken => {
+    const bodyToken = typeof req.body === 'object' && req.body !== null
+      ? (req.body as Record<string, unknown>)._csrf
+      : undefined;
 
-    // Fall back to header (for AJAX/API requests)
-    return req.headers['x-csrf-token'];
+    if (typeof bodyToken === 'string')
+      return bodyToken;
+
+    return normalizeHeaderToken(req.headers['x-csrf-token']);
   }
 });
 

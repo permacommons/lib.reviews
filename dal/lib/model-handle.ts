@@ -14,7 +14,7 @@ type BootstrapResolver = () => BootstrapModule;
 
 let bootstrapResolver: BootstrapResolver = () => {
   throw new Error(
-    'DAL bootstrap resolver not configured. Import bootstrap/dal.js before using model handles.'
+    'DAL bootstrap resolver not configured. Import bootstrap/dal.ts before using model handles.'
   );
 };
 

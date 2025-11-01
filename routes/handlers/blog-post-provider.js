@@ -8,8 +8,8 @@ import AbstractBREADProvider from './abstract-bread-provider.js';
 import BlogPost from '../../models/blog-post.js';
 import mlString from '../../dal/lib/ml-string.js';
 import languages from '../../locales/languages.js';
-import feeds from '../helpers/feeds.js';
-import slugs from '../helpers/slugs.js';
+import feeds from '../helpers/feeds.ts';
+import slugs from '../helpers/slugs.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 
 class BlogPostProvider extends AbstractBREADProvider {
