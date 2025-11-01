@@ -57,31 +57,36 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
   imports compile against the native TypeScript sources.
 
 
-#### Wave 3 — HTTP surface area
-- [ ] Migrate Express middleware in `bootstrap/` and `routes/middleware/`.
-- [ ] Update middleware/route imports to target `.ts` utilities directly, then
-  delete the compatibility proxies in `util/*.js`.
-- [ ] Convert route handlers directory-by-directory (`routes/reviews`, `routes/users`, `routes/wiki`).
-- [ ] Add type-safe request/response objects using `@types/express` generics and custom `Locals` interfaces.
+#### Wave 3 — application bootstrap & shared middleware
+- [ ] Convert entrypoints that still import `.js` shims to native `.ts` modules (`app.ts`, `auth.ts`, `bootstrap/dal.ts`).
+- [ ] Replace remaining JavaScript utilities used at startup (`util/csrf.js`, `util/handlebars-helpers.js`) with TypeScript implementations and shared ambient types for Handlebars helpers.
+- [ ] Port top-level Express infrastructure (`routes/errors.js`, `routes/helpers/*`) to `.ts`, introducing `types/http/locals.ts` and request/user augmentations for shared middleware state.
+- [ ] Ensure session, flash, and DAL locals use the new interfaces and drop obsolete `.js` re-export files once all imports resolve to `.ts`.
 
-#### Wave 4 — frontend
-- [ ] Convert frontend entry points in `frontend/` to `.ts`
-- [ ] Wrap legacy jQuery usage with typed helper modules to minimize `any` leakage.
-- [ ] Define module augmentations for ProseMirror and other editor plugins.
-- [ ] Update Vite config to emit type definitions for shared frontend utilities.
+#### Wave 4 — routers & handlers
+- [ ] Convert domain routers together with their handler stacks so each feature ships fully typed:
+  - [ ] Accounts & authentication: `routes/actions.js`, `routes/users.js`, `routes/handlers/action-handler.js`, `routes/handlers/user-handlers.js`, `routes/handlers/signin-required-route.js`.
+  - [ ] Team management: `routes/teams.js`, `routes/handlers/team-provider.js`, `routes/handlers/resource-error-handler.js`.
+  - [ ] Things & reviews: `routes/things.js`, `routes/reviews.js`, `routes/handlers/abstract-bread-provider.js`, `routes/handlers/review-provider.js`, `routes/handlers/review-handlers.js`, `routes/helpers/slugs.js`.
+  - [ ] Files & uploads: `routes/files.js`, `routes/uploads.js`, `routes/handlers/api-upload-handler.js`, `routes/helpers/feeds.js`, `routes/helpers/forms.js`.
+  - [ ] Content & API: `routes/blog-posts.js`, `routes/pages.js`, `routes/api.js`, `routes/helpers/render.js`, `routes/helpers/api.js`, `routes/helpers/flash.js`.
+- [ ] Migrate any lingering middleware modules discovered during the router conversions and wire them up to the shared `types/http` contracts.
+- [ ] Remove `models/*.js` compatibility re-exports once all HTTP code imports the `.ts` implementations directly.
 
-#### Wave 5 — tests & tooling
-- [ ] Rename `.js` test files under `tests/` to `.ts` and replace CommonJS imports.
-- [ ] Add TypeDoc coverage checks for the migrated util modules to ensure
-  comments stay in sync with the runtime behaviour.
-- [ ] Create factory helpers with explicit types for fixtures and test doubles.
-- [ ] Ensure AVA configuration uses `ts-node/register` and add a `typecheck` npm script that runs `tsc --project tsconfig.tests.json --noEmit`.
+#### Wave 5 — frontend
+- [ ] Convert browser entrypoints (`frontend/libreviews.js`, `frontend/review.js`, `frontend/upload.js`, `frontend/upload-modal.js`, `frontend/user.js`, `frontend/manage-urls.js`) to `.ts` while preserving lazy-load boundaries.
+- [ ] Port the editor stack (`frontend/editor-*.js`, `frontend/adapters/*`) to TypeScript with shared module augmentations for ProseMirror and jQuery plugins under `types/frontend/`.
+- [ ] Tighten message and localization helpers by typing `frontend/messages/*.json`, `frontend/editor-messages.js`, and `frontend/upload-modal-messages.js`.
+- [ ] Update Vite configuration and build scripts to emit declaration files for shared frontend utilities consumed by the backend (e.g., `frontend/register.ts`).
 
-#### Wave 6 — strictness hardening
-- [ ] Turn on `noImplicitAny`, `exactOptionalPropertyTypes`, and `noUncheckedIndexedAccess` sequentially.
-- [ ] Add Biome equivalent of `eslint-plugin-tsdoc`  to enforce documentation on exported symbols.
-- [ ] Remove remaining `@ts-ignore` directives and replace with refined types.
-- [ ] Enable `strict: true` once the error count is manageable (<50 outstanding issues).
+#### Wave 6 — tests, tooling & strictness
+- [ ] Rename AVA specs (`tests/*.js`) and helpers to `.ts`, converting `tests/run-ava.js`, fixture builders, and HTTP helpers to ESM TypeScript.
+- [ ] Type the Node-facing scripts in `bin/` and `tools/` so `bin/www.js` and maintenance utilities compile under `tsconfig.node.json`.
+- [ ] Add TypeDoc coverage checks for the migrated util and DAL modules to ensure comments stay aligned with runtime behaviour.
+- [ ] Expand automation: update AVA configuration to load `.ts` files, run `tsc --project tsconfig.tests.json --noEmit` in CI, and add `npm run typecheck:tests` to the default workflow.
+- [ ] Turn on `noImplicitAny`, `exactOptionalPropertyTypes`, and `noUncheckedIndexedAccess` sequentially, addressing fallout before moving to the next flag.
+- [ ] Introduce a Biome (or eslint-tsdoc) equivalent rule to enforce documentation on exported symbols and remove remaining `@ts-ignore` directives in favour of refined types.
+- [ ] Enable `strict: true` once the outstanding TypeScript error count drops below 50 and all new checks are green.
 
 ### Exit criteria for Phase 2
 - [ ] All source files under `models/`, `dal/`, `routes/`, `frontend/`, and `util/` compiled as TypeScript.
