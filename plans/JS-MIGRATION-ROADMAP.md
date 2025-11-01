@@ -63,30 +63,53 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 - [x] Port top-level Express infrastructure (`routes/errors.js`, `routes/helpers/*`) to `.ts`, introducing `types/http/locals.ts` and request/user augmentations for shared middleware state.
 - [x] Ensure session, flash, and DAL locals use the new interfaces and drop obsolete `.js` re-export files once all imports resolve to `.ts`.
 
-#### Wave 4 — routers & handlers
-- [ ] Convert domain routers together with their handler stacks so each feature ships fully typed:
-  - [ ] Accounts & authentication: `routes/actions.js`, `routes/users.js`, `routes/handlers/action-handler.js`, `routes/handlers/user-handlers.js`, `routes/handlers/signin-required-route.js`.
-  - [ ] Team management: `routes/teams.js`, `routes/handlers/team-provider.js`, `routes/handlers/resource-error-handler.js`.
-  - [ ] Things & reviews: `routes/things.js`, `routes/reviews.js`, `routes/handlers/abstract-bread-provider.js`, `routes/handlers/review-provider.js`, `routes/handlers/review-handlers.js`, `routes/helpers/slugs.js`.
-  - [ ] Files & uploads: `routes/files.js`, `routes/uploads.js`, `routes/handlers/api-upload-handler.js`, `routes/helpers/feeds.js`, `routes/helpers/forms.js`.
-  - [ ] Content & API: `routes/blog-posts.js`, `routes/pages.js`, `routes/api.js`, `routes/helpers/render.js`, `routes/helpers/api.js`, `routes/helpers/flash.js`.
-- [ ] Migrate any lingering middleware modules discovered during the router conversions and wire them up to the shared `types/http` contracts.
-- [ ] Remove `models/*.js` compatibility re-exports once all HTTP code imports the `.ts` implementations directly.
+#### Wave 4 — routers & request handlers
+With bootstrap and shared middleware typed, finish migrating HTTP entrypoints and eliminate the remaining `.js` shims.
+
+##### 4.1 Shared handler infrastructure
+- [ ] Convert common handler utilities in `routes/handlers/` to `.ts`, modelling reusable generics for `Request`, `Response`, and template context helpers (`action-handler`, `signin-required-route`, `abstract-bread-provider`, `review-provider`, `team-provider`, `resource-error-handler`, `api-upload-handler`, `review-handlers`, `user-handlers`, `blog-post-provider`).
+- [ ] Expand `types/http/locals.ts` and related Express augmentations so `req.locale`, `req.flash`, `req.session`, and authenticated `req.user` lifecycles reflect the behaviour relied on by handlers.
+- [ ] Port cross-cutting service modules consumed by routes to TypeScript: `search.js` → `search.ts` (typed ElasticSearch client), `locales/languages.js` → `languages.ts` (locale metadata unions), and any thin helper shims under `types/http/handlebars.d.ts` that can now become concrete modules.
+
+##### 4.2 Domain routers
+- [ ] Accounts & authentication: convert `routes/actions.js`, `routes/users.js`, and dependent helpers, ensuring Passport callbacks, invite-link flows, and flash messaging use the shared HTTP types.
+- [ ] Team management: convert `routes/teams.js` alongside `routes/handlers/team-provider.js` and `routes/handlers/resource-error-handler.js`, wiring DAL generics into the provider interfaces.
+- [ ] Things & reviews: convert `routes/things.js`, `routes/reviews.js`, and supporting providers (`abstract-bread-provider`, `review-provider`, `review-handlers`), introducing typed slugs and pagination contracts.
+- [ ] Files & uploads: convert `routes/files.js`, `routes/uploads.js`, and `routes/handlers/api-upload-handler.js`, replacing the remaining `.js` imports of `routes/helpers/feeds.ts`, `routes/helpers/forms.ts`, and asset utilities with typed equivalents.
+- [ ] Content & API: convert `routes/blog-posts.js`, `routes/pages.js`, and `routes/api.js` to `.ts`, tightening types for rendered view models and API payloads.
+
+##### 4.3 Compatibility cleanup
+- [ ] Remove the `.js` compatibility facades in `models/` and `dal/lib/` once all route handlers import the native `.ts` modules.
+- [ ] Delete any obsolete `.d.ts` shims or barrel files that only existed to bridge `.js` consumers.
+- [ ] Backfill unit/AVA coverage for the converted routers to exercise typed request/response helpers.
 
 #### Wave 5 — frontend
-- [ ] Convert browser entrypoints (`frontend/libreviews.js`, `frontend/review.js`, `frontend/upload.js`, `frontend/upload-modal.js`, `frontend/user.js`, `frontend/manage-urls.js`) to `.ts` while preserving lazy-load boundaries.
-- [ ] Port the editor stack (`frontend/editor-*.js`, `frontend/adapters/*`) to TypeScript with shared module augmentations for ProseMirror and jQuery plugins under `types/frontend/`.
-- [ ] Tighten message and localization helpers by typing `frontend/messages/*.json`, `frontend/editor-messages.js`, and `frontend/upload-modal-messages.js`.
-- [ ] Update Vite configuration and build scripts to emit declaration files for shared frontend utilities consumed by the backend (e.g., `frontend/register.ts`).
+Target the browser bundles next, starting with the shared infrastructure and ending with feature-specific code.
+
+##### 5.1 Tooling and type foundations
+- [ ] Extend `tsconfig.frontend.json` (or add a dedicated config) with DOM lib targets, JSX settings, and module resolution for static assets so the browser build compiles under TypeScript.
+- [ ] Introduce `types/frontend/` module augmentations for jQuery, ProseMirror plugins, Dropzone, and any bespoke globals relied on by the editor stack.
+- [ ] Update Vite and `package.json` scripts to emit `.d.ts` artifacts for shared code (`frontend/register.ts`) consumed by server-rendered templates.
+
+##### 5.2 Core entrypoints & messaging
+- [ ] Convert runtime entrypoints (`frontend/libreviews.js`, `frontend/review.js`, `frontend/upload.js`, `frontend/upload-modal.js`, `frontend/user.js`, `frontend/manage-urls.js`) to `.ts`, keeping dynamic imports split the same way as today.
+- [ ] Type the localization/message helpers by transforming `frontend/editor-messages.js`, `frontend/upload-modal-messages.js`, and `frontend/messages/*.json` into typed modules (or generated `.ts` exports) that feed the new entrypoints.
+- [ ] Ensure the flash messaging and modal bootstrapping utilities share interfaces with the server-rendered context objects defined in Wave 4.
+
+##### 5.3 Editor & adapter ecosystem
+- [ ] Port the editor core (`frontend/editor.js`, `frontend/editor-menu.js`, `frontend/editor-prompt.js`, `frontend/editor-extended-keymap.js`, `frontend/editor-inputrules.js`, `frontend/editor-selection.js`, `frontend/editor-markdown.js`) to `.ts`, leaning on the new ProseMirror typings and centralising schema types.
+- [ ] Convert adapter modules under `frontend/adapters/` to TypeScript, introducing discriminated unions for lookup results (Wikidata, OpenStreetMap, OpenLibrary, native) and extracting shared message shapes into `types/frontend/adapters.ts`.
+- [ ] Migrate ancillary helpers such as drag-and-drop/upload wiring to typed modules and delete any `.d.ts` stopgaps left in `types/`.
 
 #### Wave 6 — tests, tooling & strictness
-- [ ] Rename AVA specs (`tests/*.js`) and helpers to `.ts`, converting `tests/run-ava.js`, fixture builders, and HTTP helpers to ESM TypeScript.
-- [ ] Type the Node-facing scripts in `bin/` and `tools/` so `bin/www.js` and maintenance utilities compile under `tsconfig.node.json`.
-- [ ] Add TypeDoc coverage checks for the migrated util and DAL modules to ensure comments stay aligned with runtime behaviour.
-- [ ] Expand automation: update AVA configuration to load `.ts` files, run `tsc --project tsconfig.tests.json --noEmit` in CI, and add `npm run typecheck:tests` to the default workflow.
-- [ ] Turn on `noImplicitAny`, `exactOptionalPropertyTypes`, and `noUncheckedIndexedAccess` sequentially, addressing fallout before moving to the next flag.
-- [ ] Introduce a Biome (or eslint-tsdoc) equivalent rule to enforce documentation on exported symbols and remove remaining `@ts-ignore` directives in favour of refined types.
-- [ ] Enable `strict: true` once the outstanding TypeScript error count drops below 50 and all new checks are green.
+Finalize the migration by bringing tests, scripts, and compiler settings in line with the fully typed runtime.
+
+- [ ] Port AVA to TypeScript: rename `tests/*.js` to `.ts`, update fixtures and helpers, and convert `tests/run-ava.js` into a typed runner that compiles under `tsconfig.tests.json`.
+- [ ] Type the supporting Node scripts in `bin/` and `tools/` (including `bin/www.js`, maintenance scripts, and DB utilities) using `tsconfig.node.json`, replacing any ad-hoc `.d.ts` declarations with concrete modules.
+- [ ] Add documentation/Typedoc coverage checks for the migrated util, DAL, and route modules to guarantee API comments stay synced with implementations.
+- [ ] Expand automation: configure AVA to load `.ts` files, run `tsc --noEmit` with the test project in CI, and wire `npm run typecheck:tests` into the default workflow.
+- [ ] Ratchet TypeScript compiler options sequentially (`noImplicitAny`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, then `strict: true`), resolving surfaced issues before enabling the next flag.
+- [ ] Replace any lingering `@ts-ignore` directives with more precise types or `@ts-expect-error` (where the failure is intentional) and mirror the lint enforcement during the subsequent Biome migration.
 
 ### Exit criteria for Phase 2
 - [ ] All source files under `models/`, `dal/`, `routes/`, `frontend/`, and `util/` compiled as TypeScript.
