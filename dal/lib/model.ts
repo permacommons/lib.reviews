@@ -446,7 +446,7 @@ class Model<
       throw new DocumentNotFound(`${this.tableName} with id ${id} not found`);
     }
 
-    return this._createInstance(result);
+    return this._createInstance(result) as Model<TRecord, TVirtual>;
   }
 
   /**
@@ -467,10 +467,13 @@ class Model<
 
     const query = new QueryBuilder(this, this.dal);
     const results = await query
-      .filter(row => ids.includes(row.id))
+      .filter(row => {
+        const identifier = (row as { id?: string }).id;
+        return Boolean(identifier && ids.includes(identifier));
+      })
       .run();
-    
-    return results.map(result => this._createInstance(result));
+
+    return results.map(result => this._createInstance(result) as Model<TRecord, TVirtual>);
   }
 
   /**
@@ -486,7 +489,7 @@ class Model<
     criteria: unknown
   ) {
     const query = new QueryBuilder(this, this.dal);
-    return query.filter(criteria);
+    return query.filter(criteria as Record<string, unknown>);
   }
 
   /**
@@ -545,7 +548,7 @@ class Model<
   ): Promise<boolean> {
     const query = new QueryBuilder(this, this.dal);
     const result = await query.deleteById(id);
-    return result.rowCount > 0;
+    return result > 0;
   }
 
   /**
@@ -664,7 +667,10 @@ class Model<
   ) {
     const query = new QueryBuilder(this, this.dal);
     return query
-      .filter(row => ids.includes(row.id))
+      .filter(row => {
+        const identifier = (row as { id?: string }).id;
+        return Boolean(identifier && ids.includes(identifier));
+      })
       .filterNotStaleOrDeleted();
   }
 
@@ -857,7 +863,7 @@ class Model<
     const runtime = this.runtime;
     const query = new QueryBuilder(runtime, runtime.dal);
     const result = await query.deleteById(String(this.id));
-    return result.rowCount > 0;
+    return result > 0;
   }
 
   /**
@@ -1245,6 +1251,7 @@ type ModelRuntime<
   TVirtual extends JsonObject
 > = RuntimeModel<TRecord, TVirtual, Model<TRecord, TVirtual>>;
 
+export type { ModelRuntime };
 export { Model };
 export default Model;
 
