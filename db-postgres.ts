@@ -7,7 +7,7 @@
 
 import config from 'config';
 
-import debug from './util/debug.js';
+import debug from './util/debug.ts';
 import createDataAccessLayer from './dal/index.js';
 import type { DataAccessLayer } from './dal/lib/model-types.js';
 import type { PostgresConfig } from 'config';

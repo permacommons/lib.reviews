@@ -1,7 +1,7 @@
 import dal from '../dal/index.js';
 import { ConstraintError } from '../dal/lib/errors.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
-import debug from '../util/debug.js';
+import debug from '../util/debug.ts';
 import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
 

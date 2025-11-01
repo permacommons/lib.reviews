@@ -6,8 +6,8 @@
 // External deps
 import config from 'config';
 import escapeHTML from 'escape-html';
-import debug from '../util/debug.js';
-import { fetchJSON } from '../util/http.js';
+import debug from '../util/debug.ts';
+import { fetchJSON } from '../util/http.ts';
 
 // Internal deps
 import AbstractBackendAdapter from './abstract-backend-adapter.js';

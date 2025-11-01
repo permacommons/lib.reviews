@@ -4,7 +4,7 @@ import User from '../models/user.js';
 import Thing from '../models/thing.js';
 import actionHandler from './handlers/action-handler.js';
 import search from '../search.js';
-import urlUtils from '../util/url-utils.js';
+import urlUtils from '../util/url-utils.ts';
 
 const router = express.Router();
 

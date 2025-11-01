@@ -19,8 +19,8 @@ import File from '../models/file.js';
 import getResourceErrorHandler from './handlers/resource-error-handler.js';
 import render from './helpers/render.js';
 import slugs from './helpers/slugs.js';
-import debug from '../util/debug.js';
-import ReportedError from '../util/reported-error.js';
+import debug from '../util/debug.ts';
+import ReportedError from '../util/reported-error.ts';
 import languages from '../locales/languages.js';
 import forms from './helpers/forms.js';
 

@@ -1,7 +1,7 @@
 // External dependencies
 import config from 'config';
 import { parse as parseURL } from 'node:url';
-import clientAssets from '../../util/client-assets.js';
+import clientAssets from '../../util/client-assets.ts';
 
 // Internal dependencies
 import languages from '../../locales/languages.js';

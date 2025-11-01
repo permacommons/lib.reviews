@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Internal dependencies
-import ReportedError from '../util/reported-error.js';
+import ReportedError from '../util/reported-error.ts';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 

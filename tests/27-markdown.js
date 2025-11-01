@@ -18,7 +18,7 @@ i18n.configure({
   objectNotation: true
 });
 
-import md from '../util/md.js';
+import md from '../util/md.ts';
 
 test('Spoiler containers render localized summary', t => {
   const html = md.render('::: spoiler\nfoo\n:::\n', { language: 'en' });

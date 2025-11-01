@@ -1,4 +1,4 @@
-import type WebHookDispatcher from '../util/webhooks.js';
+import type WebHookDispatcher from '../util/webhooks.ts';
 import type { ViteDevServer } from 'vite';
 
 declare global {

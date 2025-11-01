@@ -1,5 +1,5 @@
 import test from 'ava';
-import flashStore from '../util/flash-store.js';
+import flashStore from '../util/flash-store.ts';
 
 test('stores and retrieves flash messages on the session', t => {
   const req = { session: {} };

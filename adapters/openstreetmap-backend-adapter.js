@@ -4,8 +4,8 @@
 // External deps
 import config from 'config';
 import escapeHTML from 'escape-html';
-import debug from '../util/debug.js';
-import { fetchJSON } from '../util/http.js';
+import debug from '../util/debug.ts';
+import { fetchJSON } from '../util/http.ts';
 import languages from '../locales/languages.js';
 
 const validLanguages = languages.getValidLanguages();

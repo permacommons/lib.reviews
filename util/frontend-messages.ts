@@ -1,4 +1,4 @@
-import getMessages from './get-messages.js';
+import getMessages from './get-messages.ts';
 import uploadModalMessagesJson from '../frontend/messages/upload-modal-keys.json' with { type: 'json' };
 import editorMessagesJson from '../frontend/messages/editor-keys.json' with { type: 'json' };
 import adapterMessagesJson from '../frontend/messages/adapter-keys.json' with { type: 'json' };

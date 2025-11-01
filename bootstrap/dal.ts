@@ -10,7 +10,7 @@ import type { PostgresConfig } from 'config';
 
 import config from 'config';
 
-import debug from '../util/debug.js';
+import debug from '../util/debug.ts';
 import PostgresDAL from '../dal/index.js';
 
 import type {

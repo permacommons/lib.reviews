@@ -9,11 +9,11 @@ import linkifyHTML from 'linkify-html';
 import mlString from '../dal/lib/ml-string.js';
 import languages from '../locales/languages.js';
 import thingModelHandle from '../models/thing.js';
-import urlUtils from './url-utils.js';
+import urlUtils from './url-utils.ts';
 import adapters from '../adapters/adapters.js';
-import getLicenseURL from './get-license-url.js';
-import debug from './debug.js';
-import { formatLongDate, formatShortDate } from './date.js';
+import getLicenseURL from './get-license-url.ts';
+import debug from './debug.ts';
+import { formatLongDate, formatShortDate } from './date.ts';
 
 /**
  * Resolve a thing's display label in the current locale, with safe fallbacks.

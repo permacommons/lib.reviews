@@ -21,12 +21,12 @@
         "./routes/things.js",
         "./routes/uploads.js",
         "./routes/users.js",
-        "./util/client-assets.js",
+        "./util/client-assets.ts",
         "./util/csrf.js",
-        "./util/debug.js",
-        "./util/flash-store.js",
+        "./util/debug.ts",
+        "./util/flash-store.ts",
         "./util/handlebars-helpers.js",
-        "./util/webhooks.js",
+        "./util/webhooks.ts",
         "fs",
         "path",
         "url"
@@ -58,8 +58,8 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../util/debug.js",
-        "../util/reported-error.js",
+        "../util/debug.ts",
+        "../util/reported-error.ts",
         "./team.js",
         "./user-meta.js"
       ]
@@ -79,7 +79,7 @@
     {
       "source": "dal/lib/data-access-layer.js",
       "dependencies": [
-        "../../util/debug.js",
+        "../../util/debug.ts",
         "./model-registry.js",
         "./model.js",
         "./query-builder.js",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "source": "util/debug.js",
+      "source": "util/debug.ts",
       "dependencies": []
     },
     {
@@ -98,7 +98,7 @@
     {
       "source": "dal/lib/model.js",
       "dependencies": [
-        "../../util/debug.js",
+        "../../util/debug.ts",
         "./errors.js",
         "./query-builder.js",
         "./revision.js"
@@ -111,14 +111,14 @@
     {
       "source": "dal/lib/query-builder.js",
       "dependencies": [
-        "../../util/debug.js",
+        "../../util/debug.ts",
         "./errors.js"
       ]
     },
     {
       "source": "dal/lib/revision.js",
       "dependencies": [
-        "../../util/debug.js",
+        "../../util/debug.ts",
         "./errors.js",
         "./query-builder.js",
         "./type.js",
@@ -146,25 +146,25 @@
     {
       "source": "locales/languages.js",
       "dependencies": [
-        "../util/reported-error.js",
+        "../util/reported-error.ts",
         "path",
         "url"
       ]
     },
     {
-      "source": "util/reported-error.js",
+      "source": "util/reported-error.ts",
       "dependencies": [
         "./abstract-reported-error.js"
       ]
     },
     {
-      "source": "util/abstract-reported-error.js",
+      "source": "util/abstract-reported-error.ts",
       "dependencies": [
         "./abstract-generic-error.js"
       ]
     },
     {
-      "source": "util/abstract-generic-error.js",
+      "source": "util/abstract-generic-error.ts",
       "dependencies": []
     },
     {
@@ -186,7 +186,7 @@
       "source": "db-postgres.js",
       "dependencies": [
         "./dal/index.js",
-        "./util/debug.js"
+        "./util/debug.ts"
       ]
     },
     {
@@ -197,7 +197,7 @@
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
         "../locales/languages.js",
-        "../util/debug.js",
+        "../util/debug.ts",
         "./review.js",
         "./team-join-request.js",
         "./team-slug.js",
@@ -214,8 +214,8 @@
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
         "../locales/languages.js",
-        "../util/debug.js",
-        "../util/reported-error.js",
+        "../util/debug.ts",
+        "../util/reported-error.ts",
         "./team.js",
         "./thing.js",
         "crypto"
@@ -224,7 +224,7 @@
     {
       "source": "adapters/adapters.js",
       "dependencies": [
-        "../util/debug.js",
+        "../util/debug.ts",
         "./openlibrary-backend-adapter.js",
         "./openstreetmap-backend-adapter.js",
         "./wikidata-backend-adapter.js"
@@ -233,13 +233,13 @@
     {
       "source": "adapters/openlibrary-backend-adapter.js",
       "dependencies": [
-        "../util/debug.js",
-        "../util/http.js",
+        "../util/debug.ts",
+        "../util/http.ts",
         "./abstract-backend-adapter.js"
       ]
     },
     {
-      "source": "util/http.js",
+      "source": "util/http.ts",
       "dependencies": []
     },
     {
@@ -250,8 +250,8 @@
       "source": "adapters/openstreetmap-backend-adapter.js",
       "dependencies": [
         "../locales/languages.js",
-        "../util/debug.js",
-        "../util/http.js",
+        "../util/debug.ts",
+        "../util/http.ts",
         "./abstract-backend-adapter.js"
       ]
     },
@@ -259,8 +259,8 @@
       "source": "adapters/wikidata-backend-adapter.js",
       "dependencies": [
         "../locales/languages.js",
-        "../util/debug.js",
-        "../util/http.js",
+        "../util/debug.ts",
+        "../util/http.ts",
         "./abstract-backend-adapter.js"
       ]
     },
@@ -274,9 +274,9 @@
         "../db-postgres.js",
         "../locales/languages.js",
         "../search.js",
-        "../util/debug.js",
-        "../util/reported-error.js",
-        "../util/url-utils.js",
+        "../util/debug.ts",
+        "../util/reported-error.ts",
+        "../util/url-utils.ts",
         "./file.js",
         "./review.js",
         "./thing-slug.js",
@@ -289,11 +289,11 @@
       "dependencies": [
         "./dal/lib/ml-string.js",
         "./locales/languages.js",
-        "./util/debug.js"
+        "./util/debug.ts"
       ]
     },
     {
-      "source": "util/url-utils.js",
+      "source": "util/url-utils.ts",
       "dependencies": [
         "url"
       ]
@@ -305,7 +305,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../util/debug.js"
+        "../util/debug.ts"
       ]
     },
     {
@@ -316,7 +316,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../util/debug.js"
+        "../util/debug.ts"
       ]
     },
     {
@@ -326,7 +326,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../util/debug.js"
+        "../util/debug.ts"
       ]
     },
     {
@@ -337,7 +337,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../util/debug.js"
+        "../util/debug.ts"
       ]
     },
     {
@@ -349,7 +349,7 @@
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
         "../locales/languages.js",
-        "../util/debug.js"
+        "../util/debug.ts"
       ]
     },
     {
@@ -369,7 +369,7 @@
         "../models/thing.js",
         "../models/user-meta.js",
         "../models/user.js",
-        "../util/debug.js"
+        "../util/debug.ts"
       ]
     },
     {
@@ -382,7 +382,7 @@
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
         "../locales/languages.js",
-        "../util/debug.js",
+        "../util/debug.ts",
         "./team-slug.js",
         "./user.js"
       ]
@@ -395,7 +395,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../util/debug.js",
+        "../util/debug.ts",
         "crypto"
       ]
     },
@@ -406,7 +406,7 @@
         "../models/invite-link.js",
         "../models/user.js",
         "../search.js",
-        "../util/debug.js",
+        "../util/debug.ts",
         "./handlers/action-handler.js",
         "./handlers/signin-required-route.js",
         "./helpers/forms.js",
@@ -430,12 +430,12 @@
       "source": "routes/helpers/render.js",
       "dependencies": [
         "../../locales/languages.js",
-        "../../util/client-assets.js",
+        "../../util/client-assets.ts",
         "url"
       ]
     },
     {
-      "source": "util/client-assets.js",
+      "source": "util/client-assets.ts",
       "dependencies": [
         "../config/frontend-entries.json",
         "fs",
@@ -453,8 +453,8 @@
         "../locales/languages.js",
         "../models/file.js",
         "../util/csrf.js",
-        "../util/debug.js",
-        "../util/reported-error.js",
+        "../util/debug.ts",
+        "../util/reported-error.ts",
         "./handlers/resource-error-handler.js",
         "./helpers/forms.js",
         "./helpers/render.js",
@@ -483,12 +483,12 @@
       "source": "routes/helpers/forms.js",
       "dependencies": [
         "../../locales/languages.js",
-        "../../util/md.js",
-        "../../util/url-utils.js"
+        "../../util/md.ts",
+        "../../util/url-utils.ts"
       ]
     },
     {
-      "source": "util/md.js",
+      "source": "util/md.ts",
       "dependencies": []
     },
     {
@@ -506,7 +506,7 @@
       "dependencies": [
         "../../locales/languages.js",
         "../../models/file.js",
-        "../../util/reported-error.js",
+        "../../util/reported-error.ts",
         "../helpers/api.js",
         "../uploads.js"
       ]
@@ -523,7 +523,7 @@
         "../models/thing.js",
         "../models/user.js",
         "../search.js",
-        "../util/url-utils.js",
+        "../util/url-utils.ts",
         "./handlers/action-handler.js"
       ]
     },
@@ -539,7 +539,7 @@
         "../../dal/lib/ml-string.js",
         "../../locales/languages.js",
         "../../models/blog-post.js",
-        "../../util/frontend-messages.js",
+        "../../util/frontend-messages.ts",
         "../helpers/feeds.js",
         "../helpers/slugs.js",
         "./abstract-bread-provider.js",
@@ -547,7 +547,7 @@
       ]
     },
     {
-      "source": "util/frontend-messages.js",
+      "source": "util/frontend-messages.ts",
       "dependencies": [
         "../frontend/messages/adapter-keys.json",
         "../frontend/messages/editor-keys.json",
@@ -568,7 +568,7 @@
       "dependencies": []
     },
     {
-      "source": "util/get-messages.js",
+      "source": "util/get-messages.ts",
       "dependencies": []
     },
     {
@@ -588,7 +588,7 @@
     {
       "source": "routes/errors.js",
       "dependencies": [
-        "../util/debug.js",
+        "../util/debug.ts",
         "./helpers/render.js"
       ]
     },
@@ -607,8 +607,8 @@
     {
       "source": "routes/helpers/flash.js",
       "dependencies": [
-        "../../util/debug.js",
-        "../../util/reported-error.js"
+        "../../util/debug.ts",
+        "../../util/reported-error.ts"
       ]
     },
     {
@@ -653,11 +653,11 @@
         "../../models/team.js",
         "../../models/user.js",
         "../../search.js",
-        "../../util/frontend-messages.js",
-        "../../util/get-messages.js",
-        "../../util/md.js",
-        "../../util/reported-error.js",
-        "../../util/url-utils.js",
+        "../../util/frontend-messages.ts",
+        "../../util/get-messages.ts",
+        "../../util/md.ts",
+        "../../util/reported-error.ts",
+        "../../util/url-utils.ts",
         "../helpers/slugs.js",
         "./abstract-bread-provider.js"
       ]
@@ -681,8 +681,8 @@
         "../../models/blog-post.js",
         "../../models/team-join-request.js",
         "../../models/team.js",
-        "../../util/debug.js",
-        "../../util/frontend-messages.js",
+        "../../util/debug.ts",
+        "../../util/frontend-messages.ts",
         "../helpers/feeds.js",
         "../helpers/slugs.js",
         "./abstract-bread-provider.js",
@@ -697,8 +697,8 @@
         "../models/review.js",
         "../models/thing.js",
         "../search.js",
-        "../util/get-messages.js",
-        "../util/url-utils.js",
+        "../util/get-messages.ts",
+        "../util/url-utils.ts",
         "./handlers/resource-error-handler.js",
         "./handlers/signin-required-route.js",
         "./helpers/feeds.js",
@@ -719,15 +719,15 @@
       "dependencies": [
         "../../models/review.js",
         "../../models/user.js",
-        "../../util/frontend-messages.js",
-        "../../util/md.js",
+        "../../util/frontend-messages.ts",
+        "../../util/md.ts",
         "../helpers/feeds.js",
         "../helpers/render.js",
         "./review-handlers.js"
       ]
     },
     {
-      "source": "util/flash-store.js",
+      "source": "util/flash-store.ts",
       "dependencies": []
     },
     {
@@ -743,11 +743,11 @@
       ]
     },
     {
-      "source": "util/get-license-url.js",
+      "source": "util/get-license-url.ts",
       "dependencies": []
     },
     {
-      "source": "util/webhooks.js",
+      "source": "util/webhooks.ts",
       "dependencies": [
         "./debug.js",
         "url"

@@ -1,7 +1,7 @@
 import elasticsearch from 'elasticsearch';
 import config from 'config';
 
-import debug from './util/debug.js';
+import debug from './util/debug.ts';
 import mlString from './dal/lib/ml-string.js';
 import languages from './locales/languages.js';
 

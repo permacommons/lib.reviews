@@ -1,7 +1,7 @@
 import config from 'config';
 import escapeHTML from 'escape-html';
-import md from '../../util/md.js';
-import urlUtils from '../../util/url-utils.js';
+import md from '../../util/md.ts';
+import urlUtils from '../../util/url-utils.ts';
 import languages from '../../locales/languages.js';
 
 // Used for field names in forms that support UUID wildcards

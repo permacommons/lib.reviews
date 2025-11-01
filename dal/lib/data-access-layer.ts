@@ -5,7 +5,7 @@ import { Pool } from 'pg';
 import type { PoolClient, PoolConfig, QueryResult } from 'pg';
 import type { PostgresConfig } from 'config';
 
-import debug from '../../util/debug.js';
+import debug from '../../util/debug.ts';
 import Model from './model.js';
 import ModelRegistry from './model-registry.js';
 import type {

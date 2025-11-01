@@ -1,7 +1,7 @@
 import dal from '../dal/index.js';
-import debug from '../util/debug.js';
-import urlUtils from '../util/url-utils.js';
-import ReportedError from '../util/reported-error.js';
+import debug from '../util/debug.ts';
+import urlUtils from '../util/url-utils.ts';
+import ReportedError from '../util/reported-error.ts';
 import adapters from '../adapters/adapters.js';
 import languages from '../locales/languages.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';

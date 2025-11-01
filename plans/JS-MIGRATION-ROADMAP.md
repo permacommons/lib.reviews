@@ -51,9 +51,9 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 - [x] Port bootstrap helpers (`dal/lib/model-initializer`, `dal/lib/model-handle`, `bootstrap/dal`) to TypeScript and ensure typed registration flows.
 - [x] Type connection and query orchestration (`dal/lib/data-access-layer`, `dal/lib/query-builder`, `db-postgres`) so Postgres pooling and transactions expose concrete interfaces.
 - [x] Convert the first batch of PostgreSQL models (`models/user`, `models/user-meta`, `models/team`, `models/team-join-request`, `models/team-slug`) to `.ts`, using the new DAL generics for relations.
-- [ ] Convert remaining models that back reviews and assets (`models/thing`, `models/thing-slug`, `models/review`, `models/blog-post`, `models/file`, `models/invite-link`).
+- [x] Convert remaining models that back reviews and assets (`models/thing`, `models/thing-slug`, `models/review`, `models/blog-post`, `models/file`, `models/invite-link`).
   - [x] `models/thing`, `models/thing-slug`
-- [ ] Remove the temporary `.js` re-export shims for `util/` helpers once DAL
+- [x] Remove the temporary `.js` re-export shims for `util/` helpers once DAL
   imports compile against the native TypeScript sources.
 
 

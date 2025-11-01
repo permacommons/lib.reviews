@@ -6,7 +6,7 @@ import dal from '../dal/index.js';
 import { createModelModule } from '../dal/lib/model-handle.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
-import debug from '../util/debug.js';
+import debug from '../util/debug.ts';
 import languages from '../locales/languages.js';
 import User from './user.js';
 import Review from './review.js';

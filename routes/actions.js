@@ -7,7 +7,7 @@ import render from './helpers/render.js';
 import forms from './helpers/forms.js';
 import User from '../models/user.js';
 import InviteLink from '../models/invite-link.js';
-import debug from '../util/debug.js';
+import debug from '../util/debug.ts';
 import actionHandler from './handlers/action-handler.js';
 import signinRequiredRoute from './handlers/signin-required-route.js';
 import languages from '../locales/languages.js';

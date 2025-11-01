@@ -8,13 +8,13 @@ import User from '../../models/user.js';
 import File from '../../models/file.js';
 import AbstractBREADProvider from './abstract-bread-provider.js';
 import mlString from '../../dal/lib/ml-string.js';
-import urlUtils from '../../util/url-utils.js';
-import ReportedError from '../../util/reported-error.js';
-import md from '../../util/md.js';
+import urlUtils from '../../util/url-utils.ts';
+import ReportedError from '../../util/reported-error.ts';
+import md from '../../util/md.ts';
 import slugs from '../helpers/slugs.js';
 import search from '../../search.js';
-import getMessages from '../../util/get-messages.js';
-import frontendMessages from '../../util/frontend-messages.js';
+import getMessages from '../../util/get-messages.ts';
+import frontendMessages from '../../util/frontend-messages.ts';
 
 class ReviewProvider extends AbstractBREADProvider {
 

@@ -8,7 +8,7 @@
 import promiseLimit from 'promise-limit';
 import { initializeDAL } from '../../bootstrap/dal.js';
 import Thing from '../../models/thing.js';
-import debug from '../../util/debug.js';
+import debug from '../../util/debug.ts';
 
 const limit = promiseLimit(2); // Max 2 URL batch updates at a time
 

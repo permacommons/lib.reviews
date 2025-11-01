@@ -31,10 +31,10 @@ import { initializeDAL } from './bootstrap/dal.js';
 import ErrorProvider from './routes/errors.js';
 import apiHelper from './routes/helpers/api.js';
 import flashHelper from './routes/helpers/flash.js';
-import clientAssets from './util/client-assets.js';
-import debug from './util/debug.js';
-import flashStore from './util/flash-store.js';
-import WebHookDispatcher from './util/webhooks.js';
+import clientAssets from './util/client-assets.ts';
+import debug from './util/debug.ts';
+import flashStore from './util/flash-store.ts';
+import WebHookDispatcher from './util/webhooks.ts';
 import './util/handlebars-helpers.js';
 import languages from './locales/languages.js';
 

@@ -1,6 +1,6 @@
 import { URL } from 'node:url';
 
-import debug from './debug.js';
+import debug from './debug.ts';
 
 /** Default timeout for webhook POST requests. */
 const DEFAULT_TIMEOUT_MS = 10_000;

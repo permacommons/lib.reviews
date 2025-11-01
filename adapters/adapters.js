@@ -1,4 +1,4 @@
-import debug from '../util/debug.js';
+import debug from '../util/debug.ts';
 import WikidataBackendAdapter from './wikidata-backend-adapter.js';
 import OpenLibraryBackendAdapter from './openlibrary-backend-adapter.js';
 import OpenStreetMapBackendAdapter from './openstreetmap-backend-adapter.js';

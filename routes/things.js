@@ -12,8 +12,8 @@ import feeds from './helpers/feeds.js';
 import forms from './helpers/forms.js';
 import slugs from './helpers/slugs.js';
 import search from '../search.js';
-import getMessages from '../util/get-messages.js';
-import urlUtils from '../util/url-utils.js';
+import getMessages from '../util/get-messages.ts';
+import urlUtils from '../util/url-utils.ts';
 import signinRequiredRoute from './handlers/signin-required-route.js';
 
 const router = express.Router();

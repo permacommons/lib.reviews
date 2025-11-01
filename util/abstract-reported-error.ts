@@ -1,7 +1,7 @@
 import escapeHTML from 'escape-html';
 import { sprintf } from 'sprintf-js';
 
-import AbstractGenericError, { type GenericErrorOptions } from './abstract-generic-error.js';
+import AbstractGenericError, { type GenericErrorOptions } from './abstract-generic-error.ts';
 
 /**
  * Translation function signature compatible with `sprintf` and i18n helpers.

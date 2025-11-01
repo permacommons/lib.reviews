@@ -1,6 +1,6 @@
 import isUUID from 'is-uuid';
 
-import debug from '../../util/debug.js';
+import debug from '../../util/debug.ts';
 import { convertPostgreSQLError } from './errors.js';
 import type {
   DataAccessLayer,

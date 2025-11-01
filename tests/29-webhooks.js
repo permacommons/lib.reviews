@@ -1,6 +1,6 @@
 import test from 'ava';
 import http from 'http';
-import WebHookDispatcher from '../util/webhooks.js';
+import WebHookDispatcher from '../util/webhooks.ts';
 
 function createServer(handler) {
   const server = http.createServer(handler);

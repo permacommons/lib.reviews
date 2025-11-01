@@ -3,7 +3,7 @@ import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
 import { getPostgresDAL } from '../db-postgres.js';
-import debug from '../util/debug.js';
+import debug from '../util/debug.ts';
 
 type TeamJoinRequestRecord = JsonObject;
 type TeamJoinRequestVirtual = JsonObject;
