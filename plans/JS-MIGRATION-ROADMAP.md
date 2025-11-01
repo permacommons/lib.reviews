@@ -47,7 +47,7 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 #### Wave 2 — data layer
 - [ ] Remove the temporary `.js` re-export shims for `util/` helpers once DAL
   imports compile against the native TypeScript sources.
-- [ ] Convert DAL entrypoints and primitives (`dal/index`, `dal/lib/errors`, `dal/lib/type`, `dal/lib/ml-string`, `dal/lib/revision`) to `.ts`, aligning runtime exports with `dal/index.d.ts`.
+- [x] Convert DAL entrypoints and primitives (`dal/index`, `dal/lib/errors`, `dal/lib/type`, `dal/lib/ml-string`, `dal/lib/revision`) to `.ts`, aligning runtime exports with `dal/index.d.ts`.
 - [ ] Migrate model infrastructure (`dal/lib/model`, `dal/lib/model-factory`, `dal/lib/model-registry`) to `.ts` with generics for record payloads.
 - [ ] Port bootstrap helpers (`dal/lib/model-initializer`, `dal/lib/model-handle`, `bootstrap/dal`) to TypeScript and ensure typed registration flows.
 - [ ] Type connection and query orchestration (`dal/lib/data-access-layer`, `dal/lib/query-builder`, `db-postgres`) so Postgres pooling and transactions expose concrete interfaces.
