@@ -39,13 +39,18 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 - [x] Add type-safe helpers for common utilities (`util/*`), starting with logging and date formatting.
 
 #### Wave 1 — low-risk utilities
-- [ ] Convert `util/` modules that have no database or network access (`util/async`, `util/markdown`, `util/validation`).
-- [ ] Port shared constants in `bootstrap/` (feature flags, configuration defaults).
+- [ ] Convert the error/reporting stack under `util/` to `.ts` (`abstract-generic-error`, `abstract-reported-error`, `reported-error`, `debug`) and install missing `@types/*` packages for `sprintf-js` and `escape-html`.
+- [ ] Rename existing `.d.ts` shims to real TypeScript modules for shared helpers (`util/date`, `util/http`, `util/webhooks`) and delete their parallel declaration files.
+- [ ] Type markdown and messaging helpers (`util/md`, `util/get-messages`, `util/frontend-messages`, `util/get-license-url`), adding minimal ambient modules for plugins like `markdown-it-html5-media`.
+- [ ] Migrate asset/session utilities that only rely on Node built-ins or Express request typing (`util/client-assets`, `util/url-utils`, `util/flash-store`).
 
 #### Wave 2 — data layer
-- [ ] Convert DAL query builders (`dal/*.js`) to `.ts`, reusing ambient types from Wave 0.
-- [ ] Introduce typed model factories in `models/` and co-locate `zod` schemas for runtime validation.
-- [ ] Ensure `db-postgres.js` exposes a typed client instance and connection pool contract.
+- [ ] Convert DAL entrypoints and primitives (`dal/index`, `dal/lib/errors`, `dal/lib/type`, `dal/lib/ml-string`, `dal/lib/revision`) to `.ts`, aligning runtime exports with `dal/index.d.ts`.
+- [ ] Migrate model infrastructure (`dal/lib/model`, `dal/lib/model-factory`, `dal/lib/model-registry`) to `.ts` with generics for record payloads.
+- [ ] Port bootstrap helpers (`dal/lib/model-initializer`, `dal/lib/model-handle`, `bootstrap/dal`) to TypeScript and ensure typed registration flows.
+- [ ] Type connection and query orchestration (`dal/lib/data-access-layer`, `dal/lib/query-builder`, `db-postgres`) so Postgres pooling and transactions expose concrete interfaces.
+- [ ] Convert the first batch of PostgreSQL models (`models/user`, `models/user-meta`, `models/team`, `models/team-join-request`, `models/team-slug`) to `.ts`, using the new DAL generics for relations.
+- [ ] Convert remaining models that back reviews and assets (`models/thing`, `models/thing-slug`, `models/review`, `models/blog-post`, `models/file`, `models/invite-link`).
 
 #### Wave 3 — HTTP surface area
 - [ ] Migrate Express middleware in `bootstrap/` and `routes/middleware/`.
