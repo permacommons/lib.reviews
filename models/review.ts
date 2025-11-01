@@ -33,6 +33,27 @@ const reviewOptions = {
   maxTitleLength: 255
 };
 
+interface ReviewFeedOptions {
+  createdBy?: string;
+  offsetDate?: Date;
+  onlyTrusted?: boolean;
+  thingID?: string;
+  withThing?: boolean;
+  withTeams?: boolean;
+  withoutCreator?: string;
+  limit?: number;
+}
+
+interface ReviewFeedResult {
+  feedItems: unknown[];
+  offsetDate?: Date;
+}
+
+interface CreateReviewOptions {
+  tags?: string[];
+  files?: string[];
+}
+
 let Review = null;
 
 /**
@@ -217,7 +238,7 @@ async function getWithData(id) {
  * @param options.files - UUIDs of files to add to the Thing for this review
  * @returns {Review} the saved review
  */
-async function createReview(reviewObj, { tags, files } = {}) {
+async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}) {
   const thing = await Review.findOrCreateThing(reviewObj);
   const reviewId = reviewObj.id || undefined;
 
@@ -425,15 +446,15 @@ async function findOrCreateThing(reviewObj) {
  * @returns {Object} feed object with items and optional offsetDate
  */
 async function getFeed({
-  createdBy = undefined,
-  offsetDate = undefined,
+  createdBy,
+  offsetDate,
   onlyTrusted = false,
-  thingID = undefined,
+  thingID,
   withThing = true,
   withTeams = true,
-  withoutCreator = undefined,
+  withoutCreator,
   limit = 10
-} = {}) {
+}: ReviewFeedOptions = {}): Promise<ReviewFeedResult> {
 
   let query = `
     SELECT r.* FROM ${Review.tableName} r
@@ -483,11 +504,11 @@ async function getFeed({
 
   // Execute query
   const result = await Review.dal.query(query, params);
-  let feedItems = result.rows.slice(0, limit).map(row => Review._createInstance(row));
-  const feedResult = {};
+  const feedItems = result.rows.slice(0, limit).map(row => Review._createInstance(row));
+  const feedResult: ReviewFeedResult = { feedItems };
 
   // Check for pagination
-  if (result.rows.length === limit + 1 && feedItems.length > 0) {
+  if (result.rows.length === limit + 1 && feedItems.length > 0 && limit > 0) {
     const lastVisible = feedItems[feedItems.length - 1];
     const offsetCandidate = lastVisible.createdOn || lastVisible.created_on;
     if (offsetCandidate instanceof Date) {
@@ -629,7 +650,6 @@ async function getFeed({
     }
   }
 
-  feedResult.feedItems = feedItems;
   return feedResult;
 }
 

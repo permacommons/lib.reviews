@@ -166,7 +166,17 @@ function getValidLicenses() {
  * @returns {Promise<Object>} Feed object with items and optional offsetDate
  * @async
  */
-async function getFileFeed({ offsetDate, limit = 10 } = {}) {
+interface FileFeedOptions {
+  offsetDate?: Date;
+  limit?: number;
+}
+
+interface FileFeedResult<TItem> {
+  items: TItem[];
+  offsetDate?: Date;
+}
+
+async function getFileFeed({ offsetDate, limit = 10 }: FileFeedOptions = {}): Promise<FileFeedResult<unknown>> {
   let query = File.filter({ completed: true })
     .filterNotStaleOrDeleted()
     .getJoin({ uploader: true })
@@ -178,14 +188,16 @@ async function getFileFeed({ offsetDate, limit = 10 } = {}) {
 
   // Get one extra to check for more results
   const items = await query.limit(limit + 1).run();
+  const slicedItems = items.slice(0, limit);
 
-  const feed = {
-    items: items.slice(0, limit)
+  const feed: FileFeedResult<unknown> = {
+    items: slicedItems
   };
 
   // At least one additional document available, set offset for pagination
-  if (items.length === limit + 1) {
-    feed.offsetDate = feed.items[limit - 1].uploadedOn;
+  if (items.length === limit + 1 && limit > 0) {
+    const lastVisible = slicedItems[limit - 1] as { uploadedOn?: Date };
+    feed.offsetDate = lastVisible?.uploadedOn;
   }
 
   return feed;

@@ -37,12 +37,30 @@ export interface RelationConfig extends JsonObject {
   type?: string;
   model?: unknown;
   join?: JsonObject;
+  targetTable?: string;
+  table?: string;
+  target?: string;
+  targetModelKey?: string;
+  targetModel?: unknown;
+  sourceColumn?: string;
+  sourceKey?: string;
+  sourceField?: string;
+  targetColumn?: string;
+  targetKey?: string;
+  targetField?: string;
+  hasRevisions?: boolean;
+  cardinality?: 'one' | 'many';
+  through?: JsonObject;
+  joinTable?: string;
+  isArray?: boolean;
 }
 
-export interface RelationDefinition {
+export interface NormalizedRelationDefinition {
   name: string;
   config: RelationConfig;
 }
+
+type RelationDefinitionInput = NormalizedRelationDefinition | (RelationConfig & { name: string });
 
 type InstanceMethod<TInstance extends ModelInstance> = (this: TInstance, ...args: unknown[]) => unknown;
 
@@ -84,7 +102,7 @@ export interface InitializeModelOptions<
   staticMethods?: Record<string, StaticMethod>;
   instanceMethods?: Record<string, InstanceMethod<TInstance>>;
   registryKey?: string;
-  relations?: RelationDefinition[] | Record<string, RelationConfig> | null;
+  relations?: RelationDefinitionInput[] | Record<string, RelationConfig> | null;
 }
 
 /**
@@ -176,8 +194,8 @@ function attachRevisionHandlers<
  * @returns Normalized relation definitions safe for iteration.
  */
 function normalizeRelationDefinitions(
-  relations: RelationDefinition[] | Record<string, RelationConfig> | null | undefined
-): RelationDefinition[] {
+  relations: RelationDefinitionInput[] | Record<string, RelationConfig> | null | undefined
+): NormalizedRelationDefinition[] {
   if (!relations) {
     return [];
   }
@@ -200,7 +218,7 @@ function normalizeRelationDefinitions(
 
         return { name: relationName, config: normalizedConfig };
       })
-      .filter((entry): entry is RelationDefinition => Boolean(entry));
+      .filter((entry): entry is NormalizedRelationDefinition => Boolean(entry));
   }
 
   return Object.entries(relations)
@@ -215,7 +233,7 @@ function normalizeRelationDefinitions(
 
       return { name, config: normalizedConfig };
     })
-    .filter((entry): entry is RelationDefinition => Boolean(entry));
+    .filter((entry): entry is NormalizedRelationDefinition => Boolean(entry));
 }
 
 /**

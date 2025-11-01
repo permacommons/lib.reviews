@@ -119,10 +119,15 @@ async function getWithCreator(id) {
   return post;
 }
 
+interface BlogPostFeedOptions {
+  limit?: number;
+  offsetDate?: Date;
+}
+
 async function getMostRecentBlogPosts(teamID, {
   limit = 10,
-  offsetDate = undefined
-} = {}) {
+  offsetDate
+}: BlogPostFeedOptions = {}) {
   if (!teamID) {
     throw new Error('We require a team ID to fetch blog posts.');
   }
@@ -161,9 +166,9 @@ async function getMostRecentBlogPosts(teamID, {
 
   const blogPosts = posts.filter(Boolean);
 
-  const response = { blogPosts };
+  const response: { blogPosts: typeof blogPosts; offsetDate?: Date } = { blogPosts };
 
-  if (blogPosts.length === limit + 1) {
+  if (blogPosts.length === limit + 1 && limit > 0) {
     const offsetPost = blogPosts[limit - 1];
     response.offsetDate = offsetPost.createdOn;
     blogPosts.pop();

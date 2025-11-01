@@ -30,6 +30,8 @@ export interface DebugErrorContext {
 }
 
 /** Mapping of debug channels available to the application. */
+export type DebugErrorDetail = DebugErrorContext | Error | string | null | undefined;
+
 export interface DebugLoggerMap {
   db: Debugger;
   app: Debugger;
@@ -39,7 +41,12 @@ export interface DebugLoggerMap {
   webhooks: Debugger;
   errorLog: Debugger;
   /** Logs either a raw string or a structured error payload. */
-  error(this: DebugLoggerMap, error: string | DebugErrorContext): void;
+  error: DebugErrorFunction;
+}
+
+export interface DebugErrorFunction {
+  (this: DebugLoggerMap, message: string, detail?: DebugErrorDetail): void;
+  (this: DebugLoggerMap, detail: DebugErrorDetail): void;
 }
 
 /**
@@ -70,6 +77,47 @@ function sanitizeForLogging<T>(value: T): T {
  * Singleton wrapper around the `debug` package that exposes the same channel
  * names we used in CommonJS, plus helpers for structured error reporting.
  */
+const logDetail = (logger: Debugger, detail: DebugErrorDetail): void => {
+  if (!detail) {
+    return;
+  }
+
+  if (typeof detail === 'string') {
+    logger(detail);
+    return;
+  }
+
+  if (detail instanceof Error) {
+    logger('Stacktrace:');
+    logger(detail.stack ?? String(detail));
+    return;
+  }
+
+  const request = detail.req;
+
+  if (request) {
+    if (request.route && 'path' in request.route && request.route.path)
+      logger(`Error occurred in route <${request.route.path}>.`);
+
+    if (request.method || request.originalUrl)
+      logger(`Request method: ${request.method ?? 'UNKNOWN'} - URL: ${request.originalUrl ?? 'UNKNOWN'}`);
+
+    if (request.method !== 'GET' && request.body !== undefined) {
+      logger('Request body:');
+      if (typeof request.body === 'object') {
+        logger(JSON.stringify(sanitizeForLogging(request.body), null, 2));
+      } else {
+        logger('<omitted>');
+      }
+    }
+  }
+
+  if (detail.error) {
+    logger('Stacktrace:');
+    logger(detail.error.stack ?? String(detail.error));
+  }
+};
+
 const debug: DebugLoggerMap = {
   // For lower-level debug messages available if needed
   db: debugModule('libreviews:db'),
@@ -80,36 +128,18 @@ const debug: DebugLoggerMap = {
   webhooks: debugModule('libreviews:webhooks'),
   errorLog: debugModule('libreviews:error'), // for property access, use debug.error for logging
 
-  error(this: DebugLoggerMap, error: string | DebugErrorContext): void {
-    if (typeof error === 'string') {
-      this.errorLog(error);
+  error(this: DebugLoggerMap, first: string | DebugErrorDetail, maybeDetail?: DebugErrorDetail): void {
+    const log = this.errorLog;
+
+    if (typeof first === 'string') {
+      log(first);
+      if (maybeDetail !== undefined) {
+        logDetail(log, maybeDetail);
+      }
       return;
     }
 
-    const log = this.errorLog;
-    const request = error?.req;
-
-    if (request) {
-      if (request.route && 'path' in request.route && request.route.path)
-        log(`Error occurred in route <${request.route.path}>.`);
-
-      if (request.method || request.originalUrl)
-        log(`Request method: ${request.method ?? 'UNKNOWN'} - URL: ${request.originalUrl ?? 'UNKNOWN'}`);
-
-      if (request.method !== 'GET' && request.body !== undefined) {
-        log('Request body:');
-        if (typeof request.body === 'object') {
-          log(JSON.stringify(sanitizeForLogging(request.body), null, 2));
-        } else {
-          log('<omitted>');
-        }
-      }
-    }
-
-    if (error?.error) {
-      log('Stacktrace:');
-      log(error.error.stack ?? String(error.error));
-    }
+    logDetail(log, first);
   }
 };
 
