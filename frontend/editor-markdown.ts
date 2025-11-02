@@ -7,7 +7,10 @@ import {
   defaultMarkdownParser,
   defaultMarkdownSerializer
 } from 'prosemirror-markdown';
+import type { MarkdownSerializerState } from 'prosemirror-markdown';
+import type { DOMOutputSpec, Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
 import { Schema } from 'prosemirror-model';
+import type Token from 'markdown-it/lib/token.mjs';
 import { msg } from './libreviews.js';
 
 const md = new MarkdownIt('commonmark', { html: false });
@@ -20,7 +23,7 @@ md.use(markdownItContainer, 'warning', {
 md.use(html5Media);
 
 // <video> and <audio> schema are largely identical
-const getMediaSchema = type =>
+const getMediaSchema = (type: 'video' | 'audio'): NodeSpec =>
   ({
     inline: true,
     attrs: {
@@ -34,12 +37,12 @@ const getMediaSchema = type =>
       tag: `${type}[src]`,
       getAttrs(dom) {
         return {
-          src: dom.getAttribute("src"),
-          title: dom.getAttribute("title")
+          src: (dom as HTMLElement).getAttribute("src"),
+          title: (dom as HTMLElement).getAttribute("title")
         };
       }
     }],
-    toDOM(node) {
+    toDOM(node): DOMOutputSpec {
       // Fallback description is omitted in RTE view, no point since user
       // must be able to play HTML5 media in order to insert them
       return [type, {
@@ -67,7 +70,7 @@ const markdownSchema = new Schema({
         group: "warning",
         attrs: { message: { default: "" }, markup: { default: "" } },
         parseDOM: [{ tag: "details" }],
-        toDOM(node) {
+        toDOM(node): DOMOutputSpec {
           return [
             "details",
             {
@@ -92,40 +95,54 @@ const markdownSchema = new Schema({
             ]
           ];
         }
-      }
+      } satisfies NodeSpec
     }),
   marks: schema.spec.marks
 });
 
 export { markdownSchema };
 
+type SerializerFn = (state: MarkdownSerializerState, node: ProseMirrorNode) => void;
+
 // Serialize content back into markdown
-defaultMarkdownSerializer.nodes['container_warning'] = (state, node) => {
+defaultMarkdownSerializer.nodes['container_warning'] = ((state, node) => {
   state.write(`::: ${node.attrs.markup}\n\n`);
   state.renderContent(node);
   state.write(':::');
   state.closeBlock(node);
+}) as SerializerFn;
+
+const mediaSerializer: SerializerFn = (state, node) => {
+  const escapeQuotes = (str: string): string => str.replace(/(["'])/g, '\\$&');
+  const title = node.attrs.title ? ` "${escapeQuotes(node.attrs.title)}"` : '';
+  state.write(`![${node.attrs.description || ''}](${node.attrs.src}${title})`);
 };
 
-defaultMarkdownSerializer.nodes.video = defaultMarkdownSerializer.nodes.audio =
-  (state, node) => {
-    const escapeQuotes = (str) => str.replace(/(["'])/g, '\\$&');
-    const title = node.attrs.title ? ` "${escapeQuotes(node.attrs.title)}"` : '';
-    state.write(`![${node.attrs.description || ''}](${node.attrs.src}${title})`);
-  };
+defaultMarkdownSerializer.nodes.video = mediaSerializer;
+defaultMarkdownSerializer.nodes.audio = mediaSerializer;
 
 export { defaultMarkdownSerializer as markdownSerializer };
 
-const defaultMarkdownParserTokens = defaultMarkdownParser.tokens;
+type MarkdownParseSpec = {
+  node?: string;
+  block?: string;
+  mark?: string;
+  attrs?: Record<string, unknown> | null;
+  getAttrs?: (token: Token) => Record<string, unknown> | null;
+  noCloseToken?: boolean;
+  ignore?: boolean;
+};
+
+const defaultMarkdownParserTokens = defaultMarkdownParser.tokens as Record<string, MarkdownParseSpec>;
 
 // Translate tokens from markdown parser into metadata for the ProseMirror node
 
-const getMediaParserTokens = type => ({
+const getMediaParserTokens = (type: 'video' | 'audio'): MarkdownParseSpec => ({
   node: type,
-  getAttrs: tok => ({
+  getAttrs: (tok: Token) => ({
     src: tok.attrGet("src"),
     title: tok.attrGet("title") || null,
-    description: (tok.children[0] && tok.children[0].content) || null
+    description: tok.children && tok.children[0] ? tok.children[0].content : null
   })
 });
 
@@ -134,10 +151,9 @@ defaultMarkdownParserTokens.audio = getMediaParserTokens('audio');
 
 defaultMarkdownParserTokens.container_warning = {
   block: "container_warning",
-  attrs: tok => {
-    let info = tok.info.trim(),
-      rv = {};
-    rv.markup = info;
+  getAttrs: (tok: Token) => {
+    const info = tok.info.trim();
+    const rv: { markup: string; message?: string } = { markup: info };
     if (info === 'spoiler' || info === 'nsfw') {
       rv.message = msg(`${info} warning`);
     } else if (/^warning\s+\S{1}.*/.test(info)) {

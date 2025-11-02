@@ -6,4 +6,5 @@ declare module 'markdown-it-html5-media' {
   }
 
   export const html5Media: PluginWithOptions<Html5MediaOptions>;
+  export function guessMediaType(src: string): 'audio' | 'video' | 'image';
 }

@@ -1,20 +1,3 @@
-// const activeInputRules = [
-//   // Convert -- to —
-//   inputRules.emDash,
-//   // Convert ... to …
-//   inputRules.ellipsis
-  // Convert 1. , 2. .. at beginning of line to numbered list
-//  inputRules.orderedListRule(markdownSchema.nodes.ordered_list),
-  // Convert * or - at beginning of line to bullet list
-//  inputRules.wrappingInputRule(/^\s*([-*]) $/, markdownSchema.nodes.bullet_list),
-  // Convert > at beginning of line to quote
-//  inputRules.blockQuoteRule(markdownSchema.nodes.blockquote),
-  // Convert #, ##, .. at beginning of line to heading
-//  inputRules.headingRule(markdownSchema.nodes.heading, 6)
-// ];
-
-// Adapted from https://github.com/ProseMirror/prosemirror-example-setup
-
 import {
   inputRules,
   wrappingInputRule,
@@ -23,53 +6,57 @@ import {
   emDash,
   ellipsis
 } from 'prosemirror-inputrules';
+import type { NodeType, Schema } from 'prosemirror-model';
+import type { Plugin } from 'prosemirror-state';
+import type { InputRule } from 'prosemirror-inputrules';
 
-// : (NodeType) → InputRule
 // Given a blockquote node type, returns an input rule that turns `"> "`
 // at the start of a textblock into a blockquote.
-function blockQuoteRule(nodeType) {
+function blockQuoteRule(nodeType: NodeType): InputRule {
   return wrappingInputRule(/^\s*>\s$/, nodeType);
 }
 
-// : (NodeType) → InputRule
 // Given a list node type, returns an input rule that turns a number
 // followed by a dot at the start of a textblock into an ordered list.
-function orderedListRule(nodeType) {
-  return wrappingInputRule(/^(\d+)\.\s$/, nodeType, match => ({ order: +match[1] }),
-    (match, node) => node.childCount + node.attrs.order == +match[1]);
+function orderedListRule(nodeType: NodeType): InputRule {
+  return wrappingInputRule(
+    /^(\d+)\.\s$/,
+    nodeType,
+    match => ({ order: Number(match[1]) }),
+    (match, node) => node.childCount + node.attrs.order === Number(match[1])
+  );
 }
 
-// : (NodeType) → InputRule
 // Given a list node type, returns an input rule that turns a bullet
 // (dash, plush, or asterisk) at the start of a textblock into a
 // bullet list.
-function bulletListRule(nodeType) {
+function bulletListRule(nodeType: NodeType): InputRule {
   return wrappingInputRule(/^\s*([-+*])\s$/, nodeType);
 }
 
-// : (NodeType) → InputRule
 // Given a code block node type, returns an input rule that turns a
 // textblock starting with three backticks into a code block.
-function codeBlockRule(nodeType) {
+function codeBlockRule(nodeType: NodeType): InputRule {
   return textblockTypeInputRule(/^```$/, nodeType);
 }
 
-// : (NodeType, number) → InputRule
 // Given a node type and a maximum level, creates an input rule that
 // turns up to that number of `#` characters followed by a space at
 // the start of a textblock into a heading whose level corresponds to
 // the number of `#` signs.
-function headingRule(nodeType, maxLevel) {
-  return textblockTypeInputRule(new RegExp("^(#{1," + maxLevel + "})\\s$"),
-    nodeType, match => ({ level: match[1].length }));
+function headingRule(nodeType: NodeType, maxLevel: number): InputRule {
+  return textblockTypeInputRule(
+    new RegExp(`^(#{1,${maxLevel}})\\s$`),
+    nodeType,
+    match => ({ level: match[1].length })
+  );
 }
 
-// : (Schema) → Plugin
 // A set of input rules for creating the basic block quotes, lists,
 // code blocks, and heading.
-export function buildInputRules(schema) {
-  let rules = smartQuotes.concat(ellipsis, emDash),
-    type;
+export function buildInputRules(schema: Schema): Plugin {
+  const rules: InputRule[] = smartQuotes.concat(ellipsis, emDash);
+  let type: NodeType | undefined;
   if ((type = schema.nodes.blockquote))
     rules.push(blockQuoteRule(type));
   if ((type = schema.nodes.ordered_list))

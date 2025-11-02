@@ -5,6 +5,7 @@ import './styles/vendor.css';
 import './styles/style.less';
 import Autocomplete from './lib/ac.js';
 import initializeSisyphus from './lib/sisyphus.js';
+import type { EditorView } from 'prosemirror-view';
 
 /**
  * Options for message parameterization.
@@ -64,10 +65,16 @@ export interface SuggestResponse {
 /**
  * Active rich text editors by ID.
  */
+export interface RichTextEditorHandle {
+  editorView?: EditorView;
+  enterFullScreen?: () => void;
+  exitFullScreen?: () => void;
+  nuke?: () => void;
+  reRender: () => void;
+}
+
 export interface ActiveRTEs {
-  [editorId: string]: {
-    reRender: () => void;
-  };
+  [editorId: string]: RichTextEditorHandle;
 }
 
 /**
@@ -234,7 +241,7 @@ export const repaintFocusedHelp = (): void => {
  *
  * @param $input - jQuery-wrapped input or textarea element
  */
-export function addHelpListeners($input: JQuery<HTMLInputElement | HTMLTextAreaElement>): void {
+export function addHelpListeners($input: JQuery<HTMLElement>): void {
   $input.focus(showInputHelp);
   $input.blur(hideInputHelp);
   if (typeof MutationObserver !== 'undefined') {

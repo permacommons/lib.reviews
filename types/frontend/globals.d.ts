@@ -11,6 +11,8 @@ export interface FrontendConfig {
   messages?: Record<string, string>;
   illegalUsernameCharacters?: string;
   userID?: string;
+  isTrusted?: boolean;
+  userPrefersRichTextEditor?: boolean;
 }
 
 declare global {
