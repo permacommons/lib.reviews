@@ -109,9 +109,9 @@ Target the browser bundles next, starting with the shared infrastructure and end
 - [x] Ensure the flash messaging and modal bootstrapping utilities share interfaces with the server-rendered context objects defined in Wave 4.
 
 ##### 5.3 Editor & adapter ecosystem
-- [ ] Port the editor core (`frontend/editor.js`, `frontend/editor-menu.js`, `frontend/editor-prompt.js`, `frontend/editor-extended-keymap.js`, `frontend/editor-inputrules.js`, `frontend/editor-selection.js`, `frontend/editor-markdown.js`) to `.ts`, leaning on the new ProseMirror typings and centralising schema types.
+- [x] Port the editor core (`frontend/editor.js`, `frontend/editor-menu.js`, `frontend/editor-prompt.js`, `frontend/editor-extended-keymap.js`, `frontend/editor-inputrules.js`, `frontend/editor-selection.js`, `frontend/editor-markdown.js`) to `.ts`, leaning on the new ProseMirror typings and centralising schema types.
 - [x] Convert adapter modules under `frontend/adapters/` to TypeScript, introducing discriminated unions for lookup results (Wikidata, OpenStreetMap, OpenLibrary, native) and extracting shared message shapes into `types/frontend/adapters.ts`.
-- [ ] Migrate ancillary helpers such as drag-and-drop/upload wiring to typed modules and delete any `.d.ts` stopgaps left in `types/`.
+- [x] Migrate ancillary helpers such as drag-and-drop/upload wiring to typed modules and delete any `.d.ts` stopgaps left in `types/`.
 
 #### Wave 6 — tests, tooling & strictness
 Finalize the migration by bringing tests, scripts, and compiler settings in line with the fully typed runtime.
