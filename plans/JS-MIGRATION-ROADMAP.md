@@ -88,7 +88,6 @@ With bootstrap and shared middleware typed, finish migrating HTTP entrypoints an
 ##### 4.3 Compatibility cleanup
 - [x] Remove the `.js` compatibility facades in `models/` and `dal/lib/` once all route handlers import the native `.ts` modules.
 - [x] Delete any obsolete `.d.ts` shims or barrel files that only existed to bridge `.js` consumers.
-- [ ] Backfill unit/AVA coverage for the converted routers to exercise typed request/response helpers.
 
 #### Wave 5 — frontend
 Target the browser bundles next, starting with the shared infrastructure and ending with feature-specific code.
