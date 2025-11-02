@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && npm run build:types:frontend",
+    "build:types:frontend": "tsc -p tsconfig.frontend.dts.json",
     "start": "NODE_ENV=production node --import tsx/esm bin/www.js",
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node --import tsx/esm bin/www.js",
     "start-dev-yad": "bash bin/dev-with-tray.sh",

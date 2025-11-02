@@ -93,9 +93,9 @@ With bootstrap and shared middleware typed, finish migrating HTTP entrypoints an
 Target the browser bundles next, starting with the shared infrastructure and ending with feature-specific code.
 
 ##### 5.1 Tooling and type foundations
-- [ ] Extend `tsconfig.frontend.json` (or add a dedicated config) with DOM lib targets, JSX settings, and module resolution for static assets so the browser build compiles under TypeScript.
-- [ ] Introduce `types/frontend/` module augmentations for jQuery, ProseMirror plugins, Dropzone, and any bespoke globals relied on by the editor stack.
-- [ ] Update Vite and `package.json` scripts to emit `.d.ts` artifacts for shared code (`frontend/register.ts`) consumed by server-rendered templates.
+- [x] Extend `tsconfig.frontend.json` (or add a dedicated config) with DOM lib targets and module resolution for static assets so the browser build compiles under TypeScript.
+- [x] Introduce `types/frontend/` module augmentations for jQuery, ProseMirror plugins, Dropzone, and any bespoke globals relied on by the editor stack.
+- [x] Update Vite and `package.json` scripts to emit `.d.ts` artifacts for shared code (`frontend/register.ts`) consumed by server-rendered templates.
 
 ##### 5.2 Core entrypoints & messaging
 - [ ] Convert runtime entrypoints (`frontend/libreviews.js`, `frontend/review.js`, `frontend/upload.js`, `frontend/upload-modal.js`, `frontend/user.js`, `frontend/manage-urls.js`) to `.ts`, keeping dynamic imports split the same way as today.
