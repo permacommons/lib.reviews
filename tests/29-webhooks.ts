@@ -6,9 +6,16 @@ function createServer(handler) {
   const server = http.createServer(handler);
   return {
     server,
-    listen() {
-      return new Promise(resolve => {
-        server.listen(0, '127.0.0.1', () => resolve(server.address().port));
+    listen(): Promise<number> {
+      return new Promise((resolve, reject) => {
+        server.listen(0, '127.0.0.1', () => {
+          const address = server.address();
+          if (address && typeof address === 'object' && 'port' in address) {
+            resolve(address.port);
+            return;
+          }
+          reject(new Error('Server did not expose an address with a port.'));
+        });
       });
     },
     close() {

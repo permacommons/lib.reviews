@@ -1,7 +1,23 @@
-export const extractCSRF = html => {
+import type { Response } from 'superagent';
+import type { SuperAgentTest } from 'supertest';
+
+export const extractCSRF = (html: string): string | null => {
   const matches = html.match(/<input type="hidden" value="(.*?)" name="_csrf">/);
   return matches && matches[1] ? matches[1] : null;
 };
+
+export interface RegisterTestUserOptions {
+  username: string;
+  password?: string;
+  expectedLocation?: string | null;
+  followRedirect?: boolean;
+}
+
+export interface RegisterTestUserResult {
+  registerResponse: Response;
+  postResponse: Response;
+  landingResponse?: Response;
+}
 
 /**
  * Register a test user through the standard form.
@@ -15,14 +31,15 @@ export const extractCSRF = html => {
  * @returns {Promise<{registerResponse: import('superagent').Response, postResponse: import('superagent').Response, landingResponse?: import('superagent').Response}>}
  */
 export const registerTestUser = async (
-  agent,
-  {
+  agent: SuperAgentTest,
+  options: RegisterTestUserOptions
+): Promise<RegisterTestUserResult> => {
+  const {
     username,
     password = 'testing123',
     expectedLocation = '/',
     followRedirect = true
-  } = {}
-) => {
+  } = options;
   if (!username) throw new Error('Username is required to register a test user.');
 
   const registerResponse = await agent.get('/register');
@@ -43,7 +60,7 @@ export const registerTestUser = async (
     throw new Error(`Unexpected redirect location: ${postResponse.headers.location}`);
   }
 
-  let landingResponse;
+  let landingResponse: Response | undefined;
   if (followRedirect && postResponse.headers.location) {
     landingResponse = await agent.get(postResponse.headers.location).expect(200);
   }

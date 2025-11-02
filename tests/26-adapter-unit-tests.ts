@@ -5,7 +5,7 @@ import OpenStreetMapBackendAdapter from '../adapters/openstreetmap-backend-adapt
 import {
   setupAdapterApiMocks,
   teardownAdapterApiMocks
-} from './helpers/adapter-api-mocks.js';
+} from './helpers/adapter-api-mocks.ts';
 
 test.before(() => {
   // Intercept adapter HTTP calls so tests never hit live services.

@@ -1,9 +1,12 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
 
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+
+type ThingModel = typeof import('../models/thing.ts').default;
+type ReviewModel = typeof import('../models/review.ts').default;
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_indexing',
@@ -19,13 +22,10 @@ test.before(async () => {
   const captured = mockSearch();
   indexedItems = captured.indexedItems;
 
-  const models = await dalFixture.initializeModels([
+  await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
     { key: 'reviews', alias: 'Review' }
   ]);
-
-  dalFixture.Thing = models.Thing;
-  dalFixture.Review = models.Review;
 });
 
 test.beforeEach(async t => {
@@ -37,7 +37,7 @@ test.after.always(unmockSearch);
 
 test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t => {
 
-  const { Thing } = dalFixture;
+  const Thing = dalFixture.getThingModel();
 
   // Create test-specific arrays
   const testIndexedThings = [];
@@ -164,7 +164,8 @@ test.serial('indexThing skips old and deleted revisions', async t => {
 
 test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
 
-  const { Thing, Review } = dalFixture;
+  const Thing: ThingModel = dalFixture.getThingModel();
+  const Review: ReviewModel = dalFixture.getReviewModel();
 
   // Create test-specific arrays
   const testIndexedThings = [];
@@ -231,7 +232,8 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
 
 test.serial('indexReview skips old and deleted revisions', async t => {
 
-  const { Thing, Review } = dalFixture;
+  const Thing: ThingModel = dalFixture.getThingModel();
+  const Review: ReviewModel = dalFixture.getReviewModel();
   const { default: search } = await import('../search.ts');
 
   const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
@@ -300,7 +302,7 @@ test.serial('maintenance script ensures DAL bootstrap before indexing', async t 
 
 test.serial('search indexing extracts multilingual content correctly', async t => {
 
-  const { Thing } = dalFixture;
+  const Thing = dalFixture.getThingModel();
 
   // Create test-specific arrays
   const testIndexedThings = [];

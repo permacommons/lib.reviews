@@ -1,12 +1,13 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
-import { ensureUserExists } from './helpers/dal-helpers-ava.js';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
+import type { AdapterLookupResult } from '../adapters/abstract-backend-adapter.ts';
 
 // Ensure the search mock is registered before the DAL bootstrap loads models.
 mockSearch();
 
-const { setupPostgresTest } = await import('./helpers/setup-postgres-test.js');
+const { setupPostgresTest } = await import('./helpers/setup-postgres-test.ts');
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'adapter_functionality',
@@ -64,7 +65,7 @@ test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', as
   thing.createdBy = testUserId;
 
   // Mock adapter result with description (should go to metadata)
-  const adapterResult = {
+  const adapterResult: AdapterLookupResult = {
     data: {
       label: { en: 'Updated Label' },
       description: { en: 'Test description from adapter' }
@@ -147,9 +148,10 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
 
   // Mock the Wikidata adapter lookup to avoid external API calls
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
-  WikidataBackendAdapter.prototype.lookup = async function(url) {
+  WikidataBackendAdapter.prototype.lookup = async function(url): Promise<AdapterLookupResult> {
     return {
       data: {
+        label: { en: 'Test Item' },
         description: { en: 'Mocked description from Wikidata' }
       },
       sourceID: 'wikidata'

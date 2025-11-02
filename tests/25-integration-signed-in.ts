@@ -3,9 +3,9 @@ import supertest from 'supertest';
 import isUUID from 'is-uuid';
 import { promises as fs } from 'fs';
 import config from 'config';
-import { extractCSRF, registerTestUser } from './helpers/integration-helpers.js';
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { extractCSRF, registerTestUser } from './helpers/integration-helpers.ts';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 const loadAppModule = () => import('../app.ts');
 
 mockSearch();

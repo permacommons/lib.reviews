@@ -1,18 +1,35 @@
-import { createDALFixtureAVA } from '../fixtures/dal-fixture-ava.js';
+import { createDALFixtureAVA } from '../fixtures/dal-fixture-ava.ts';
+import type { TestFn } from 'ava';
+import type DALFixtureAVA from '../fixtures/dal-fixture-ava.ts';
+
+type MaybeAsync<T> = T | (() => T | Promise<T>) | Promise<T>;
+
+interface SetupOptions {
+  schemaNamespace?: string;
+  env?: Record<string, string | undefined>;
+  tableDefs?: MaybeAsync<unknown>;
+  modelDefs?: MaybeAsync<unknown>;
+  cleanupTables?: string[];
+}
 
 const DEFAULT_ENV = {
   NODE_ENV: 'development',
   NODE_CONFIG_DISABLE_WATCH: 'Y'
 };
 
-const resolveMaybeAsync = async value => {
+const resolveMaybeAsync = async<T>(value: MaybeAsync<T> | undefined): Promise<T | undefined> => {
+  if (value === undefined)
+    return undefined;
   if (typeof value === 'function') {
-    return await value();
+    return await (value as () => T | Promise<T>)();
   }
   return await value;
 };
 
-export function setupPostgresTest(test, options = {}) {
+export function setupPostgresTest(test: TestFn, options: SetupOptions = {}): {
+  dalFixture: DALFixtureAVA;
+  bootstrapPromise: Promise<void>;
+} {
   const {
     schemaNamespace,
     env = {},

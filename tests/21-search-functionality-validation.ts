@@ -1,16 +1,22 @@
 import test from 'ava';
+type ThingModel = typeof import('../models/thing.ts').default;
+type ReviewModel = typeof import('../models/review.ts').default;
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
-import { ensureUserExists } from './helpers/dal-helpers-ava.js';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_validation',
   cleanupTables: ['users', 'things', 'reviews']
 });
+
+let Thing: ThingModel;
+let Review: ReviewModel;
+
 
 let searchQueries;
 let mockSearchResponse;
@@ -22,13 +28,13 @@ test.before(async () => {
   searchQueries = captured.searchQueries;
   mockSearchResponse = captured.mockSearchResponse;
 
-  const models = await dalFixture.initializeModels([
+  await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
     { key: 'reviews', alias: 'Review' }
   ]);
 
-  dalFixture.Thing = models.Thing;
-  dalFixture.Review = models.Review;
+  Thing = dalFixture.getThingModel();
+  Review = dalFixture.getReviewModel();
 });
 
 test.after.always(unmockSearch);
@@ -97,7 +103,7 @@ test.serial('search queries include new PostgreSQL fields', async t => {
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
   await ensureUserExists(dalFixture, testUserId, 'Search Validation User');
   
-  const thing = await dalFixture.Thing.createFirstRevision(testUser, { tags: ['create'] });
+  const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/test-search'];
   thing.label = { en: 'Test Search Item', de: 'Test-Suchelement' };
   thing.aliases = { en: ['Alternative Name'], de: ['Alternativer Name'] };
@@ -211,11 +217,11 @@ test.serial('search API error handling remains consistent', async t => {
   
   // Test with invalid parameters (should not throw)
   await t.notThrowsAsync(async () => {
-    await search.searchThings('', '');
+    await search.searchThings('', '' as any);
   }, 'Empty search should not throw');
   
   await t.notThrowsAsync(async () => {
-    await search.searchReviews(null, 'invalid-lang');
+    await search.searchReviews(null as any, 'invalid-lang' as any);
   }, 'Invalid parameters should not throw');
   
   await t.notThrowsAsync(async () => {

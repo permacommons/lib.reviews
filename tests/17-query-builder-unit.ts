@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO: tighten QueryBuilder test typing once DAL helpers expose typed interfaces
 import test from 'ava';
 
 import * as dalModule from '../dal/index.ts';
@@ -6,6 +8,14 @@ import Model from '../dal/lib/model.ts';
 import typesLib from '../dal/lib/type.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 
+const createMockModel = (overrides: Record<string, unknown> = {}) => ({
+  tableName: 'test_table',
+  getColumnNames: () => ['id', 'name', 'created_on'],
+  ...overrides
+}) as any;
+
+const createMockDAL = () => ({ schemaNamespace: '' }) as any;
+
 /**
  * Unit tests for QueryBuilder functionality
  *
@@ -13,11 +23,8 @@ import { initializeModel } from '../dal/lib/model-initializer.ts';
  */
 
 test('QueryBuilder can be instantiated', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
 
@@ -26,11 +33,8 @@ test('QueryBuilder can be instantiated', t => {
 });
 
 test('QueryBuilder supports filter method', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filter({ id: 'test-id' });
@@ -40,11 +44,8 @@ test('QueryBuilder supports filter method', t => {
 });
 
 test('QueryBuilder supports orderBy method', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.orderBy('created_on', 'DESC');
@@ -55,11 +56,8 @@ test('QueryBuilder supports orderBy method', t => {
 });
 
 test('QueryBuilder supports limit method', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.limit(10);
@@ -69,11 +67,8 @@ test('QueryBuilder supports limit method', t => {
 });
 
 test('QueryBuilder supports offset method', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.offset(5);
@@ -83,11 +78,8 @@ test('QueryBuilder supports offset method', t => {
 });
 
 test('QueryBuilder supports revision filtering', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filterNotStaleOrDeleted();
@@ -105,11 +97,8 @@ test('QueryBuilder supports revision filtering', t => {
 });
 
 test('QueryBuilder supports revision tag filtering', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filterByRevisionTags(['test-tag']);
@@ -125,11 +114,8 @@ test('QueryBuilder supports revision tag filtering', t => {
 });
 
 test('QueryBuilder supports between date ranges', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const startDate = new Date('2024-01-01');
   const endDate = new Date('2024-12-31');
@@ -145,11 +131,8 @@ test('QueryBuilder supports between date ranges', t => {
 });
 
 test('QueryBuilder supports array contains operations', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.contains('urls', 'https://example.com');
@@ -166,8 +149,8 @@ test('QueryBuilder supports array contains operations', t => {
 });
 
 test('QueryBuilder supports simple joins', t => {
-    const mockModel = { tableName: 'reviews' };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel({ tableName: 'reviews' });
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.getJoin({ thing: true });
@@ -179,8 +162,8 @@ test('QueryBuilder supports simple joins', t => {
 });
 
 test('QueryBuilder supports complex joins with _apply', t => {
-    const mockModel = { tableName: 'reviews' };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel({ tableName: 'reviews' });
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.getJoin({
@@ -196,11 +179,8 @@ test('QueryBuilder supports complex joins with _apply', t => {
 });
 
 test('QueryBuilder builds SELECT queries correctly', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
@@ -220,11 +200,8 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 });
 
 test('QueryBuilder builds COUNT queries correctly', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
@@ -238,11 +215,8 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 });
 
 test('QueryBuilder builds DELETE queries correctly', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
@@ -271,8 +245,8 @@ test('QueryBuilder handles join information lookup', t => {
   const mockModel = {
     tableName: 'reviews',
     getRelation: name => relationMap.get(name) || null
-  };
-  const mockDAL = { schemaNamespace: '' };
+  } as any;
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
 
@@ -302,11 +276,8 @@ test('QueryBuilder handles join information lookup', t => {
 });
 
 test('QueryBuilder handles schema namespace prefixing', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: 'test_schema.' };
+  const mockModel = createMockModel();
+  const mockDAL = { schemaNamespace: 'test_schema.' } as any;
 
   const qb = new QueryBuilder(mockModel, mockDAL);
 
@@ -314,18 +285,15 @@ test('QueryBuilder handles schema namespace prefixing', t => {
   t.is(tableName, 'test_schema.users');
 
   // Test without namespace
-  const mockDALNoNamespace = { schemaNamespace: '' };
+  const mockDALNoNamespace = createMockDAL();
   const qb2 = new QueryBuilder(mockModel, mockDALNoNamespace);
   const tableName2 = qb2._getTableName('users');
   t.is(tableName2, 'users');
 });
 
 test('QueryBuilder method chaining works correctly', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name', 'created_on']
-  };
-  const mockDAL = { schemaNamespace: '' };
+  const mockModel = createMockModel();
+  const mockDAL = createMockDAL();
 
   const qb = new QueryBuilder(mockModel, mockDAL);
 
@@ -363,7 +331,7 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
     getModel(name) {
       throw new Error(`Model '${name}' not found`);
     }
-  };
+  } as any;
 
   const { model: TestModel } = initializeModel({
     dal: mockDAL,
@@ -397,7 +365,7 @@ test('Model.getSafeColumnNames excludes sensitive fields', t => {
   const mockDAL = {
     schemaNamespace: '',
     query: async () => ({ rows: [] })
-  };
+  } as any;
 
   const schema = {
     id: types.string(),
@@ -425,7 +393,7 @@ test('Model.getColumnNames includes sensitive fields when requested', t => {
   const mockDAL = {
     schemaNamespace: '',
     query: async () => ({ rows: [] })
-  };
+  } as any;
 
     const schema = {
       id: types.string(),
@@ -456,7 +424,7 @@ test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
   const mockDAL = {
     schemaNamespace: '',
     query: async () => ({ rows: [] })
-  };
+  } as any;
 
   const schema = {
     id: types.string(),
@@ -486,7 +454,7 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
   const mockDAL = {
     schemaNamespace: '',
     query: async () => ({ rows: [] })
-  };
+  } as any;
 
   const schema = {
     id: types.string(),
@@ -517,7 +485,7 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
   const mockDAL = {
     schemaNamespace: '',
     query: async () => ({ rows: [] })
-  };
+  } as any;
 
   const schema = {
     id: types.string(),
@@ -544,11 +512,8 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
 });
 
 test('QueryBuilder.includeSensitive accepts string or array', t => {
-    const mockModel = {
-    tableName: 'test_table',
-    getColumnNames: () => ['id', 'name']
-  };
-  const mockDAL = { schemaNamespace: '' };
+    const mockModel = createMockModel({ getColumnNames: () => ['id', 'name'] });
+  const mockDAL = createMockDAL();
 
   const qb1 = new QueryBuilder(mockModel, mockDAL);
   qb1.includeSensitive('password');

@@ -8,11 +8,11 @@ import process from 'process';
 const rejectionHandler = () => {};
 process.on('unhandledRejection', rejectionHandler);
 
-const { checkDALReadinessOrExit } = await import('./helpers/check-dal-readiness.js');
+const { checkDALReadinessOrExit } = await import('./helpers/check-dal-readiness.ts');
 
 const args = process.argv.slice(2);
 if (args.length === 0)
-  args.push('--verbose', 'tests/[0-9]*-*.js');
+  args.push('--verbose', 'tests/[0-9]*-*.ts');
 
 const manifestPath = resolve(process.cwd(), 'build', 'vite', '.vite', 'manifest.json');
 if (!existsSync(manifestPath)) {

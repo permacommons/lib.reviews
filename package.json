@@ -9,7 +9,7 @@
     "start": "NODE_ENV=production node --import tsx/esm bin/www.js",
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* node --import tsx/esm bin/www.js",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
-    "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node --import tsx/esm tests/run-ava.js",
+    "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node --import tsx/esm tests/run-ava.ts",
     "make-docs": "typedoc --options typedoc.json",
     "typecheck": "npm run typecheck:backend && npm run typecheck:node && npm run typecheck:frontend && npm run typecheck:tests",
     "typecheck:backend": "tsc --noEmit -p tsconfig.backend.json",
@@ -105,7 +105,14 @@
   },
   "ava": {
     "files": [
-      "tests/[0-9]*-*.js"
+      "tests/[0-9]*-*.ts"
+    ],
+    "extensions": {
+      "ts": "module"
+    },
+    "nodeArguments": [
+      "--import",
+      "tsx/esm"
     ],
     "concurrency": 16,
     "timeout": "2m"

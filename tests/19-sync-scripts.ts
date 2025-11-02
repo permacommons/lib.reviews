@@ -1,29 +1,32 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
-import { ensureUserExists } from './helpers/dal-helpers-ava.js';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
+import type { AdapterLookupResult } from '../adapters/abstract-backend-adapter.ts';
+
+type ThingModel = typeof import('../models/thing.ts').default;
 
 // Ensure the search mock is registered before loading the DAL bootstrap.
 mockSearch();
 
-const { setupPostgresTest } = await import('./helpers/setup-postgres-test.js');
+const { setupPostgresTest } = await import('./helpers/setup-postgres-test.ts');
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'sync_scripts',
   cleanupTables: ['things', 'users']
 });
 
-let Thing;
+let Thing: ThingModel;
 
 test.before(async () => {
   await bootstrapPromise;
 
   mockSearch();
 
-  const models = await dalFixture.initializeModels([
+  await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' }
   ]);
-  Thing = models.Thing;
+  Thing = dalFixture.getThingModel();
 });
 
 test.after.always(unmockSearch);
@@ -92,9 +95,10 @@ test.serial('sync functionality works with metadata grouping', async t => {
   const WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.ts')).default;
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
 
-  WikidataBackendAdapter.prototype.lookup = async function(url) {
+  WikidataBackendAdapter.prototype.lookup = async function(url): Promise<AdapterLookupResult> {
     return {
       data: {
+        label: { en: 'Synced label from Wikidata' },
         description: { en: 'Synced description from Wikidata' }
       },
       sourceID: 'wikidata'

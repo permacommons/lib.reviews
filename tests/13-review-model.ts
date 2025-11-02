@@ -1,9 +1,9 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import { ReviewError } from '../models/review.ts';
 
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'review_model',
@@ -276,9 +276,12 @@ test.serial('Review model: getFeed returns reviews with pagination', async t => 
   const { offsetDate, feedItems } = firstPage;
 
   t.is(feedItems.length, 2, 'Received expected number of feed items');
-  t.true(offsetDate instanceof Date && !isNaN(offsetDate), 'Received pagination offset date');
+  t.true(
+    offsetDate instanceof Date && !Number.isNaN(offsetDate.valueOf()),
+    'Received pagination offset date'
+  );
 
-  const secondPage = await Review.getFeed({ limit: 3, offsetDate });
+  const secondPage = await Review.getFeed({ limit: 3, offsetDate: offsetDate as any });
   const { feedItems: secondPageItems } = secondPage;
 
   t.is(secondPageItems.length, 3, 'Received expected number of additional feed items');

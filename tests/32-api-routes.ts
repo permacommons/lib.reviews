@@ -5,9 +5,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import config from 'config';
-import { registerTestUser } from './helpers/integration-helpers.js';
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { registerTestUser } from './helpers/integration-helpers.ts';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const loadAppModule = () => import('../app.ts');
 const __filename = fileURLToPath(import.meta.url);

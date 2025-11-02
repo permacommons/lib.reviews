@@ -1,9 +1,9 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
-import { ensureUserExists } from './helpers/dal-helpers-ava.js';
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 /**
  * Test suite for QueryBuilder join functionality

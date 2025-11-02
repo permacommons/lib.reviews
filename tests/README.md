@@ -10,7 +10,7 @@ suite without additional setup.
 
 ## Harness Architecture
 
-The `setupPostgresTest` helper (`tests/helpers/setup-postgres-test.js`) wires
+The `setupPostgresTest` helper (`tests/helpers/setup-postgres-test.ts`) wires
 AVA into the shared PostgreSQL DAL bootstrap (`bootstrap/dal.ts`):
 
 - It sets `NODE_APP_INSTANCE=testing`, which loads the `libreviews_test`
@@ -26,9 +26,9 @@ AVA into the shared PostgreSQL DAL bootstrap (`bootstrap/dal.ts`):
 
 Use the shared helper to provision a fixture:
 
-```js
+```ts
 import test from 'ava';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'feature-under-test',
@@ -58,7 +58,7 @@ Key capabilities:
 - `bootstrapPromise` should be awaited in any test.before hook that uses
   dalFixture to ensure the DAL initialization is complete.
 - **Note:** If PostgreSQL is unavailable, tests will fail immediately during the
-  readiness check in `run-ava.js` rather than being skipped individually.
+  readiness check in `run-ava.ts` rather than being skipped individually.
 
 ## Running the Suite
 
@@ -66,13 +66,13 @@ Key capabilities:
 npm run test
 ```
 
-`tests/run-ava.js` performs the following:
+`tests/run-ava.ts` performs the following:
 
 1. Checks if the Vite manifest exists (triggering `npm run build` on demand)
 2. **Checks PostgreSQL DAL readiness** - tests will exit immediately if PostgreSQL
    is not available or not properly configured
 3. Sets the required environment variables (`NODE_APP_INSTANCE=testing`)
-4. Executes AVA with the `tests/[0-9]*-*.js` pattern
+4. Executes AVA with the `tests/[0-9]*-*.ts` pattern
 
 The runner defaults to four workers; use AVA's `--concurrency` flag if you need
 to scale it down.

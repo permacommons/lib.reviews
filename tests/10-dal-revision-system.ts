@@ -15,7 +15,7 @@
  */
 import test from 'ava';
 import isUUID from 'is-uuid';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import { 
   getTestModelDefinitionsAVA, 
   getTestTableDefinitionsAVA, 
@@ -25,7 +25,7 @@ import {
   countAllRevisionsAVA,
   countCurrentRevisionsAVA,
   verifyTestIsolation
-} from './helpers/dal-helpers-ava.js';
+} from './helpers/dal-helpers-ava.ts';
 
 const { dalFixture } = setupPostgresTest(test, {
   schemaNamespace: 'revision_system',
@@ -36,7 +36,7 @@ const { dalFixture } = setupPostgresTest(test, {
 const testUser = getTestUserDataAVA();
 
 test.serial('DAL revision system: can create first revision with PostgreSQL partial indexes', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -59,7 +59,7 @@ test.serial('DAL revision system: can create first revision with PostgreSQL part
 });
 
 test.serial('DAL revision system: new revision preserves existing revision mechanics', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -93,7 +93,7 @@ test.serial('DAL revision system: new revision preserves existing revision mecha
 });
 
 test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently with partial indexes', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -138,7 +138,7 @@ test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently w
 });
 
 test.serial('DAL revision system: revision querying patterns', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -180,7 +180,7 @@ test.serial('DAL revision system: revision querying patterns', async t => {
 });
 
 test.serial('DAL revision system: deleteAllRevisions maintains same table structure', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -219,7 +219,7 @@ test.serial('DAL revision system: deleteAllRevisions maintains same table struct
 });
 
 test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted revision', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -242,7 +242,7 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted 
 });
 
 test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale revision', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -269,7 +269,7 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale re
 });
 
 test.serial('DAL revision system: revision filtering by user works correctly', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -298,7 +298,7 @@ test.serial('DAL revision system: revision filtering by user works correctly', a
 });
 
 test.serial('DAL revision system: test isolation verification', async t => {
-  const TestModel = dalFixture.getModel('revisions');
+  const TestModel = dalFixture.getModel('revisions') as any;
 
   // This test verifies that each test starts with a clean database
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);

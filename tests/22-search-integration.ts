@@ -1,15 +1,21 @@
 import test, { registerCompletionHandler } from 'ava';
+type ThingModel = typeof import('../models/thing.ts').default;
+type ReviewModel = typeof import('../models/review.ts').default;
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
-import { ensureUserExists } from './helpers/dal-helpers-ava.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
 
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_integration',
   cleanupTables: ['users', 'things', 'reviews']
 });
+
+let Thing: ThingModel;
+let Review: ReviewModel;
+
 
 // Track indexing operations
 let indexedItems = [];
@@ -20,13 +26,13 @@ test.before(async () => {
   const captured = mockSearch();
   indexedItems = captured.indexedItems;
 
-  const models = await dalFixture.initializeModels([
+  await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
     { key: 'reviews', alias: 'Review' }
   ]);
 
-  dalFixture.Thing = models.Thing;
-  dalFixture.Review = models.Review;
+  Thing = dalFixture.getThingModel();
+  Review = dalFixture.getReviewModel();
 });
 
 test.beforeEach(async t => {

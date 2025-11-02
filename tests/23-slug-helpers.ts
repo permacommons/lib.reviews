@@ -1,6 +1,6 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'slug_helpers',
@@ -8,6 +8,7 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
 });
 
 import slugs from '../routes/helpers/slugs.ts';
+import { createMockRequest, createMockResponse } from './helpers/express-mocks.ts';
 
 let Thing;
 
@@ -42,8 +43,12 @@ test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
     ['slug-test-thing', 'slug-test-thing', 'slug-test-thing', null, thing.id, new Date(), creator.id]
   );
 
-  const req = { originalUrl: '/slug-test-thing' };
-  const res = { redirect: () => { throw new Error('Redirect not expected'); } };
+  const req = createMockRequest({ originalUrl: '/slug-test-thing' });
+  const res = createMockResponse({
+    onRedirect: () => {
+      throw new Error('Redirect not expected');
+    }
+  });
 
   const loadedThing = await slugs.resolveAndLoadThing(req, res, 'slug-test-thing');
   t.truthy(loadedThing, 'Loaded thing returned');
@@ -70,9 +75,13 @@ test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', a
     ['legacy-slug', 'legacy-slug', 'legacy-slug', null, thing.id, new Date(), creator.id]
   );
 
-  const req = { originalUrl: '/legacy-slug?ref=1' };
-  let redirectedTo = null;
-  const res = { redirect: url => { redirectedTo = url; } };
+  const req = createMockRequest({ originalUrl: '/legacy-slug?ref=1' });
+  let redirectedTo: string | null = null;
+  const res = createMockResponse({
+    onRedirect: url => {
+      redirectedTo = url;
+    }
+  });
 
   await t.throwsAsync(() => slugs.resolveAndLoadThing(req, res, 'legacy-slug'), {
     name: 'RedirectedError'
@@ -83,8 +92,8 @@ test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', a
 
 test.serial('resolveAndLoadThing throws DocumentNotFound for unknown slug', async t => {
 
-  const req = { originalUrl: '/missing-slug' };
-  const res = { redirect: () => {} };
+  const req = createMockRequest({ originalUrl: '/missing-slug' });
+  const res = createMockResponse();
 
   await t.throwsAsync(() => slugs.resolveAndLoadThing(req, res, 'missing-slug'), {
     name: 'DocumentNotFound'

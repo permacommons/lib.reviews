@@ -1,13 +1,17 @@
-import test from 'ava';
+import avaTest, { type TestFn } from 'ava';
 import supertest from 'supertest';
-import { extractCSRF, registerTestUser } from './helpers/integration-helpers.js';
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
+import { extractCSRF, registerTestUser } from './helpers/integration-helpers.ts';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { requireIntegrationContext } from './types/integration.ts';
+import type { IntegrationTestContext } from './types/integration.ts';
 const loadAppModule = () => import('../app.ts');
 
 // Mock search before loading any modules that depend on it (e.g. bootstrap/dal).
 mockSearch();
 
-const { setupPostgresTest } = await import('./helpers/setup-postgres-test.js');
+const { setupPostgresTest } = await import('./helpers/setup-postgres-test.ts');
+
+const test = avaTest as TestFn<IntegrationTestContext>;
 
 setupPostgresTest(test, {
   schemaNamespace: 'csrf_protection'
@@ -21,12 +25,15 @@ test.beforeEach(async t => {
   const { default: getApp, resetAppForTesting } = await loadAppModule();
   if (typeof resetAppForTesting === 'function')
     await resetAppForTesting();
-  t.context.app = await getApp();
-  t.context.agent = supertest.agent(t.context.app);
+  const app = await getApp();
+  t.context.app = app;
+  t.context.agent = supertest.agent(app);
 });
 
 test('POST to /signin without CSRF token is rejected with 403', async t => {
-  await t.context.agent
+  const { agent } = requireIntegrationContext(t);
+
+  await agent
     .post('/signin')
     .type('form')
     .send({
@@ -40,7 +47,9 @@ test('POST to /signin without CSRF token is rejected with 403', async t => {
 });
 
 test('POST to /signin with invalid CSRF token is rejected with 403', async t => {
-  await t.context.agent
+  const { agent } = requireIntegrationContext(t);
+
+  await agent
     .post('/signin')
     .type('form')
     .send({
@@ -54,15 +63,17 @@ test('POST to /signin with invalid CSRF token is rejected with 403', async t => 
 });
 
 test('POST to /signin with valid CSRF token is accepted (even if credentials are wrong)', async t => {
+  const { agent } = requireIntegrationContext(t);
+
   // Get a valid CSRF token from the signin page
-  const signinResponse = await t.context.agent.get('/signin');
+  const signinResponse = await agent.get('/signin');
   const csrf = extractCSRF(signinResponse.text);
 
   if (!csrf) return t.fail('Could not obtain CSRF token');
 
   // POST with the valid token but wrong credentials
   // Should NOT get 403 (CSRF error), but should fail authentication
-  const response = await t.context.agent
+  const response = await agent
     .post('/signin')
     .type('form')
     .send({
@@ -84,7 +95,9 @@ test('POST to /signin with valid CSRF token is accepted (even if credentials are
 });
 
 test('POST to /register without CSRF token is rejected with 403', async t => {
-  await t.context.agent
+  const { agent } = requireIntegrationContext(t);
+
+  await agent
     .post('/register')
     .type('form')
     .send({
@@ -98,7 +111,9 @@ test('POST to /register without CSRF token is rejected with 403', async t => {
 });
 
 test('POST to /actions/change-language without CSRF token is rejected with 403', async t => {
-  await t.context.agent
+  const { agent } = requireIntegrationContext(t);
+
+  await agent
     .post('/actions/change-language')
     .type('form')
     .send({
@@ -111,7 +126,7 @@ test('POST to /actions/change-language without CSRF token is rejected with 403',
 });
 
 test.serial('Authenticated POST to /signout without CSRF token is rejected with 403', async t => {
-  const agent = t.context.agent;
+  const { agent } = requireIntegrationContext(t);
   const username = `CSRFTestUser-${Date.now()}`;
 
   // Register and login a user (with valid CSRF)
@@ -133,7 +148,7 @@ test.serial('Authenticated POST to /signout without CSRF token is rejected with 
 });
 
 test.serial('Authenticated POST to create review without CSRF token is rejected with 403', async t => {
-  const agent = t.context.agent;
+  const { agent } = requireIntegrationContext(t);
   const username = `CSRFTestUser2-${Date.now()}`;
 
   // Register and login a user (with valid CSRF)
@@ -159,7 +174,7 @@ test.serial('Authenticated POST to create review without CSRF token is rejected 
 });
 
 test.serial('File upload stage 2 (metadata) without CSRF token is rejected with 403', async t => {
-  const agent = t.context.agent;
+  const { agent } = requireIntegrationContext(t);
 
   // Test 1: POST without CSRF token should fail with 403
   const responseWithoutCsrf = await agent
@@ -201,14 +216,16 @@ test.serial('File upload stage 2 (metadata) without CSRF token is rejected with 
 
 test.after.always(async t => {
   if (t.context.agent && typeof t.context.agent.close === 'function') {
-    await new Promise(resolve => t.context.agent.close(resolve));
-    t.context.agent = null;
+    await new Promise(resolve => t.context.agent?.close(resolve));
   }
+  t.context.agent = null;
   const { resetAppForTesting } = await loadAppModule();
   if (typeof resetAppForTesting === 'function')
     await resetAppForTesting();
   unmockSearch();
-  if (t.context.app && t.context.app.locals.dal) {
-    await t.context.app.locals.dal.cleanup();
+  const dal = t.context.app?.locals.dal as { cleanup?: () => Promise<void> } | undefined;
+  if (dal && typeof dal.cleanup === 'function') {
+    await dal.cleanup();
   }
+  t.context.app = null;
 });

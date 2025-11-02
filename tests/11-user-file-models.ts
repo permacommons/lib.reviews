@@ -1,9 +1,9 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import passport from 'passport';
-import { setupPostgresTest } from './helpers/setup-postgres-test.js';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
-import { mockSearch, unmockSearch } from './helpers/mock-search.js';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'user_file_models',
@@ -59,7 +59,7 @@ test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
     name,
     password: 'different123',
     email: `${name.toLowerCase()}+other@example.com`
-  }));
+  })) as any;
 
   t.true(error instanceof NewUserError);
   t.is(error.userMessage, 'username exists');
@@ -101,9 +101,9 @@ test.serial('User model: account without password is treated as locked', async t
   // We need to test through the auth strategy
   await import('../auth.ts');
 
-  const authenticatePromise = new Promise((resolve) => {
-    const strategy = passport._strategy('local');
-    strategy._verify(name, 'anypassword', (error, user, info) => {
+  const authenticatePromise = new Promise<{ error: unknown; user: unknown; info: { message?: string } | undefined }>((resolve) => {
+    const strategy = (passport as any)._strategy('local');
+    strategy._verify(name, 'anypassword', (error: unknown, user: unknown, info: { message?: string } | undefined) => {
       resolve({ error, user, info });
     });
   });

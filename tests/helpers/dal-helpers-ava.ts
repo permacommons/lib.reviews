@@ -1,6 +1,16 @@
 import { randomUUID } from 'crypto';
 import revision from '../../dal/lib/revision.ts';
 import types from '../../dal/lib/type.ts';
+import type DALFixtureAVA from '../fixtures/dal-fixture-ava.ts';
+
+export interface EnsureUserSeed {
+  id: string;
+  displayName: string;
+  canonicalName: string;
+  email: string;
+}
+
+type MinimalDALFixture = Pick<DALFixtureAVA, 'getTableName' | 'query'>;
 
 /**
  * AVA-compatible helper functions for DAL testing
@@ -236,16 +246,22 @@ export async function verifyTestIsolation(t, dal, tableName, expectedCount = 0) 
   return actualCount;
 }
 
-export async function ensureUserExists(dal, id, name = 'Test User') {
+export async function ensureUserExists(
+  dal: MinimalDALFixture,
+  id: string,
+  name = 'Test User'
+): Promise<EnsureUserSeed> {
   const usersTable = dal.getTableName('users');
   const displayName = name;
   const canonicalName = name.toUpperCase();
+  const email = `${id}@example.com`;
   await dal.query(
     `INSERT INTO ${usersTable} (id, display_name, canonical_name, email)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (id) DO NOTHING`,
-    [id, displayName, canonicalName, `${id}@example.com`]
+    [id, displayName, canonicalName, email]
   );
+  return { id, displayName, canonicalName, email };
 }
 
 /**
