@@ -7,14 +7,15 @@ dynamic data).
 
 ## 📊 Current Status
 - **Tests passing:** ✅ All 174 tests pass
-- **TypeScript errors:** 6 remaining (down from 21)
-- **Completion:** Wave 1, Wave 2, and Wave 2.1 complete
-- **Next priority:** Wave 3 (Model source typing) — will resolve the remaining 6 errors
+- **TypeScript errors:** 0 (Zero errors! 🎉)
+- **Completion:** Wave 1, Wave 2, Wave 2.1, and Wave 3 complete
+- **Next priority:** Wave 4 (Supertest & integration audit) — optional cleanup for code quality
 
 ### Key Learnings
 - Use `tests/types/` for test-specific shared types (mocks, helpers), not type wheels
 - Use `typeof import('../models/thing.ts').default` pattern for model typing in tests
-- The 6 remaining errors are in Review model method calls because `models/review.ts` lacks the explicit type annotations present in `models/thing.ts` (see lines 8-24)
+- Consistent type annotations across models (Thing, User, Team, Review, File) enable full type checking
+- Adding explicit model type exports helps TypeScript understand model structure without requiring `strict` mode in production
 
 ## Wave 1 — Fixture scaffolding
 - [x] Retrofit `DALFixtureAVA` with typed accessors for core models (`Thing`,
@@ -59,14 +60,18 @@ dynamic data).
 - [x] Formalize the `app`/`agent` structures returned by integration fixtures
   (supertest's `SuperAgentTest` plus Express `Application`).
 
-## Wave 3 — Model source typing (priority: resolves remaining 6 test errors)
-- [ ] Add explicit type annotations to `models/review.ts` similar to those in `models/thing.ts`
+## Wave 3 — Model source typing ✅
+- [x] Add explicit type annotations to `models/review.ts` similar to those in `models/thing.ts`
   - The Review model proxy needs `ThingModel`-style typing so `createFirstRevision()` and `filterNotStaleOrDeleted()` aren't seen as `{}`
   - See `models/thing.ts:8-24` for the pattern: `type ThingInstance`, `type ThingModel`, etc.
-- [ ] Verify other model files (User, Team, File, etc.) have consistent type exports
-- [ ] Re-run `npx tsc --noEmit -p tsconfig.tests.json` to confirm the 6 remaining errors are resolved
+- [x] Verify other model files (User, Team, File, etc.) have consistent type exports
+- [x] Re-run `npx tsc --noEmit -p tsconfig.tests.json` to confirm the 6 remaining errors are resolved
 
-> **Notes:** This is now the blocker for getting to zero type errors in tests. The test infrastructure is solid, but Review model methods appear untyped because the source model lacks explicit type annotations. Thing model has the right pattern to follow.
+> **Completed Notes (Wave 3):**
+> - Added explicit type annotations to `models/review.ts` following the Thing model pattern
+> - Updated `models/file.ts` with consistent PostgresModule typing
+> - Fixed type assignment issue in `tests/helpers/mock-search.ts` unmockSearch function
+> - Result: Zero TypeScript errors in test suite! All models now have consistent type exports.
 
 ## Wave 4 — Supertest & integration audit (low priority, tests pass)
 - [ ] Audit supertest usage to ensure chained calls respect async typing and

@@ -103,6 +103,6 @@ export function mockSearch<TDocument = Record<string, unknown>>(
 
 export function unmockSearch(): void {
   for (const [key, value] of originalSearchEntries) {
-    searchModule[key] = value;
+    (searchModule as Record<string, unknown>)[key] = value;
   }
 }

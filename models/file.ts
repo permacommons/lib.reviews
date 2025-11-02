@@ -3,15 +3,16 @@ import debug from '../util/debug.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
 
-let postgresModulePromise;
-async function loadDbPostgres() {
-  if (!postgresModulePromise) {
+type PostgresModule = typeof import('../db-postgres.ts');
+
+let postgresModulePromise: Promise<PostgresModule> | null = null;
+async function loadDbPostgres(): Promise<PostgresModule> {
+  if (!postgresModulePromise)
     postgresModulePromise = import('../db-postgres.ts');
-  }
   return postgresModulePromise;
 }
 
-async function getPostgresDAL() {
+async function getPostgresDAL(): Promise<Record<string, any>> {
   const module = await loadDbPostgres();
   return module.getPostgresDAL();
 }

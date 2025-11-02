@@ -7,24 +7,37 @@ import Thing from './thing.ts';
 import Team from './team.ts';
 import { createModelModule } from '../dal/lib/model-handle.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
 import { randomUUID } from 'crypto';
 
-let postgresModulePromise;
-async function loadDbPostgres() {
-  if (!postgresModulePromise) {
+type PostgresModule = typeof import('../db-postgres.ts');
+
+type ReviewRecord = JsonObject;
+type ReviewVirtual = JsonObject;
+type ReviewInstance = ModelInstance<ReviewRecord, ReviewVirtual> & Record<string, any>;
+type ReviewModel = ModelConstructor<ReviewRecord, ReviewVirtual, ReviewInstance> & Record<string, any>;
+
+let postgresModulePromise: Promise<PostgresModule> | null = null;
+async function loadDbPostgres(): Promise<PostgresModule> {
+  if (!postgresModulePromise)
     postgresModulePromise = import('../db-postgres.ts');
-  }
   return postgresModulePromise;
 }
 
-async function getPostgresDAL() {
+async function getPostgresDAL(): Promise<Record<string, any>> {
   const module = await loadDbPostgres();
   return module.getPostgresDAL();
 }
 
-const { proxy: ReviewHandle, register: registerReviewHandle } = createModelModule({
+const { proxy: reviewHandleProxy, register: registerReviewHandle } = createModelModule<
+  ReviewRecord,
+  ReviewVirtual,
+  ReviewInstance
+>({
   tableName: 'reviews'
 });
+
+const ReviewHandle = reviewHandleProxy as ReviewModel;
 
 const { types, mlString, revision } = dal;
 const { isValid: isValidLanguage } = languages;
