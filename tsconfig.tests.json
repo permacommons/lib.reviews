@@ -9,5 +9,10 @@
     "tests/**/*.ts",
     "types/**/*.d.ts",
     "types/**/*.ts"
+  ],
+  "exclude": [
+    "frontend/**/*",
+    "types/frontend/**/*",
+    "tests/31-autocomplete.js"
   ]
 }

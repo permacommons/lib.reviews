@@ -15,5 +15,8 @@
     "tests/run-ava.js",
     "types/**/*.d.ts",
     "types/**/*.ts"
+  ],
+  "exclude": [
+    "types/frontend/**/*"
   ]
 }

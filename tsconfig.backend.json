@@ -33,6 +33,7 @@
     "types/**/*.ts"
   ],
   "exclude": [
-    "frontend/**/*"
+    "frontend/**/*",
+    "types/frontend/**/*"
   ]
 }
