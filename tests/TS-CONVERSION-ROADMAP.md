@@ -8,8 +8,8 @@ dynamic data).
 ## 📊 Current Status
 - **Tests passing:** ✅ All 174 tests pass
 - **TypeScript errors:** 0 (Zero errors! 🎉)
-- **Completion:** Wave 1, Wave 2, Wave 2.1, Wave 3, and Wave 4 complete
-- **Next priority:** Wave 5 & 6 (Query builder, DAL unit tests, search mocks) — targeted cleanup for remaining `as any` casts
+- **Completion:** Waves 1 through 5 complete
+- **Next priority:** Wave 6 (search mocks/dynamic imports) & Wave 7 (strict checks, shared DAL helpers)
 
 ### Key Learnings
 - Use `tests/types/` for test-specific shared types (mocks, helpers), not type wheels
@@ -86,14 +86,21 @@ dynamic data).
 > - `IntegrationTestContext` provides proper types for app and agent
 > - Work completed in Waves 1-3 already ensured integration tests were well-typed
 
-## Wave 5 — Query builder & DAL unit tests
-- [ ] Swap ad-hoc mock models for light-weight `Model` subclasses that satisfy
-  the `ModelConstructor` interface (or export a dedicated `createMockModel`
-  utility that provides the needed prototype).
-- [ ] Replace the file-level `// @ts-nocheck` with targeted helper functions and
-  explicit casts where the test intentionally violates the model API.
-- [ ] Document any remaining deliberate `any` usage (e.g., when simulating bad
-  inputs) so future cleanups know where the escape hatches are.
+## Wave 5 — Query builder & DAL unit tests ✅
+- [x] Remove unnecessary `as any` casts from tests/13-review-model.ts (1 removed)
+- [x] Improve type safety in tests/11-user-file-models.ts (1 removed, 1 documented)
+- [x] Clean up remaining casts in tests/17-query-builder-unit.ts (10 casts)
+- [x] Clean up remaining casts in tests/10-dal-revision-system.ts (9 casts)
+- [x] Clean up remaining casts in tests/21-search-functionality-validation.ts (2 casts)
+
+> **Progress Notes (Wave 5):**
+> - Removed unnecessary `offsetDate` cast in review pagination test
+> - Improved error typing using `InstanceType<typeof NewUserError>` instead of `as any`
+> - Documented deliberate passport internal API access for testing
+> - Query builder unit harness now runs without `@ts-nocheck`, using typed DAL/model helpers
+> - Revision system fixture exposes typed revision model helper instead of `as any`
+> - Search validation suite uses `@ts-expect-error` for explicit invalid input cases
+> - Remaining work: 0 `as any` casts across the targeted wave 5 files
 
 ## Wave 6 — Search mocks & dynamic imports
 - [ ] Harmonize search mocks with the real Elastic client return types
@@ -111,3 +118,5 @@ dynamic data).
   `exactOptionalPropertyTypes`) and resolve remaining issues.
 - [ ] Update contributor docs (`tests/README.md`) to reflect the new testing
   conventions, highlighting how to add typed fixtures and mocks.
+- [ ] Consolidate repeat DAL/model stubs behind shared helpers so suites rely on
+  the same typed fixture patterns (prepping for DAL roadmap Phase 5).

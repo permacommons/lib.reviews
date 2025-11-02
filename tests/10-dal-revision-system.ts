@@ -16,7 +16,7 @@
 import test from 'ava';
 import isUUID from 'is-uuid';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
-import { 
+import {
   getTestModelDefinitionsAVA, 
   getTestTableDefinitionsAVA, 
   getTestUserDataAVA,
@@ -26,6 +26,11 @@ import {
   countCurrentRevisionsAVA,
   verifyTestIsolation
 } from './helpers/dal-helpers-ava.ts';
+import type {
+  JsonObject,
+  ModelConstructor,
+  ModelInstance
+} from '../dal/lib/model-types.ts';
 
 const { dalFixture } = setupPostgresTest(test, {
   schemaNamespace: 'revision_system',
@@ -35,8 +40,55 @@ const { dalFixture } = setupPostgresTest(test, {
 });
 const testUser = getTestUserDataAVA();
 
+type RevisionUser = { id: string } & Record<string, unknown>;
+
+interface RevisionQuery {
+  run(): Promise<RevisionInstance[]>;
+}
+
+type RevisionInstance = ModelInstance<JsonObject, JsonObject> & {
+  id: string;
+  title?: string;
+  content?: string;
+  save(): Promise<RevisionInstance>;
+  newRevision(user: RevisionUser, options?: Record<string, unknown>): Promise<RevisionInstance>;
+  deleteAllRevisions(user: RevisionUser, options?: Record<string, unknown>): Promise<RevisionInstance>;
+  _data: {
+    _rev_id: string;
+    _rev_user: string;
+    _rev_date: Date;
+    _rev_tags: string[];
+    _old_rev_of: string | null;
+    _rev_deleted: boolean;
+  } & Record<string, unknown>;
+};
+
+type RevisionModel = ModelConstructor<JsonObject, JsonObject, RevisionInstance> & {
+  createFirstRevision(user: RevisionUser, options?: Record<string, unknown>): Promise<RevisionInstance>;
+  filterNotStaleOrDeleted(): RevisionQuery;
+  getNotStaleOrDeleted(id: string): Promise<RevisionInstance>;
+};
+
+const isRevisionModel = (model: ModelConstructor | undefined): model is RevisionModel => {
+  if (!model) {
+    return false;
+  }
+  const candidate = model as unknown as Record<string, unknown>;
+  return typeof candidate.createFirstRevision === 'function'
+    && typeof candidate.filterNotStaleOrDeleted === 'function'
+    && typeof (model.prototype as Record<string, unknown>).newRevision === 'function';
+};
+
+const getRevisionModel = (): RevisionModel => {
+  const model = dalFixture.getModel('revisions');
+  if (!isRevisionModel(model)) {
+    throw new Error('Revision model is not registered in the DAL fixture.');
+  }
+  return model;
+};
+
 test.serial('DAL revision system: can create first revision with PostgreSQL partial indexes', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -59,7 +111,7 @@ test.serial('DAL revision system: can create first revision with PostgreSQL part
 });
 
 test.serial('DAL revision system: new revision preserves existing revision mechanics', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -93,13 +145,13 @@ test.serial('DAL revision system: new revision preserves existing revision mecha
 });
 
 test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently with partial indexes', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
   
   // Create multiple documents to test index performance
-  const docs = [];
+  const docs: RevisionInstance[] = [];
   for (let i = 0; i < 15; i++) { // Smaller number for faster tests
     const doc = await TestModel.createFirstRevision(testUser, { tags: ['create'] });
     doc.title = `Document ${i}`;
@@ -138,7 +190,7 @@ test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently w
 });
 
 test.serial('DAL revision system: revision querying patterns', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -180,7 +232,7 @@ test.serial('DAL revision system: revision querying patterns', async t => {
 });
 
 test.serial('DAL revision system: deleteAllRevisions maintains same table structure', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -219,7 +271,7 @@ test.serial('DAL revision system: deleteAllRevisions maintains same table struct
 });
 
 test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted revision', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -242,7 +294,7 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted 
 });
 
 test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale revision', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -269,7 +321,7 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale re
 });
 
 test.serial('DAL revision system: revision filtering by user works correctly', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
@@ -298,7 +350,7 @@ test.serial('DAL revision system: revision filtering by user works correctly', a
 });
 
 test.serial('DAL revision system: test isolation verification', async t => {
-  const TestModel = dalFixture.getModel('revisions') as any;
+  const TestModel = getRevisionModel();
 
   // This test verifies that each test starts with a clean database
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);

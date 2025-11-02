@@ -1,9 +1,17 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import passport from 'passport';
+import type { NewUserError } from '../models/user.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+
+// Type describing passport's internal API for testing
+interface PassportInternalAPI {
+  _strategy: (name: string) => {
+    _verify: (username: string, password: string, callback: (error: unknown, user: unknown, info: { message?: string } | undefined) => void) => void;
+  };
+}
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'user_file_models',
@@ -12,7 +20,7 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
 
 let User;
 let File;
-let NewUserError;
+let NewUserErrorClass;
 
 test.before(async () => {
   await bootstrapPromise;
@@ -26,7 +34,7 @@ test.before(async () => {
 
   User = userModel;
   File = fileModel;
-  ({ NewUserError } = await import('../models/user.ts'));
+  ({ NewUserError: NewUserErrorClass } = await import('../models/user.ts'));
 });
 
 test.after.always(unmockSearch);
@@ -55,14 +63,15 @@ test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
     email: `${name.toLowerCase()}@example.com`
   });
 
-  const error = await t.throwsAsync(() => User.create({
+  const thrownError = await t.throwsAsync(() => User.create({
     name,
     password: 'different123',
     email: `${name.toLowerCase()}+other@example.com`
-  })) as any;
+  }));
 
-  t.true(error instanceof NewUserError);
-  t.is(error.userMessage, 'username exists');
+  t.true(thrownError instanceof NewUserErrorClass);
+  const [userMessage] = (thrownError as NewUserError).getEscapedUserMessageArray();
+  t.is(userMessage, 'username exists');
 });
 
 test.serial('User model: checkPassword validates bcrypt hash', async t => {
@@ -102,8 +111,9 @@ test.serial('User model: account without password is treated as locked', async t
   await import('../auth.ts');
 
   const authenticatePromise = new Promise<{ error: unknown; user: unknown; info: { message?: string } | undefined }>((resolve) => {
-    const strategy = (passport as any)._strategy('local');
-    strategy._verify(name, 'anypassword', (error: unknown, user: unknown, info: { message?: string } | undefined) => {
+    // Access internal passport API for testing - will fail at compile time if passport changes
+    const strategy = (passport as unknown as PassportInternalAPI)._strategy('local');
+    strategy._verify(name, 'anypassword', (error, user, info) => {
       resolve({ error, user, info });
     });
   });

@@ -217,11 +217,13 @@ test.serial('search API error handling remains consistent', async t => {
   
   // Test with invalid parameters (should not throw)
   await t.notThrowsAsync(async () => {
-    await search.searchThings('', '' as any);
+    // @ts-expect-error intentionally supplying invalid locale to verify runtime tolerance
+    await search.searchThings('', '');
   }, 'Empty search should not throw');
   
   await t.notThrowsAsync(async () => {
-    await search.searchReviews(null as any, 'invalid-lang' as any);
+    // @ts-expect-error intentionally supplying invalid search parameters for resilience check
+    await search.searchReviews(null, 'invalid-lang');
   }, 'Invalid parameters should not throw');
   
   await t.notThrowsAsync(async () => {

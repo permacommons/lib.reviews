@@ -281,7 +281,7 @@ test.serial('Review model: getFeed returns reviews with pagination', async t => 
     'Received pagination offset date'
   );
 
-  const secondPage = await Review.getFeed({ limit: 3, offsetDate: offsetDate as any });
+  const secondPage = await Review.getFeed({ limit: 3, offsetDate });
   const { feedItems: secondPageItems } = secondPage;
 
   t.is(secondPageItems.length, 3, 'Received expected number of additional feed items');

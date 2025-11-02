@@ -1,20 +1,138 @@
-// @ts-nocheck
-// TODO: tighten QueryBuilder test typing once DAL helpers expose typed interfaces
 import test from 'ava';
 
 import * as dalModule from '../dal/index.ts';
 import QueryBuilder from '../dal/lib/query-builder.ts';
-import Model from '../dal/lib/model.ts';
+import Model, { type ModelSchema } from '../dal/lib/model.ts';
 import typesLib from '../dal/lib/type.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
+import { initializeModel, type InitializeModelResult, type RelationConfig } from '../dal/lib/model-initializer.ts';
+import type {
+  DataAccessLayer,
+  JsonObject,
+  ModelConstructor
+} from '../dal/lib/model-types.ts';
+import type { QueryResult } from 'pg';
 
-const createMockModel = (overrides: Record<string, unknown> = {}) => ({
-  tableName: 'test_table',
-  getColumnNames: () => ['id', 'name', 'created_on'],
-  ...overrides
-}) as any;
+type RuntimeModel = InitializeModelResult<JsonObject, JsonObject, Model<JsonObject, JsonObject>>['model'] & typeof Model;
 
-const createMockDAL = () => ({ schemaNamespace: '' }) as any;
+type RelationDefinition = RelationConfig & { name: string };
+
+interface MockModelOptions {
+  tableName?: string;
+  schema?: ModelSchema<JsonObject, JsonObject>;
+  camelToSnake?: Record<string, string>;
+  relations?: RelationDefinition[];
+  configure?: (model: RuntimeModel) => void;
+}
+
+interface QueryBuilderSetupOptions extends MockModelOptions {
+  dalOverrides?: Partial<DataAccessLayer>;
+}
+
+type QueryBuilderArgs = ConstructorParameters<typeof QueryBuilder>;
+
+const defaultSchema = (): ModelSchema<JsonObject, JsonObject> => {
+  return {
+    id: typesLib.string(),
+    name: typesLib.string(),
+    created_on: typesLib.string()
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+};
+
+const createQueryResult = <TRow extends JsonObject>(rows: TRow[] = []) =>
+  ({
+    command: '',
+    rowCount: rows.length,
+    oid: 0,
+    rows,
+    fields: []
+  }) satisfies QueryResult<TRow>;
+
+const createMockDAL = (overrides: Partial<DataAccessLayer> = {}): DataAccessLayer => {
+  const registeredModels = new Map<string, ModelConstructor>();
+
+  const dal: DataAccessLayer = {
+    schemaNamespace: '',
+    async connect() {
+      return dal;
+    },
+    async disconnect() {
+      // No-op for test doubles
+    },
+    async migrate() {
+      // No-op for test doubles
+    },
+    async query<T extends JsonObject = JsonObject>() {
+      return createQueryResult<T>();
+    },
+    getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+      name: string
+    ) {
+      const model = registeredModels.get(name);
+      if (!model) {
+        throw new Error(`Model '${name}' not found in mock DAL`);
+      }
+      return model as ModelConstructor<TRecord, TVirtual>;
+    },
+    createModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+      name: string,
+      schema,
+      options = {}
+    ) {
+      const runtimeSchema = schema as unknown as ModelSchema<JsonObject, JsonObject>;
+      const model = Model.createModel<JsonObject, JsonObject>(name, runtimeSchema, options, dal);
+      registeredModels.set(name, model);
+      return model as ModelConstructor<TRecord, TVirtual>;
+    },
+    getRegisteredModels() {
+      return registeredModels;
+    },
+    getModelRegistry() {
+      return registeredModels;
+    }
+  };
+
+  Object.assign(dal, overrides);
+  dal.schemaNamespace = overrides.schemaNamespace ?? dal.schemaNamespace ?? '';
+
+  return dal;
+};
+
+const createMockModel = (dal: DataAccessLayer, options: MockModelOptions = {}): RuntimeModel => {
+  const {
+    tableName = 'test_table',
+    schema = defaultSchema(),
+    camelToSnake = { createdOn: 'created_on' },
+    relations = [],
+    configure
+  } = options;
+
+  const { model } = initializeModel<JsonObject, JsonObject, Model<JsonObject, JsonObject>>({
+    dal,
+    baseTable: tableName,
+    schema,
+    camelToSnake,
+    relations
+  });
+
+  const runtimeModel = model as RuntimeModel;
+  const registry = dal.getRegisteredModels();
+  registry.set(tableName, runtimeModel);
+  const resolvedTableName = runtimeModel.tableName;
+  if (resolvedTableName && resolvedTableName !== tableName) {
+    registry.set(resolvedTableName, runtimeModel);
+  }
+
+  configure?.(runtimeModel);
+
+  return runtimeModel;
+};
+
+const createQueryBuilderHarness = (options: QueryBuilderSetupOptions = {}) => {
+  const dal = createMockDAL(options.dalOverrides);
+  const model = createMockModel(dal, options);
+  const qb = new QueryBuilder(model as unknown as QueryBuilderArgs[0], dal);
+  return { qb, model, dal };
+};
 
 /**
  * Unit tests for QueryBuilder functionality
@@ -23,20 +141,13 @@ const createMockDAL = () => ({ schemaNamespace: '' }) as any;
  */
 
 test('QueryBuilder can be instantiated', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
-
+  const { qb } = createQueryBuilderHarness();
   t.truthy(qb);
   t.is(qb.tableName, 'test_table');
 });
 
 test('QueryBuilder supports filter method', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.filter({ id: 'test-id' });
 
   t.is(result, qb); // Should return self for chaining
@@ -44,10 +155,7 @@ test('QueryBuilder supports filter method', t => {
 });
 
 test('QueryBuilder supports orderBy method', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.orderBy('created_on', 'DESC');
 
   t.is(result, qb); // Should return self for chaining
@@ -56,10 +164,7 @@ test('QueryBuilder supports orderBy method', t => {
 });
 
 test('QueryBuilder supports limit method', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.limit(10);
 
   t.is(result, qb); // Should return self for chaining
@@ -67,10 +172,7 @@ test('QueryBuilder supports limit method', t => {
 });
 
 test('QueryBuilder supports offset method', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.offset(5);
 
   t.is(result, qb); // Should return self for chaining
@@ -78,10 +180,7 @@ test('QueryBuilder supports offset method', t => {
 });
 
 test('QueryBuilder supports revision filtering', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.filterNotStaleOrDeleted();
 
   t.is(result, qb); // Should return self for chaining
@@ -97,10 +196,7 @@ test('QueryBuilder supports revision filtering', t => {
 });
 
 test('QueryBuilder supports revision tag filtering', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.filterByRevisionTags(['test-tag']);
 
   t.is(result, qb); // Should return self for chaining
@@ -114,13 +210,10 @@ test('QueryBuilder supports revision tag filtering', t => {
 });
 
 test('QueryBuilder supports between date ranges', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
   const startDate = new Date('2024-01-01');
   const endDate = new Date('2024-12-31');
 
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.between(startDate, endDate);
 
   t.is(result, qb); // Should return self for chaining
@@ -131,10 +224,7 @@ test('QueryBuilder supports between date ranges', t => {
 });
 
 test('QueryBuilder supports array contains operations', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   const result = qb.contains('urls', 'https://example.com');
 
   t.is(result, qb); // Should return self for chaining
@@ -149,10 +239,17 @@ test('QueryBuilder supports array contains operations', t => {
 });
 
 test('QueryBuilder supports simple joins', t => {
-  const mockModel = createMockModel({ tableName: 'reviews' });
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness({
+    tableName: 'reviews',
+    relations: [
+      {
+        name: 'thing',
+        targetTable: 'things',
+        sourceColumn: 'thing_id',
+        hasRevisions: true
+      }
+    ]
+  });
   const result = qb.getJoin({ thing: true });
 
   t.is(result, qb); // Should return self for chaining
@@ -162,10 +259,18 @@ test('QueryBuilder supports simple joins', t => {
 });
 
 test('QueryBuilder supports complex joins with _apply', t => {
-  const mockModel = createMockModel({ tableName: 'reviews' });
-  const mockDAL = createMockDAL();
+  const { qb } = createQueryBuilderHarness({
+    tableName: 'reviews',
+    relations: [
+      {
+        name: 'creator',
+        targetTable: 'users',
+        sourceColumn: 'created_by',
+        hasRevisions: false
+      }
+    ]
+  });
 
-  const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.getJoin({
     creator: {
       _apply: seq => seq.without('password')
@@ -175,14 +280,20 @@ test('QueryBuilder supports complex joins with _apply', t => {
   t.is(result, qb); // Should return self for chaining
   t.truthy(qb._joinSpecs);
   t.is(qb._joinSpecs.length, 1);
-  t.truthy(qb._joinSpecs[0].creator._apply);
+  const joinSpec = qb._joinSpecs?.[0];
+  t.truthy(joinSpec);
+  if (joinSpec && typeof joinSpec === 'object' && 'creator' in joinSpec) {
+    const creatorSpec = joinSpec.creator;
+    if (creatorSpec && typeof creatorSpec === 'object' && '_apply' in creatorSpec) {
+      t.true(typeof creatorSpec._apply === 'function');
+    } else {
+      t.fail('Creator join spec missing _apply handler');
+    }
+  }
 });
 
 test('QueryBuilder builds SELECT queries correctly', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   qb.filter({ id: 'test-id' });
   qb.orderBy('created_on', 'DESC');
   qb.limit(10);
@@ -200,10 +311,7 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 });
 
 test('QueryBuilder builds COUNT queries correctly', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   qb.filter({ id: 'test-id' });
 
   const { sql: countSql, params: countParams } = qb._buildCountQuery();
@@ -215,10 +323,7 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 });
 
 test('QueryBuilder builds DELETE queries correctly', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
   qb.filter({ id: 'test-id' });
 
   const { sql: deleteSql, params: deleteParams } = qb._buildDeleteQuery();
@@ -229,26 +334,23 @@ test('QueryBuilder builds DELETE queries correctly', t => {
 });
 
 test('QueryBuilder handles join information lookup', t => {
-    const relationMap = new Map([
-    ['thing', {
-      targetTable: 'things',
-      sourceKey: 'thing_id',
-      hasRevisions: true
-    }],
-    ['creator', {
-      targetTable: 'users',
-      sourceKey: 'created_by',
-      hasRevisions: false
-    }]
-  ]);
-
-  const mockModel = {
+  const { qb } = createQueryBuilderHarness({
     tableName: 'reviews',
-    getRelation: name => relationMap.get(name) || null
-  } as any;
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+    relations: [
+      {
+        name: 'thing',
+        targetTable: 'things',
+        sourceColumn: 'thing_id',
+        hasRevisions: true
+      },
+      {
+        name: 'creator',
+        targetTable: 'users',
+        sourceColumn: 'created_by',
+        hasRevisions: false
+      }
+    ]
+  });
 
   // Test known join mappings coming from model metadata
   const thingJoin = qb._getJoinInfo('thing');
@@ -276,26 +378,21 @@ test('QueryBuilder handles join information lookup', t => {
 });
 
 test('QueryBuilder handles schema namespace prefixing', t => {
-  const mockModel = createMockModel();
-  const mockDAL = { schemaNamespace: 'test_schema.' } as any;
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness({
+    dalOverrides: { schemaNamespace: 'test_schema.' }
+  });
 
   const tableName = qb._getTableName('users');
   t.is(tableName, 'test_schema.users');
 
   // Test without namespace
-  const mockDALNoNamespace = createMockDAL();
-  const qb2 = new QueryBuilder(mockModel, mockDALNoNamespace);
+  const { qb: qb2 } = createQueryBuilderHarness();
   const tableName2 = qb2._getTableName('users');
   t.is(tableName2, 'users');
 });
 
 test('QueryBuilder method chaining works correctly', t => {
-  const mockModel = createMockModel();
-  const mockDAL = createMockDAL();
-
-  const qb = new QueryBuilder(mockModel, mockDAL);
+  const { qb } = createQueryBuilderHarness();
 
   // Test method chaining
   const result = qb
@@ -316,22 +413,13 @@ test('QueryBuilder method chaining works correctly', t => {
 
 test('Model constructor maps camelCase fields to snake_case columns', async t => {
   const dalTypes = dalModule.types;
-  const BaseModel = Model;
-
-  const capturedQueries = [];
-  const mockDAL = {
-    schemaNamespace: '',
-    async query(sql, params) {
+  const capturedQueries: Array<{ sql: string; params: unknown[] }> = [];
+  const mockDAL = createMockDAL({
+    async query(sql, params = []) {
       capturedQueries.push({ sql, params });
-      return { rows: [{ id: 'generated-id', camel_case_field: params[0] }] };
-    },
-    createModel(name, schema, options = {}) {
-      return BaseModel.createModel(name, schema, options, this);
-    },
-    getModel(name) {
-      throw new Error(`Model '${name}' not found`);
+      return createQueryResult([{ id: 'generated-id', camel_case_field: params[0] }]);
     }
-  } as any;
+  });
 
   const { model: TestModel } = initializeModel({
     dal: mockDAL,
@@ -347,7 +435,7 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
 
   const instance = new TestModel({ camelCaseField: 'value' });
 
-  t.is(instance._data.camel_case_field, 'value');
+  t.is(instance._data['camel_case_field'], 'value');
   t.false(Object.prototype.hasOwnProperty.call(instance._data, 'camelCaseField'));
 
   await instance.save();
@@ -356,25 +444,21 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
   t.deepEqual(capturedQueries[0].params, ['value']);
 
   const defaultedInstance = new TestModel();
-  t.is(defaultedInstance._data.camel_case_field, 'fallback');
+  t.is(defaultedInstance._data['camel_case_field'], 'fallback');
 });
 
 test('Model.getSafeColumnNames excludes sensitive fields', t => {
-    const types = typesLib;
-
-  const mockDAL = {
-    schemaNamespace: '',
-    query: async () => ({ rows: [] })
-  } as any;
+  const types = typesLib;
+  const mockDAL = createMockDAL();
 
   const schema = {
     id: types.string(),
     name: types.string(),
     password: types.string().sensitive(),
     email: types.string()
-  };
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
+  const TestModel = Model.createModel('test_table', schema, {}, mockDAL) as unknown as typeof Model;
   TestModel._registerFieldMapping('name', 'name');
   TestModel._registerFieldMapping('password', 'password');
   TestModel._registerFieldMapping('email', 'email');
@@ -388,22 +472,18 @@ test('Model.getSafeColumnNames excludes sensitive fields', t => {
 });
 
 test('Model.getColumnNames includes sensitive fields when requested', t => {
-    const types = typesLib;
+  const types = typesLib;
+  const mockDAL = createMockDAL();
 
-  const mockDAL = {
-    schemaNamespace: '',
-    query: async () => ({ rows: [] })
-  } as any;
+  const schema = {
+    id: types.string(),
+    name: types.string(),
+    password: types.string().sensitive(),
+    token: types.string().sensitive(),
+    email: types.string()
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-    const schema = {
-      id: types.string(),
-      name: types.string(),
-      password: types.string().sensitive(),
-      token: types.string().sensitive(),
-      email: types.string()
-  };
-
-  const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
+  const TestModel = Model.createModel('test_table', schema, {}, mockDAL) as unknown as typeof Model;
   TestModel._registerFieldMapping('name', 'name');
   TestModel._registerFieldMapping('password', 'password');
   TestModel._registerFieldMapping('token', 'token');
@@ -419,12 +499,8 @@ test('Model.getColumnNames includes sensitive fields when requested', t => {
 });
 
 test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
-    const types = typesLib;
-
-  const mockDAL = {
-    schemaNamespace: '',
-    query: async () => ({ rows: [] })
-  } as any;
+  const types = typesLib;
+  const mockDAL = createMockDAL();
 
   const schema = {
     id: types.string(),
@@ -433,9 +509,9 @@ test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
     token: types.string().sensitive(),
     apiKey: types.string().sensitive(),
     email: types.string()
-  };
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const TestModel = Model.createModel('test_table', schema, {}, mockDAL);
+  const TestModel = Model.createModel('test_table', schema, {}, mockDAL) as unknown as typeof Model;
 
   const sensitiveFields = TestModel.getSensitiveFieldNames();
 
@@ -449,26 +525,22 @@ test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
 });
 
 test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
-      const types = typesLib;
-
-  const mockDAL = {
-    schemaNamespace: '',
-    query: async () => ({ rows: [] })
-  } as any;
+  const types = typesLib;
+  const mockDAL = createMockDAL();
 
   const schema = {
     id: types.string(),
     name: types.string(),
     password: types.string().sensitive(),
     email: types.string()
-  };
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const TestModel = Model.createModel('users', schema, {}, mockDAL);
+  const TestModel = Model.createModel('users', schema, {}, mockDAL) as RuntimeModel;
   TestModel._registerFieldMapping('name', 'name');
   TestModel._registerFieldMapping('password', 'password');
   TestModel._registerFieldMapping('email', 'email');
 
-  const qb = new QueryBuilder(TestModel, mockDAL);
+  const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
   qb.filter({ id: 'test-id' });
 
   const { sql } = qb._buildSelectQuery();
@@ -480,26 +552,22 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
 });
 
 test('QueryBuilder includes sensitive fields when includeSensitive is called', t => {
-      const types = typesLib;
-
-  const mockDAL = {
-    schemaNamespace: '',
-    query: async () => ({ rows: [] })
-  } as any;
+  const types = typesLib;
+  const mockDAL = createMockDAL();
 
   const schema = {
     id: types.string(),
     name: types.string(),
     password: types.string().sensitive(),
     email: types.string()
-  };
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const TestModel = Model.createModel('users', schema, {}, mockDAL);
+  const TestModel = Model.createModel('users', schema, {}, mockDAL) as RuntimeModel;
   TestModel._registerFieldMapping('name', 'name');
   TestModel._registerFieldMapping('password', 'password');
   TestModel._registerFieldMapping('email', 'email');
 
-  const qb = new QueryBuilder(TestModel, mockDAL);
+  const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
   qb.filter({ id: 'test-id' });
   qb.includeSensitive(['password']);
 
@@ -512,14 +580,11 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
 });
 
 test('QueryBuilder.includeSensitive accepts string or array', t => {
-    const mockModel = createMockModel({ getColumnNames: () => ['id', 'name'] });
-  const mockDAL = createMockDAL();
-
-  const qb1 = new QueryBuilder(mockModel, mockDAL);
+  const { qb: qb1 } = createQueryBuilderHarness();
   qb1.includeSensitive('password');
   t.deepEqual(qb1._includeSensitive, ['password']);
 
-  const qb2 = new QueryBuilder(mockModel, mockDAL);
+  const { qb: qb2 } = createQueryBuilderHarness();
   qb2.includeSensitive(['password', 'token']);
   t.deepEqual(qb2._includeSensitive, ['password', 'token']);
 });
