@@ -8,8 +8,8 @@ dynamic data).
 ## 📊 Current Status
 - **Tests passing:** ✅ All 174 tests pass
 - **TypeScript errors:** 0 (Zero errors! 🎉)
-- **Completion:** Wave 1, Wave 2, Wave 2.1, and Wave 3 complete
-- **Next priority:** Wave 4 (Supertest & integration audit) — optional cleanup for code quality
+- **Completion:** Wave 1, Wave 2, Wave 2.1, Wave 3, and Wave 4 complete
+- **Next priority:** Wave 5 & 6 (Query builder, DAL unit tests, search mocks) — targeted cleanup for remaining `as any` casts
 
 ### Key Learnings
 - Use `tests/types/` for test-specific shared types (mocks, helpers), not type wheels
@@ -73,10 +73,18 @@ dynamic data).
 > - Fixed type assignment issue in `tests/helpers/mock-search.ts` unmockSearch function
 > - Result: Zero TypeScript errors in test suite! All models now have consistent type exports.
 
-## Wave 4 — Supertest & integration audit (low priority, tests pass)
-- [ ] Audit supertest usage to ensure chained calls respect async typing and
+## Wave 4 — Supertest & integration audit ✅
+- [x] Audit supertest usage to ensure chained calls respect async typing and
   headers (`.set`, `.expect`) carry correct types.
-- [ ] Review all integration test files for any remaining `any` casts or untyped contexts.
+- [x] Review all integration test files for any remaining `any` casts or untyped contexts.
+
+> **Completed Notes (Wave 4):**
+> - All integration tests (24, 25, 32, 33, 34) have proper supertest typing
+> - All async supertest calls are properly awaited
+> - Response headers accessed with correct typing (e.g., `response.headers.location`)
+> - No `as any` casts found in any integration test files
+> - `IntegrationTestContext` provides proper types for app and agent
+> - Work completed in Waves 1-3 already ensured integration tests were well-typed
 
 ## Wave 5 — Query builder & DAL unit tests
 - [ ] Swap ad-hoc mock models for light-weight `Model` subclasses that satisfy
