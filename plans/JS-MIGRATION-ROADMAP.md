@@ -117,7 +117,7 @@ Target the browser bundles next, starting with the shared infrastructure and end
 Finalize the migration by bringing tests, scripts, and compiler settings in line with the fully typed runtime.
 
 - [ ] Port AVA to TypeScript: rename `tests/*.js` to `.ts`, update fixtures and helpers, and convert `tests/run-ava.js` into a typed runner that compiles under `tsconfig.tests.json`.
-- [ ] Type the supporting Node scripts in `bin/` and `tools/` (including `bin/www.js`, maintenance scripts, and DB utilities) using `tsconfig.node.json`, replacing any ad-hoc `.d.ts` declarations with concrete modules.
+- [ ] Type the supporting Node scripts in `bin/` and `tools/` (including `bin/www.js`, maintenance scripts, and DB utilities) using `tsconfig.node.json`, replacing any ad-hoc `.d.ts` declarations with concrete modules and standardizing execution through `tsx`.
 - [ ] Convert backend adapter sync scripts to TypeScript and type their orchestration against DAL and search services: [`adapters/sync/sync-all.js`](adapters/sync/sync-all.js), [`adapters/sync/sync-wikidata.js`](adapters/sync/sync-wikidata.js). Update adapter test mocks and dynamic imports accordingly, consuming the typed registry [`adapters/adapters.ts`](adapters/adapters.ts).
 - [ ] Add documentation/Typedoc coverage checks for the migrated util, DAL, and route modules to guarantee API comments stay synced with implementations.
 - [ ] Expand automation: configure AVA to load `.ts` files, run `tsc --noEmit` with the test project in CI, and wire `npm run typecheck:tests` into the default workflow.
