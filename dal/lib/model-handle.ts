@@ -2,7 +2,7 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance
-} from './model-types.js';
+} from './model-types.ts';
 
 type BootstrapModule = {
   getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(

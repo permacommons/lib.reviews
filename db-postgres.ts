@@ -8,8 +8,8 @@
 import config from 'config';
 
 import debug from './util/debug.ts';
-import createDataAccessLayer from './dal/index.js';
-import type { DataAccessLayer } from './dal/lib/model-types.js';
+import createDataAccessLayer from './dal/index.ts';
+import type { DataAccessLayer } from './dal/lib/model-types.ts';
 import type { PostgresConfig } from 'config';
 
 type JsonObject = Record<string, unknown>;

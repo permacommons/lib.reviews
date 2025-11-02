@@ -4,7 +4,7 @@ import TeamProvider from './handlers/team-provider.ts';
 import TeamJoinRequest from '../models/team-join-request.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import render from './helpers/render.ts';
-import mlString from '../dal/lib/ml-string.js';
+import mlString from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
 import slugs from './helpers/slugs.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';

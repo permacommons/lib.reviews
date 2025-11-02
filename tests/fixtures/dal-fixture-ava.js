@@ -2,11 +2,11 @@ import { randomUUID } from 'crypto';
 import { logNotice, logOK } from '../helpers/test-helpers.js';
 import { createTestHarness } from '../../bootstrap/dal.ts';
 import pgModule from 'pg';
-import { initializeModel } from '../../dal/lib/model-initializer.js';
+import { initializeModel } from '../../dal/lib/model-initializer.ts';
 
 /**
  * AVA-compatible PostgreSQL DAL fixture for testing
- * 
+ *
  * Designed to work with AVA's concurrency model (concurrency: 4) by:
  * - Targeting the shared test database (`libreviews_test`) while isolating each
  *   worker in its own schema (e.g., `test_feature_x`)
@@ -158,7 +158,7 @@ class DALFixtureAVA {
    */
   async cleanupTables(tableNames = []) {
     if (!this.dal || !this.connected) return;
-    
+
     if (!Array.isArray(tableNames) || tableNames.length === 0) return;
 
     const qualifiedTables = tableNames.map(name => `${this.schemaNamespace}${name}`);
@@ -209,7 +209,7 @@ class DALFixtureAVA {
    */
   async dropTestTables(tableNames = []) {
     if (!this.dal || !this.connected) return;
-    
+
     for (const tableName of tableNames) {
       const fullTableName = this.schemaNamespace + tableName;
       try {

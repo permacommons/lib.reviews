@@ -8,7 +8,7 @@ import Team from '../../models/team.ts';
 import User from '../../models/user.ts';
 import File from '../../models/file.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
-import mlString from '../../dal/lib/ml-string.js';
+import mlString from '../../dal/lib/ml-string.ts';
 import urlUtils from '../../util/url-utils.ts';
 import ReportedError from '../../util/reported-error.ts';
 import md, { getMarkdownMessageKeys } from '../../util/md.ts';

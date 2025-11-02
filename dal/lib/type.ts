@@ -1,4 +1,4 @@
-import { ValidationError } from './errors.js';
+import { ValidationError } from './errors.ts';
 
 export type ValidatorFunction = (value: unknown) => boolean | void;
 

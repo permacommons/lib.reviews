@@ -11,27 +11,27 @@ import type { PostgresConfig } from 'config';
 import config from 'config';
 
 import debug from '../util/debug.ts';
-import PostgresDAL from '../dal/index.js';
+import PostgresDAL from '../dal/index.ts';
 
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor
-} from '../dal/lib/model-types.js';
+} from '../dal/lib/model-types.ts';
 
-import userModule from '../models/user.js';
-import userMetaModule from '../models/user-meta.js';
-import teamModule from '../models/team.js';
-import teamJoinRequestModule from '../models/team-join-request.js';
-import teamSlugModule from '../models/team-slug.js';
-import thingModule from '../models/thing.js';
-import thingSlugModule from '../models/thing-slug.js';
-import reviewModule from '../models/review.js';
-import blogPostModule from '../models/blog-post.js';
-import fileModule from '../models/file.js';
-import inviteLinkModule from '../models/invite-link.js';
+import userModule from '../models/user.ts';
+import userMetaModule from '../models/user-meta.ts';
+import teamModule from '../models/team.ts';
+import teamJoinRequestModule from '../models/team-join-request.ts';
+import teamSlugModule from '../models/team-slug.ts';
+import thingModule from '../models/thing.ts';
+import thingSlugModule from '../models/thing-slug.ts';
+import reviewModule from '../models/review.ts';
+import blogPostModule from '../models/blog-post.ts';
+import fileModule from '../models/file.ts';
+import inviteLinkModule from '../models/invite-link.ts';
 
-import { setBootstrapResolver } from '../dal/lib/model-handle.js';
+import { setBootstrapResolver } from '../dal/lib/model-handle.ts';
 
 type ModelInitializer<TModel extends ModelConstructor = ModelConstructor> = (
   dal: DataAccessLayer
@@ -53,7 +53,7 @@ const PostgresDALFactoryValue = typeof PostgresDAL === 'function'
   : (PostgresDAL as { default?: unknown }).default;
 
 if (typeof PostgresDALFactoryValue !== 'function') {
-  throw new TypeError('Postgres DAL factory not found. Ensure ../dal/index.js exports a function.');
+  throw new TypeError('Postgres DAL factory not found. Ensure ../dal/index.ts exports a function.');
 }
 
 const PostgresDALFactory = PostgresDALFactoryValue as (config?: Partial<PostgresConfig> & JsonObject) => DataAccessLayer;
@@ -110,13 +110,13 @@ function getPostgresConfig(): Partial<PostgresConfig> & JsonObject {
  * @returns The shared data access layer instance provided by `db-postgres`.
  */
 async function tryReuseSharedDAL(): Promise<DataAccessLayer> {
-  const dbModule = await import('../db-postgres.js');
+  const dbModule = await import('../db-postgres.ts');
   const exported = (dbModule && typeof dbModule.default === 'object')
     ? (dbModule.default as JsonObject)
     : (dbModule as JsonObject);
   const getPostgresDAL = exported?.getPostgresDAL as (() => Promise<DataAccessLayer> | DataAccessLayer) | undefined;
   if (typeof getPostgresDAL !== 'function') {
-    throw new Error('getPostgresDAL is not available from db-postgres.js');
+    throw new Error('getPostgresDAL is not available from db-postgres.ts');
   }
   const dal = await getPostgresDAL();
   return dal as DataAccessLayer;
@@ -356,7 +356,7 @@ export async function shutdown(): Promise<void> {
   }
 
   try {
-    const postgresModule = await import('../db-postgres.js');
+    const postgresModule = await import('../db-postgres.ts');
     const exported = (postgresModule && typeof postgresModule.default === 'object')
       ? (postgresModule.default as JsonObject)
       : (postgresModule as JsonObject);

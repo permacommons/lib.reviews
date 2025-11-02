@@ -36,13 +36,13 @@ test.beforeEach(async t => {
 test.after.always(unmockSearch);
 
 test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t => {
-  
+
   const { Thing } = dalFixture;
-  
+
   // Create test-specific arrays
   const testIndexedThings = [];
   const testIndexedReviews = [];
-  
+
   // Create test-specific mock
   const search = {
     indexThing(thing) {
@@ -50,7 +50,7 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
       if (thing._old_rev_of || thing._rev_deleted) {
         return Promise.resolve();
       }
-      
+
       testIndexedThings.push(thing);
       return Promise.resolve();
     },
@@ -59,12 +59,12 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
       if (review._old_rev_of || review._rev_deleted) {
         return Promise.resolve();
       }
-      
+
       testIndexedReviews.push(review);
       return Promise.resolve();
     }
   };
-  
+
   // Create a thing with PostgreSQL JSONB metadata structure
   const { actor: testUser } = await dalFixture.createTestUser('Index Thing User');
   const preCheck = await dalFixture.query(
@@ -76,14 +76,14 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
   thing.urls = ['https://example.com/test-book'];
   thing.label = { en: 'Test Book', de: 'Testbuch' };
   thing.aliases = { en: ['Alternative Title'], de: ['Alternativer Titel'] };
-  
+
   // PostgreSQL structure: metadata grouped in JSONB
   thing.metadata = {
-    description: { 
+    description: {
       en: 'A comprehensive test book for validation',
       de: 'Ein umfassendes Testbuch zur Validierung'
     },
-    subtitle: { 
+    subtitle: {
       en: 'Testing Edition',
       de: 'Test-Ausgabe'
     },
@@ -92,7 +92,7 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
       { en: 'Second Author', de: 'Zweiter Autor' }
     ]
   };
-  
+
   thing.canonicalSlugName = 'test-book';
   thing.createdOn = new Date();
   thing.createdBy = testUser.id;
@@ -101,10 +101,10 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
 
   // Test indexing
   await search.indexThing(thing);
-  
+
   // Verify the thing was indexed
   t.is(testIndexedThings.length, 1, 'Should have indexed one thing');
-  
+
   const indexedThing = testIndexedThings[0];
   t.is(indexedThing.id, thing.id, 'Indexed thing should have correct ID');
   t.deepEqual(indexedThing.label, thing.label, 'Label should be preserved');
@@ -115,19 +115,19 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
 });
 
 test.serial('indexThing skips old and deleted revisions', async t => {
-  
+
   const { Thing } = dalFixture;
   const { default: search } = await import('../search.ts');
-  
+
   const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
-  
+
   // Create a current revision
   const currentThing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   currentThing.urls = ['https://example.com/current'];
   currentThing.label = { en: 'Current Thing' };
   currentThing.createdOn = new Date();
   currentThing.createdBy = testUser.id;
-  
+
   // Create an old revision (simulated)
   const oldThing = Object.assign(Object.create(Object.getPrototypeOf(currentThing)), {
     _data: { ...currentThing._data, _old_rev_of: randomUUID() },
@@ -136,7 +136,7 @@ test.serial('indexThing skips old and deleted revisions', async t => {
     _isNew: currentThing._isNew
   });
   oldThing._setupPropertyAccessors();
-  
+
   // Create a deleted revision (simulated)
   const deletedThing = Object.assign(Object.create(Object.getPrototypeOf(currentThing)), {
     _data: { ...currentThing._data, _rev_deleted: true },
@@ -145,17 +145,17 @@ test.serial('indexThing skips old and deleted revisions', async t => {
     _isNew: currentThing._isNew
   });
   deletedThing._setupPropertyAccessors();
-  
+
   // Test indexing current revision
   await search.indexThing(currentThing);
   let things = indexedItems.filter(item => item.type === 'thing');
   t.is(things.length, 1, 'Should index current revision');
-  
+
   // Test skipping old revision
   await search.indexThing(oldThing);
   things = indexedItems.filter(item => item.type === 'thing');
   t.is(things.length, 1, 'Should skip old revision');
-  
+
   // Test skipping deleted revision
   await search.indexThing(deletedThing);
   things = indexedItems.filter(item => item.type === 'thing');
@@ -163,13 +163,13 @@ test.serial('indexThing skips old and deleted revisions', async t => {
 });
 
 test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
-  
+
   const { Thing, Review } = dalFixture;
-  
+
   // Create test-specific arrays
   const testIndexedThings = [];
   const testIndexedReviews = [];
-  
+
   // Create test-specific mock
   const search = {
     indexThing(thing) {
@@ -177,7 +177,7 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
       if (thing._old_rev_of || thing._rev_deleted) {
         return Promise.resolve();
       }
-      
+
       testIndexedThings.push(thing);
       return Promise.resolve();
     },
@@ -186,14 +186,14 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
       if (review._old_rev_of || review._rev_deleted) {
         return Promise.resolve();
       }
-      
+
       testIndexedReviews.push(review);
       return Promise.resolve();
     }
   };
-  
+
   const { actor: testUser } = await dalFixture.createTestUser('Metadata User');
-  
+
   // Create a thing first
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/review-subject'];
@@ -201,7 +201,7 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
   thing.createdOn = new Date();
   thing.createdBy = testUser.id;
   await thing.save();
-  
+
   // Create a review with PostgreSQL structure
   const review = await Review.createFirstRevision(testUser, { tags: ['create'] });
   review.thingID = thing.id; // PostgreSQL field name
@@ -211,15 +211,15 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
   review.starRating = 5; // PostgreSQL field name
   review.createdOn = new Date();
   review.createdBy = testUser.id;
-  
+
   await review.save();
-  
+
   // Test indexing
   await search.indexReview(review);
-  
+
   // Verify the review was indexed
   t.is(testIndexedReviews.length, 1, 'Should have indexed one review');
-  
+
   const indexedReview = testIndexedReviews[0];
   t.is(indexedReview.id, review.id, 'Indexed review should have correct ID');
   t.is(indexedReview.thingID, thing.id, 'Should have correct thing_id');
@@ -230,12 +230,12 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
 });
 
 test.serial('indexReview skips old and deleted revisions', async t => {
-  
+
   const { Thing, Review } = dalFixture;
   const { default: search } = await import('../search.ts');
-  
+
   const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
-  
+
   // Create a thing first
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/review-subject-2'];
@@ -243,7 +243,7 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   thing.createdOn = new Date();
   thing.createdBy = testUser.id;
   await thing.save();
-  
+
   // Create a current review
   const currentReview = await Review.createFirstRevision(testUser, { tags: ['create'] });
   currentReview.thingID = thing.id;
@@ -253,7 +253,7 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   currentReview.starRating = 4;
   currentReview.createdOn = new Date();
   currentReview.createdBy = testUser.id;
-  
+
   // Create an old revision (simulated)
   const oldReview = Object.assign(Object.create(Object.getPrototypeOf(currentReview)), {
     _data: { ...currentReview._data, _old_rev_of: randomUUID() },
@@ -262,7 +262,7 @@ test.serial('indexReview skips old and deleted revisions', async t => {
     _isNew: currentReview._isNew
   });
   oldReview._setupPropertyAccessors();
-  
+
   // Create a deleted revision (simulated)
   const deletedReview = Object.assign(Object.create(Object.getPrototypeOf(currentReview)), {
     _data: { ...currentReview._data, _rev_deleted: true },
@@ -271,17 +271,17 @@ test.serial('indexReview skips old and deleted revisions', async t => {
     _isNew: currentReview._isNew
   });
   deletedReview._setupPropertyAccessors();
-  
+
   // Test indexing current revision
   await search.indexReview(currentReview);
   let reviews = indexedItems.filter(item => item.type === 'review');
   t.is(reviews.length, 1, 'Should index current revision');
-  
+
   // Test skipping old revision
   await search.indexReview(oldReview);
   reviews = indexedItems.filter(item => item.type === 'review');
   t.is(reviews.length, 1, 'Should skip old revision');
-  
+
   // Test skipping deleted revision
   await search.indexReview(deletedReview);
   reviews = indexedItems.filter(item => item.type === 'review');
@@ -292,20 +292,20 @@ test.serial('maintenance script ensures DAL bootstrap before indexing', async t 
   await initializeDAL();
   t.true(isInitialized(), 'DAL should initialize for maintenance script');
 
-  const { default: ThingHandle } = await import('../models/thing.js');
-  const { default: ReviewHandle } = await import('../models/review.js');
+  const { default: ThingHandle } = await import('../models/thing.ts');
+  const { default: ReviewHandle } = await import('../models/review.ts');
   t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
   t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
 });
 
 test.serial('search indexing extracts multilingual content correctly', async t => {
-  
+
   const { Thing } = dalFixture;
-  
+
   // Create test-specific arrays
   const testIndexedThings = [];
   const testIndexedReviews = [];
-  
+
   // Create test-specific mock
   const search = {
     indexThing(thing) {
@@ -313,7 +313,7 @@ test.serial('search indexing extracts multilingual content correctly', async t =
       if (thing._old_rev_of || thing._rev_deleted) {
         return Promise.resolve();
       }
-      
+
       testIndexedThings.push(thing);
       return Promise.resolve();
     },
@@ -322,49 +322,49 @@ test.serial('search indexing extracts multilingual content correctly', async t =
       if (review._old_rev_of || review._rev_deleted) {
         return Promise.resolve();
       }
-      
+
       testIndexedReviews.push(review);
       return Promise.resolve();
     }
   };
-  
+
   const { actor: testUser } = await dalFixture.createTestUser('Multilingual Index User');
   const userCheck = await dalFixture.query(
     `SELECT id FROM ${dalFixture.getTableName('users')} WHERE id = $1`,
     [testUser.id]
   );
   t.is(userCheck.rows.length, 1, 'Created user should exist before creating thing');
-  
+
   // Create a thing with complex multilingual metadata
   const thing = await Thing.createFirstRevision(testUser, { tags: ['create'] });
   thing.urls = ['https://example.com/multilingual-book'];
-  thing.label = { 
+  thing.label = {
     en: 'Multilingual Book',
     de: 'Mehrsprachiges Buch',
     fr: 'Livre Multilingue',
     es: 'Libro Multilingüe'
   };
-  thing.aliases = { 
+  thing.aliases = {
     en: ['Alternative Title', 'Another Name'],
     de: ['Alternativer Titel', 'Anderer Name'],
     fr: ['Titre Alternatif'],
     es: ['Título Alternativo']
   };
   thing.metadata = {
-    description: { 
+    description: {
       en: 'A book available in multiple languages with rich content',
       de: 'Ein Buch, das in mehreren Sprachen mit reichhaltigem Inhalt verfügbar ist',
       fr: 'Un livre disponible en plusieurs langues avec un contenu riche',
       es: 'Un libro disponible en varios idiomas con contenido rico'
     },
-    subtitle: { 
+    subtitle: {
       en: 'International Edition',
       de: 'Internationale Ausgabe',
       fr: 'Édition Internationale',
       es: 'Edición Internacional'
     },
     authors: [
-      { 
+      {
         en: 'International Author',
         de: 'Internationaler Autor',
         fr: 'Auteur International',
@@ -372,25 +372,25 @@ test.serial('search indexing extracts multilingual content correctly', async t =
       }
     ]
   };
-  
+
   thing.createdOn = new Date();
   thing.createdBy = testUser.id;
-  
+
   await thing.save();
-  
+
   // Test indexing
   await search.indexThing(thing);
-  
+
   // Verify multilingual content is preserved
   t.is(testIndexedThings.length, 1, 'Should have indexed one thing');
-  
+
   const indexedThing = testIndexedThings[0];
-  
+
   // Check that all languages are preserved in each field
   t.is(Object.keys(indexedThing.label).length, 4, 'Label should have all 4 languages');
   t.is(Object.keys(indexedThing.metadata.description).length, 4, 'Description should have all 4 languages');
   t.is(Object.keys(indexedThing.metadata.subtitle).length, 4, 'Subtitle should have all 4 languages');
-  
+
   // Check specific language content
   t.is(indexedThing.label.en, 'Multilingual Book', 'English label should be correct');
   t.is(indexedThing.label.de, 'Mehrsprachiges Buch', 'German label should be correct');

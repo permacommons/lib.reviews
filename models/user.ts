@@ -1,17 +1,17 @@
 import bcrypt from 'bcrypt';
 
-import dal from '../dal/index.js';
-import { DocumentNotFound } from '../dal/lib/errors.js';
-import { createModelModule } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
+import dal from '../dal/index.ts';
+import { DocumentNotFound } from '../dal/lib/errors.ts';
+import { createModelModule } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
-import Team from './team.js';
-import UserMeta from './user-meta.js';
+import Team from './team.ts';
+import UserMeta from './user-meta.ts';
 
-type PostgresModule = typeof import('../db-postgres.js');
+type PostgresModule = typeof import('../db-postgres.ts');
 
 type UserRecord = JsonObject;
 type UserVirtual = JsonObject;
@@ -45,7 +45,7 @@ let postgresModulePromise: Promise<PostgresModule> | null = null;
 
 async function loadDbPostgres(): Promise<PostgresModule> {
   if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.js');
+    postgresModulePromise = import('../db-postgres.ts');
 
   return postgresModulePromise;
 }

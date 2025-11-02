@@ -6,14 +6,14 @@ import type { PoolClient, PoolConfig, QueryResult } from 'pg';
 import type { PostgresConfig } from 'config';
 
 import debug from '../../util/debug.ts';
-import Model from './model.js';
-import ModelRegistry from './model-registry.js';
+import Model from './model.ts';
+import ModelRegistry from './model-registry.ts';
 import type {
   DataAccessLayer as DataAccessLayerContract,
   JsonObject,
   ModelConstructor
-} from './model-types.js';
-import type { ModelSchema } from './model.js';
+} from './model-types.ts';
+import type { ModelSchema } from './model.ts';
 
 type PoolLike = Pool | PoolClient;
 

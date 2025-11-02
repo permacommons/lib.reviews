@@ -1,8 +1,8 @@
-import dal from '../dal/index.js';
-import { createAutoModelHandle } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
-import { getPostgresDAL } from '../db-postgres.js';
+import dal from '../dal/index.ts';
+import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import { getPostgresDAL } from '../db-postgres.ts';
 import debug from '../util/debug.ts';
 
 type TeamJoinRequestRecord = JsonObject;

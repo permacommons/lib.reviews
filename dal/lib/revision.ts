@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
 
-import QueryBuilder from './query-builder.js';
-import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.js';
-import types from './type.js';
+import QueryBuilder from './query-builder.ts';
+import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.ts';
+import types from './type.ts';
 
 export interface ModelInstance {
   id: string;

@@ -1,7 +1,7 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import { setupPostgresTest } from './helpers/setup-postgres-test.js';
-import { ReviewError } from '../models/review.js';
+import { ReviewError } from '../models/review.ts';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.js';
 

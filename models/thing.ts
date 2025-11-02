@@ -1,22 +1,22 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.ts';
 import debug from '../util/debug.ts';
 import urlUtils from '../util/url-utils.ts';
 import ReportedError from '../util/reported-error.ts';
 import adapters from '../adapters/adapters.js';
 import languages from '../locales/languages.ts';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-import { createModelModule } from '../dal/lib/model-handle.js';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
-import ThingSlug from './thing-slug.js';
-import File from './file.js';
-import Review from './review.js';
-import User from './user.js';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import { createModelModule } from '../dal/lib/model-handle.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import ThingSlug from './thing-slug.ts';
+import File from './file.ts';
+import Review from './review.ts';
+import User from './user.ts';
 import isUUID from 'is-uuid';
 import { decodeHTML } from 'entities';
 import search from '../search.ts';
 import { randomUUID } from 'crypto';
 
-type PostgresModule = typeof import('../db-postgres.js');
+type PostgresModule = typeof import('../db-postgres.ts');
 
 type ThingRecord = JsonObject;
 type ThingVirtual = JsonObject;
@@ -26,7 +26,7 @@ type ThingModel = ModelConstructor<ThingRecord, ThingVirtual, ThingInstance> & R
 let postgresModulePromise: Promise<PostgresModule> | null = null;
 async function loadDbPostgres(): Promise<PostgresModule> {
   if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.js');
+    postgresModulePromise = import('../db-postgres.ts');
   return postgresModulePromise;
 }
 
@@ -87,38 +87,38 @@ async function initializeThingModel(dalInstance: Record<string, any> | null = nu
     // Create the schema with revision fields
     const thingSchema = {
       id: types.string().uuid(4),
-      
+
       // Array of URLs (first is primary)
       urls: types.array(types.string().validator(_isValidURL)),
-      
+
       // JSONB multilingual fields
       label: mlString.getSchema({ maxLength: 256 }),
       aliases: mlString.getSchema({ maxLength: 256, array: true }),
-      
+
       // Grouped metadata in JSONB for extensibility
       metadata: types.object().validator(_validateMetadata),
-      
+
       // Complex sync data in JSONB
       sync: types.object(),
-      
+
       // CamelCase relational fields that map to snake_case database columns
       originalLanguage: types.string().max(4).validator(isValidLanguage),
       canonicalSlugName: types.string(),
       createdOn: types.date().required(true),
       createdBy: types.string().uuid(4).required(true),
-      
+
       // Virtual fields for compatibility
       urlID: types.virtual().default(function (this: ThingInstance) {
         const slugName = typeof this.getValue === 'function' ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
         return slugName ? encodeURIComponent(String(slugName)) : this.id;
       }),
-      
+
       // Permission virtual fields
       userCanDelete: types.virtual().default(false),
       userCanEdit: types.virtual().default(false),
       userCanUpload: types.virtual().default(false),
       userIsCreator: types.virtual().default(false),
-      
+
       // Metrics virtual fields (populated asynchronously)
       numberOfReviews: types.virtual().default(0),
       averageStarRating: types.virtual().default(0),
@@ -327,7 +327,7 @@ async function getWithData(
     thing.files = Array.isArray(thing.files) ? thing.files : [];
     await _attachUploadersToFiles(thing.files);
   }
-  
+
   if (withReviewMetrics) {
     await thing.populateReviewMetrics();
   }
@@ -1023,7 +1023,7 @@ function _validateMetadata(metadata: unknown): boolean {
       }
     }
   }
-  
+
   return true;
 }
 

@@ -1,18 +1,18 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import languages from '../locales/languages.ts';
 import adapters from '../adapters/adapters.js';
-import Thing from './thing.js';
-import Team from './team.js';
-import { createModelModule } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import Thing from './thing.ts';
+import Team from './team.ts';
+import { createModelModule } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { randomUUID } from 'crypto';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
   if (!postgresModulePromise) {
-    postgresModulePromise = import('../db-postgres.js');
+    postgresModulePromise = import('../db-postgres.ts');
   }
   return postgresModulePromise;
 }
@@ -72,7 +72,7 @@ async function initializeReviewModel(dal = null) {
     // Create the schema with revision fields and JSONB columns
     const reviewSchema = {
       id: types.string().uuid(4),
-      
+
       // CamelCase schema fields that map to snake_case database columns
       thingID: types.string().uuid(4).required(true),
 
@@ -245,7 +245,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
   // Check for existing reviews by this user for this thing
   const existingQuery = `
     SELECT id FROM ${Review.tableName}
-    WHERE thing_id = $1 
+    WHERE thing_id = $1
       AND created_by = $2
       AND (_old_rev_of IS NULL)
       AND (_rev_deleted IS NULL OR _rev_deleted = false)
@@ -530,9 +530,9 @@ async function getFeed({
 
         // Batch query for all users at once
         const userQuery = `
-          SELECT id, display_name, canonical_name, email, registration_date, 
+          SELECT id, display_name, canonical_name, email, registration_date,
                  is_trusted, is_site_moderator, is_super_user
-          FROM users 
+          FROM users
           WHERE id = ANY($1)
         `;
 
@@ -606,9 +606,9 @@ async function getFeed({
         if (reviewIds.length > 0) {
           debug.db(`Batch fetching teams for ${reviewIds.length} reviews in feed...`);
 
-          const reviewTeamTableName = Review.dal.schemaNamespace ? 
+          const reviewTeamTableName = Review.dal.schemaNamespace ?
             `${Review.dal.schemaNamespace}review_teams` : 'review_teams';
-          const teamTableName = Review.dal.schemaNamespace ? 
+          const teamTableName = Review.dal.schemaNamespace ?
             `${Review.dal.schemaNamespace}teams` : 'teams';
 
           // Get all review-team associations
@@ -628,7 +628,7 @@ async function getFeed({
           teamResult.rows.forEach(row => {
             const reviewId = row.review_id;
             const teamInstance = Team._createInstance(row);
-            
+
             if (!reviewTeamMap.has(reviewId)) {
               reviewTeamMap.set(reviewId, []);
             }
@@ -713,9 +713,9 @@ async function deleteAllRevisionsWithThing(user) {
  */
 async function _getReviewTeams(reviewId) {
   try {
-    const reviewTeamTableName = Review.dal.schemaNamespace ? 
+    const reviewTeamTableName = Review.dal.schemaNamespace ?
       `${Review.dal.schemaNamespace}review_teams` : 'review_teams';
-    const teamTableName = Review.dal.schemaNamespace ? 
+    const teamTableName = Review.dal.schemaNamespace ?
       `${Review.dal.schemaNamespace}teams` : 'teams';
 
     const query = `
@@ -727,7 +727,7 @@ async function _getReviewTeams(reviewId) {
     `;
 
     const result = await Review.dal.query(query, [reviewId]);
-    
+
     return result.rows.map(row => Team._createInstance(row));
   } catch (error) {
     debug.error('Failed to get teams for review:', error);

@@ -1,16 +1,16 @@
 import type { PostgresConfig } from 'config';
 
-import DataAccessLayer from './lib/data-access-layer.js';
-import Model from './lib/model.js';
-import QueryBuilder from './lib/query-builder.js';
-import types from './lib/type.js';
-import Errors from './lib/errors.js';
-import mlString from './lib/ml-string.js';
-import revision from './lib/revision.js';
+import DataAccessLayer from './lib/data-access-layer.ts';
+import Model from './lib/model.ts';
+import QueryBuilder from './lib/query-builder.ts';
+import types from './lib/type.ts';
+import Errors from './lib/errors.ts';
+import mlString from './lib/ml-string.ts';
+import revision from './lib/revision.ts';
 
 /**
  * Data Access Layer (DAL) for PostgreSQL
- * 
+ *
  * This module provides the main entry point for the PostgreSQL DAL,
  * abstracting database operations and providing a consistent interface
  * for all database interactions.

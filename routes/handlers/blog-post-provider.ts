@@ -7,7 +7,7 @@ import i18n from 'i18n';
 import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 import BlogPost from '../../models/blog-post.ts';
-import mlString from '../../dal/lib/ml-string.js';
+import mlString from '../../dal/lib/ml-string.ts';
 import languages from '../../locales/languages.ts';
 import type { LocaleCodeWithUndetermined } from '../../locales/languages.ts';
 import feeds from '../helpers/feeds.ts';

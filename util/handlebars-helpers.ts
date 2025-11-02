@@ -7,10 +7,10 @@ import stripTags from 'striptags';
 import linkifyHTML from 'linkify-html';
 
 // Internal dependencies
-import mlString from '../dal/lib/ml-string.js';
+import mlString from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
 import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
-import thingModelHandle from '../models/thing.js';
+import thingModelHandle from '../models/thing.ts';
 import urlUtils from './url-utils.ts';
 import adapters from '../adapters/adapters.js';
 import getLicenseURL from './get-license-url.ts';
@@ -304,7 +304,7 @@ hbs.registerHelper('fileCredit', function(file: { license?: string; creator?: un
       link);
 });
 
-hbs.registerHelper('linkify', str => linkifyHTML(str, { 
+hbs.registerHelper('linkify', str => linkifyHTML(str, {
   defaultProtocol: 'https',
   target: {
     url: '_blank'

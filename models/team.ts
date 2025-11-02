@@ -2,16 +2,16 @@ import unescapeHTML from 'unescape-html';
 import isUUID from 'is-uuid';
 import { randomUUID } from 'crypto';
 
-import dal from '../dal/index.js';
-import { createModelModule } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
+import dal from '../dal/index.ts';
+import { createModelModule } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
 import debug from '../util/debug.ts';
 import languages from '../locales/languages.ts';
-import User from './user.js';
-import Review from './review.js';
+import User from './user.ts';
+import Review from './review.ts';
 
-type PostgresModule = typeof import('../db-postgres.js');
+type PostgresModule = typeof import('../db-postgres.ts');
 
 type TeamRecord = JsonObject;
 type TeamVirtual = JsonObject;
@@ -33,7 +33,7 @@ let Team: TeamModel | null = null;
 
 async function loadDbPostgres(): Promise<PostgresModule> {
   if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.js');
+    postgresModulePromise = import('../db-postgres.ts');
 
   return postgresModulePromise;
 }
@@ -45,7 +45,7 @@ async function getPostgresDAL(): Promise<Record<string, any>> {
 
 async function loadTeamJoinRequestHandle(): Promise<any> {
   if (!teamJoinRequestHandlePromise)
-    teamJoinRequestHandlePromise = import('./team-join-request.js');
+    teamJoinRequestHandlePromise = import('./team-join-request.ts');
 
   const module = await teamJoinRequestHandlePromise;
   return module.default;
@@ -53,7 +53,7 @@ async function loadTeamJoinRequestHandle(): Promise<any> {
 
 async function loadTeamSlugHandle(): Promise<any> {
   if (!teamSlugHandlePromise)
-    teamSlugHandlePromise = import('./team-slug.js');
+    teamSlugHandlePromise = import('./team-slug.ts');
 
   const module = await teamSlugHandlePromise;
   return module.default;

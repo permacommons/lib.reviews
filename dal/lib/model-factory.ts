@@ -3,7 +3,7 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance
-} from './model-types.js';
+} from './model-types.ts';
 
 export interface GetOrCreateModelOptions extends JsonObject {
   registryKey?: string;

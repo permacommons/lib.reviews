@@ -1,13 +1,13 @@
-import { DocumentNotFound, convertPostgreSQLError } from './errors.js';
-import QueryBuilder from './query-builder.js';
-import revision from './revision.js';
+import { DocumentNotFound, convertPostgreSQLError } from './errors.ts';
+import QueryBuilder from './query-builder.ts';
+import revision from './revision.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
   ModelInstance
-} from './model-types.js';
-import type { ModelConstructorLike } from './revision.js';
+} from './model-types.ts';
+import type { ModelConstructorLike } from './revision.ts';
 
 export interface ModelSchemaField<TValue = unknown> extends JsonObject {
   validate(value: unknown, fieldName?: string): TValue;
@@ -749,7 +749,7 @@ class Model<
 
       // Regenerate virtual fields after save in case they depend on saved data
       this.generateVirtualValues();
-      
+
       return this;
     } catch (error) {
       throw convertPostgreSQLError(error);
@@ -764,26 +764,26 @@ class Model<
   async saveAll(joinOptions = {}) {
     // First save the main record
     await this.save();
-    
+
     // Then handle relationships
     const relations = this.runtime.getRelations();
-    
+
     for (const { name, config } of relations) {
       // Only handle many-to-many relationships with through tables for now
       if (config.cardinality !== 'many' || !config.through) continue;
-      
+
       // Get the related data from this instance
       const relatedData = this[name];
       if (!relatedData) continue;
-      
+
       // If joinOptions is explicitly provided, only process requested relationships
       // If joinOptions is empty (default), process all relationships
       const isExplicitOptions = Object.keys(joinOptions).length > 0;
       if (isExplicitOptions && !joinOptions[name]) continue;
-      
+
       await this._saveManyToManyRelation(name, config, relatedData);
     }
-    
+
     return this;
   }
 
@@ -814,7 +814,7 @@ class Model<
 
     const sourceColumn = through.sourceForeignKey || `${sourceBase.replace(/s$/, '')}_id`;
     const targetColumn = through.targetForeignKey || `${targetBase.replace(/s$/, '')}_id`;
-    
+
     try {
       // First, remove existing associations for this record
           await this.runtime.dal.query(
@@ -859,7 +859,7 @@ class Model<
     if (this._isNew) {
       throw new Error('Cannot delete unsaved record');
     }
-    
+
     const runtime = this.runtime;
     const query = new QueryBuilder(runtime, runtime.dal);
     const result = await query.deleteById(String(this.id));
@@ -1143,11 +1143,11 @@ class Model<
    */
   getValue(key) {
     const schema = this.runtime.schema;
-    
+
     if (this._virtualFields.hasOwnProperty(key)) {
       return this._virtualFields[key];
     }
-    
+
     // Get the actual database field name
     const dbFieldName = this.runtime._getDbFieldName(key);
     return this._data[dbFieldName];

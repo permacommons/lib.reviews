@@ -2,11 +2,11 @@ import config from 'config';
 import { randomUUID } from 'node:crypto';
 import isUUID from 'is-uuid';
 import debug from '../util/debug.ts';
-import dal from '../dal/index.js';
-import { DocumentNotFound } from '../dal/lib/errors.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-import { createAutoModelHandle } from '../dal/lib/model-handle.js';
-import { getPostgresDAL } from '../db-postgres.js';
+import dal from '../dal/index.ts';
+import { DocumentNotFound } from '../dal/lib/errors.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
+import { getPostgresDAL } from '../db-postgres.ts';
 
 const { types } = dal;
 let InviteLink = null;

@@ -1,14 +1,14 @@
 import test from 'ava';
 
-import * as dalModule from '../dal/index.js';
-import QueryBuilder from '../dal/lib/query-builder.js';
-import Model from '../dal/lib/model.js';
-import typesLib from '../dal/lib/type.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+import * as dalModule from '../dal/index.ts';
+import QueryBuilder from '../dal/lib/query-builder.ts';
+import Model from '../dal/lib/model.ts';
+import typesLib from '../dal/lib/type.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
 
 /**
  * Unit tests for QueryBuilder functionality
- * 
+ *
  * Tests the query builder methods without requiring database connection
  */
 
@@ -18,9 +18,9 @@ test('QueryBuilder can be instantiated', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
-  
+
   t.truthy(qb);
   t.is(qb.tableName, 'test_table');
 });
@@ -31,10 +31,10 @@ test('QueryBuilder supports filter method', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filter({ id: 'test-id' });
-  
+
   t.is(result, qb); // Should return self for chaining
   t.true(qb._where.length > 0);
 });
@@ -45,10 +45,10 @@ test('QueryBuilder supports orderBy method', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.orderBy('created_on', 'DESC');
-  
+
   t.is(result, qb); // Should return self for chaining
   t.true(qb._orderBy.length > 0);
   t.is(qb._orderBy[0], 'created_on DESC');
@@ -60,10 +60,10 @@ test('QueryBuilder supports limit method', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.limit(10);
-  
+
   t.is(result, qb); // Should return self for chaining
   t.is(qb._limit, 10);
 });
@@ -74,10 +74,10 @@ test('QueryBuilder supports offset method', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.offset(5);
-  
+
   t.is(result, qb); // Should return self for chaining
   t.is(qb._offset, 5);
 });
@@ -88,7 +88,7 @@ test('QueryBuilder supports revision filtering', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.filterNotStaleOrDeleted();
 
@@ -130,10 +130,10 @@ test('QueryBuilder supports between date ranges', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const startDate = new Date('2024-01-01');
   const endDate = new Date('2024-12-31');
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.between(startDate, endDate);
 
@@ -150,7 +150,7 @@ test('QueryBuilder supports array contains operations', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.contains('urls', 'https://example.com');
 
@@ -168,10 +168,10 @@ test('QueryBuilder supports array contains operations', t => {
 test('QueryBuilder supports simple joins', t => {
     const mockModel = { tableName: 'reviews' };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.getJoin({ thing: true });
-  
+
   t.is(result, qb); // Should return self for chaining
   t.truthy(qb._joinSpecs);
   t.is(qb._joinSpecs.length, 1);
@@ -181,14 +181,14 @@ test('QueryBuilder supports simple joins', t => {
 test('QueryBuilder supports complex joins with _apply', t => {
     const mockModel = { tableName: 'reviews' };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   const result = qb.getJoin({
     creator: {
       _apply: seq => seq.without('password')
     }
   });
-  
+
   t.is(result, qb); // Should return self for chaining
   t.truthy(qb._joinSpecs);
   t.is(qb._joinSpecs.length, 1);
@@ -201,13 +201,13 @@ test('QueryBuilder builds SELECT queries correctly', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
   qb.orderBy('created_on', 'DESC');
   qb.limit(10);
   qb.offset(5);
-  
+
   const { sql: selectSql, params: selectParams } = qb._buildSelectQuery();
 
   t.true(selectSql.includes('SELECT'));
@@ -225,10 +225,10 @@ test('QueryBuilder builds COUNT queries correctly', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
-  
+
   const { sql: countSql, params: countParams } = qb._buildCountQuery();
 
   t.true(countSql.includes('SELECT COUNT(*)'));
@@ -243,10 +243,10 @@ test('QueryBuilder builds DELETE queries correctly', t => {
     getColumnNames: () => ['id', 'name', 'created_on']
   };
   const mockDAL = { schemaNamespace: '' };
-  
+
   const qb = new QueryBuilder(mockModel, mockDAL);
   qb.filter({ id: 'test-id' });
-  
+
   const { sql: deleteSql, params: deleteParams } = qb._buildDeleteQuery();
 
   t.true(deleteSql.includes('DELETE FROM test_table'));

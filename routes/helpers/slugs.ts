@@ -3,10 +3,10 @@ import type { Request, Response } from 'express';
 import isUUID from 'is-uuid';
 
 // Internal dependencies
-import errors from '../../dal/lib/errors.js';
-import Team from '../../models/team.js';
-import Thing from '../../models/thing.js';
-import ThingSlug from '../../models/thing-slug.js';
+import errors from '../../dal/lib/errors.ts';
+import Team from '../../models/team.ts';
+import Thing from '../../models/thing.ts';
+import ThingSlug from '../../models/thing-slug.ts';
 
 const { DocumentNotFound } = errors;
 
@@ -32,10 +32,10 @@ interface ModelConfig {
   SlugModel?: SlugModel;
 }
 
-let teamSlugModulePromise: Promise<typeof import('../../models/team-slug.js')> | null = null;
+let teamSlugModulePromise: Promise<typeof import('../../models/team-slug.ts')> | null = null;
 async function getTeamSlugModel() {
   if (!teamSlugModulePromise)
-    teamSlugModulePromise = import('../../models/team-slug.js');
+    teamSlugModulePromise = import('../../models/team-slug.ts');
   const module = await teamSlugModulePromise;
   return module.default;
 }

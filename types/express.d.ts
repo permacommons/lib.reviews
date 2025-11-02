@@ -5,7 +5,7 @@ declare global {
     interface User extends RequestUser {}
 
     interface Request {
-      dal?: import('../dal/index.js').DalContext;
+      dal?: import('../dal/index.ts').DalContext;
       locale?: LibReviews.LocaleCode;
       language?: LibReviews.LocaleCodeWithUndetermined;
       localeChange?: { old: LibReviews.LocaleCodeWithUndetermined; new: LibReviews.LocaleCodeWithUndetermined };

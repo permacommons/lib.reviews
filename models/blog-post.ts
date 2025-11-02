@@ -1,16 +1,16 @@
-import dal from '../dal/index.js';
-import mlString from '../dal/lib/ml-string.js';
+import dal from '../dal/index.ts';
+import mlString from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
-import dalErrors from '../dal/lib/errors.js';
-import User from './user.js';
-import modelInitializer from '../dal/lib/model-initializer.js';
-import modelHandle from '../dal/lib/model-handle.js';
+import dalErrors from '../dal/lib/errors.ts';
+import User from './user.ts';
+import modelInitializer from '../dal/lib/model-initializer.ts';
+import modelHandle from '../dal/lib/model-handle.ts';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
   if (!postgresModulePromise) {
-    postgresModulePromise = import('../db-postgres.js');
+    postgresModulePromise = import('../db-postgres.ts');
   }
   return postgresModulePromise;
 }
@@ -28,7 +28,7 @@ const { createAutoModelHandle } = modelHandle;
 let teamSlugHandlePromise;
 async function loadTeamSlugHandle() {
   if (!teamSlugHandlePromise) {
-    teamSlugHandlePromise = import('./team-slug.js');
+    teamSlugHandlePromise = import('./team-slug.ts');
   }
   const module = await teamSlugHandlePromise;
   return module.default;

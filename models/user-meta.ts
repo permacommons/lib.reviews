@@ -1,12 +1,12 @@
-import dal from '../dal/index.js';
-import { ValidationError } from '../dal/lib/errors.js';
-import { createAutoModelHandle } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
+import dal from '../dal/index.ts';
+import { ValidationError } from '../dal/lib/errors.ts';
+import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 
-type PostgresModule = typeof import('../db-postgres.js');
+type PostgresModule = typeof import('../db-postgres.ts');
 
 type UserMetaRecord = JsonObject;
 type UserMetaVirtual = JsonObject;
@@ -17,7 +17,7 @@ let postgresModulePromise: Promise<PostgresModule> | null = null;
 
 async function loadDbPostgres(): Promise<PostgresModule> {
   if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.js');
+    postgresModulePromise = import('../db-postgres.ts');
 
   return postgresModulePromise;
 }

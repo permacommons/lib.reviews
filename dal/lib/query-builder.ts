@@ -1,15 +1,15 @@
 import isUUID from 'is-uuid';
 
 import debug from '../../util/debug.ts';
-import { convertPostgreSQLError } from './errors.js';
+import { convertPostgreSQLError } from './errors.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
   ModelInstance
-} from './model-types.js';
-import type Model from './model.js';
-import type { ModelRuntime } from './model.js';
+} from './model-types.ts';
+import type Model from './model.ts';
+import type { ModelRuntime } from './model.ts';
 
 type PredicateValue = unknown;
 
@@ -298,7 +298,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
         this._addWhereCondition(dbFieldName, '=', normalizedValue);
       }
     }
-    
+
     return this;
   }
 
@@ -549,10 +549,10 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   between(startDate: Date | string | number, endDate: Date | string | number, options: BetweenOptions = {}): this {
     const leftOp = options.leftBound === 'open' ? '>' : '>=';
     const rightOp = options.rightBound === 'open' ? '<' : '<=';
-    
+
     this._addWhereCondition('created_on', leftOp, startDate);
     this._addWhereCondition('created_on', rightOp, endDate);
-    
+
     return this;
   }
 
@@ -695,18 +695,18 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     if (!joinSpec || Object.keys(joinSpec).length === 0) {
       return this;
     }
-    
+
     // Store join specification for processing during query execution
     if (!this._joinSpecs) {
       this._joinSpecs = [];
     }
     this._joinSpecs.push(joinSpec);
-    
+
     // Process joins and add to query
     for (const [relationName, relationSpec] of Object.entries(joinSpec)) {
       this._processJoin(relationName, relationSpec);
     }
-    
+
     return this;
   }
 
@@ -722,7 +722,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       this._addSimpleJoin(relationName);
       return;
     }
-    
+
     // Handle complex join specifications
     if (typeof relationSpec === 'object' && relationSpec !== null) {
       this._addComplexJoin(relationName, relationSpec);
@@ -759,10 +759,10 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       if (joinInfo.hasRevisions) {
         joinClause += ` AND ${joinInfo.table}._old_rev_of IS NULL AND (${joinInfo.table}._rev_deleted IS NULL OR ${joinInfo.table}._rev_deleted = false)`;
       }
-      
+
       this._joins.push(joinClause);
     }
-    
+
     // Mark this relation for result processing
     if (!this._simpleJoins) {
       this._simpleJoins = {};
@@ -782,7 +782,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       debug.db(`Warning: Unknown relation '${relationName}' for table '${this.tableName}'`);
       return;
     }
-    
+
     // For complex joins, we'll need to handle them during result processing
     // Store the specification for later use
     if (!this._complexJoins) {
@@ -919,7 +919,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
       const { sql, params } = this._buildSelectQuery();
       const result = await this.dal.query(sql, params);
-      
+
       // Process results with simple joins
       return await this._processResults(result.rows as Record<string, unknown>[]);
     } catch (error) {
@@ -970,12 +970,12 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const mainQuery = this._buildSelectQuery();
     const mainResult = await this.dal.query(mainQuery.sql, mainQuery.params);
     const mainRows = await this._processResults(mainResult.rows as Record<string, unknown>[]);
-    
+
     // Process each complex join
     for (const [relationName, joinSpec] of Object.entries(this._complexJoins)) {
       await this._processComplexJoin(mainRows, relationName, joinSpec);
     }
-    
+
     return mainRows;
   }
 
@@ -987,7 +987,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @private
    */
   async _processComplexJoin(
-    mainRows: Array<Record<string, unknown>>, 
+    mainRows: Array<Record<string, unknown>>,
     relationName: string,
     joinSpec: ComplexJoinSpec
   ): Promise<void> {
@@ -1152,7 +1152,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   }
 
   _assignJoinResults(
-    mainRows: Array<Record<string, unknown>>, 
+    mainRows: Array<Record<string, unknown>>,
     relationName: string,
     joinInfo: RelationJoinInfo,
     groupedRows: Map<unknown, Record<string, unknown>[]>
@@ -1392,7 +1392,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
         this._instantiateRelated(BaseModel, row)
       )) as QueryInstance[];
     }
-    
+
     // Process rows with joined data
     const processedRows = [];
     for (const row of rows) {
@@ -1850,7 +1850,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
   /**
    * Get a random sample of records
-   * 
+   *
    * @param count - Number of records to sample
    * @returns {Promise<Array>} Array of sampled records
    */
@@ -1858,7 +1858,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     // Add ORDER BY RANDOM() and LIMIT to get random sample
     this._orderBy = ['RANDOM()'];
     this._limit = count;
-    
+
     const results = await this.run();
     return results;
   }

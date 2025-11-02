@@ -1,12 +1,12 @@
-import dal from '../dal/index.js';
+import dal from '../dal/index.ts';
 import debug from '../util/debug.ts';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-import { createAutoModelHandle } from '../dal/lib/model-handle.js';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
   if (!postgresModulePromise) {
-    postgresModulePromise = import('../db-postgres.js');
+    postgresModulePromise = import('../db-postgres.ts');
   }
   return postgresModulePromise;
 }
@@ -40,20 +40,20 @@ async function initializeFileModel(dal = null) {
       id: types.string().uuid(4),
       name: types.string().max(512),
       description: mlString.getSchema(),
-      
+
       // CamelCase fields that map to snake_case database columns
       uploadedBy: types.string().uuid(4),
       uploadedOn: types.date(),
       mimeType: types.string(),
       license: types.string().enum(validLicenses),
-      
+
       // Provided by uploader: if not the author, who is?
       creator: mlString.getSchema(),
       // Provided by uploader: where does this file come from?
       source: mlString.getSchema(),
       // Uploaded files with incomplete metadata are stored in a separate directory
       completed: types.boolean().default(false),
-      
+
       // Virtual permission fields
       userCanDelete: types.virtual().default(false),
       userIsCreator: types.virtual().default(false)
@@ -135,15 +135,15 @@ async function initializeFileModel(dal = null) {
  */
 async function getStashedUpload(userID, name) {
   const query = `
-    SELECT * FROM ${File.tableName} 
-    WHERE name = $1 
-      AND uploaded_by = $2 
-      AND completed = false 
+    SELECT * FROM ${File.tableName}
+    WHERE name = $1
+      AND uploaded_by = $2
+      AND completed = false
       AND (_rev_deleted IS NULL OR _rev_deleted = false)
       AND (_old_rev_of IS NULL)
     LIMIT 1
   `;
-  
+
   const result = await File.dal.query(query, [name, userID]);
   return result.rows.length > 0 ? File._createInstance(result.rows[0]) : undefined;
 }

@@ -26,7 +26,7 @@ test.before(async () => {
 
   User = userModel;
   File = fileModel;
-  ({ NewUserError } = await import('../models/user.js'));
+  ({ NewUserError } = await import('../models/user.ts'));
 });
 
 test.after.always(unmockSearch);

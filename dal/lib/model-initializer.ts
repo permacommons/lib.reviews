@@ -3,11 +3,11 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance
-} from './model-types.js';
+} from './model-types.ts';
 
-import { getOrCreateModel } from './model-factory.js';
-import revision from './revision.js';
-import type { ModelConstructorLike } from './revision.js';
+import { getOrCreateModel } from './model-factory.ts';
+import revision from './revision.ts';
+import type { ModelConstructorLike } from './revision.ts';
 
 const DEFAULT_REVISION_STATIC = [
   'createFirstRevision',

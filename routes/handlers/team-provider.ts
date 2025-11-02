@@ -11,7 +11,7 @@ import TeamJoinRequest from '../../models/team-join-request.ts';
 import BlogPost from '../../models/blog-post.ts';
 import feeds from '../helpers/feeds.ts';
 import slugs from '../helpers/slugs.ts';
-import mlString from '../../dal/lib/ml-string.js';
+import mlString from '../../dal/lib/ml-string.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 import debug from '../../util/debug.ts';
 
@@ -522,7 +522,7 @@ class TeamProvider extends AbstractBREADProvider {
 
         // Associate parsed form data with revision
         Object.assign(team, formValues);
-        
+
         // Ensure team has an ID before proceeding
         if (!team.id) {
           team.id = randomUUID();
