@@ -1,6 +1,3 @@
-/* global config */
-'use strict';
-
 import $ from './lib/jquery.js';
 import { msg, trimInput } from './libreviews.js';
 
@@ -8,12 +5,15 @@ import { msg, trimInput } from './libreviews.js';
  * Creates an overlay modal dialog which lets the user upload a single file via
  * the upload API.
  *
- * @param {Function} [successCallback]
+ * @param successCallback
  *  Callback to run after a successful upload.
- * @param {Function} [errorCallback]
+ * @param errorCallback
  *  Callback to run after a failed upload (does not run if modal is closed).
  */
-export function uploadModal(successCallback, errorCallback) {
+export function uploadModal(
+  successCallback?: (uploads: unknown) => void,
+  errorCallback?: (errors: unknown[]) => void
+): void {
   // Obtain template for the dialog (a simple jQuery object).
   const $modal = getTemplate();
 
@@ -31,7 +31,7 @@ export function uploadModal(successCallback, errorCallback) {
   // values
   $('#upload-modal-ownwork').click(resetMetadata);
 
-  $('#upload-modal-description').blur(trimInput);
+  $('#upload-modal-description').blur(trimInput as (this: HTMLTextAreaElement) => void);
 
   // If the user clicks "Cancel" on page 2, we flip back to page 1, and we
   // de-select the radio buttons unless we have complete data from a previous
@@ -71,9 +71,9 @@ export function uploadModal(successCallback, errorCallback) {
   $('#upload-modal').on($.modal.BEFORE_CLOSE, function() {
     $modal.remove();
   });
-
 }
 
+/* Window.config is declared in frontend/register.ts to avoid duplicate global merges */
 
 const
   __ = msg,
@@ -133,7 +133,7 @@ const
 <td><label for="upload-modal-other" class="inline-label" id="upload-modal-other-label">${messages.other}</label></td>
 </tr>
 </table>
-<input type="hidden" name="language" value="${config.language}">
+<input type="hidden" name="language" value="${window.config.language}">
 <input type="hidden" id="upload-modal-license" name="license" value="cc-by-sa">
 <input type="hidden" id="upload-modal-creator" name="creator" value="">
 <input type="hidden" id="upload-modal-source" name="source" value="">
@@ -181,28 +181,28 @@ ${messages.ok}
   enableUpload = () => $('#upload-modal-start-upload').prop('disabled', false),
   disableUpload = () => $('#upload-modal-start-upload').prop('disabled', true);
 
-function expandModal() {
-  let files = $('#upload-input')[0].files;
+function expandModal(): void {
+  const files = ($('#upload-input')[0] as HTMLInputElement).files;
+  if (!files || files.length === 0) return;
   $('#upload-label-text').text(files[0].name);
   enableUpload();
   $('#upload-modal-page-1-expansion').slideDown(200);
   $('#upload-modal-description').focus();
 }
 
-
-function showPage2() {
+function showPage2(): void {
   $('#upload-modal-page-1').hide(200);
   $('#upload-modal-page-2').show(200);
   $('#upload-metadata-creator').focus();
 }
 
-function resetMetadata() {
+function resetMetadata(): void {
   $('#upload-modal-license').val('cc-by-sa');
   $('#upload-modal-source').val('');
   $('#upload-modal-creator').val('');
 }
 
-function cancelPage2() {
+function cancelPage2(): void {
   $('#upload-modal-page-2').hide(200);
   $('#upload-modal-page-1').show(200);
 
@@ -212,8 +212,10 @@ function cancelPage2() {
     $('#upload-modal-other').prop('checked', false);
 }
 
-function startUpload(successCallback, errorCallback) {
-
+function startUpload(
+  successCallback?: (uploads: unknown) => void,
+  errorCallback?: (errors: unknown[]) => void
+): void {
   const hasDescription = Boolean($('#upload-modal-description').val());
   const hasRights = $('#upload-modal-ownwork').prop('checked') ||
     $('#upload-modal-other').prop('checked');
@@ -224,7 +226,7 @@ function startUpload(successCallback, errorCallback) {
   if (!hasDescription || !hasRights)
     return;
 
-  const form = $('#upload-modal-form')[0];
+  const form = $('#upload-modal-form')[0] as HTMLFormElement;
   const data = new FormData(form);
   enableSpinner();
   disableUpload();
@@ -237,22 +239,22 @@ function startUpload(successCallback, errorCallback) {
       processData: false,
       type: 'POST',
     })
-    .done(data => {
+    .done((res: any) => {
       disableSpinner();
       $.modal.close();
       if (successCallback)
-        successCallback(data.uploads);
+        successCallback(res.uploads);
     })
-    .fail(data => {
-      const errorArray = [];
+    .fail((res: any) => {
+      const errorArray: unknown[] = [];
       disableSpinner();
       enableUpload();
       let showGenericError = true;
 
-      if (data && data.responseJSON && data.responseJSON.errors) {
-        errorArray.push(data.responseJSON.errors);
+      if (res && res.responseJSON && res.responseJSON.errors) {
+        errorArray.push(res.responseJSON.errors);
         let allErrors = '';
-        for (let error of data.responseJSON.errors) {
+        for (const error of res.responseJSON.errors as Array<{ displayMessage?: string }>) {
           if (error.displayMessage) {
             allErrors += error.displayMessage + '<br>';
             showGenericError = false;
@@ -271,19 +273,19 @@ function startUpload(successCallback, errorCallback) {
     });
 }
 
-function confirmMetadata(event) {
-  const license = $('#upload-metadata-license').val(),
-    source = $('#upload-metadata-source').val(),
-    creator = $('#upload-metadata-creator').val();
-  $('#upload-modal-license').val(license);
-  $('#upload-modal-source').val(source);
-  $('#upload-modal-creator').val(creator);
+function confirmMetadata(event: JQuery.Event): void {
+  const license = $('#upload-metadata-license').val() as string | number | string[] | undefined,
+    source = $('#upload-metadata-source').val() as string | number | string[] | undefined,
+    creator = $('#upload-metadata-creator').val() as string | number | string[] | undefined;
+  $('#upload-modal-license').val(license as any);
+  $('#upload-modal-source').val(source as any);
+  $('#upload-modal-creator').val(creator as any);
   const info = `
 ${messages.specified}<br>
 <table id="upload-modal-metadata-info">
-<tr><td><b>${messages.creator}</b></td><td>${creator}</td></tr>
-<tr><td><b>${messages.source}</b></td><td>${source}</td></tr>
-<tr><td><b>${messages.license}</b></td><td>${messages.licenses[license]}</td></tr>
+<tr><td><b>${messages.creator}</b></td><td>${String(creator ?? '')}</td></tr>
+<tr><td><b>${messages.source}</b></td><td>${String(source ?? '')}</td></tr>
+<tr><td><b>${messages.license}</b></td><td>${messages.licenses[String(license ?? '') as keyof typeof messages.licenses]}</td></tr>
 </table>
 `;
   $('#upload-modal-other-label').html(info);

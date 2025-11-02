@@ -10,6 +10,7 @@
     "allowJs": false
   },
   "include": [
-    "frontend/**/*.ts"
+    "frontend/**/*.ts",
+    "types/frontend/**/*.d.ts"
   ]
 }

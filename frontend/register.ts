@@ -6,6 +6,7 @@ declare global {
   interface Window {
     config: {
       illegalUsernameCharacters: string;
+      language: string;
     };
   }
 }

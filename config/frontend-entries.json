@@ -3,8 +3,8 @@
   "editor": "frontend/editor.js",
   "review": "frontend/review.js",
   "register": "frontend/register.ts",
-  "upload": "frontend/upload.js",
-  "user": "frontend/user.js",
-  "manage-urls": "frontend/manage-urls.js",
-  "upload-modal": "frontend/upload-modal.js"
+  "upload": "frontend/upload.ts",
+  "user": "frontend/user.ts",
+  "manage-urls": "frontend/manage-urls.ts",
+  "upload-modal": "frontend/upload-modal.ts"
 }

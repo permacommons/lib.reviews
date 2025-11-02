@@ -98,7 +98,13 @@ Target the browser bundles next, starting with the shared infrastructure and end
 - [x] Update Vite and `package.json` scripts to emit `.d.ts` artifacts for shared code (`frontend/register.ts`) consumed by server-rendered templates.
 
 ##### 5.2 Core entrypoints & messaging
-- [ ] Convert runtime entrypoints (`frontend/libreviews.js`, `frontend/review.js`, `frontend/upload.js`, `frontend/upload-modal.js`, `frontend/user.js`, `frontend/manage-urls.js`) to `.ts`, keeping dynamic imports split the same way as today.
+- [ ] Convert runtime entrypoints to `.ts`, keeping dynamic imports split the same way as today.
+  - [ ] `frontend/libreviews.js`
+  - [ ] `frontend/review.js`
+  - [x] `frontend/upload.ts` (was `frontend/upload.js`)
+  - [x] `frontend/upload-modal.js`
+  - [x] `frontend/user.ts` (was `frontend/user.js`)
+  - [x] `frontend/manage-urls.ts` (was `frontend/manage-urls.js`)
 - [ ] Type the localization/message helpers by transforming `frontend/editor-messages.js`, `frontend/upload-modal-messages.js`, and `frontend/messages/*.json` into typed modules (or generated `.ts` exports) that feed the new entrypoints.
 - [ ] Ensure the flash messaging and modal bootstrapping utilities share interfaces with the server-rendered context objects defined in Wave 4.
 
