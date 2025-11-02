@@ -9,6 +9,9 @@ import type { MLString } from '../../frontend/libreviews';
  */
 export interface Thing {
   urlID: string;
+  urls?: string[];
+  label?: import('../../frontend/libreviews.js').MLString;
+  description?: import('../../frontend/libreviews.js').MLString;
   reviews?: Array<{ id: string }>;
 }
 

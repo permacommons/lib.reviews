@@ -1,6 +1,43 @@
 /* global $, config */
 import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
 import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
+import type { LookupResult, UpdateCallback } from '../../types/frontend/adapters.js';
+import type Autocomplete from '../lib/ac.js';
+
+interface WikidataEntity {
+  labels?: Record<string, { value: string }>;
+  descriptions?: Record<string, { value: string }>;
+  [key: string]: any;
+}
+
+interface WikidataAPIResponse {
+  success?: boolean;
+  entities?: Record<string, WikidataEntity>;
+  [key: string]: any;
+}
+
+interface SPARQLBinding {
+  url?: { value: string };
+  label?: { value: string };
+  description?: { value: string };
+  matchText?: { value: string };
+  ordinal?: { value: string };
+  [key: string]: any;
+}
+
+interface SPARQLResponse {
+  results?: {
+    bindings?: SPARQLBinding[];
+  };
+  [key: string]: any;
+}
+
+interface AutocompleteRow {
+  url: string;
+  label: string;
+  title: string;
+  description?: string;
+}
 
 /**
  * This module performs shallow lookups on Wikidata. They are shallow in that
@@ -11,6 +48,13 @@ import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
  * @extends AbstractAutocompleteAdapter
  */
 class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
+  apiBaseURL: string;
+  queryServiceBaseURL: string;
+  fetchResults: number;
+  displayResults: number;
+  queryServiceTimeout: number;
+  excludedItemClasses: string[];
+  nativeToWikidata: Record<string, string>;
 
   /**
    * See {@link AbstractAutocompleteAdapter} for parameter documentation, not
@@ -18,7 +62,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
    *
    * @inheritdoc
    */
-  constructor(updateCallback, searchBoxSelector) {
+  constructor(updateCallback: UpdateCallback, searchBoxSelector: string) {
     super(updateCallback, searchBoxSelector);
     // Adapter settings
     this.sourceID = 'wikidata';
@@ -31,30 +75,18 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
      * fetch a larger number of results than we may need, since we may eliminate
      * some of them. The ratio configured here has proven to strike a good
      * balance where few queries result in zero "good" results.
-     *
-     * @type {Number}
      */
     this.fetchResults = 25;
-
-    /**
-     * @see WikidataAutocompleteAdapter#fetchResults
-     * @type {Number}
-     */
     this.displayResults = 7;
-
 
     /**
      * Timeout for query service validation requests in milliseconds
-     *
-     * @type {Number}
      */
     this.queryServiceTimeout = 5000;
 
     /**
      * Items with these classes are typically not going to be the target of
      * reviews.
-     *
-     * @type {String[]}
      */
     this.excludedItemClasses = [
       'Q4167410', // disambiguation page
@@ -70,46 +102,40 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
      *
      * Since Wikidata supports a superset of languages and most language code
      * are identical, we only enumerate exceptions.
-     *
-     * @type {Object}
      */
     this.nativeToWikidata = {
       pt: 'pt-br',
       'pt-PT': 'pt'
     };
-
   }
-
 
   /**
    * Look up a single item in Wikidata given its URL. Uses the MediaWiki API.
    *
-   * @param  {String} url
-   *  the URL to look up
-   * @returns {Promise}
-   *  resolves to a {@link LookupResult} if successful, rejects with
+   * @param url - the URL to look up
+   * @returns resolves to a {@link LookupResult} if successful, rejects with
    *  error if not.
    */
-  lookup(url) {
+  lookup(url: string): Promise<LookupResult> {
     return new Promise((resolve, reject) => {
-      let qNumber = (url.match(this.supportedPattern) || [])[4];
+      const qNumber = (url.match(this.supportedPattern!) || [])[4];
       if (!qNumber)
         return reject(new Error('URL does not appear to contain a Q number (e.g., Q42) or is not a Wikidata URL.'));
 
       // in case the URL had a lower case "q"
-      qNumber = qNumber.toUpperCase();
+      const qNumberUpper = qNumber.toUpperCase();
 
       let language = this.nativeToWikidata[config.language] || config.language;
       language = language.toLowerCase();
 
-      let queryObj = {
+      const queryObj = {
         action: 'wbgetentities',
         format: 'json',
         languages: language,
         uselang: language,
         languagefallback: 1,
         props: 'labels|descriptions',
-        ids: qNumber
+        ids: qNumberUpper
       };
 
       $.get({
@@ -118,21 +144,21 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
           dataType: 'jsonp',
           data: queryObj
         })
-        .done(data => {
-          if (typeof data !== 'object' || !data.success || !data.entities || !data.entities[qNumber])
-            return reject(new Error('Did not get a valid Wikidata entity for query: ' + qNumber));
+        .done((data: WikidataAPIResponse) => {
+          if (typeof data !== 'object' || !data.success || !data.entities || !data.entities[qNumberUpper])
+            return reject(new Error('Did not get a valid Wikidata entity for query: ' + qNumberUpper));
 
           // Descriptions result will be an empty object if no description is available, so
-          const entity = data.entities[qNumber];
+          const entity = data.entities[qNumberUpper];
           // will always pass this test
           if (!entity.labels || !entity.descriptions)
-            return reject(new Error('Did not get label and description information for query: ' + qNumber));
+            return reject(new Error('Did not get label and description information for query: ' + qNumberUpper));
 
           if (!entity.labels[language])
-            return reject(new Error('Did not get a label for ' + qNumber + 'for the specified language: ' + language));
+            return reject(new Error('Did not get a label for ' + qNumberUpper + 'for the specified language: ' + language));
 
-          let label = entity.labels[language].value,
-            description;
+          const label = entity.labels[language].value;
+          let description: string | undefined;
 
           if (entity.descriptions[language])
             description = entity.descriptions[language].value;
@@ -142,14 +168,14 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
               label,
               description
             },
-            sourceID: this.sourceID
+            sourceID: this.sourceID!
           });
         })
         .fail(reject);
     });
   }
 
-  setupAutocomplete() {
+  setupAutocomplete(): void {
     super.setupAutocomplete();
 
     /**
@@ -157,42 +183,33 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
      * in this field) than what we pass along to the application (stored in the
      * label field). The display text may include a parenthetical component that
      * highlights a match against an alias, rather than the primary label.
-     *
-     * @type {String}
-     * @alias WikidataAutocompleteAdapter#acPrimaryTextKey
      */
-    this.ac.primaryTextKey = 'title';
+    this.ac!.primaryTextKey = 'title';
 
     /**
      * We override the default; Wikidata can take more of a beating than some
      * other sites. :)
-     *
-     * @type {Number}
-     * @alias WikidataAutocompleteAdapter#acDelay
      */
-    this.ac.delay = 0;
+    this.ac!.delay = 0;
 
-    this.ac.renderNav = this._renderNavHandler.bind(this.ac);
-    this.ac.extractRow = this._extractRowHandler.bind(this.ac);
+    this.ac!.renderNav = (this._renderNavHandler as any).bind(this.ac);
+    this.ac!.extractRow = (this._extractRowHandler as any).bind(this.ac);
   }
 
   /**
    * Send an autocomplete request to the Wikidata query service and render
    * the result using the autocomplete widget.
    *
-   * @param {String} query
-   *  the query string
-   * @param {Number} [offset]
-   *  the offset from which to continue a previous query.
+   * @param query - the query string
+   * @param offset - the offset from which to continue a previous query.
    */
-  _requestHandler(query, offset) {
-
+  protected _requestHandler(this: Autocomplete<AutocompleteRow>, query: string, offset?: number): void {
     const time = Date.now();
 
     // Keep track of most recently fired query so we can ignore responses
     // coming in late
-    if (this.latestQuery === undefined || this.latestQuery < time)
-      this.latestQuery = time;
+    if ((this as any).latestQuery === undefined || (this as any).latestQuery < time)
+      (this as any).latestQuery = time;
 
     this.results = [];
     query = query.trim();
@@ -207,10 +224,10 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     // Turn on spinner
     this.adapter.enableSpinner();
 
-    const language = this.adapter.nativeToWikidata[config.language] || config.language;
+    const language = (this.adapter as WikidataAutocompleteAdapter).nativeToWikidata[config.language] || config.language;
 
     // Build union filter of excluded item classes
-    const excludedClassesStr = this.adapter.excludedItemClasses.reduce((str, qNumber) => {
+    const excludedClassesStr = (this.adapter as WikidataAutocompleteAdapter).excludedItemClasses.reduce((str, qNumber) => {
       if (!str)
         str = `{ ?item wdt:P31 wd:${qNumber} }`;
       else
@@ -218,8 +235,8 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
       return str;
     }, '');
 
-    let offsetStr = '',
-      isFirstPage;
+    let offsetStr = '';
+    let isFirstPage: boolean;
 
     if (offset) {
       offsetStr = `bd:serviceParam mwapi:continue ${offset} .\n`;
@@ -228,7 +245,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
       isFirstPage = true;
       // Keep track of the exact offsets used on previous pages, since
       // they vary due to client-side filtering
-      this.prevStack = [];
+      (this as any).prevStack = [];
     }
 
     // String will be inside quotes, so let's make sure it can't get out :)
@@ -245,7 +262,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
           bd:serviceParam mwapi:search "${escapedQuery}" .
           bd:serviceParam mwapi:language "${language}" .
           bd:serviceParam mwapi:uselang "${language}" .
-          bd:serviceParam mwapi:limit ${this.adapter.fetchResults} .
+          bd:serviceParam mwapi:limit ${(this.adapter as WikidataAutocompleteAdapter).fetchResults} .
           ${offsetStr}
           ?item wikibase:apiOutputItem mwapi:item .
           ?url wikibase:apiOutput "@url" .
@@ -258,17 +275,17 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     ORDER BY ?ordinal`;
 
     $.get({
-        url: this.adapter.queryServiceBaseURL,
+        url: (this.adapter as WikidataAutocompleteAdapter).queryServiceBaseURL,
         dataType: 'json',
         data: {
           query: sparqlQuery,
           format: 'json'
         },
-        timeout: this.adapter.queryServiceTimeout
+        timeout: (this.adapter as WikidataAutocompleteAdapter).queryServiceTimeout
       })
-      .done(data => {
+      .done((data: SPARQLResponse) => {
         // Don't update if a more recent query has superseded this one
-        if (time < this.latestQuery)
+        if (time < (this as any).latestQuery)
           return;
 
         this.adapter.disableSpinner();
@@ -282,14 +299,13 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
           return;
         }
         let i = 0;
-        for (let item of data.results.bindings) {
+        for (const item of data.results.bindings) {
           this.results.push(this.extractRow(item, query));
           i++;
-          if (i == this.adapter.displayResults)
+          if (i == (this.adapter as WikidataAutocompleteAdapter).displayResults)
             break;
         }
         this.render();
-
 
         // Remember we intentionally tell the MW API to send a bit more than we
         // need, since some of it may have been filtered out by the SPARQL
@@ -297,7 +313,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
         // can now render the pagination. Alternatively, if this is already
         // a pagination request, the user should be able to go back as well :)
         const thereAreMoreResults = data.results.bindings.length >
-          this.adapter.displayResults;
+          (this.adapter as WikidataAutocompleteAdapter).displayResults;
 
         if (thereAreMoreResults || !isFirstPage)
           this.renderNav({
@@ -307,7 +323,6 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
             offset,
             queryString: query
           });
-
       })
       .fail(_error => {
         // Show generic error
@@ -318,28 +333,22 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
       });
   }
 
-
   /**
    * Transform a result from the Wikidata item into a row that can be rendered
    * by the autocomplete widget.
    *
-   * @param {Object} item
-   *  a query result returned by the SPARQL query service (member of `bindings`
-   *  array)
-   * @param {String} queryString
-   *  the original (unescaped) query string is used for highlighting the match
-   *  in a composite title that includes both the label and the alias against
-   *  which the query matched
-   * @returns {Object}
-   *  plain object that only contains the data we can use inside the
+   * @param item - a query result returned by the SPARQL query service (member
+   *  of `bindings` array)
+   * @param queryString - the original (unescaped) query string is used for
+   *  highlighting the match in a composite title that includes both the label
+   *  and the alias against which the query matched
+   * @returns plain object that only contains the data we can use inside the
    *  application, plus a derived `title` property for rendering this row in
    *  the autocomplete widget.
-   *
-   * @this WikidataAutocompleteAdapter#ac
    */
-  _extractRowHandler(item, queryString) {
-    let row = {};
-    row.url = `https:${item.url.value}`; // Returned URL is protocol relative
+  protected _extractRowHandler(this: Autocomplete<AutocompleteRow>, item: SPARQLBinding, queryString: string): AutocompleteRow {
+    const row = { url: '', label: '', title: '', description: undefined as string | undefined };
+    row.url = `https:${item.url!.value}`; // Returned URL is protocol relative
 
     if (item.label)
       // Title may be modified below
@@ -347,7 +356,6 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
     if (item.description)
       row.description = item.description.value;
-
 
     // If the result does not contain the query string directly, but some
     // other part of the item such as its aliases returned a match, we
@@ -364,31 +372,18 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     return row;
   }
 
-
   /**
    * Render next/previous navigation within the autocomplete widget.
    *
-   * @param {Object} spec
-   *  Navigation settings
-   * @param {Boolean} spec.isFirstPage
-   *  First page of results doesn't get a "previous page" icon and click handler
-   *  that calls {@link WikidataAutocompleteAdapter#_requestHandler} (previously
-   *  loaded results are not cached)
-   * @param {Boolean} spec.thereAreMoreResults
-   *  If true, render "next page" icon and attach click handler that calls
-   *  request handler
-   * @param {Array} spec.bindings
-   *  the `bindings` property of a Wikidata query service result from a SPARQL
-   *  query - this contains the actual search result data
-   * @param {Number} spec.offset
-   *  the offset that was used for the search we're rendering navigation for
-   * @param {String} spec.queryString
-   *  the original (unescaped) query string, used by the click handler to
-   *  fire off subsequent requests
-   * @this WikidataAutocompleteAdapter#ac
+   * @param spec - Navigation settings
    */
-  _renderNavHandler(spec) {
-
+  protected _renderNavHandler(this: Autocomplete<AutocompleteRow>, spec: {
+    isFirstPage: boolean;
+    thereAreMoreResults: boolean;
+    bindings: SPARQLBinding[];
+    offset?: number;
+    queryString: string;
+  }): void {
     const {
       isFirstPage,
       thereAreMoreResults,
@@ -422,26 +417,24 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     };
 
     // Templates
-    const $navPlaceholder = $(`<div class="${css.prev}">&nbsp;</div>`),
-      $navWrapper =
-      $(`<div class="${css.wrap}"></div>`),
-      $navMoreResultsText =
-      $(`<div class="${css.more}">${msg.more}</div>`),
-      $navPreviousPage =
+    const $navPlaceholder = $(`<div class="${css.prev}">&nbsp;</div>`);
+    const $navWrapper = $(`<div class="${css.wrap}"></div>`);
+    const $navMoreResultsText = $(`<div class="${css.more}">${msg.more}</div>`);
+    const $navPreviousPage =
       $(`<div accesskey="${keys.prev}" class="${css.prev} ${css.active}" ` +
-        `title="${msg.prev}"><span class="${css.left}">&nbsp;</span></div>`),
-      $navNextPage =
+        `title="${msg.prev}"><span class="${css.left}">&nbsp;</span></div>`);
+    const $navNextPage =
       $(`<div class="${css.next} ${css.active}" accesskey="${keys.next}" ` +
         `title="${msg.next}"><span class="${css.right}">&nbsp;</span></div>`);
 
-    const $wrapper = $(this.rowWrapperEl),
-      $getMore = $navWrapper.appendTo($wrapper);
+    const $wrapper = $((this as any).rowWrapperEl);
+    const $getMore = $navWrapper.appendTo($wrapper);
 
     // Add "previous page" navigation
     if (!isFirstPage) {
       $navPreviousPage
         .appendTo($getMore)
-        .click(() => this.requestFn(queryString, this.prevStack.pop()));
+        .click(() => this.requestFn!(queryString, (this as any).prevStack.pop()));
     }
 
     // The query helpfully returns an ordinal, the position of the result in
@@ -449,31 +442,27 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     // applied. We can just continue from there.
     if (thereAreMoreResults) {
       const nextOffset = (offset || 0) +
-        +bindings[this.adapter.displayResults].ordinal.value;
+        +bindings[(this.adapter as WikidataAutocompleteAdapter).displayResults].ordinal!.value;
 
       // Add whitespace placeholder
       if (isFirstPage)
-        $navPlaceholder
-        .appendTo($getMore);
+        $navPlaceholder.appendTo($getMore);
 
       // Add "MORE RESULTS" centered text
-      $navMoreResultsText
-        .appendTo($getMore);
+      $navMoreResultsText.appendTo($getMore);
 
       // Add "next page" navigation
       $navNextPage
         .appendTo($getMore)
         .click(() => {
-          this.prevStack.push(offset);
-          this.requestFn(queryString, nextOffset);
+          (this as any).prevStack.push(offset);
+          this.requestFn!(queryString, nextOffset);
         });
     } else if (!isFirstPage) {
       // Add "MORE RESULTS" centered text
-      $navMoreResultsText
-        .appendTo($getMore);
+      $navMoreResultsText.appendTo($getMore);
     }
   }
-
 }
 
 export default WikidataAutocompleteAdapter;

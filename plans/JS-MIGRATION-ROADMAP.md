@@ -110,7 +110,7 @@ Target the browser bundles next, starting with the shared infrastructure and end
 
 ##### 5.3 Editor & adapter ecosystem
 - [ ] Port the editor core (`frontend/editor.js`, `frontend/editor-menu.js`, `frontend/editor-prompt.js`, `frontend/editor-extended-keymap.js`, `frontend/editor-inputrules.js`, `frontend/editor-selection.js`, `frontend/editor-markdown.js`) to `.ts`, leaning on the new ProseMirror typings and centralising schema types.
-- [ ] Convert adapter modules under `frontend/adapters/` to TypeScript, introducing discriminated unions for lookup results (Wikidata, OpenStreetMap, OpenLibrary, native) and extracting shared message shapes into `types/frontend/adapters.ts`.
+- [x] Convert adapter modules under `frontend/adapters/` to TypeScript, introducing discriminated unions for lookup results (Wikidata, OpenStreetMap, OpenLibrary, native) and extracting shared message shapes into `types/frontend/adapters.ts`.
 - [ ] Migrate ancillary helpers such as drag-and-drop/upload wiring to typed modules and delete any `.d.ts` stopgaps left in `types/`.
 
 #### Wave 6 — tests, tooling & strictness

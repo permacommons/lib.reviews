@@ -1,18 +1,30 @@
 import $ from '../lib/jquery.js';
 import AbstractLookupAdapter from './abstract-lookup-adapter.js';
+import type { LookupResult } from '../../types/frontend/adapters.js';
+
+interface OverpassElement {
+  tags?: {
+    name?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+}
+
+interface OverpassResponse {
+  elements?: OverpassElement[];
+  [key: string]: any;
+}
 
 class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
-
-  constructor(updateCallback) {
+  constructor(updateCallback?: Function | null) {
     super(updateCallback);
     this.sourceID = 'openstreetmap';
     this.supportedPattern = new RegExp('^https://www.openstreetmap.org/(node|way)/(\\d+)(?:#.*)?$', 'i');
   }
 
-  lookup(url) {
-
+  lookup(url: string): Promise<LookupResult> {
     return new Promise((resolve, reject) => {
-      const m = url.match(this.supportedPattern);
+      const m = url.match(this.supportedPattern!);
       if (m === null)
         return reject(new Error('URL does not appear to reference an OpenStreetMap node or way.'));
 
@@ -27,7 +39,7 @@ class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
       $.post('https://overpass-api.de/api/interpreter', {
           data: query
         })
-        .then(data => {
+        .then((data: OverpassResponse) => {
           if (typeof data != 'object' || !data.elements || !data.elements.length)
             return reject(new Error(`No OpenStreetMap data received for ${type} ID: ${id}`));
 
@@ -37,13 +49,13 @@ class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
           resolve({
             data: {
               label: data.elements[0].tags.name,
-            }
+            },
+            sourceID: this.sourceID!
           });
         })
         .catch(reject);
     });
   }
-
 }
 
 export default OpenStreetMapLookupAdapter;

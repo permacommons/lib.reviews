@@ -1,7 +1,10 @@
-/* global $, AC */
+/* global $ */
 import AbstractLookupAdapter from './abstract-lookup-adapter.js';
 import NativeLookupAdapter from './native-lookup-adapter.js';
 import { msg } from '../libreviews.js';
+import type { UpdateCallback, UpdateCallbackData } from '../../types/frontend/adapters.js';
+import type Autocomplete from '../lib/ac.js';
+
 const nativeLookupAdapter = new NativeLookupAdapter();
 
 /**
@@ -17,78 +20,73 @@ const nativeLookupAdapter = new NativeLookupAdapter();
  * @abstract
  * @extends AbstractLookupAdapter
  */
-export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
+export default abstract class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
+  searchBoxSelector: string;
 
   /**
-   * @param {Function} updateCallback - Callback to run after a row has been
+   * Delay in milliseconds before performing a search.
+   */
+  acDelay: number = 300;
+
+  /**
+   * CSS prefix for the autocomplete widget.
+   */
+  acCSSPrefix: string = 'ac-adapter-';
+
+  /**
+   * Key (into the `row` objects retrieved via the request handler)
+   * that determines which value is used as the main text in the autocomplete
+   * widget.
+   *
+   * `'label'` corresponds to what the main application expects, but if you
+   * want to show something different than what gets passed to the
+   * application, you may want to change it.
+   */
+  acPrimaryTextKey: string = 'label';
+
+  /**
+   * Default row key for the optional secondary, smaller text shown in the
+   * autocomplete widget below each result.
+   */
+  acSecondaryTextKey: string = 'description';
+
+  /**
+   * After {@link AbstractAutocompleteAdapter#setupAutocomplete} is run,
+   * holds a reference to the autocomplete widget used by this instance.
+   */
+  ac?: Autocomplete<any>;
+
+  /**
+   * Callback for fetching row data.
+   *
+   * @abstract
+   * @param query - The characters entered by the user
+   * @param offset - Optional offset for pagination
+   */
+  protected _requestHandler?(this: Autocomplete<any>, query: string, offset?: number): void;
+
+  /**
+   * Callback for rendering a row within the autocomplete widget, overriding
+   * default rendering.
+   *
+   * @abstract
+   * @param row - The row object to render
+   */
+  protected _renderRowHandler?(this: Autocomplete<any>, row: any): HTMLElement;
+
+  /**
+   * @param updateCallback - Callback to run after a row has been
    *  selected.
-   * @param {String} searchBoxSelector - jQuery selector for input we're adding
+   * @param searchBoxSelector - jQuery selector for input we're adding
    *  the autocomplete widget to.
    */
-  constructor(updateCallback, searchBoxSelector) {
+  constructor(updateCallback: UpdateCallback | Function | null, searchBoxSelector: string) {
     super(updateCallback);
 
     if (this.constructor.name === AbstractAutocompleteAdapter.name)
       throw new TypeError('AbstractAutocompleteAdapter is an abstract class, please instantiate a derived class.');
 
     this.searchBoxSelector = searchBoxSelector;
-
-    /**
-     * Delay in milliseconds before performing a search.
-     *
-     * @type {Number}
-     */
-    this.acDelay = 300;
-
-    /**
-     * CSS prefix for the autocomplete widget.
-     *
-     * @type {String}
-     */
-    this.acCSSPrefix = 'ac-adapter-';
-
-    /**
-     * Key (into the `row` objects retrieved via the request handler)
-     * that determines which value is used as the main text in the autocomplete
-     * widget.
-     *
-     * `'label'` corresponds to what the main application expects, but if you
-     * want to show something different than what gets passed to the
-     * application, you may want to change it.
-     *
-     * @type {String}
-     */
-    this.acPrimaryTextKey = 'label';
-
-    /**
-     * Default row key for the optional secondary, smaller text shown in the
-     * autocomplete widget below each result.
-     *
-     * @type {String}
-     */
-    this.acSecondaryTextKey = 'description';
-
-    /**
-     * Callback for fetching row data.
-     *
-     * @function
-     * @abstract
-     * @this AbstractAutocompleteAdapter#ac
-     * @param {String} query - The characters entered by the user
-     */
-    this._requestHandler = this._requestHandler || null;
-
-    /**
-     * Callback for rendering a row within the autocomplete widget, overriding
-     * default rendering.
-     *
-     * @function
-     * @abstract
-     * @this AbstractAutocompleteAdapter#ac
-     * @param {Object} row - The row object to render
-     *
-     */
-    this._renderRowHandler = this._renderRowHandler || null;
   }
 
   /**
@@ -96,8 +94,9 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
    * custom properties in the inherited class; just remember to call
    * `super.setupAutocomplete()` first.
    */
-  setupAutocomplete() {
-    let ac = new AC($(this.searchBoxSelector)[0]);
+  setupAutocomplete(): void {
+    const AC = (window as any).AC;
+    const ac = new AC($(this.searchBoxSelector)[0]);
     ac.primaryTextKey = this.acPrimaryTextKey;
     ac.secondaryTextKey = this.acSecondaryTextKey;
     ac.delay = this.acDelay;
@@ -106,31 +105,24 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
 
     // Register standard callbacks
     if (this._requestHandler)
-      ac.requestFn = this._requestHandler.bind(ac);
+      ac.requestFn = (this._requestHandler as any).bind(ac);
 
     if (this._selectRowHandler)
-      ac.triggerFn = this._selectRowHandler.bind(ac);
+      ac.triggerFn = (this._selectRowHandler as any).bind(ac);
 
     if (this._renderRowHandler)
-      ac.rowFn = this._renderRowHandler.bind(ac);
+      ac.rowFn = (this._renderRowHandler as any).bind(ac);
 
     // Custom function for showing "No results" text
     ac.renderNoResults = this._renderNoResultsHandler.bind(ac);
 
-    /**
-     * After {@link AbstractAutocompleteAdapter#setupAutocomplete} is run,
-     * holds a reference to the autocomplete widget used by this instance.
-     *
-     * @type {AC}
-     * @member
-     */
     this.ac = ac;
   }
 
   /**
    * Remove the autocomplete widget including all its event listeners.
    */
-  removeAutocomplete() {
+  removeAutocomplete(): void {
     if (this.ac) {
       this.ac.deactivate();
       this.ac = undefined;
@@ -140,7 +132,7 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
   /**
    * Run the autocomplete widget on the current input.
    */
-  runAutocomplete() {
+  runAutocomplete(): void {
     if (this.ac) {
       this.ac.inputEl.focus();
       this.ac.inputHandler();
@@ -151,7 +143,7 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
    * Show activity indicator in the input widget. Must be called in handler
    * code via this.adapter.
    */
-  enableSpinner() {
+  enableSpinner(): void {
     $(`${this.searchBoxSelector} + span.input-spinner`).removeClass('hidden');
   }
 
@@ -159,10 +151,9 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
    * Hide activity indicator in the input widget. Must be called in handler
    * code via this.adapter.
    */
-  disableSpinner() {
+  disableSpinner(): void {
     $(`${this.searchBoxSelector} + span.input-spinner`).addClass('hidden');
   }
-
 
   /**
    * Pass along row data we can handle to the main application. Will also
@@ -170,25 +161,14 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
    * we can give preferential treatment to an existing native record for the
    * review subject.
    *
-   * @this AbstractAutocompleteAdapter#ac
-   * @param {Object} row
-   *  row data object. All properties except "url" are only used for display
-   *  purposes, since the server performs its own lookup on the URL.
-   * @param {String} row.url
-   *  the URL for this review subject
-   * @param {String} row.label
-   *  the main name shown for this review subject
-   * @param {String} [row.subtitle]
-   *  shown as secondary title for the subject
-   * @param {String} [row.description]
-   *  shown as short description below label and subtitle
-   * @param {Event} event
-   *  the click or keyboard event which triggered this row selection.
+   * @param row - row data object. All properties except "url" are only used
+   *  for display purposes, since the server performs its own lookup on the URL.
+   * @param event - the click or keyboard event which triggered this row selection.
    */
-  _selectRowHandler(row, event) {
+  protected _selectRowHandler(row: { url?: string; label?: string; subtitle?: string; description?: string }, event: Event): void {
     event.preventDefault();
     if (row.url && row.label) {
-      const data = {
+      const data: UpdateCallbackData = {
         label: row.label,
         url: row.url
       };
@@ -198,15 +178,15 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
         data.description = row.description;
 
       // Let the application perform appropriate updates based on this data
-      this.adapter.updateCallback(data);
+      (this as any).adapter.updateCallback(data);
 
       // Check if we have local record and if so, replace lookup results
       nativeLookupAdapter
         .lookup(row.url)
         .then(result => {
           if (result && result.data) {
-            result.data.url = row.url;
-            this.adapter.updateCallback(result.data);
+            const updatedData: UpdateCallbackData = { ...result.data, url: row.url };
+            (this as any).adapter.updateCallback(updatedData);
           }
         })
         .catch(() => {
@@ -217,15 +197,12 @@ export default class AbstractAutocompleteAdapter extends AbstractLookupAdapter {
 
   /**
    * Render "No search results" text row at the bottom with default styles.
-   *
-   * @this AbstractAutocompleteAdapter#ac
    */
-  _renderNoResultsHandler() {
-    const $wrapper = $(this.rowWrapperEl);
+  protected _renderNoResultsHandler(this: Autocomplete<any>): void {
+    const $wrapper = $((this as any).rowWrapperEl);
     const $noResults = $('<div class="ac-adapter-no-results">' + msg('no search results') + '</div>');
     $wrapper
       .append($noResults)
       .show();
   }
-
 }
