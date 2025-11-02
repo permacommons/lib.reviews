@@ -72,10 +72,10 @@ With bootstrap and shared middleware typed, finish migrating HTTP entrypoints an
 - [x] Port cross-cutting service modules consumed by routes to TypeScript: `search.js` → `search.ts` (typed ElasticSearch client), `locales/languages.js` → `languages.ts` (locale metadata unions), and any thin helper shims under `types/http/handlebars.d.ts` that can now become concrete modules.
 
 ##### 4.2 Domain routers
-- [ ] Accounts & authentication: convert `routes/actions.js`, `routes/users.js`, and dependent helpers, ensuring Passport callbacks, invite-link flows, and flash messaging use the shared HTTP types.
-- [ ] Team management: convert `routes/teams.js` alongside `routes/handlers/team-provider.js` and `routes/handlers/resource-error-handler.js`, wiring DAL generics into the provider interfaces.
-- [ ] Things & reviews: convert `routes/things.js`, `routes/reviews.js`, and supporting providers (`abstract-bread-provider`, `review-provider`, `review-handlers`), introducing typed slugs and pagination contracts.
-- [ ] Files & uploads: convert `routes/files.js`, `routes/uploads.js`, and `routes/handlers/api-upload-handler.js`, replacing the remaining `.js` imports of `routes/helpers/feeds.ts`, `routes/helpers/forms.ts`, and asset utilities with typed equivalents.
+- [ ] Accounts & authentication: convert `routes/actions.js` and `routes/users.js` to `.ts`, ensuring Passport callbacks, invite-link flows, and flash messaging use the shared HTTP types introduced in Wave 4.1.
+- [ ] Team management: convert `routes/teams.js` to `.ts`, wiring the typed `team-provider` and `resource-error-handler` helpers from Wave 4.1 into the route context.
+- [ ] Things & reviews: convert `routes/things.js` and `routes/reviews.js` to `.ts`, consuming the existing TypeScript providers (`abstract-bread-provider`, `review-provider`, `review-handlers`) and typed slug/pagination helpers.
+- [ ] Files & uploads: convert `routes/files.js` and `routes/uploads.js` to `.ts`, relying on the typed upload handler, feed/form helpers, and asset utilities added earlier in the wave.
 - [ ] Content & API: convert `routes/blog-posts.js`, `routes/pages.js`, and `routes/api.js` to `.ts`, tightening types for rendered view models and API payloads.
 
 ##### 4.3 Compatibility cleanup
