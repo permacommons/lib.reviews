@@ -2,23 +2,77 @@
 import config from 'config';
 
 // Internal dependencies
-import Review from '../../models/review.js';
-import Team from '../../models/team.js';
-import User from '../../models/user.js';
-import File from '../../models/file.js';
-import AbstractBREADProvider from './abstract-bread-provider.js';
+import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
+import Review from '../../models/review.ts';
+import Team from '../../models/team.ts';
+import User from '../../models/user.ts';
+import File from '../../models/file.ts';
+import AbstractBREADProvider from './abstract-bread-provider.ts';
 import mlString from '../../dal/lib/ml-string.js';
 import urlUtils from '../../util/url-utils.ts';
 import ReportedError from '../../util/reported-error.ts';
-import md from '../../util/md.ts';
+import md, { getMarkdownMessageKeys } from '../../util/md.ts';
 import slugs from '../helpers/slugs.ts';
-import search from '../../search.js';
+import search from '../../search.ts';
 import getMessages from '../../util/get-messages.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 
-class ReviewProvider extends AbstractBREADProvider {
+const ReviewModel = Review as any;
+const TeamModel = Team as any;
+const UserModel = User as any;
+const FileModel = File as any;
 
-  constructor(req, res, next, options) {
+type ThingInstance = {
+  id: string;
+  label?: Record<string, string>;
+  urls?: string[];
+  files?: Array<Record<string, unknown>>;
+  populateUserInfo: (user: HandlerRequest['user']) => void;
+  addFilesByIDsAndSave?: (files: string[], userId: string) => Promise<unknown>;
+  [key: string]: unknown;
+};
+
+type ReviewFormValues = {
+  title?: Record<string, string>;
+  text?: Record<string, string>;
+  html?: Record<string, string>;
+  starRating?: number;
+  files?: string[];
+  uploads?: Array<Record<string, unknown>>;
+  teams?: Array<Record<string, unknown>>;
+  socialImageID?: string;
+  createdBy?: string;
+  createdOn?: Date;
+  creator?: unknown;
+  thing?: ThingInstance;
+  [key: string]: any;
+};
+
+type ReviewInstance = ReviewFormValues & {
+  id: string;
+  thing: ThingInstance;
+  socialImage?: { name: string };
+  headerImage?: string;
+  populateUserInfo: (user: HandlerRequest['user']) => void;
+  newRevision: (user: HandlerRequest['user'], options?: Record<string, unknown>) => Promise<ReviewInstance>;
+  saveAll: (options: Record<string, unknown>) => Promise<unknown>;
+  deleteAllRevisions: (user: HandlerRequest['user'], options?: Record<string, unknown>) => Promise<unknown>;
+};
+
+type TeamInstance = {
+  id: string;
+  urlID?: string;
+  userIsMember?: boolean;
+  populateUserInfo: (user: HandlerRequest['user']) => void;
+  [key: string]: unknown;
+};
+
+class ReviewProvider extends AbstractBREADProvider {
+  static formDefs: Record<string, any>;
+  protected isPreview = false;
+  protected editing = false;
+
+  constructor(req: HandlerRequest, res: HandlerResponse, next: HandlerNext, options?: Record<string, unknown>) {
 
     super(req, res, next, options);
     this.actions.add.titleKey = 'new review';
@@ -45,7 +99,7 @@ class ReviewProvider extends AbstractBREADProvider {
 
   }
 
-  read_GET(review) {
+  read_GET(review: ReviewInstance): void {
 
     let titleParam;
     if (review.thing) {
@@ -71,7 +125,7 @@ class ReviewProvider extends AbstractBREADProvider {
 
   }
 
-  async add_GET(formValues, thing) {
+  async add_GET(formValues?: ReviewFormValues, thing?: ThingInstance): Promise<void> {
     let pageErrors = this.req.flash('pageErrors');
     let pageMessages = this.req.flash('pageMessages');
     let user = this.req.user;
@@ -80,7 +134,7 @@ class ReviewProvider extends AbstractBREADProvider {
     // Load user's teams for the form
     if (user && user.id) {
       try {
-        const userWithTeams = await User.findByURLName(user.urlName, { withTeams: true });
+        const userWithTeams = await UserModel.findByURLName(user.urlName, { withTeams: true });
         user.teams = userWithTeams.teams;
         user.moderatorOf = userWithTeams.moderatorOf;
       } catch (error) {
@@ -95,9 +149,14 @@ class ReviewProvider extends AbstractBREADProvider {
         formValues.hasRating = {
           [formValues.starRating]: true
         };
-      formValues.hasTeam = {};
+      const teamFlags: Record<string, boolean> = {};
       if (Array.isArray(formValues.teams))
-        formValues.teams.forEach(team => (formValues.hasTeam[team.id] = true));
+        formValues.teams.forEach(teamEntry => {
+          const teamObj = teamEntry as TeamInstance;
+          if (teamObj?.id)
+            teamFlags[teamObj.id] = true;
+        });
+      formValues.hasTeam = teamFlags;
       if (formValues.socialImageID)
         formValues.hasSocialImageID = {
           [formValues.socialImageID]: true
@@ -124,7 +183,7 @@ class ReviewProvider extends AbstractBREADProvider {
     }, {
       editing: this.editing ? true : false,
       messages: getMessages(this.req.locale,
-        md.getMarkdownMessageKeys(),
+        getMarkdownMessageKeys(),
         frontendMessages.getEditorMessageKeys(),
         frontendMessages.getAdapterMessageKeys(), ['more info', 'not a url', 'add http', 'add https']
       )
@@ -146,7 +205,7 @@ class ReviewProvider extends AbstractBREADProvider {
 
   }
 
-  async addFromTeam_GET(team) {
+  async addFromTeam_GET(team: TeamInstance): Promise<void> {
 
     team.populateUserInfo(this.req.user);
     if (!team.userIsMember) {
@@ -157,15 +216,15 @@ class ReviewProvider extends AbstractBREADProvider {
         bodyParam: `/team/${team.urlID}`
       });
     } else {
-      let formValues = {
+      let formValues: ReviewFormValues = {
         teams: [team]
       };
-      return await this.add_GET(formValues);
+      return await this.add_GET(formValues, undefined);
     }
 
   }
 
-  addFromTeam_POST(_team) {
+  addFromTeam_POST(_team: TeamInstance): void {
 
     // Standard submission has checks against submitting from team you're not
     // a member of, so we don't have to check again here. The loaded team itself
@@ -174,13 +233,15 @@ class ReviewProvider extends AbstractBREADProvider {
 
   }
 
-  add_POST(thing) {
+  add_POST(thing?: ThingInstance): void {
 
-    this.isPreview = this.req.body['review-action'] == 'preview' ? true : false;
+    const reviewAction = this.req.body?.['review-action'];
+    this.isPreview = reviewAction === 'preview';
 
-    let formKey = 'new-review';
-    let language = this.req.body['review-language'];
-    let formData = this.parseForm({
+    const formKey = 'new-review';
+    const languageValue = this.req.body?.['review-language'];
+    const language = typeof languageValue === 'string' ? languageValue : 'en';
+    const formData = this.parseForm({
       formDef: ReviewProvider.formDefs[formKey],
       formKey,
       language,
@@ -188,39 +249,44 @@ class ReviewProvider extends AbstractBREADProvider {
       skipRequiredCheck: thing && thing.id ? ['review-url'] : []
     });
 
-    formData.formValues.createdBy = this.req.user.id;
-    formData.formValues.createdOn = new Date();
-    formData.formValues.originalLanguage = language;
+    const formValues = formData.formValues as ReviewFormValues;
+
+    if (typeof this.req.user?.id === 'string')
+      formValues.createdBy = this.req.user.id;
+    formValues.createdOn = new Date();
+    formValues.originalLanguage = language;
 
     // Files uploaded from the editor
-    formData.formValues.files = typeof formData.formValues.files == 'object' ?
-      Object.keys(formData.formValues.files) : [];
+    if (formValues.files && !Array.isArray(formValues.files) && typeof formValues.files === 'object')
+      formValues.files = Object.keys(formValues.files);
+    else if (!Array.isArray(formValues.files))
+      formValues.files = [];
 
     this
-      .resolveTeamData(formData.formValues)
-      .then(() => File.getMultipleNotStaleOrDeleted(formData.formValues.files))
+      .resolveTeamData(formValues)
+      .then(() => FileModel.getMultipleNotStaleOrDeleted(formValues.files))
       .then(async (uploadedFiles) => {
-        const reviewObj = Object.assign({}, formData.formValues);
+        const reviewObj = Object.assign({}, formValues);
 
         // Pass existing and newly uploaded forms on to the form, so they
         // can both be selected. (This does not need to be included with the
         // review object that will be created.)
-        formData.formValues.uploads = thing && thing.files ? uploadedFiles.concat(thing.files) :
+        formValues.uploads = thing && thing?.files ? uploadedFiles.concat(thing.files) :
           uploadedFiles;
 
         if (thing && thing.id)
           reviewObj.thing = thing;
 
         // We're previewing or have basic problems with the submission -- back to form
-        if (this.isPreview || this.req.flashHas('pageErrors')) {
-          formData.formValues.creator = this.req.user; // Needed for username link
-          return await this.add_GET(formData.formValues, thing);
+        if (this.isPreview || this.req.flashHas?.('pageErrors')) {
+          formValues.creator = this.req.user; // Needed for username link
+          return await this.add_GET(formValues, thing);
         }
 
-        Review
+        ReviewModel
           .create(reviewObj, {
             tags: ['create-via-form'],
-            files: formData.formValues.files
+            files: formValues.files
           })
           .then(review => {
             this.req.app.locals.webHooks.trigger('newReview', {
@@ -228,7 +294,7 @@ class ReviewProvider extends AbstractBREADProvider {
               data: this.getWebHookData(review, this.req.user)
             });
 
-            User
+            UserModel
               .increaseInviteLinkCount(this.req.user.id)
               .then(() => {
                 this.res.redirect(`/${review.thing.id}#your-review`);
@@ -239,86 +305,91 @@ class ReviewProvider extends AbstractBREADProvider {
           })
           .catch(async (error) => {
             this.req.flashError(error);
-            await this.add_GET(formData.formValues, thing);
+            await this.add_GET(formValues, thing);
           });
 
       })
       .catch(async (error) => {
         this.req.flashError(error);
-        await this.add_GET(formData.formValues, thing);
+        await this.add_GET(formValues, thing);
       });
 
   }
 
-  async loadData() {
-    const review = await Review.getWithData(this.id);
+  async loadData(): Promise<ReviewInstance> {
+    const review = await ReviewModel.getWithData(this.id) as ReviewInstance;
     // For permission checks on associated thing
     review.thing.populateUserInfo(this.req.user);
     return review;
   }
 
-  loadThing() {
+  loadThing(): Promise<ThingInstance> {
 
     // Ensure we show "thing not found" error if user tries to create
     // review from a nonexistent/stale/deleted thing
     this.messageKeyPrefix = 'thing';
-    return slugs.resolveAndLoadThing(this.req, this.res, this.id);
+    return slugs.resolveAndLoadThing(this.req, this.res, this.id) as Promise<ThingInstance>;
 
   }
 
-  loadTeam() {
+  loadTeam(): Promise<TeamInstance> {
     this.messageKeyPrefix = 'team';
-    return slugs.resolveAndLoadTeam(this.req, this.res, this.id);
+    return slugs.resolveAndLoadTeam(this.req, this.res, this.id) as Promise<TeamInstance>;
   }
 
 
-  async edit_GET(review) {
+  async edit_GET(review: ReviewInstance): Promise<void> {
 
     this.editing = true;
     await this.add_GET(review, review.thing);
 
   }
 
-  edit_POST(review) {
+  edit_POST(review: ReviewInstance): void {
 
-    let formKey = 'edit-review';
-    let language = this.req.body['review-language'];
-    let formData = this.parseForm({
+    const formKey = 'edit-review';
+    const languageValue = this.req.body?.['review-language'];
+    const language = typeof languageValue === 'string' ? languageValue : review.originalLanguage ?? 'en';
+    const formData = this.parseForm({
       formDef: ReviewProvider.formDefs[formKey],
       formKey,
       language
     });
 
+    const formValues = formData.formValues as ReviewFormValues;
+
     // We no longer accept URL edits if we're in edit-mode
     this.editing = true;
 
-    if (this.req.body['review-action'] == 'preview') {
+    if (this.req.body?.['review-action'] === 'preview') {
       // Pass along original authorship info for preview
-      formData.formValues.createdOn = review.createdOn;
-      formData.formValues.creator = review.creator;
+      formValues.createdOn = review.createdOn;
+      formValues.creator = review.creator;
       this.isPreview = true;
     }
 
-    formData.formValues.files = typeof formData.formValues.files == 'object' ?
-      Object.keys(formData.formValues.files) : [];
+    if (formValues.files && !Array.isArray(formValues.files) && typeof formValues.files === 'object')
+      formValues.files = Object.keys(formValues.files);
+    else if (!Array.isArray(formValues.files))
+      formValues.files = [];
 
-    const abort = async (error) => {
+    const abort = async (error?: unknown) => {
       if (error)
         this.req.flashError(error);
-      await this.add_GET(formData.formValues);
+      await this.add_GET(formValues, undefined);
     };
 
     this
-      .resolveTeamData(formData.formValues)
-      .then(() => File.getMultipleNotStaleOrDeleted(formData.formValues.files))
+      .resolveTeamData(formValues)
+      .then(() => FileModel.getMultipleNotStaleOrDeleted(formValues.files))
       .then(uploadedFiles => {
 
-        formData.formValues.uploads = review.thing.files ? uploadedFiles.concat(review.thing.files) :
+        formValues.uploads = review.thing.files ? uploadedFiles.concat(review.thing.files) :
           uploadedFiles;
 
         // As with creation, back to edit form if we have errors or
         // are previewing
-        if (this.isPreview || this.req.flashHas('pageErrors'))
+        if (this.isPreview || this.req.flashHas?.('pageErrors'))
           return abort();
 
         // Save the edit
@@ -327,17 +398,23 @@ class ReviewProvider extends AbstractBREADProvider {
             tags: ['edit-via-form']
           })
           .then(async newRev => {
-            let f = formData.formValues;
+            const f = formValues;
 
-            Review.validateSocialImage({
+            ReviewModel.validateSocialImage({
               socialImageID: f.socialImageID,
               newFileIDs: f.files,
               fileObjects: review.thing.files
             });
 
-            newRev.title[language] = f.title[language];
-            newRev.text[language] = f.text[language];
-            newRev.html[language] = f.html[language];
+            const titleTranslations = (newRev.title as Record<string, string>);
+            const textTranslations = (newRev.text as Record<string, string>);
+            const htmlTranslations = (newRev.html as Record<string, string>);
+            const formTitles = f.title ?? {};
+            const formTexts = f.text ?? {};
+            const formHtml = f.html ?? {};
+            titleTranslations[language] = formTitles[language] ?? '';
+            textTranslations[language] = formTexts[language] ?? '';
+            htmlTranslations[language] = formHtml[language] ?? '';
             newRev.starRating = f.starRating;
             newRev.teams = f.teams;
             newRev.thing = review.thing;
@@ -358,26 +435,26 @@ class ReviewProvider extends AbstractBREADProvider {
 
   // Save an edited review, and associate any newly uploaded files with the
   // review subject
-  async saveNewRevisionAndFiles(newRev, files) {
+  async saveNewRevisionAndFiles(newRev: ReviewInstance, files: string[]): Promise<void> {
     await newRev.saveAll({
       teams: true,
       thing: true
     });
-    
+
     if (Array.isArray(files) && typeof newRev.thing == 'object')
       await newRev.thing.addFilesByIDsAndSave(files, newRev.createdBy);
   }
 
   // Obtain the data for each team submitted in the form and assign it to
   // formValues.
-  async resolveTeamData(formValues) {
+  async resolveTeamData(formValues: ReviewFormValues): Promise<void> {
     if (typeof formValues.teams !== 'object' ||
       !Object.keys(formValues.teams).length) {
       formValues.teams = [];
       return;
     }
 
-    const queries = Object.keys(formValues.teams).map(teamId => Team.getWithData(teamId));
+    const queries = Object.keys(formValues.teams).map(teamId => TeamModel.getWithData(teamId));
 
     try {
       formValues.teams = await Promise.all(queries);
@@ -392,7 +469,8 @@ class ReviewProvider extends AbstractBREADProvider {
     }
 
     if (Array.isArray(formValues.teams)) {
-      formValues.teams.forEach(team => {
+      formValues.teams.forEach(teamEntry => {
+        const team = teamEntry as TeamInstance;
         team.populateUserInfo(this.req.user);
         if (!team.userIsMember)
           throw new ReportedError({
@@ -402,7 +480,7 @@ class ReviewProvider extends AbstractBREADProvider {
     }
   }
 
-  delete_GET(review) {
+  delete_GET(review: ReviewInstance): void {
     let pageErrors = this.req.flash('pageErrors');
 
     this.renderTemplate('delete-review', {
@@ -411,8 +489,8 @@ class ReviewProvider extends AbstractBREADProvider {
     });
   }
 
-  delete_POST(review) {
-    let withThing = this.req.body['delete-thing'] ? true : false;
+  delete_POST(review: ReviewInstance): void {
+    const withThing = Boolean(this.req.body?.['delete-thing']);
     this.parseForm({
       formDef: ReviewProvider.formDefs['delete-review'],
       formKey: 'delete-review'
@@ -424,14 +502,15 @@ class ReviewProvider extends AbstractBREADProvider {
         titleKey: this.actions[this.action].titleKey
       });
 
-    if (this.req.flashHas('pageErrors'))
+    if (this.req.flashHas?.('pageErrors'))
       return this.delete_GET(review);
 
-    let deleteFunc = withThing ?
-      review.deleteAllRevisionsWithThing :
-      review.deleteAllRevisions;
+    const deleteFunc = withThing && typeof (review as any).deleteAllRevisionsWithThing === 'function'
+      ? (review as any).deleteAllRevisionsWithThing
+      : review.deleteAllRevisions;
 
-    Reflect.apply(deleteFunc, review, [this.req.user])
+    const deleteFn = deleteFunc as (this: ReviewInstance, user: HandlerRequest['user']) => Promise<unknown>;
+    Promise.resolve(deleteFn.call(review, this.req.user))
       .then(() => {
         this.renderTemplate('review-deleted', {
           titleKey: 'review deleted'
@@ -445,7 +524,7 @@ class ReviewProvider extends AbstractBREADProvider {
 
   // Return data for easy external processing after publication, e.g. via IRC
   // feeds
-  getWebHookData(review, user) {
+  getWebHookData(review: ReviewInstance, user: HandlerRequest['user']) {
 
     return {
       title: review.title,

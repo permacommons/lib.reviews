@@ -5,27 +5,42 @@ import config from 'config';
 import render from '../helpers/render.ts';
 import api from '../helpers/api.ts';
 
-import apiUploadHandler from './api-upload-handler.js';
+import apiUploadHandler from './api-upload-handler.ts';
 import { checkMIMEType, assignFilename } from '../uploads.js';
+import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
+
+type UploadFile = {
+  originalname: string;
+  filename: string;
+  mimetype?: string;
+  [key: string]: unknown;
+};
+
+type ActionRequest = HandlerRequest<Record<string, string>, unknown, Record<string, any>>;
+type ActionResponse = HandlerResponse;
+
+type UploadRequest = ActionRequest & { files: UploadFile[] };
+
+type UploadMiddleware = (req: UploadRequest, res: ActionResponse, next: HandlerNext) => void;
 
 const actionHandler = {
 
   // Handler for enabling, disabling or toggling a Boolean preference. Currently
   // accepts one preference at a time, but should be easy to modify to handle
   // bulk operations if needed.
-  modifyPreference(req, res, next) {
-    let user = req.user;
-    let preferenceName = req.body['preferenceName'].trim();
-    let modifyAction = req.params['modify'];
+  modifyPreference(req: ActionRequest, res: ActionResponse, next: HandlerNext): void {
+    const user = req.user;
+    const preferenceName = String(req.body?.preferenceName ?? '').trim();
+    const modifyAction = String(req.params?.modify ?? '');
 
     if (!user)
       return api.signinRequired(req, res);
 
     if (!user.getValidPreferences().includes(preferenceName))
-      return api.error(req, res, 'Unknown preference: ' + preferenceName);
+      return api.error(req, res, `Unknown preference: ${preferenceName}`);
 
-    let message;
-    let oldValue = user[preferenceName] === undefined ? 'not set' : String(user[preferenceName]);
+    let message: string;
+    const oldValue = user[preferenceName] === undefined ? 'not set' : String(user[preferenceName]);
     switch (modifyAction) {
       case 'enable':
         user[preferenceName] = true;
@@ -37,14 +52,13 @@ const actionHandler = {
         user[preferenceName] = !user[preferenceName];
         break;
       default:
-        return api.error(req, res, 'Unknown preference action: ' + modifyAction);
+        return api.error(req, res, `Unknown preference action: ${modifyAction}`);
     }
-    let newValue = String(user[preferenceName]);
-    message = oldValue === newValue ? `Preference not altered.` :
-      `Preference changed.`;
+    const newValue = String(user[preferenceName]);
+    message = oldValue === newValue ? 'Preference not altered.' : 'Preference changed.';
 
-    user
-      .save()
+    const savePromise = typeof user.save === 'function' ? user.save() : Promise.resolve();
+    savePromise
       .then(() => {
         res.status(200);
         res.type('json');
@@ -58,11 +72,11 @@ const actionHandler = {
       .catch(next);
   },
   // Handler for hiding interface messages, announcements, etc., permanently for a given user
-  suppressNotice(req, res, next) {
+  suppressNotice(req: ActionRequest, res: ActionResponse, next: HandlerNext): void {
 
-    let noticeType = req.body.noticeType.trim();
-    let user = req.user;
-    let output = req.isAPI ? api : render;
+    const noticeType = String(req.body?.noticeType ?? '').trim();
+    const user = req.user;
+    const output = req.isAPI ? api : render;
     if (!user)
       return output.signinRequired(req, res);
 
@@ -71,15 +85,14 @@ const actionHandler = {
       case 'language-notice-thing':
         if (!user.suppressedNotices)
           user.suppressedNotices = [noticeType];
-        else
-        if (user.suppressedNotices.indexOf(noticeType) == -1)
+        else if (user.suppressedNotices.indexOf(noticeType) === -1)
           user.suppressedNotices.push(noticeType);
 
-        user
-          .save()
+        const savePromise = typeof user.save === 'function' ? user.save() : Promise.resolve();
+        savePromise
           .then(() => {
             if (req.isAPI) {
-              let response = {};
+              const response: Record<string, unknown> = {};
               response.message = `Success. Messages of type "${noticeType}" will no longer be shown.`;
               response.errors = [];
               res.type('json');
@@ -97,7 +110,7 @@ const actionHandler = {
 
       default:
         if (req.isAPI) {
-          let response = {};
+          const response: Record<string, unknown> = {};
           response.message = 'The request could not be processed.';
           response.errors = [`The given notice type, ${noticeType}, was not recognized.`];
           res.type('json');
@@ -126,14 +139,14 @@ const actionHandler = {
    * If uploading multiple files, add filename to each parameter, e.g.:
    * license-foo.jpg
    *
-   * @param {IncomingMessage} req
+   * @param req
    *  Express request
-   * @param {ServerResponse} res
+   * @param res
    *  Express response
-   * @param {Function} next
+   * @param next
    *  callback to next middleware
    */
-  upload(req, res, next) {
+  upload(req: UploadRequest, res: ActionResponse, next: HandlerNext): void {
     if (!is(req, ['multipart'])) {
       next();
       return;
@@ -150,7 +163,7 @@ const actionHandler = {
       return;
     }
 
-    const performUpload = multer({
+    const performUpload: UploadMiddleware = multer({
       limits: {
         fileSize: config.uploadMaxSize
       },
@@ -158,11 +171,11 @@ const actionHandler = {
         destination: config.uploadTempDir,
         filename: assignFilename
       }),
-      fileFilter: (req, file, done) => {
+      fileFilter: (_req, file, done) => {
         const { fileTypeError, isPermitted } = checkMIMEType(file);
         done(fileTypeError, isPermitted);
       }
-    }).array('files');
+    }).array('files') as UploadMiddleware;
 
     // Execute the actual upload middleware
     performUpload(req, res, apiUploadHandler(req, res));

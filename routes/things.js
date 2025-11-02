@@ -6,15 +6,15 @@ import config from 'config';
 import Thing from '../models/thing.js';
 import Review from '../models/review.js';
 import render from './helpers/render.ts';
-import getResourceErrorHandler from './handlers/resource-error-handler.js';
-import languages from '../locales/languages.js';
+import getResourceErrorHandler from './handlers/resource-error-handler.ts';
+import languages from '../locales/languages.ts';
 import feeds from './helpers/feeds.ts';
 import forms from './helpers/forms.ts';
 import slugs from './helpers/slugs.ts';
-import search from '../search.js';
+import search from '../search.ts';
 import getMessages from '../util/get-messages.ts';
 import urlUtils from '../util/url-utils.ts';
-import signinRequiredRoute from './handlers/signin-required-route.js';
+import signinRequiredRoute from './handlers/signin-required-route.ts';
 
 const router = express.Router();
 

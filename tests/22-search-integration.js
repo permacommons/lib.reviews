@@ -37,7 +37,7 @@ test.beforeEach(async t => {
 test.after.always(async () => {
   unmockSearch();
 
-  const { default: search } = await import('../search.js');
+  const { default: search } = await import('../search.ts');
   if (search && typeof search.close === 'function') {
     await search.close();
   }
@@ -63,7 +63,7 @@ test.serial('maintenance script bootstraps PostgreSQL models', async t => {
 test.serial('search indexing integration with PostgreSQL models', async t => {
   
   const { Thing, Review } = dalFixture;
-  const { default: search } = await import('../search.js');
+  const { default: search } = await import('../search.ts');
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -130,7 +130,7 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
 test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => {
   
   const { Thing, Review } = dalFixture;
-  const { default: search } = await import('../search.js');
+  const { default: search } = await import('../search.ts');
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -209,7 +209,7 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
 test.serial('search indexing skips old and deleted revisions in bulk operations', async t => {
   
   const { Thing } = dalFixture;
-  const { default: search } = await import('../search.js');
+  const { default: search } = await import('../search.ts');
   
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };

@@ -1,7 +1,7 @@
 import type { Request } from 'express';
 
 // Internal dependencies
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.ts';
 
 interface EmbeddedFeedOptions {
   atomURLPrefix?: string;
@@ -30,17 +30,15 @@ const getEmbeddedFeeds = (req: Request, options: EmbeddedFeedOptions = {}): Embe
   const embeddedFeeds: EmbeddedFeed[] = [];
 
   if (atomURLPrefix && atomURLTitleKey) {
+    const currentLocale = (req.locale ?? 'en') as LibReviews.LocaleCode;
     embeddedFeeds.push({
-      url: `${atomURLPrefix}/${req.locale}`,
+      url: `${atomURLPrefix}/${currentLocale}`,
       type: 'application/atom+xml',
-      title: `[${req.locale}] ${req.__(atomURLTitleKey)}`,
-      language: req.locale ?? 'en'
+      title: `[${currentLocale}] ${req.__(atomURLTitleKey)}`,
+      language: currentLocale
     });
 
-    const otherLanguages = languages.getValidLanguages();
-    const currentIndex = otherLanguages.indexOf(req.locale ?? '');
-    if (currentIndex !== -1)
-      otherLanguages.splice(currentIndex, 1);
+    const otherLanguages = languages.getValidLanguages().filter(lang => lang !== currentLocale);
 
     for (const otherLanguage of otherLanguages) {
       embeddedFeeds.push({

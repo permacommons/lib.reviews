@@ -67,9 +67,9 @@ Each wave should ship as a sequence of small PRs. Every box represents at most a
 With bootstrap and shared middleware typed, finish migrating HTTP entrypoints and eliminate the remaining `.js` shims.
 
 ##### 4.1 Shared handler infrastructure
-- [ ] Convert common handler utilities in `routes/handlers/` to `.ts`, modelling reusable generics for `Request`, `Response`, and template context helpers (`action-handler`, `signin-required-route`, `abstract-bread-provider`, `review-provider`, `team-provider`, `resource-error-handler`, `api-upload-handler`, `review-handlers`, `user-handlers`, `blog-post-provider`).
-- [ ] Expand `types/http/locals.ts` and related Express augmentations so `req.locale`, `req.flash`, `req.session`, and authenticated `req.user` lifecycles reflect the behaviour relied on by handlers.
-- [ ] Port cross-cutting service modules consumed by routes to TypeScript: `search.js` → `search.ts` (typed ElasticSearch client), `locales/languages.js` → `languages.ts` (locale metadata unions), and any thin helper shims under `types/http/handlebars.d.ts` that can now become concrete modules.
+- [x] Convert common handler utilities in `routes/handlers/` to `.ts`, modelling reusable generics for `Request`, `Response`, and template context helpers (`action-handler`, `signin-required-route`, `abstract-bread-provider`, `review-provider`, `team-provider`, `resource-error-handler`, `api-upload-handler`, `review-handlers`, `user-handlers`, `blog-post-provider`).
+- [x] Expand `types/http/locals.ts` and related Express augmentations so `req.locale`, `req.flash`, `req.session`, and authenticated `req.user` lifecycles reflect the behaviour relied on by handlers.
+- [x] Port cross-cutting service modules consumed by routes to TypeScript: `search.js` → `search.ts` (typed ElasticSearch client), `locales/languages.js` → `languages.ts` (locale metadata unions), and any thin helper shims under `types/http/handlebars.d.ts` that can now become concrete modules.
 
 ##### 4.2 Domain routers
 - [ ] Accounts & authentication: convert `routes/actions.js`, `routes/users.js`, and dependent helpers, ensuring Passport callbacks, invite-link flows, and flash messaging use the shared HTTP types.

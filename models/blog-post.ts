@@ -1,6 +1,6 @@
 import dal from '../dal/index.js';
 import mlString from '../dal/lib/ml-string.js';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import dalErrors from '../dal/lib/errors.js';
 import User from './user.js';

@@ -25,7 +25,7 @@
     "models/**/*.ts",
     "routes/**/*.js",
     "routes/**/*.ts",
-    "search.js",
+    "search.ts",
     "util/**/*.js",
     "util/**/*.ts",
     "vite.config.ts",

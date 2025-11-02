@@ -4,17 +4,80 @@ import { resolve as resolveURL } from 'node:url';
 import i18n from 'i18n';
 
 // Internal dependencies
-import AbstractBREADProvider from './abstract-bread-provider.js';
-import BlogPost from '../../models/blog-post.js';
+import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
+import AbstractBREADProvider from './abstract-bread-provider.ts';
+import BlogPost from '../../models/blog-post.ts';
 import mlString from '../../dal/lib/ml-string.js';
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.ts';
+import type { LocaleCodeWithUndetermined } from '../../locales/languages.ts';
 import feeds from '../helpers/feeds.ts';
 import slugs from '../helpers/slugs.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 
-class BlogPostProvider extends AbstractBREADProvider {
+type BlogPostFormValues = {
+  title: Record<string, string>;
+  text: Record<string, string>;
+  html: Record<string, string>;
+  createdBy?: string;
+  createdOn?: Date;
+  creator?: unknown;
+  teamID?: string;
+  originalLanguage?: string;
+  [key: string]: any;
+};
 
-  constructor(req, res, next, options) {
+type BlogPostInstance = BlogPostFormValues & {
+  id: string;
+  _revDate?: Date;
+  populateUserInfo: (user: HandlerRequest['user']) => void;
+  userCanEdit?: boolean;
+  userCanDelete?: boolean;
+  newRevision: (user: HandlerRequest['user'], options?: Record<string, unknown>) => Promise<BlogPostInstance>;
+  deleteAllRevisions: (user: HandlerRequest['user'], options?: Record<string, unknown>) => Promise<unknown>;
+  save: () => Promise<BlogPostInstance>;
+};
+
+type BlogPostCollectionResult = {
+  blogPosts: BlogPostInstance[];
+  offsetDate?: Date;
+};
+
+type BlogPostModelHandle = {
+  getMostRecentBlogPosts: (
+    teamID: string,
+    options?: { limit?: number; offsetDate?: Date | null }
+  ) => Promise<BlogPostCollectionResult>;
+  getWithCreator: (id: string) => Promise<BlogPostInstance>;
+  createFirstRevision: (
+    user: HandlerRequest['user'],
+    options?: Record<string, unknown>
+  ) => Promise<BlogPostInstance>;
+} & Record<string, unknown>;
+
+type TeamInstance = {
+  id: string;
+  urlID: string;
+  name: Record<string, string>;
+  populateUserInfo: (user: HandlerRequest['user']) => void;
+  userCanBlog?: boolean;
+  userCanDelete?: boolean;
+  userCanEdit?: boolean;
+  userIsMember?: boolean;
+  files?: unknown[];
+  [key: string]: unknown;
+};
+
+const BlogPostModel = BlogPost as unknown as BlogPostModelHandle;
+
+class BlogPostProvider extends AbstractBREADProvider {
+  static formDefs: Record<string, any>;
+  protected language?: LocaleCodeWithUndetermined;
+  protected utcISODate?: string;
+  protected postID!: string;
+  protected isPreview = false;
+  protected editing = false;
+
+  constructor(req: HandlerRequest, res: HandlerResponse, next: HandlerNext, options?: Record<string, unknown>) {
     super(req, res, next, options);
     this.actions.browse.titleKey = 'team blog';
     this.actions.add.titleKey = 'new blog post';
@@ -40,7 +103,7 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  async browse_GET(team) {
+  async browse_GET(team: TeamInstance): Promise<void> {
 
     if (this.action == 'browseAtomDetectLanguage')
       return this.res.redirect(`/team/${team.urlID}/blog/atom/${this.req.locale}`);
@@ -52,21 +115,20 @@ class BlogPostProvider extends AbstractBREADProvider {
     if (this.language)
       i18n.setLocale(this.req, this.language);
 
-    let offsetDate;
-
     team.populateUserInfo(this.req.user);
+    let offsetDate: Date | null = null;
+    if (typeof this.utcISODate === 'string') {
+      const parsedDate = new Date(this.utcISODate);
+      offsetDate = Number.isNaN(parsedDate.valueOf()) ? null : parsedDate;
+    }
 
-    offsetDate = new Date(this.utcISODate);
-    if (!offsetDate || offsetDate == 'Invalid Date')
-      offsetDate = null;
-
-    BlogPost.getMostRecentBlogPosts(team.id, {
+    BlogPostModel.getMostRecentBlogPosts(team.id, {
         limit: 10,
         offsetDate
       })
       .then(result => {
-        let blogPosts = result.blogPosts;
-        let offsetDate = result.offsetDate;
+        const blogPosts = result.blogPosts;
+        const nextOffsetDate = result.offsetDate;
 
         // For Atom feed -- most recently updated item among the selected posts
         let updatedDate;
@@ -84,11 +146,12 @@ class BlogPostProvider extends AbstractBREADProvider {
           atomURLTitleKey
         });
 
-        let vars = {
+        const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
+        const vars = {
           titleKey: this.actions[this.action].titleKey,
-          titleParam: mlString.resolve(this.req.locale, team.name).str,
+          titleParam: mlString.resolve(currentLocale, team.name).str,
           blogPosts,
-          blogPostsUTCISODate: offsetDate ? offsetDate.toISOString() : undefined,
+          blogPostsUTCISODate: nextOffsetDate ? nextOffsetDate.toISOString() : undefined,
           team,
           teamURL: `/team/${team.urlID}`,
           embeddedFeeds,
@@ -96,11 +159,12 @@ class BlogPostProvider extends AbstractBREADProvider {
         };
 
         if (this.action == 'browseAtom') {
+          const feedLanguage = this.language ?? currentLocale;
           Object.assign(vars, {
             layout: 'layout-atom',
-            language: this.language,
+            language: feedLanguage,
             updatedDate,
-            selfURL: resolveURL(config.qualifiedURL, `${atomURLPrefix}/${this.language}`),
+            selfURL: resolveURL(config.qualifiedURL, `${atomURLPrefix}/${feedLanguage}`),
             htmlURL: resolveURL(config.qualifiedURL, `/team/${team.urlID}/blog`)
           });
           this.res.type('application/atom+xml');
@@ -112,20 +176,23 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.next);
   }
 
-  async read_GET(team) {
-    BlogPost
+  async read_GET(team: TeamInstance): Promise<void> {
+    BlogPostModel
       .getWithCreator(this.postID)
       .then(blogPost => {
 
         blogPost.populateUserInfo(this.req.user);
 
         let pageMessages = this.req.flash('pageMessages');
+        const requestLanguage = typeof this.req.language === 'string'
+          ? this.req.language
+          : (typeof this.req.locale === 'string' ? this.req.locale : blogPost.originalLanguage ?? 'en');
 
         this.renderTemplate('blog-post', {
           team,
           blogPost,
           titleKey: 'blog post page title',
-          titleParam: mlString.resolve(this.req.language, blogPost.title).str,
+          titleParam: mlString.resolve(requestLanguage, blogPost.title).str,
           teamURL: `/team/${team.urlID}`,
           deferPageHeader: true,
           pageMessages
@@ -134,7 +201,7 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.getResourceErrorHandler('post', this.postID));
   }
 
-  add_GET(team, formValues) {
+  add_GET(team: TeamInstance, formValues?: BlogPostFormValues): void {
     let pageErrors = this.req.flash('pageErrors');
 
     this.renderTemplate('blog-post-form', {
@@ -146,13 +213,13 @@ class BlogPostProvider extends AbstractBREADProvider {
       editing: this.editing,
       scripts: ['editor']
     }, {
-      messages: frontendMessages.getEditorMessages(this.req.locale)
+      messages: frontendMessages.getEditorMessages(typeof this.req.locale === 'string' ? this.req.locale : 'en')
     });
 
   }
 
-  async edit_GET(team) {
-    BlogPost
+  async edit_GET(team: TeamInstance): Promise<void> {
+    BlogPostModel
       .getWithCreator(this.postID)
       .then(blogPost => {
 
@@ -166,8 +233,8 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.getResourceErrorHandler('post', this.postID));
   }
 
-  async edit_POST(team) {
-    BlogPost
+  async edit_POST(team: TeamInstance): Promise<void> {
+    BlogPostModel
       .getWithCreator(this.postID)
       .then(blogPost => {
 
@@ -177,14 +244,16 @@ class BlogPostProvider extends AbstractBREADProvider {
         this.editing = true;
 
         let formKey = 'edit-post';
-        let language = this.req.body['post-language'];
-        let formValues = this.parseForm({
+        const languageBodyValue = this.req.body?.['post-language'];
+        const language = typeof languageBodyValue === 'string' ? languageBodyValue : blogPost.originalLanguage ?? 'en';
+        const formValues = this.parseForm({
           formDef: BlogPostProvider.formDefs[formKey],
           formKey,
           language
-        }).formValues;
+        }).formValues as BlogPostFormValues;
 
-        if (this.req.body['post-action'] == 'preview') {
+        const postAction = this.req.body?.['post-action'];
+        if (postAction === 'preview') {
           // Pass along original authorship info for preview
           formValues.createdOn = blogPost.createdOn;
           formValues.creator = blogPost.creator;
@@ -192,7 +261,7 @@ class BlogPostProvider extends AbstractBREADProvider {
           this.isPreview = true;
         }
 
-        if (this.isPreview || this.req.flashHas('pageErrors'))
+        if (this.isPreview || this.req.flashHas?.('pageErrors'))
           return this.add_GET(team, formValues);
 
         blogPost.newRevision(this.req.user, {
@@ -215,29 +284,32 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  add_POST(team) {
+  add_POST(team: TeamInstance): void {
 
-    this.isPreview = this.req.body['post-action'] == 'preview' ? true : false;
+    const postAction = this.req.body?.['post-action'];
+    this.isPreview = postAction === 'preview';
 
     let formKey = 'new-post';
-    let language = this.req.body['post-language'];
-    let postObj = this.parseForm({
+    const languageBodyValue = this.req.body?.['post-language'];
+    const language = typeof languageBodyValue === 'string' ? languageBodyValue : 'en';
+    const postObj = this.parseForm({
       formDef: BlogPostProvider.formDefs[formKey],
       formKey,
       language
-    }).formValues;
+    }).formValues as BlogPostFormValues;
 
-    postObj.createdBy = this.req.user.id;
+    if (typeof this.req.user?.id === 'string')
+      postObj.createdBy = this.req.user.id;
     postObj.createdOn = new Date();
     postObj.creator = this.req.user;
     postObj.teamID = team.id;
 
     // We're previewing or have basic problems with the submission -- back to form
-    if (this.isPreview || this.req.flashHas('pageErrors'))
+    if (this.isPreview || this.req.flashHas?.('pageErrors'))
       return this.add_GET(team, postObj);
 
 
-    BlogPost
+    BlogPostModel
       .createFirstRevision(this.req.user, {
         tags: ['create-via-form']
       })
@@ -253,8 +325,8 @@ class BlogPostProvider extends AbstractBREADProvider {
       .catch(this.next); // Problem getting revision metadata
   }
 
-  async delete_GET(team) {
-    BlogPost
+  async delete_GET(team: TeamInstance): Promise<void> {
+    BlogPostModel
       .getWithCreator(this.postID)
       .then(blogPost => {
 
@@ -271,9 +343,9 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   }
 
-  async delete_POST() {
+  async delete_POST(): Promise<void> {
 
-    BlogPost
+    BlogPostModel
       .getWithCreator(this.postID)
       .then(blogPost => {
 
@@ -296,40 +368,43 @@ class BlogPostProvider extends AbstractBREADProvider {
   }
 
 
-  userCanAdd(team) {
+  userCanAdd(team: TeamInstance): boolean {
 
     team.populateUserInfo(this.req.user);
     if (!team.userCanBlog) {
       this.renderPermissionError({
         titleKey: this.actions[this.action].titleKey
       });
-    } else
-      return true;
+      return false;
+    }
+    return true;
   }
 
-  userCanEditPost(post) {
+  userCanEditPost(post: BlogPostInstance): boolean {
     post.populateUserInfo(this.req.user);
     if (!post.userCanEdit) {
       this.renderPermissionError({
         titleKey: this.actions[this.action].titleKey
       });
-    } else
-      return true;
+      return false;
+    }
+    return true;
   }
 
-  userCanDeletePost(post) {
+  userCanDeletePost(post: BlogPostInstance): boolean {
     post.populateUserInfo(this.req.user);
     if (!post.userCanDelete) {
       this.renderPermissionError({
         titleKey: this.actions[this.action].titleKey
       });
-    } else
-      return true;
+      return false;
+    }
+    return true;
   }
 
 
   loadData() {
-    return slugs.resolveAndLoadTeam(this.req, this.res, this.id);
+    return slugs.resolveAndLoadTeam(this.req, this.res, this.id) as Promise<TeamInstance>;
   }
 
 

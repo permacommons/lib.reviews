@@ -5,10 +5,11 @@ import i18n from 'i18n';
 
 type MarkdownItWithMessages = MarkdownIt & { getMarkdownMessageKeys?: () => string[] };
 
+const getMarkdownMessageKeys = () => Array.from(markdownMessages);
+
 /** Keys that must be bundled with the frontend for markdown notices. */
 const markdownMessages = ['nsfw warning', 'spoiler warning'] as const;
-(MarkdownIt.prototype as MarkdownItWithMessages).getMarkdownMessageKeys = () =>
-  Array.from(markdownMessages);
+(MarkdownIt.prototype as MarkdownItWithMessages).getMarkdownMessageKeys = getMarkdownMessageKeys;
 
 /**
  * MarkdownIt instance configured to mirror the legacy renderer: linkifying
@@ -58,4 +59,5 @@ md.use(html5Media, {
     i18n.__({ locale, phrase: messageKey }, ...messageParams)
 });
 
+export { getMarkdownMessageKeys };
 export default md;

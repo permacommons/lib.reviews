@@ -3,7 +3,7 @@ import { ValidationError } from '../dal/lib/errors.js';
 import { createAutoModelHandle } from '../dal/lib/model-handle.js';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 
 type PostgresModule = typeof import('../db-postgres.js');

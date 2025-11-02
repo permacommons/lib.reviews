@@ -4,10 +4,11 @@ import url from 'node:url';
 import i18n from 'i18n';
 import { randomUUID } from 'node:crypto';
 
-import AbstractBREADProvider from './abstract-bread-provider.js';
-import Team from '../../models/team.js';
-import TeamJoinRequest from '../../models/team-join-request.js';
-import BlogPost from '../../models/blog-post.js';
+import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
+import AbstractBREADProvider from './abstract-bread-provider.ts';
+import Team from '../../models/team.ts';
+import TeamJoinRequest from '../../models/team-join-request.ts';
+import BlogPost from '../../models/blog-post.ts';
 import feeds from '../helpers/feeds.ts';
 import slugs from '../helpers/slugs.ts';
 import mlString from '../../dal/lib/ml-string.js';
@@ -16,9 +17,22 @@ import debug from '../../util/debug.ts';
 
 const { getEditorMessages } = frontendMessages;
 
-class TeamProvider extends AbstractBREADProvider {
+const TeamModel = Team as any;
+const TeamJoinRequestModel = TeamJoinRequest as any;
+const BlogPostModel = BlogPost as any;
 
-  constructor(req, res, next, options) {
+type TeamInstance = Record<string, any>;
+type TeamFormValues = Record<string, any>;
+type TeamJoinRequestInstance = Record<string, any>;
+
+class TeamProvider extends AbstractBREADProvider {
+  static formDefs: Record<string, any>;
+  protected isPreview = false;
+  protected editing = false;
+  protected format?: string;
+  protected language?: string;
+
+  constructor(req: HandlerRequest, res: HandlerResponse, next: HandlerNext, options?: Record<string, unknown>) {
     super(req, res, next, options);
     this.addPreFlightCheck(['add', 'edit', 'delete'], this.userIsTrusted);
     this.actions.browse.titleKey = 'browse teams';
@@ -55,9 +69,9 @@ class TeamProvider extends AbstractBREADProvider {
     this.messageKeyPrefix = 'team';
   }
 
-  browse_GET() {
+  browse_GET(): void {
 
-    Team.filterNotStaleOrDeleted().run()
+    TeamModel.filterNotStaleOrDeleted().run()
       .then(teams => {
 
         this.renderTemplate('teams', {
@@ -71,7 +85,7 @@ class TeamProvider extends AbstractBREADProvider {
 
   }
 
-  members_GET(team) {
+  members_GET(team: TeamInstance): void {
 
     // For easy lookup in template
     let founder = {
@@ -86,12 +100,12 @@ class TeamProvider extends AbstractBREADProvider {
       founder,
       moderators,
       titleKey: this.actions.members.titleKey,
-      titleParam: mlString.resolve(this.req.locale, team.name).str,
+      titleParam: mlString.resolve(typeof this.req.locale === 'string' ? this.req.locale : 'en', team.name).str,
       deferPageHeader: true // embedded link
     });
   }
 
-  manageRequests_GET(team) {
+  manageRequests_GET(team: TeamInstance): void {
 
     let pageErrors = this.req.flash('pageErrors');
     let pageMessages = this.req.flash('pageMessages');
@@ -111,14 +125,14 @@ class TeamProvider extends AbstractBREADProvider {
     this.renderTemplate('team-manage-requests', {
       team,
       teamURL: `/team/${team.urlID}`,
-      teamName: mlString.resolve(this.req.locale, team.name).str,
+      teamName: mlString.resolve(typeof this.req.locale === 'string' ? this.req.locale : 'en', team.name).str,
       titleKey: "manage join requests",
       pageErrors,
       pageMessages
     });
   }
 
-  async manageRequests_POST(team) {
+  async manageRequests_POST(team: TeamInstance): Promise<void> {
 
     // We use a safe loop function in this method - quiet, jshint:
 
@@ -130,12 +144,12 @@ class TeamProvider extends AbstractBREADProvider {
     // We keep track of whether we've done any work, so we can show an
     // approrpriate message, and know whether we have to run saveAll()
     let workToBeDone = false;
-    const savePromises = [];
+    const savePromises: Promise<unknown>[] = [];
 
     debug.db('POST body:', this.req.body);
     debug.db('Join requests:', team.joinRequests.map(r => ({ id: r.id, userID: r.userID })));
 
-    for (let key in this.req.body) {
+    for (const key in this.req.body as Record<string, unknown>) {
 
       // Does it look like a request to perform an action?
       if (/^action-.+$/.test(key)) {
@@ -163,7 +177,8 @@ class TeamProvider extends AbstractBREADProvider {
                 requestObj.rejectionDate = new Date();
                 requestObj.rejectedBy = this.req.user.id;
                 requestObj.status = 'rejected';
-                let reason = this.req.body[`reject-reason-${id}`];
+                const reasonValue = this.req.body[`reject-reason-${id}`];
+                const reason = typeof reasonValue === 'string' ? reasonValue : undefined;
                 if (reason)
                   requestObj.rejectionMessage = escapeHTML(reason);
                 savePromises.push(requestObj.save());
@@ -211,7 +226,7 @@ class TeamProvider extends AbstractBREADProvider {
   }
 
   // For incomplete submissions, pass formValues so form can be pre-populated.
-  add_GET(formValues) {
+  add_GET(formValues?: TeamFormValues): void {
 
     let pageErrors = this.req.flash('pageErrors');
     this.renderTemplate('team-form', {
@@ -221,56 +236,57 @@ class TeamProvider extends AbstractBREADProvider {
       isPreview: this.isPreview,
       scripts: ['editor']
     }, {
-      messages: getEditorMessages(this.req.locale)
+      messages: getEditorMessages(typeof this.req.locale === 'string' ? this.req.locale : 'en')
     });
   }
 
 
-  loadData() {
-    return slugs.resolveAndLoadTeam(this.req, this.res, this.id);
+  loadData(): Promise<TeamInstance> {
+    return slugs.resolveAndLoadTeam(this.req, this.res, this.id) as Promise<TeamInstance>;
   }
 
   // We just show a single review on the team entry page
-  loadDataWithMostRecentReview() {
+  loadDataWithMostRecentReview(): Promise<TeamInstance> {
 
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id, {
       withReviews: true
-    });
+    }) as Promise<TeamInstance>;
 
   }
 
   // This is for feed or feed/before/<date> requests
-  loadDataWithFeed() {
+  loadDataWithFeed(): Promise<TeamInstance> {
 
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id, {
       withReviews: true,
       reviewLimit: 10,
       reviewOffsetDate: this.offsetDate || null
-    });
+    }) as Promise<TeamInstance>;
 
   }
 
-  loadDataWithJoinRequestDetails() {
+  loadDataWithJoinRequestDetails(): Promise<TeamInstance> {
 
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id, {
       withJoinRequestDetails: true
-    });
+    }) as Promise<TeamInstance>;
 
   }
 
-  edit_GET(team) {
+  edit_GET(team: TeamInstance): void {
 
     this.add_GET(team);
 
   }
 
-  async read_GET(team) {
+  async read_GET(team: TeamInstance): Promise<void> {
 
     team.populateUserInfo(this.req.user);
     if (Array.isArray(team.reviews))
       team.reviews.forEach(review => review.populateUserInfo(this.req.user));
 
-    let titleParam = mlString.resolve(this.req.locale, team.name).str;
+    const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
+    let titleParam = mlString.resolve(currentLocale, team.name).str;
 
     // Error messages from any join attempts
     let joinErrors = this.req.flash('joinErrors');
@@ -310,7 +326,7 @@ class TeamProvider extends AbstractBREADProvider {
       [team.createdBy]: true
     };
 
-    BlogPost.getMostRecentBlogPosts(team.id, {
+    BlogPostModel.getMostRecentBlogPosts(team.id, {
         limit: 3
       })
       .then(result => {
@@ -352,13 +368,13 @@ class TeamProvider extends AbstractBREADProvider {
 
   }
 
-  feed_GET(team) {
+  feed_GET(team: TeamInstance): void {
     team.populateUserInfo(this.req.user);
     if (!Array.isArray(team.reviews))
       team.reviews = [];
 
     // For machine-readable feeds
-    if (this.format && this.language)
+    if (this.format && typeof this.language === 'string')
       i18n.setLocale(this.req, this.language);
 
     let updatedDate;
@@ -371,7 +387,8 @@ class TeamProvider extends AbstractBREADProvider {
         updatedDate = review._revDate;
     });
 
-    let titleParam = mlString.resolve(this.req.locale, team.name).str;
+    const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
+    let titleParam = mlString.resolve(currentLocale, team.name).str;
 
     // Atom feed metadata for <link> tags in HTML version
     let atomURLPrefix = `/team/${team.urlID}/feed/atom`;
@@ -402,7 +419,7 @@ class TeamProvider extends AbstractBREADProvider {
           layout: 'layout-atom',
           language: this.language,
           updatedDate,
-          selfURL: url.resolve(config.qualifiedURL, `${atomURLPrefix}/${this.language}`),
+          selfURL: url.resolve(config.qualifiedURL, `${atomURLPrefix}/${this.language ?? 'en'}`),
           htmlURL: url.resolve(config.qualifiedURL, `/team/${team.urlID}/feed`)
         });
         this.res.type('application/atom+xml');
@@ -415,20 +432,23 @@ class TeamProvider extends AbstractBREADProvider {
     }
   }
 
-  edit_POST(team) {
+  edit_POST(team: TeamInstance): void {
 
-    let formKey = 'edit-team';
-    let language = this.req.body['team-language'];
-    let formData = this.parseForm({
+    const formKey = 'edit-team';
+    const languageValue = this.req.body?.['team-language'];
+    const language = typeof languageValue === 'string' ? languageValue : team.originalLanguage ?? 'en';
+    const formData = this.parseForm({
       formDef: TeamProvider.formDefs[formKey],
       formKey,
       language
     });
 
-    this.isPreview = this.req.body['team-action'] == 'preview' ? true : false;
+    const formValues = formData.formValues as TeamFormValues;
 
-    if (this.req.flashHas('pageErrors') || this.isPreview)
-      return this.edit_GET(formData.formValues);
+    this.isPreview = this.req.body?.['team-action'] === 'preview';
+
+    if (this.req.flashHas?.('pageErrors') || this.isPreview)
+      return this.edit_GET(formValues);
 
     team
       .newRevision(this.req.user, {
@@ -436,15 +456,24 @@ class TeamProvider extends AbstractBREADProvider {
       })
       .then(newRev => {
 
-        let f = formData.formValues;
-        newRev.motto[language] = f.motto[language];
-        newRev.name[language] = f.name[language];
-        newRev.description.text[language] = f.description.text[language];
-        newRev.description.html[language] = f.description.html[language];
-        newRev.rules.text[language] = f.rules.text[language];
-        newRev.rules.html[language] = f.rules.html[language];
-        newRev.onlyModsCanBlog = f.onlyModsCanBlog;
-        newRev.modApprovalToJoin = f.modApprovalToJoin;
+        const source = formValues;
+        const motto = newRev.motto as Record<string, string>;
+        const name = newRev.name as Record<string, string>;
+        const description = newRev.description as { text: Record<string, string>; html: Record<string, string> };
+        const rules = newRev.rules as { text: Record<string, string>; html: Record<string, string> };
+        const sourceMotto = (source.motto ?? {}) as Record<string, string>;
+        const sourceName = (source.name ?? {}) as Record<string, string>;
+        const sourceDescription = (source.description ?? {}) as { text?: Record<string, string>; html?: Record<string, string> };
+        const sourceRules = (source.rules ?? {}) as { text?: Record<string, string>; html?: Record<string, string> };
+
+        motto[language] = sourceMotto[language] ?? '';
+        name[language] = sourceName[language] ?? '';
+        description.text[language] = sourceDescription.text?.[language] ?? '';
+        description.html[language] = sourceDescription.html?.[language] ?? '';
+        rules.text[language] = sourceRules.text?.[language] ?? '';
+        rules.html[language] = sourceRules.html?.[language] ?? '';
+        newRev.onlyModsCanBlog = source.onlyModsCanBlog;
+        newRev.modApprovalToJoin = source.modApprovalToJoin;
 
         newRev
           .updateSlug(this.req.user.id, language)
@@ -458,7 +487,7 @@ class TeamProvider extends AbstractBREADProvider {
           .catch(error => {
             if (error.name === 'DuplicateSlugNameError') {
               this.req.flash('pageErrors', this.req.__('duplicate team name', `/team/${error.payload.slug.name}`));
-              return this.edit_GET(formData.formValues);
+              return this.edit_GET(formValues);
             } else
               return this.next(error);
           });
@@ -467,28 +496,32 @@ class TeamProvider extends AbstractBREADProvider {
 
   }
 
-  add_POST() {
+  add_POST(): void {
 
-    let formKey = 'new-team';
-    let formData = this.parseForm({
+    const formKey = 'new-team';
+    const languageValue = this.req.body?.['team-language'];
+    const language = typeof languageValue === 'string' ? languageValue : 'en';
+    const formData = this.parseForm({
       formDef: TeamProvider.formDefs[formKey],
       formKey,
-      language: this.req.body['team-language']
+      language
     });
 
-    this.isPreview = this.req.body['team-action'] == 'preview' ? true : false;
+    const formValues = formData.formValues as TeamFormValues;
 
-    if (this.req.flashHas('pageErrors') || this.isPreview)
-      return this.add_GET(formData.formValues);
+    this.isPreview = this.req.body?.['team-action'] === 'preview';
 
-    Team
+    if (this.req.flashHas?.('pageErrors') || this.isPreview)
+      return this.add_GET(formValues);
+
+    TeamModel
       .createFirstRevision(this.req.user, {
         tags: ['create-via-form']
       })
       .then(team => {
 
         // Associate parsed form data with revision
-        Object.assign(team, formData.formValues);
+        Object.assign(team, formValues);
         
         // Ensure team has an ID before proceeding
         if (!team.id) {
@@ -521,7 +554,7 @@ class TeamProvider extends AbstractBREADProvider {
           .catch(error => {
             if (error.name === 'DuplicateSlugNameError') {
               this.req.flash('pageErrors', this.req.__('duplicate team name', `/team/${error.payload.slug.name}`));
-              return this.add_GET(formData.formValues);
+              return this.add_GET(formValues);
             } else
               return this.next(error);
           });
@@ -530,7 +563,7 @@ class TeamProvider extends AbstractBREADProvider {
       .catch(this.next);
   }
 
-  delete_GET(team) {
+  delete_GET(team: TeamInstance): void {
 
     let pageErrors = this.req.flash('pageErrors');
     this.renderTemplate('team', {
@@ -543,7 +576,7 @@ class TeamProvider extends AbstractBREADProvider {
 
   }
 
-  delete_POST(team) {
+  delete_POST(team: TeamInstance): void {
     team
       .deleteAllRevisions(this.req.user, {
         tags: ['delete-via-form']

@@ -1,7 +1,7 @@
 import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

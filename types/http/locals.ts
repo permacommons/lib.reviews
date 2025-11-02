@@ -5,10 +5,12 @@ import type { DalContext } from '../../dal/index.js';
 import type { DataAccessLayer } from '../../dal/lib/model-types.js';
 
 type LocaleCode = LibReviews.LocaleCode;
+type LocaleCodeWithUndetermined = LibReviews.LocaleCodeWithUndetermined;
 type PermissionFlag = LibReviews.PermissionFlag;
 
 export interface FlashBuckets {
   pageErrors?: string[];
+  pageMessages?: string[];
   siteErrors?: string[];
   siteMessages?: string[];
   [key: string]: string[] | undefined;
@@ -16,15 +18,29 @@ export interface FlashBuckets {
 
 export interface SessionDataWithFlash {
   flash?: FlashBuckets;
+  returnTo?: string;
+  [key: string]: unknown;
 }
 
 export interface RequestUser {
-  id: number | string;
+  id: string | number;
   displayName?: string;
   urlName?: string;
+  email?: string;
   isTrusted?: boolean;
+  isSuperUser?: boolean;
+  isSiteModerator?: boolean;
+  userCanUploadTempFiles?: boolean;
+  inviteLinkCount?: number;
+  suppressedNotices?: string[];
   prefersRichTextEditor?: boolean;
   showErrorDetails?: boolean;
+  teams?: Array<Record<string, unknown>>;
+  moderatorOf?: Array<Record<string, unknown>>;
+  meta?: Record<string, unknown> & { newRevision?: (...args: unknown[]) => Promise<unknown> };
+  populateUserInfo?: (...args: unknown[]) => unknown;
+  save?: () => Promise<RequestUser | void>;
+  getValidPreferences: () => string[];
   [key: string]: unknown;
 }
 
@@ -55,7 +71,7 @@ export interface TemplateContext extends AppLocals {
   qualifiedURL?: string;
   urlPath?: string;
   returnTo?: string;
-  localeChange?: { old: LocaleCode | 'und'; new: LocaleCode | 'und' };
+  localeChange?: { old: LocaleCodeWithUndetermined; new: LocaleCodeWithUndetermined };
   siteMessages?: string[];
   siteErrors?: string[];
 }

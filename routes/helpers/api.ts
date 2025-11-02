@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 
-type ErrorPayload = string | string[] | undefined;
+type ErrorPayload = string | string[] | Record<string, unknown>[] | undefined;
 
 /**
  * Set the API flag for API requests and ensure write operations originate

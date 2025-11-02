@@ -1,6 +1,6 @@
 import escapeHTML from 'escape-html';
 
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.ts';
 import {
   validateFiles,
   cleanupFiles,
@@ -8,8 +8,31 @@ import {
   completeUploads
 } from '../uploads.js';
 import ReportedError from '../../util/reported-error.ts';
-import File from '../../models/file.js';
+import File from '../../models/file.ts';
 import api from '../helpers/api.ts';
+import type { HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
+
+type UploadFile = {
+  originalname: string;
+  filename: string;
+  mimetype?: string;
+  fieldname?: string;
+  size?: number;
+  path?: string;
+  [key: string]: unknown;
+};
+
+type FileRevision = {
+  id: string;
+  description?: unknown;
+  license?: string;
+  creator?: unknown;
+  source?: unknown;
+  save: () => Promise<unknown>;
+  [key: string]: unknown;
+};
+
+const finalizeUploads = completeUploads as unknown as (fileRevs: FileRevision[]) => Promise<FileRevision[]>;
 
 /**
  * Process uploads via the API.
@@ -18,76 +41,94 @@ import api from '../helpers/api.ts';
  */
 export default apiUploadHandler;
 
- /**
+type UploadRequest = HandlerRequest<Record<string, string>, unknown, Record<string, any>> & {
+  files: UploadFile[];
+};
+
+type UploadResponse = HandlerResponse;
+
+/**
  * The main handler for processing upload attempts via the API. Kicks in after
  * the basic MIME check within the Multer middleware. Handles metadata
  * validation & creation of "File" revisions.
  *
- * @param {IncomingMessage} req
+ * @param req
  *  Express request
- * @param {ServerResponse} res
+ * @param res
  *  Express response
- * @returns {Function}
+ * @returns
  *  callback invoked by the Multer middleware
  * @memberof APIUploadHandler
  */
-function apiUploadHandler(req, res) {
-  return fileFilterError => {
+function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
+  return (fileFilterError?: unknown) => {
 
     // Status code will be used for known errors from the app, not for errors
     // from multer or unknown errors
-    const abortUpload = (errors = []) => {
+    const abortUpload = (errors: Error[] = []) => {
       cleanupFiles(req);
       const errorMessages = errors.map(error => {
-        const rv = {};
+        const rv: Record<string, unknown> = {};
         rv.internalMessage = error.message;
-        if (error instanceof ReportedError)
-          rv.displayMessage = req.__(...error.getEscapedUserMessageArray());
+        if (error instanceof ReportedError) {
+          const userMessage = error.getEscapedUserMessageArray();
+          if (Array.isArray(userMessage) && userMessage.length > 0) {
+            const [message, ...params] = userMessage as [string, ...string[]];
+            rv.displayMessage = req.__(message, ...params);
+          }
+        }
         return rv;
       });
       api.error(req, res, errorMessages);
     };
 
-    if (fileFilterError)
+    if (fileFilterError instanceof Error)
       return abortUpload([fileFilterError]);
+    if (fileFilterError && !(fileFilterError instanceof Error))
+      return abortUpload([new Error(String(fileFilterError))]);
 
-    if (!req.files.length)
+    if (!Array.isArray(req.files) || !req.files.length)
       return abortUpload([new Error('No files received.')]);
 
-    const validationErrors = validateAllMetadata(req.files, req.body);
+    const validationErrors = validateAllMetadata(req.files, req.body ?? {});
     if (validationErrors.length)
       return abortUpload(validationErrors);
 
+    const persistRevisions = async (fileRevs: FileRevision[]): Promise<FileRevision[]> => {
+      await Promise.all(fileRevs.map(fileRev => fileRev.save()));
+      return fileRevs;
+    };
+
     validateFiles(req.files)
       .then(fileTypes => getFileRevs(req.files, fileTypes, req.user, ['upload', 'upload-via-api']))
-      .then(fileRevs => addMetadata(req.files, fileRevs, req.body))
-      .then(completeUploads)
-      .then(fileRevs => Promise.all(fileRevs.map(fileRev => fileRev.save())))
+      .then(fileRevs => addMetadata(req.files, fileRevs as FileRevision[], req.body ?? {}))
+      .then(fileRevs => finalizeUploads(fileRevs))
+      .then(persistRevisions)
       .then(fileRevs => reportUploadSuccess(req, res, fileRevs))
-      .catch(error => abortUpload([error]));
+      .catch(error => abortUpload([error instanceof Error ? error : new Error(String(error))]));
   };
 }
 
 /**
  * Ensure that required fields have been submitted for each upload.
  *
- * @param {Object[]} files
+ * @param files
  *  Files to validate
- * @param {Object} data
+ * @param data
  *  Request data
- * @returns {Error[]}
+ * @returns
  *  Validation errors, if any.
  * @memberof APIUploadHandler
  */
-function validateAllMetadata(files, data) {
-  const errors = [],
+function validateAllMetadata(files: UploadFile[], data: Record<string, any>): Error[] {
+  const errors: Error[] = [],
     processedFields = ['multiple'],
     multiple = Boolean(data.multiple);
 
   if (files.length > 1 && !multiple)
     errors.push(new Error(`Received more than one file, but 'multiple' flag is not set.`));
 
-  for (let file of files) {
+  for (const file of files) {
     const validationResult = validateMetadata(file, data, { addSuffix: multiple });
     errors.push(...validationResult.errors);
     processedFields.push(...validationResult.processedFields);
@@ -105,24 +146,24 @@ function validateAllMetadata(files, data) {
  * ensures that language is valid, and that license is one of the accepted
  * licenses.
  *
- * @param {Object} file
+ * @param file
  *  File received from the upload middleware
- * @param {Object} data
+ * @param data
  *  Request data that should contain the metadata we need
- * @param {Object} [options]
+ * @param options
  *  Validation options
- * @param {Boolean} options.addSuffix=false
+ * @param options.addSuffix=false
  *  Add a filename suffix to each field (used for requests with multiple files)
- * @returns {Error[]}
+ * @returns
  *  Validation errors for this field, if any
  * @memberof APIUploadHandler
  */
-function validateMetadata(file, data, { addSuffix = false } = {}) {
-  const validLicenses = File.getValidLicenses();
-  const errors = [],
-    processedFields = [];
+function validateMetadata(file: UploadFile, data: Record<string, any>, { addSuffix = false } = {}) {
+  const validLicenses = (File as unknown as { getValidLicenses: () => string[] }).getValidLicenses();
+  const errors: Error[] = [],
+    processedFields: string[] = [];
   // For multiple uploads, we use the filename as a suffix for each file
-  const field = key => addSuffix ? `${key}-${file.originalname}` : key;
+  const field = (key: string) => addSuffix ? `${key}-${file.originalname}` : key;
   const ownWork = Boolean(data[field('ownwork')]);
 
   const required = ownWork ?
@@ -157,22 +198,26 @@ function validateMetadata(file, data, { addSuffix = false } = {}) {
  * present with a "truthy" value, which is useful for conflicting parameters
  * that may be submitted with empty values.
  *
- * @param {Object} obj
+ * @param obj
  *  any object whose keys we want to validate
- * @param {String[]} [required=[]]
+ * @param required
  *  keys which must access a truthy value
- * @param {String[]} [conditionallyIgnored=[]]
+ * @param conditionallyIgnored
  *  keys which will be ignored _unless_ they access a truthy value
- * @returns {Error[]}
+ * @returns
  *  errors for each validation issue or an empty array
  * @memberof APIUploadHandler
  */
-function checkRequired(obj, required = [], conditionallyIgnored = []) {
+function checkRequired(
+  obj: Record<string, any>,
+  required: string[] = [],
+  conditionallyIgnored: string[] = []
+): Error[] {
   // Make a copy since we modify it below
   required = required.slice();
 
-  const errors = [];
-  for (let key in obj) {
+  const errors: Error[] = [];
+  for (const key in obj) {
     if (required.includes(key)) {
       if (!obj[key])
         errors.push(new Error(`Parameter must not be empty: ${key}`));
@@ -192,18 +237,17 @@ function checkRequired(obj, required = [], conditionallyIgnored = []) {
 /**
  * Add all metadata to each file revision (does not save)
  *
- * @param {Object[]} files
+ * @param files
  *  file objects received from the middleware
- * @param {File[]} fileRevs
+ * @param fileRevs
  *  initial revisions of the File model, containing only the data that comes
  *  with the file itself (MIME type, filename, etc.)
- * @param {Ojbect} data
- *  request data
- * @returns {File[]}
+ * @param data
+ * @returns
  *  the revisions for further processing
  * @memberof APIUploadHandler
  */
-function addMetadata(files, fileRevs, data) {
+function addMetadata(files: UploadFile[], fileRevs: FileRevision[], data: Record<string, any>) {
   const multiple = Boolean(data.multiple);
   fileRevs.forEach((fileRev, index) =>
     addMetadataToFileRev(files[index], fileRevs[index], data, { addSuffix: multiple })
@@ -215,25 +259,25 @@ function addMetadata(files, fileRevs, data) {
 /**
  * Add all relevant metadata to an individual file revision
  *
- * @param {Object} file
+ * @param file
  *  file object from the middleware
- * @param {File} fileRev
+ * @param fileRev
  *  initial revision of the File model
- * @param {Object} data
+ * @param data
  *  request data
- * @param {Object} [options]
+ * @param options
  *  Validation options
- * @param {Boolean} options.addSuffix=false
+ * @param options.addSuffix=false
  *  Add a filename suffix to each field (used for requests with multiple files)
  * @memberof APIUploadHandler
  */
-function addMetadataToFileRev(file, fileRev, data, { addSuffix = false } = {}) {
-  const field = key => addSuffix ? `${key}-${file.originalname}` : key;
-  const addMlStr = (keys, rev) => {
-    for (let key of keys)
+function addMetadataToFileRev(file: UploadFile, fileRev: FileRevision, data: Record<string, any>, { addSuffix = false } = {}) {
+  const field = (key: string) => addSuffix ? `${key}-${file.originalname}` : key;
+  const addMlStr = (keys: string[], rev: Record<string, any>) => {
+    for (const key of keys)
       if (data[field(key)])
         rev[key] = {
-          [data[field('language')]]: escapeHTML(data[field(key)])
+          [data[field('language')]]: escapeHTML(String(data[field(key)]))
         };
   };
   addMlStr(['description', 'creator', 'source'], fileRev);
@@ -245,15 +289,15 @@ function addMetadataToFileRev(file, fileRev, data, { addSuffix = false } = {}) {
  * Send a success response to the API request that contains the newly assigned
  * filenames, so they can be used, e.g. in the editor.
  *
- * @param {IncomingMessage} req
+ * @param req
  *  Express request
- * @param {ServerResponse} res
+ * @param res
  *  Express response
- * @param {File[]} fileRevs
+ * @param fileRevs
  *  the saved file metadata revisions
  * @memberof APIUploadHandler
  */
-function reportUploadSuccess(req, res, fileRevs) {
+function reportUploadSuccess(req: UploadRequest, res: UploadResponse, fileRevs: FileRevision[]) {
   const uploads = req.files.map((file, index) => ({
     originalName: file.originalname,
     uploadedFileName: file.filename,

@@ -117,7 +117,7 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
 test.serial('indexThing skips old and deleted revisions', async t => {
   
   const { Thing } = dalFixture;
-  const { default: search } = await import('../search.js');
+  const { default: search } = await import('../search.ts');
   
   const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
   
@@ -232,7 +232,7 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
 test.serial('indexReview skips old and deleted revisions', async t => {
   
   const { Thing, Review } = dalFixture;
-  const { default: search } = await import('../search.js');
+  const { default: search } = await import('../search.ts');
   
   const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
   

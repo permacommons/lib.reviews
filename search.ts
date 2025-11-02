@@ -1,26 +1,39 @@
+import type {
+  ConfigOptions,
+  DeleteDocumentParams,
+  IndexDocumentParams,
+  SearchParams,
+  SearchResponse
+} from 'elasticsearch';
 import elasticsearch from 'elasticsearch';
 import config from 'config';
 
 import debug from './util/debug.ts';
 import mlString from './dal/lib/ml-string.js';
-import languages from './locales/languages.js';
+import languages from './locales/languages.ts';
 
-let client;
+type LocaleCode = LibReviews.LocaleCode;
 
-function createClient() {
-  return new elasticsearch.Client({
+type ElasticClient = elasticsearch.Client;
+
+let client: ElasticClient | null = null;
+
+function createClient(): ElasticClient {
+  const options: ConfigOptions = {
     host: `${config.search.host}:${config.search.port}`,
     log: config.search.log
-  });
+  };
+  return new elasticsearch.Client(options);
 }
 
-function getClient() {
+function getClient(): ElasticClient {
   if (!client)
     client = createClient();
   return client;
 }
+
 // All supported stemmers as of ElasticSearch 5.2.0
-let analyzers = {
+const analyzers: Record<string, string> = {
   ar: 'arabic',
   hy: 'armenian',
   eu: 'basque',
@@ -59,29 +72,28 @@ let analyzers = {
   th: 'thai'
 };
 
-
-let search = {
+const search = {
 
   // For testing queries
-  _raw(obj) {
-    return getClient().search(obj);
+  _raw<TResponse = unknown>(params: SearchParams): Promise<SearchResponse<TResponse>> {
+    return getClient().search<TResponse>(params);
   },
 
   // Find things by their label or description; performs language fallback
-  searchThings(query, lang = 'en') {
-    let options = search.getSearchOptions('label', lang);
-    let descriptionOptions = search.getSearchOptions('description', lang);
-    let subtitleOptions = search.getSearchOptions('subtitle', lang);
-    let authorsOptions = search.getSearchOptions('authors', lang);
-    
+  searchThings(query: string, lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
+    const options = search.getSearchOptions('label', lang);
+    const descriptionOptions = search.getSearchOptions('description', lang);
+    const subtitleOptions = search.getSearchOptions('subtitle', lang);
+    const authorsOptions = search.getSearchOptions('authors', lang);
+
     // Combine all search fields
     options.fields = options.fields
       .concat(descriptionOptions.fields)
       .concat(subtitleOptions.fields)
       .concat(authorsOptions.fields);
-    
+
     // Combine all highlight fields
-    Object.assign(options.highlight.fields, 
+    Object.assign(options.highlight.fields,
       descriptionOptions.highlight.fields,
       subtitleOptions.highlight.fields,
       authorsOptions.highlight.fields
@@ -92,7 +104,8 @@ let search = {
       body: {
         query: {
           bool: {
-            must: [{
+            must: [
+              {
                 match: {
                   type: 'thing'
                 }
@@ -115,12 +128,12 @@ let search = {
 
   // Find reviews by their text or title; performs language fallback and includes
   // the thing via parent-child join. The review is returned as an inner hit.
-  searchReviews(query, lang = 'en') {
+  searchReviews(query: string, lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
     // Add text fields
-    let options = search.getSearchOptions('text', lang);
+    const options = search.getSearchOptions('text', lang);
 
     // Add title fields
-    let titleOptions = search.getSearchOptions('title', lang);
+    const titleOptions = search.getSearchOptions('title', lang);
     options.fields = options.fields.concat(titleOptions.fields);
 
     Object.assign(options.highlight.fields, titleOptions.highlight.fields);
@@ -148,20 +161,19 @@ let search = {
 
   // We may be getting highlights from both the processed (stememd) index
   // and the unprocessed one. This function filters the dupes from inner hits.
-  filterDuplicateInnerHighlights(hits, type) {
-    for (let hit of hits) {
+  filterDuplicateInnerHighlights(hits: any[], type: string): any[] {
+    for (const hit of hits) {
       if (hit.inner_hits && hit.inner_hits[type] && hit.inner_hits[type].hits) {
-        for (let innerHit of hit.inner_hits[type].hits.hits) {
+        for (const innerHit of hit.inner_hits[type].hits.hits) {
           if (innerHit.highlight) {
-            let seenHighlights = [];
-            for (let key in innerHit.highlight) {
-              innerHit.highlight[key] = innerHit.highlight[key].filter(highlight => {
+            const seenHighlights: string[] = [];
+            for (const key of Object.keys(innerHit.highlight)) {
+              innerHit.highlight[key] = innerHit.highlight[key].filter((highlight: string) => {
                 if (seenHighlights.indexOf(highlight) === -1) {
                   seenHighlights.push(highlight);
                   return true;
-                } else {
-                  return false;
                 }
+                return false;
               });
             }
           }
@@ -172,22 +184,22 @@ let search = {
   },
 
   // Generate language fallback and highlight options.
-  getSearchOptions(fieldPrefix, lang) {
-    let langs = languages.getFallbacks(lang);
+  getSearchOptions(fieldPrefix: string, lang: LocaleCode) {
+    const langs = languages.getFallbacks(lang);
     if (lang !== 'en')
       langs.unshift(lang);
 
     // Searches both stemmed and non-stemmed version
-    let fields = langs.map(lang => `${fieldPrefix}.${lang}*`);
+    const fields = langs.map(currentLang => `${fieldPrefix}.${currentLang}*`);
 
     // Add search highlighters
-    let highlight = {
+    const highlight = {
       pre_tags: ['<span class="search-highlight">'],
       post_tags: ['</span>'],
-      fields: {}
+      fields: {} as Record<string, Record<string, unknown>>
     };
-    for (let lang of langs)
-      highlight.fields[`${fieldPrefix}.${lang}*`] = {};
+    for (const currentLang of langs)
+      highlight.fields[`${fieldPrefix}.${currentLang}*`] = {};
 
     return {
       fields,
@@ -198,21 +210,23 @@ let search = {
 
   // Get search suggestions based on entered characters for review subjects
   // (things).
-  suggestThing(prefix = '', lang = 'en') {
+  suggestThing(prefix = '', lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
     // We'll query all fallbacks back to English, and return all results
-    let langs = languages.getFallbacks(lang);
+    const langs = languages.getFallbacks(lang);
     if (lang !== 'en')
       langs.unshift(lang);
 
-    let query = {
+    const query: SearchParams = {
       index: 'libreviews',
       body: {
         suggest: {}
       }
     };
 
-    for (let currentLanguage of langs) {
-      query.body.suggest[`labels-${currentLanguage}`] = {
+    const suggest = (query.body?.suggest ?? {}) as Record<string, unknown>;
+
+    for (const currentLanguage of langs) {
+      suggest[`labels-${currentLanguage}`] = {
         prefix,
         completion: {
           field: `label.${currentLanguage}.completion`
@@ -220,40 +234,43 @@ let search = {
       };
     }
 
+    query.body = { ...query.body, suggest };
+
     return getClient().search(query);
   },
 
   // Index a new review. Returns a promise; logs errors
-  indexReview(review) {
+  indexReview(review: Record<string, any>): Promise<unknown> {
     // Skip indexing if this is an old or deleted revision
     if (review._oldRevOf || review._revDeleted) {
       debug.util(`Skipping indexing of review ${review.id} - old or deleted revision`);
       return Promise.resolve();
     }
 
-    return getClient().index({
-        index: 'libreviews',
-        id: review.id,
-        routing: review.thingID,
-        body: {
-          createdOn: review.createdOn,
-          title: mlString.stripHTML(review.title),
-          text: mlString.stripHTML(review.html),
-          starRating: review.starRating,
-          type: 'review',
-          joined: {
-            name: 'review',
-            parent: review.thingID
-          }
+    const params: IndexDocumentParams<Record<string, unknown>> = {
+      index: 'libreviews',
+      id: review.id,
+      routing: review.thingID,
+      type: 'review',
+      body: {
+        createdOn: review.createdOn,
+        title: mlString.stripHTML(review.title),
+        text: mlString.stripHTML(review.html),
+        starRating: review.starRating,
+        type: 'review',
+        joined: {
+          name: 'review',
+          parent: review.thingID
         }
-      })
-      .catch(error => debug.error({
-        error
-      }));
+      }
+    };
+
+    return getClient().index(params)
+      .catch(error => debug.error({ error }));
   },
 
   // Index a new review subject (thing). Returns a promise; logs errors
-  indexThing(thing) {
+  indexThing(thing: Record<string, any>): Promise<unknown> {
     // Skip indexing if this is an old or deleted revision
     if (thing._oldRevOf || thing._revDeleted) {
       debug.util(`Skipping indexing of thing ${thing.id} - old or deleted revision`);
@@ -265,98 +282,99 @@ let search = {
     const description = thing.description;
     const subtitle = thing.subtitle;
     const authors = thing.authors;
-    
-    return getClient().index({
-        index: 'libreviews',
-        id: thing.id,
-        body: {
-          createdOn: thing.createdOn,
-          label: mlString.stripHTML(thing.label),
-          aliases: mlString.stripHTMLFromArray(thing.aliases),
-          description: mlString.stripHTML(description),
-          subtitle: mlString.stripHTML(subtitle),
-          authors: mlString.stripHTMLFromArray(authors),
-          joined: 'thing',
-          type: 'thing',
-          urls: thing.urls,
-          urlID: thing.urlID
-        }
-      })
-      .catch(error => debug.error({
-        error
-      }));
+
+    const params: IndexDocumentParams<Record<string, unknown>> = {
+      index: 'libreviews',
+      id: thing.id,
+      type: 'thing',
+      body: {
+        createdOn: thing.createdOn,
+        label: mlString.stripHTML(thing.label),
+        aliases: mlString.stripHTMLFromArray(thing.aliases),
+        description: mlString.stripHTML(description),
+        subtitle: mlString.stripHTML(subtitle),
+        authors: mlString.stripHTMLFromArray(authors),
+        joined: 'thing',
+        type: 'thing',
+        urls: thing.urls,
+        urlID: thing.urlID
+      }
+    };
+
+    return getClient().index(params)
+      .catch(error => debug.error({ error }));
   },
 
-  deleteThing(thing) {
-    return getClient().delete({
-        index: 'libreviews',
-        id: thing.id
-      })
-      .catch(error => debug.error({
-        error
-      }));
+  deleteThing(thing: { id: string }): Promise<unknown> {
+    const params: DeleteDocumentParams = {
+      index: 'libreviews',
+      id: thing.id,
+      type: 'thing'
+    };
+    return getClient().delete(params)
+      .catch(error => debug.error({ error }));
   },
 
-  deleteReview(review) {
-    return getClient().delete({
-        index: 'libreviews',
-        id: review.id
-      })
-      .catch(error => debug.error({
-        error
-      }));
+  deleteReview(review: { id: string }): Promise<unknown> {
+    const params: DeleteDocumentParams = {
+      index: 'libreviews',
+      id: review.id,
+      type: 'review'
+    };
+    return getClient().delete(params)
+      .catch(error => debug.error({ error }));
   },
 
   // Create the initial index for holding reviews and review subjects (things).
   // If index already exists, does nothing. Logs all other errors.
-  createIndices() {
+  createIndices(): Promise<void> {
     return getClient().indices.create({
-        index: 'libreviews',
-        body: {
-          settings: {
-            analysis: {
-              tokenizer: {
-                whitespace: {
-                  type: 'whitespace'
-                }
-              },
-              analyzer: {
-                label: {
-                  type: 'custom',
-                  tokenizer: 'whitespace',
-                  filter: ['trim', 'lowercase']
-                }
+      index: 'libreviews',
+      body: {
+        settings: {
+          analysis: {
+            tokenizer: {
+              whitespace: {
+                type: 'whitespace'
               }
-            }
-          },
-          mappings: {
-            properties: {
-              createdOn: {
-                type: 'date'
-              },
-              joined: {
-                type: 'join',
-                relations: {
-                  thing: 'review'
-                }
-              },
-              text: search.getMultilingualTextProperties(),
-              title: search.getMultilingualTextProperties(),
-              urls: search.getURLProperties(),
-              label: search.getMultilingualTextProperties(true),
-              aliases: search.getMultilingualTextProperties(true),
-              description: search.getMultilingualTextProperties(),
-              subtitle: search.getMultilingualTextProperties(),
-              authors: search.getMultilingualTextProperties(),
-              type: {
-                type: 'keyword'
+            },
+            analyzer: {
+              label: {
+                type: 'custom',
+                tokenizer: 'whitespace',
+                filter: ['trim', 'lowercase']
               }
             }
           }
+        },
+        mappings: {
+          properties: {
+            createdOn: {
+              type: 'date'
+            },
+            joined: {
+              type: 'join',
+              relations: {
+                thing: 'review'
+              }
+            },
+            text: search.getMultilingualTextProperties(),
+            title: search.getMultilingualTextProperties(),
+            urls: search.getURLProperties(),
+            label: search.getMultilingualTextProperties(true),
+            aliases: search.getMultilingualTextProperties(true),
+            description: search.getMultilingualTextProperties(),
+            subtitle: search.getMultilingualTextProperties(),
+            authors: search.getMultilingualTextProperties(),
+            type: {
+              type: 'keyword'
+            }
+          }
         }
-      })
+      }
+    })
       .catch(error => {
-        if (/\[index_already_exists_exception\]/.test(error.message))
+        if (/\[index_already_exists_exception\]/.test(String(error?.message ?? error)))
           return;
         debug.error({
           error
@@ -385,20 +403,20 @@ let search = {
   // Generate the mappings (ElasticSearch schemas) for indexing multilingual
   // strings
   getMultilingualTextProperties(completionMapping = false) {
-    let obj = {
+    const obj: { properties: Record<string, any> } = {
       properties: {}
     };
 
-    let validLangs = languages.getValidLanguagesAndUndetermined();
+    const validLangs = languages.getValidLanguagesAndUndetermined();
 
     // We add all analyzers for all languages ElasticSearch has stemming support
     // for to the index, even if they're not yet supported by lib.reviews, so
     // we don't have to keep updating the index. Languages without analyzers
     // will be processed by the 'standard' analyzer (no stemming)
-    for (let lang in analyzers) {
+    for (const lang of Object.keys(analyzers)) {
 
       // Splice from language array so we can process remaining languages differently
-      let langPos = validLangs.indexOf(lang);
+      const langPos = validLangs.indexOf(lang as LocaleCode | 'und');
       if (langPos !== -1)
         validLangs.splice(langPos, 1);
 
@@ -423,7 +441,7 @@ let search = {
 
     // Add remaining languages so we can do completion & offsets for those
     // as well.
-    for (let lang of validLangs) {
+    for (const lang of validLangs) {
       obj.properties[lang] = {
         type: 'text',
         index_options: 'offsets', // for sentence-based highlighting
@@ -447,14 +465,13 @@ let search = {
 
   },
 
-  close() {
-    if (client && typeof client.close === 'function')
+  close(): void {
+    if (client && typeof (client as { close?: () => void }).close === 'function')
       client.close();
     client = null;
-  }
+  },
 
 };
 
 export { search };
 export default search;
-

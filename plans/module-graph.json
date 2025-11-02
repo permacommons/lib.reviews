@@ -7,7 +7,7 @@
       "dependencies": [
         "./auth.ts",
         "./bootstrap/dal.ts",
-        "./locales/languages.js",
+        "./locales/languages.ts",
         "./routes/actions.js",
         "./routes/api.js",
         "./routes/blog-posts.js",
@@ -138,13 +138,13 @@
     {
       "source": "dal/lib/ml-string.js",
       "dependencies": [
-        "../../locales/languages.js",
+        "../../locales/languages.ts",
         "./errors.js",
         "./type.js"
       ]
     },
     {
-      "source": "locales/languages.js",
+      "source": "locales/languages.ts",
       "dependencies": [
         "../util/reported-error.ts",
         "path",
@@ -196,7 +196,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../util/debug.ts",
         "./review.js",
         "./team-join-request.js",
@@ -213,7 +213,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../util/debug.ts",
         "../util/reported-error.ts",
         "./team.js",
@@ -249,7 +249,7 @@
     {
       "source": "adapters/openstreetmap-backend-adapter.js",
       "dependencies": [
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../util/debug.ts",
         "../util/http.ts",
         "./abstract-backend-adapter.js"
@@ -258,7 +258,7 @@
     {
       "source": "adapters/wikidata-backend-adapter.js",
       "dependencies": [
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../util/debug.ts",
         "../util/http.ts",
         "./abstract-backend-adapter.js"
@@ -272,8 +272,8 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../locales/languages.js",
-        "../search.js",
+        "../locales/languages.ts",
+        "../search.ts",
         "../util/debug.ts",
         "../util/reported-error.ts",
         "../util/url-utils.ts",
@@ -285,10 +285,10 @@
       ]
     },
     {
-      "source": "search.js",
+      "source": "search.ts",
       "dependencies": [
         "./dal/lib/ml-string.js",
-        "./locales/languages.js",
+        "./locales/languages.ts",
         "./util/debug.ts"
       ]
     },
@@ -348,7 +348,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../util/debug.ts"
       ]
     },
@@ -381,7 +381,7 @@
         "../dal/lib/model-handle.js",
         "../dal/lib/model-initializer.js",
         "../db-postgres.js",
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../util/debug.ts",
         "./team-slug.js",
         "./user.js"
@@ -402,10 +402,10 @@
     {
       "source": "routes/actions.js",
       "dependencies": [
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../models/invite-link.js",
         "../models/user.js",
-        "../search.js",
+        "../search.ts",
         "../util/debug.ts",
         "./handlers/action-handler.js",
         "./handlers/signin-required-route.js",
@@ -429,7 +429,7 @@
     {
       "source": "routes/helpers/render.js",
       "dependencies": [
-        "../../locales/languages.js",
+        "../../locales/languages.ts",
         "../../util/client-assets.ts",
         "url"
       ]
@@ -450,7 +450,7 @@
     {
       "source": "routes/uploads.js",
       "dependencies": [
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../models/file.js",
         "../util/csrf.js",
         "../util/debug.ts",
@@ -482,7 +482,7 @@
     {
       "source": "routes/helpers/forms.js",
       "dependencies": [
-        "../../locales/languages.js",
+        "../../locales/languages.ts",
         "../../util/md.ts",
         "../../util/url-utils.ts"
       ]
@@ -504,7 +504,7 @@
     {
       "source": "routes/handlers/api-upload-handler.js",
       "dependencies": [
-        "../../locales/languages.js",
+        "../../locales/languages.ts",
         "../../models/file.js",
         "../../util/reported-error.ts",
         "../helpers/api.js",
@@ -522,7 +522,7 @@
       "dependencies": [
         "../models/thing.js",
         "../models/user.js",
-        "../search.js",
+        "../search.ts",
         "../util/url-utils.ts",
         "./handlers/action-handler.js"
       ]
@@ -537,7 +537,7 @@
       "source": "routes/handlers/blog-post-provider.js",
       "dependencies": [
         "../../dal/lib/ml-string.js",
-        "../../locales/languages.js",
+        "../../locales/languages.ts",
         "../../models/blog-post.js",
         "../../util/frontend-messages.ts",
         "../helpers/feeds.js",
@@ -574,7 +574,7 @@
     {
       "source": "routes/helpers/feeds.js",
       "dependencies": [
-        "../../locales/languages.js"
+        "../../locales/languages.ts"
       ]
     },
     {
@@ -614,7 +614,7 @@
     {
       "source": "routes/pages.js",
       "dependencies": [
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "./helpers/render.js",
         "fs",
         "path",
@@ -637,7 +637,7 @@
     {
       "source": "routes/handlers/review-handlers.js",
       "dependencies": [
-        "../../locales/languages.js",
+        "../../locales/languages.ts",
         "../../models/review.js",
         "../helpers/feeds.js",
         "../helpers/render.js",
@@ -652,7 +652,7 @@
         "../../models/review.js",
         "../../models/team.js",
         "../../models/user.js",
-        "../../search.js",
+        "../../search.ts",
         "../../util/frontend-messages.ts",
         "../../util/get-messages.ts",
         "../../util/md.ts",
@@ -666,7 +666,7 @@
       "source": "routes/teams.js",
       "dependencies": [
         "../dal/lib/ml-string.js",
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../models/team-join-request.js",
         "./handlers/resource-error-handler.js",
         "./handlers/team-provider.js",
@@ -693,10 +693,10 @@
     {
       "source": "routes/things.js",
       "dependencies": [
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../models/review.js",
         "../models/thing.js",
-        "../search.js",
+        "../search.ts",
         "../util/get-messages.ts",
         "../util/url-utils.ts",
         "./handlers/resource-error-handler.js",
@@ -735,7 +735,7 @@
       "dependencies": [
         "../adapters/adapters.js",
         "../dal/lib/ml-string.js",
-        "../locales/languages.js",
+        "../locales/languages.ts",
         "../models/thing.js",
         "./debug.js",
         "./get-license-url.js",

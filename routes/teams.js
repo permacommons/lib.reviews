@@ -1,11 +1,11 @@
 import escapeHTML from 'escape-html';
 
-import TeamProvider from './handlers/team-provider.js';
+import TeamProvider from './handlers/team-provider.ts';
 import TeamJoinRequest from '../models/team-join-request.js';
-import getResourceErrorHandler from './handlers/resource-error-handler.js';
+import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import render from './helpers/render.ts';
 import mlString from '../dal/lib/ml-string.js';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 import slugs from './helpers/slugs.ts';
 
 // Default routes for read, edit, add, delete

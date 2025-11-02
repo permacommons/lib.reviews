@@ -8,10 +8,10 @@ import forms from './helpers/forms.ts';
 import User from '../models/user.js';
 import InviteLink from '../models/invite-link.js';
 import debug from '../util/debug.ts';
-import actionHandler from './handlers/action-handler.js';
-import signinRequiredRoute from './handlers/signin-required-route.js';
-import languages from '../locales/languages.js';
-import search from '../search.js';
+import actionHandler from './handlers/action-handler.ts';
+import signinRequiredRoute from './handlers/signin-required-route.ts';
+import languages from '../locales/languages.ts';
+import search from '../search.ts';
 
 const router = express.Router();
 

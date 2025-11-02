@@ -81,6 +81,7 @@
     "@types/escape-html": "^1.0.4",
     "@types/express": "^5.0.0",
     "@types/express-session": "^1.17.10",
+    "@types/elasticsearch": "^5.0.40",
     "@types/jquery": "^3.5.30",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.10.1",

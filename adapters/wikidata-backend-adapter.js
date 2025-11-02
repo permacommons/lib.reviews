@@ -6,7 +6,7 @@ import { fetchJSON } from '../util/http.ts';
 
 // Internal deps
 import AbstractBackendAdapter from './abstract-backend-adapter.js';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 
 // How do lib.reviews language code translate to Wikidata language codes?
 // Since Wikidata supports a superset of languages and most language codes

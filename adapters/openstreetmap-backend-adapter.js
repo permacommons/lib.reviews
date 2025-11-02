@@ -6,7 +6,7 @@ import config from 'config';
 import escapeHTML from 'escape-html';
 import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 
 const validLanguages = languages.getValidLanguages();
 

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import jsonfile from 'jsonfile';
 
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 
 /* eslint no-sync: "off" */
 

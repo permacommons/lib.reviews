@@ -5,7 +5,7 @@ import { parse as parseURL } from 'node:url';
 import clientAssets from '../../util/client-assets.ts';
 
 // Internal dependencies
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.ts';
 import type { TemplateContext, TemplateLanguageName } from '../../types/http/locals.ts';
 
 type LocaleCode = LibReviews.LocaleCode;

@@ -3,7 +3,7 @@ import debug from '../util/debug.ts';
 import urlUtils from '../util/url-utils.ts';
 import ReportedError from '../util/reported-error.ts';
 import adapters from '../adapters/adapters.js';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
 import { initializeModel } from '../dal/lib/model-initializer.js';
 import { createModelModule } from '../dal/lib/model-handle.js';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.js';
@@ -13,7 +13,7 @@ import Review from './review.js';
 import User from './user.js';
 import isUUID from 'is-uuid';
 import { decodeHTML } from 'entities';
-import search from '../search.js';
+import search from '../search.ts';
 import { randomUUID } from 'crypto';
 
 type PostgresModule = typeof import('../db-postgres.js');

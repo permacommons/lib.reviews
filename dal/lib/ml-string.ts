@@ -1,11 +1,11 @@
 import { decodeHTML } from 'entities';
 import stripTags from 'striptags';
 
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.ts';
 import types, { ObjectType } from './type.js';
 import { ValidationError } from './errors.js';
 
-const langKeys = languages.getValidLanguagesAndUndetermined();
+const langKeys = languages.getValidLanguagesAndUndetermined() as string[];
 
 type MultilingualValue = Record<string, string | string[]>;
 
@@ -100,7 +100,7 @@ const mlString = {
       };
     }
 
-    const fallbackLanguages: string[] = languages.getFallbacks(lang) ?? [];
+    const fallbackLanguages = languages.getFallbacks(lang);
     for (const fallbackLanguage of fallbackLanguages) {
       const value = strObj[fallbackLanguage];
       if (value !== undefined && value !== '') {

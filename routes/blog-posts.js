@@ -1,4 +1,4 @@
-import BlogPostProvider from './handlers/blog-post-provider.js';
+import BlogPostProvider from './handlers/blog-post-provider.ts';
 
 const router = BlogPostProvider.bakeRoutes(null, {
   browse: {

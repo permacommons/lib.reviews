@@ -1,4 +1,4 @@
-const { default: searchModule } = await import('../../search.js');
+const { default: searchModule } = await import('../../search.ts');
 
 const originalSearchEntries = Object.entries(searchModule).map(([key, value]) => [key, value]);
 

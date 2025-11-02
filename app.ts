@@ -37,7 +37,7 @@ import debug from './util/debug.ts';
 import flashStore from './util/flash-store.ts';
 import WebHookDispatcher from './util/webhooks.ts';
 import './util/handlebars-helpers.ts';
-import languages from './locales/languages.js';
+import languages from './locales/languages.ts';
 
 // Internal dependencies
 
@@ -208,9 +208,9 @@ async function getApp(): Promise<express.Express> {
 
   app.use('/', (req, _res, next) => {
     const rawLocale = req.query.uselang ?? req.query.useLang;
-    const locale = Array.isArray(rawLocale) ? rawLocale[0] : rawLocale;
-    if (locale && languages.isValid(locale) && locale !== req.locale) {
-      const newLocale = locale as LibReviews.LocaleCode;
+    const localeCandidate = Array.isArray(rawLocale) ? rawLocale[0] : rawLocale;
+    if (typeof localeCandidate === 'string' && languages.isValid(localeCandidate) && localeCandidate !== req.locale) {
+      const newLocale = localeCandidate as LibReviews.LocaleCode;
       req.localeChange = { old: req.locale ?? 'und', new: newLocale };
       i18n.setLocale(req, newLocale);
     }

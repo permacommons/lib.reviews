@@ -4,8 +4,8 @@ import render from './helpers/render.ts';
 import feeds from './helpers/feeds.ts';
 import Team from '../models/team.js';
 import Review from '../models/review.js';
-import ReviewProvider from './handlers/review-provider.js';
-import reviewHandlers from './handlers/review-handlers.js';
+import ReviewProvider from './handlers/review-provider.ts';
+import reviewHandlers from './handlers/review-handlers.ts';
 import BlogPost from '../models/blog-post.js';
 
 const routes = ReviewProvider.getDefaultRoutes('review');

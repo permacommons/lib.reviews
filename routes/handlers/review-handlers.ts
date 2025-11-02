@@ -4,10 +4,34 @@ import config from 'config';
 import i18n from 'i18n';
 
 // Internal dependencies
-import Review from '../../models/review.js';
+import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
+import Review from '../../models/review.ts';
 import render from '../helpers/render.ts';
 import feeds from '../helpers/feeds.ts';
-import languages from '../../locales/languages.js';
+import languages from '../../locales/languages.ts';
+
+type ReviewThing = {
+  populateUserInfo?: (user: HandlerRequest['user']) => void;
+  [key: string]: unknown;
+};
+
+type ReviewInstance = {
+  populateUserInfo?: (user: HandlerRequest['user']) => void;
+  thing?: ReviewThing;
+  _revDate?: Date;
+  [key: string]: unknown;
+};
+
+type ReviewFeedResult = {
+  feedItems: ReviewInstance[];
+  offsetDate?: Date;
+};
+
+type ReviewModelHandle = {
+  getFeed: (options: Record<string, unknown>) => Promise<ReviewFeedResult>;
+} & Record<string, unknown>;
+
+const ReviewModel = Review as unknown as ReviewModelHandle;
 
 const reviewHandlers = {
 
@@ -33,24 +57,25 @@ const reviewHandlers = {
       htmlURL: '/feed'
     }, options);
 
-    return async function(req, res, next) {
+    return async function(req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
 
-      let language, offsetDate;
-      if (req.params.utcisodate) {
-        offsetDate = new Date(req.params.utcisodate.trim());
-        if (!offsetDate || offsetDate == 'Invalid Date')
-          offsetDate = null;
+      let language: string | undefined;
+      let offsetDate: Date | null | undefined;
+      if (typeof req.params.utcisodate === 'string') {
+        const parsedDate = new Date(req.params.utcisodate.trim());
+        offsetDate = Number.isNaN(parsedDate.valueOf()) ? null : parsedDate;
       }
 
       // Feeds for external consumption require a language, we fall back to
       // English if we can't find one
       if (options.format) {
-        language = req.params.language;
-        if (!languages.isValid(language))
+        const languageParam = req.params.language;
+        language = typeof languageParam === 'string' ? languageParam : undefined;
+        if (!language || !languages.isValid(language))
           language = 'en';
       }
 
-      Review
+      ReviewModel
         .getFeed({
           onlyTrusted: options.onlyTrusted,
           limit: options.limit,
@@ -61,15 +86,15 @@ const reviewHandlers = {
         })
         .then(result => {
 
-          let offsetDate = result.offsetDate;
-          let feedItems = result.feedItems;
+          const feedItems = result.feedItems ?? [];
+          const nextOffsetDate = result.offsetDate;
 
           let updatedDate;
 
           feedItems.forEach(item => {
-            item.populateUserInfo(req.user);
+            item.populateUserInfo?.(req.user);
             if (item.thing)
-              item.thing.populateUserInfo(req.user);
+              item.thing.populateUserInfo?.(req.user);
 
             // For Atom feed - most recently modified item in the result set
             if (!updatedDate || item._revDate > updatedDate)
@@ -78,14 +103,14 @@ const reviewHandlers = {
           });
 
           let paginationURL;
-          if (offsetDate) {
+          if (nextOffsetDate) {
             if (options.paginationURL)
-              paginationURL = options.paginationURL.replace('%isodate', offsetDate.toISOString());
+              paginationURL = options.paginationURL.replace('%isodate', nextOffsetDate.toISOString());
             else
-              paginationURL = `/feed/before/${offsetDate.toISOString()}`;
+              paginationURL = `/feed/before/${nextOffsetDate.toISOString()}`;
           }
 
-          let vars = {
+          const vars: Record<string, unknown> = {
             titleKey: options.titleKey,
             titleParam: options.titleParam,
             deferPageHeader: options.deferPageHeader,
@@ -95,19 +120,21 @@ const reviewHandlers = {
             embeddedFeeds: feeds.getEmbeddedFeeds(req, options)
           };
 
-          Object.assign(vars, options.extraVars);
+          if (options.extraVars && typeof options.extraVars === 'object')
+            Object.assign(vars, options.extraVars);
 
           if (!options.format) {
             render.template(req, res, options.template, vars);
           } else if (options.format == 'atom') {
+            const feedLanguage = language ?? 'en';
             Object.assign(vars, {
               layout: 'layout-atom',
-              language,
+              language: feedLanguage,
               updatedDate,
-              selfURL: resolveURL(config.qualifiedURL, options.atomURLPrefix) + `/${language}`,
+              selfURL: resolveURL(config.qualifiedURL, options.atomURLPrefix) + `/${feedLanguage}`,
               htmlURL: resolveURL(config.qualifiedURL, options.htmlURL)
             });
-            i18n.setLocale(req, language);
+            i18n.setLocale(req, feedLanguage);
             res.type('application/atom+xml');
             render.template(req, res, 'review-feed-atom', vars);
           } else

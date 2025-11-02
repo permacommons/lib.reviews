@@ -7,7 +7,8 @@ declare global {
     interface Request {
       dal?: import('../dal/index.js').DalContext;
       locale?: LibReviews.LocaleCode;
-      localeChange?: { old: LibReviews.LocaleCode | 'und'; new: LibReviews.LocaleCode | 'und' };
+      language?: LibReviews.LocaleCodeWithUndetermined;
+      localeChange?: { old: LibReviews.LocaleCodeWithUndetermined; new: LibReviews.LocaleCodeWithUndetermined };
       isAPI?: boolean;
       flash(key: string, value?: string | string[]): string[];
       flashHas?(key: string): boolean;

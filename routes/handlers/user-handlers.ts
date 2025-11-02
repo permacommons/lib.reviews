@@ -1,40 +1,44 @@
 import escapeHTML from 'escape-html';
 
+import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
 import render from '../helpers/render.ts';
 import feeds from '../helpers/feeds.ts';
-import User from '../../models/user.js';
-import Review from '../../models/review.js';
-import reviewHandlers from './review-handlers.js';
+import User from '../../models/user.ts';
+import Review from '../../models/review.ts';
+import reviewHandlers from './review-handlers.ts';
 import md from '../../util/md.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 
+const UserModel = User as any;
+const ReviewModel = Review as any;
+
 const userHandlers = {
 
-  async processEdit(req, res, next) {
+  async processEdit(req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
     const { name } = req.params;
 
     try {
 
-      const user = await User.findByURLName(name, {
+      const user = await UserModel.findByURLName(name, {
         withData: true
       });
 
       user.populateUserInfo(req.user);
       if (!user.userCanEditMetadata)
-        return render.permissionError(req, res, next);
+        return render.permissionError(req, res);
 
-      let bio = req.body['bio-text'];
-      let bioLanguage = req.body['bio-language'];
+      const bio = typeof req.body['bio-text'] === 'string' ? req.body['bio-text'] : undefined;
+      const bioLanguage = typeof req.body['bio-language'] === 'string' ? req.body['bio-language'] : undefined;
       if (bio === undefined || bioLanguage === undefined) {
         req.flash('pageErrors', req.__('data missing'));
         return res.redirect(`/user/${user.urlName}/edit/bio`);
       }
 
       if (user.meta === undefined || user.meta === null || user.meta.bio === undefined) {
-        let bioObj = {
+        const bioObj: Record<string, any> = {
           bio: {
-            text: {},
-            html: {}
+            text: {} as Record<string, string>,
+            html: {} as Record<string, string>
           },
           originalLanguage: bioLanguage
         };
@@ -42,19 +46,22 @@ const userHandlers = {
         bioObj.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
         bioObj.originalLanguage = bioLanguage;
 
-        await User.createBio(user, bioObj);
+        await UserModel.createBio(user, bioObj);
         req.flash('pageMessages', req.__('edit saved'));
         res.redirect(`/user/${user.urlName}`);
       } else {
-        let metaRev = await user.meta.newRevision(req.user, {
+        const metaRev = await user.meta.newRevision(req.user, {
           tags: ['update-bio-via-user']
         });
 
-        if (metaRev.bio === undefined)
-          metaRev.bio = {};
-
-        metaRev.bio.text[bioLanguage] = escapeHTML(bio);
-        metaRev.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
+        const bioData = (metaRev.bio as Record<string, any>) ?? { text: {}, html: {} };
+        if (!bioData.text || typeof bioData.text !== 'object')
+          bioData.text = {};
+        if (!bioData.html || typeof bioData.html !== 'object')
+          bioData.html = {};
+        bioData.text[bioLanguage] = escapeHTML(bio);
+        bioData.html[bioLanguage] = md.render(bio, { language: req.locale });
+        metaRev.bio = bioData;
 
         await metaRev.save();
         req.flash('pageMessages', req.__('edit saved'));
@@ -70,10 +77,10 @@ const userHandlers = {
       editBio: false
     }, options);
 
-    return async function(req, res, next) {
+    return async function(req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
       const { name } = req.params;
       try {
-        const user = await User.findByURLName(name, {
+        const user = await UserModel.findByURLName(name, {
           withData: true,
           withTeams: true
         });
@@ -81,14 +88,14 @@ const userHandlers = {
         user.populateUserInfo(req.user);
 
         if (options.editBio && !user.userCanEditMetadata)
-          return render.permissionError(req, res, next);
+          return render.permissionError(req, res);
 
         if (decodeURIComponent(user.urlName) !== name)
           return res.redirect(`/user/${user.urlName}`);
 
 
 
-        const result = await Review.getFeed({
+        const result = await ReviewModel.getFeed({
           createdBy: user.id,
           limit: 3,
           withThing: true,
@@ -150,7 +157,7 @@ const userHandlers = {
           paginationURL,
           embeddedFeeds
         }, {
-          messages: loadEditor ? frontendMessages.getEditorMessages(req.locale) : {}
+          messages: loadEditor ? frontendMessages.getEditorMessages(typeof req.locale === 'string' ? req.locale : 'en') : {}
         });
       } catch (error) {
         return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
@@ -164,7 +171,7 @@ const userHandlers = {
       format: undefined
     }, options);
 
-    return async function(req, res, next) {
+    return async function(req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
 
       const { name } = req.params;
       let offsetDate;
@@ -175,7 +182,7 @@ const userHandlers = {
       }
 
       try {
-        const user = await User.findByURLName(name);
+        const user = await UserModel.findByURLName(name);
 
         if (decodeURIComponent(user.urlName) !== name) {
           // Redirect to chosen display form

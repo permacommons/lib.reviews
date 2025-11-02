@@ -8,7 +8,8 @@ import linkifyHTML from 'linkify-html';
 
 // Internal dependencies
 import mlString from '../dal/lib/ml-string.js';
-import languages from '../locales/languages.js';
+import languages from '../locales/languages.ts';
+import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import thingModelHandle from '../models/thing.js';
 import urlUtils from './url-utils.ts';
 import adapters from '../adapters/adapters.js';
@@ -202,7 +203,9 @@ hbs.registerHelper('getFileLink', filename => `<a href="/static/uploads/${encode
 
 hbs.registerHelper('getLanguageName', (lang: string, options: HelperOptions) => {
   const context = getTemplateContext(options);
-  return languages.getTranslatedName(lang, context.locale);
+  const targetLanguage = lang as LocaleCodeWithUndetermined;
+  const translationLocale = (context.locale ?? 'en') as LocaleCodeWithUndetermined;
+  return languages.getTranslatedName(targetLanguage, translationLocale);
 });
 
 hbs.registerHelper('isoDate', (date: { toISOString?: () => string } | null | undefined) =>
@@ -230,7 +233,9 @@ hbs.registerHelper('mlString', function(str: unknown, addLanguageSpan: boolean |
   if (!addLanguageSpan || mlRv.lang === context.locale || mlRv.lang == 'und')
     return mlRv.str;
   else {
-    const languageName = languages.getCompositeName(mlRv.lang, context.locale);
+    const resolvedLanguage = mlRv.lang as LocaleCodeWithUndetermined;
+    const translationLocale = (context.locale ?? 'en') as LocaleCodeWithUndetermined;
+    const languageName = languages.getCompositeName(resolvedLanguage, translationLocale);
     return `${mlRv.str} <span class="language-identifier" title="${languageName}">` +
       `<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>${mlRv.lang}</span>`;
   }
