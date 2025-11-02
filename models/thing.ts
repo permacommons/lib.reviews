@@ -2,7 +2,7 @@ import dal from '../dal/index.ts';
 import debug from '../util/debug.ts';
 import urlUtils from '../util/url-utils.ts';
 import ReportedError from '../util/reported-error.ts';
-import adapters from '../adapters/adapters.js';
+import adapters from '../adapters/adapters.ts';
 import languages from '../locales/languages.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { createModelModule } from '../dal/lib/model-handle.ts';
@@ -462,7 +462,7 @@ function setURLs(this: ThingInstance, urls: string[]): void {
   urls.forEach(url => {
     adapters.getAll().forEach(adapter => {
       if (adapter.ask(url)) {
-        adapter.supportedFields.forEach(field => {
+        adapter.getSupportedFields().forEach(field => {
           // Another adapter is already handling this field
           if (
             this.sync &&
@@ -477,7 +477,7 @@ function setURLs(this: ThingInstance, urls: string[]): void {
 
           (this.sync as Record<string, any>)[field] = {
             active: true,
-            source: adapter.sourceID
+            source: adapter.getSourceID()
           };
         });
       }

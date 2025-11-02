@@ -12,7 +12,7 @@ import languages from '../locales/languages.ts';
 import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import thingModelHandle from '../models/thing.ts';
 import urlUtils from './url-utils.ts';
-import adapters from '../adapters/adapters.js';
+import adapters from '../adapters/adapters.ts';
 import getLicenseURL from './get-license-url.ts';
 import debug from './debug.ts';
 import { formatLongDate, formatShortDate } from './date.ts';

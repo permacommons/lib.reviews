@@ -70,6 +70,12 @@ With bootstrap and shared middleware typed, finish migrating HTTP entrypoints an
 - [x] Convert common handler utilities in `routes/handlers/` to `.ts`, modelling reusable generics for `Request`, `Response`, and template context helpers (`action-handler`, `signin-required-route`, `abstract-bread-provider`, `review-provider`, `team-provider`, `resource-error-handler`, `api-upload-handler`, `review-handlers`, `user-handlers`, `blog-post-provider`).
 - [x] Expand `types/http/locals.ts` and related Express augmentations so `req.locale`, `req.flash`, `req.session`, and authenticated `req.user` lifecycles reflect the behaviour relied on by handlers.
 - [x] Port cross-cutting service modules consumed by routes to TypeScript: `search.js` → `search.ts` (typed ElasticSearch client), `locales/languages.js` → `languages.ts` (locale metadata unions), and any thin helper shims under `types/http/handlebars.d.ts` that can now become concrete modules.
+- [x] Convert backend metadata adapters under `adapters/` to `.ts`, leveraging existing typed utilities and locale metadata:
+  - [x] Define a typed abstract adapter contract and shared result shape: [`adapters/abstract-backend-adapter.ts`](adapters/abstract-backend-adapter.ts) with `AdapterLookupData`, `AdapterLookupResult`, and methods `ask()`, `lookup()`, `getSupportedFields()`, `getSourceID()`, `getSourceURL()`.
+  - [x] Create a typed adapter registry: [`adapters/adapters.ts`](adapters/adapters.ts) exposing `getAll()`, `getAdapterForSource()`, `getSourceURL()`, `getSupportedLookupsAsSafePromises()`.
+  - [x] Port adapter implementations: [`adapters/wikidata-backend-adapter.ts`](adapters/wikidata-backend-adapter.ts), [`adapters/openlibrary-backend-adapter.ts`](adapters/openlibrary-backend-adapter.ts), [`adapters/openstreetmap-backend-adapter.ts`](adapters/openstreetmap-backend-adapter.ts), reusing [`util/http.ts`](util/http.ts) and [`locales/languages.ts`](locales/languages.ts).
+  - [x] Update consumers to use the typed registry and public adapter methods (e.g., [`models/thing.ts`](models/thing.ts), maintenance scripts).
+  - [x] Introduce temporary `.js` re-export shims under `adapters/` to preserve legacy imports; delete them in 4.3 once all consumers target `.ts`.
 
 ##### 4.2 Domain routers
 - [x] Accounts & authentication: convert `routes/actions.js` and `routes/users.js` to `.ts`, ensuring Passport callbacks, invite-link flows, and flash messaging use the shared HTTP types introduced in Wave 4.1.
@@ -107,13 +113,14 @@ Finalize the migration by bringing tests, scripts, and compiler settings in line
 
 - [ ] Port AVA to TypeScript: rename `tests/*.js` to `.ts`, update fixtures and helpers, and convert `tests/run-ava.js` into a typed runner that compiles under `tsconfig.tests.json`.
 - [ ] Type the supporting Node scripts in `bin/` and `tools/` (including `bin/www.js`, maintenance scripts, and DB utilities) using `tsconfig.node.json`, replacing any ad-hoc `.d.ts` declarations with concrete modules.
+- [ ] Convert backend adapter sync scripts to TypeScript and type their orchestration against DAL and search services: [`adapters/sync/sync-all.js`](adapters/sync/sync-all.js), [`adapters/sync/sync-wikidata.js`](adapters/sync/sync-wikidata.js). Update adapter test mocks and dynamic imports accordingly, consuming the typed registry [`adapters/adapters.ts`](adapters/adapters.ts).
 - [ ] Add documentation/Typedoc coverage checks for the migrated util, DAL, and route modules to guarantee API comments stay synced with implementations.
 - [ ] Expand automation: configure AVA to load `.ts` files, run `tsc --noEmit` with the test project in CI, and wire `npm run typecheck:tests` into the default workflow.
 - [ ] Ratchet TypeScript compiler options sequentially (`noImplicitAny`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, then `strict: true`), resolving surfaced issues before enabling the next flag.
 - [ ] Replace any lingering `@ts-ignore` directives with more precise types or `@ts-expect-error` (where the failure is intentional) and mirror the lint enforcement during the subsequent Biome migration.
 
 ### Exit criteria for Phase 2
-- [ ] All source files under `models/`, `dal/`, `routes/`, `frontend/`, and `util/` compiled as TypeScript.
+- [x] All source files under `models/`, `dal/`, `routes/`, `frontend/`, `util/`, and `adapters/` compiled as TypeScript, with typed adapter registry [`adapters/adapters.ts`](adapters/adapters.ts) and no `.js` shims under `adapters/`.
 - [ ] `tsc --noEmit` passes in CI for application code and tests.
 - [ ] Type coverage report (`ts-prune` or `type-coverage`) shows ≥90% typed declarations.
 - [ ] Documentation updated (`README`, `CONTRIBUTING`) with TypeScript setup instructions.
