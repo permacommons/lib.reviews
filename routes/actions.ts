@@ -1,19 +1,30 @@
-import express from 'express';
+import { Router } from 'express';
 import passport from 'passport';
 import config from 'config';
 import i18n from 'i18n';
 
 import render from './helpers/render.ts';
 import forms from './helpers/forms.ts';
-import User from '../models/user.js';
-import InviteLink from '../models/invite-link.js';
+import User from '../models/user.ts';
+import InviteLink from '../models/invite-link.ts';
 import debug from '../util/debug.ts';
 import actionHandler from './handlers/action-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
 import languages from '../locales/languages.ts';
 import search from '../search.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 
-const router = express.Router();
+type ActionsRequest = HandlerRequest<Record<string, string>, unknown, Record<string, unknown>>;
+type ActionsResponse = HandlerResponse;
+type InviteLinkModelType = {
+  new(args: Record<string, unknown>): any;
+  getAvailable(user: Express.User): Promise<any[]>;
+  getUsed(user: Express.User): Promise<any[]>;
+  get(id: string): Promise<any>;
+};
+
+const router = Router();
+const InviteLinkModel = InviteLink as unknown as InviteLinkModelType;
 
 const formDefs = {
   'register': [{
@@ -35,15 +46,21 @@ const formDefs = {
 };
 
 
-router.get('/actions/search', function (req, res, next) {
-  let query = (req.query.query || '').trim();
+router.get('/actions/search', function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
+  const queryValue = req.query.query;
+  const rawQuery = typeof queryValue === 'string'
+    ? queryValue
+    : Array.isArray(queryValue)
+      ? String(queryValue[0] ?? '')
+      : '';
+  const query = rawQuery.trim();
   if (query) {
     Promise
       .all([search.searchThings(query, req.locale), search.searchReviews(query, req.locale)])
       .then(results => {
         let labelMatches = results[0].hits.hits;
         let textMatches = search.filterDuplicateInnerHighlights(results[1].hits.hits, 'review');
-        let noMatches = !labelMatches.length && !textMatches.length;
+        const noMatches = !labelMatches.length && !textMatches.length;
 
         render.template(req, res, 'search', {
           titleKey: 'search results',
@@ -67,20 +84,26 @@ router.get('/actions/search', function (req, res, next) {
 
 router.get('/actions/invite', signinRequiredRoute('invite users', renderInviteLinkPage));
 
-router.post('/actions/invite', signinRequiredRoute('invite users', async function (req, res, next) {
+router.post('/actions/invite', signinRequiredRoute('invite users', async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
   try {
-    if (!req.user.inviteLinkCount) {
+    const user = req.user;
+    if (!user) {
+      next(new Error('User required to generate invite links.'));
+      return;
+    }
+
+    if (!user.inviteLinkCount) {
       req.flash('pageErrors', res.__('out of links'));
       return renderInviteLinkPage(req, res, next);
     }
 
-    let inviteLink = new InviteLink({});
+    let inviteLink = new InviteLinkModel({});
     inviteLink.createdOn = new Date();
-    inviteLink.createdBy = req.user.id;
+    inviteLink.createdBy = user.id;
     let p1 = inviteLink.save();
 
-    req.user.inviteLinkCount--;
-    let p2 = req.user.save();
+    user.inviteLinkCount--;
+    let p2 = user.save();
 
     await Promise.all([p1, p2]);
 
@@ -92,11 +115,26 @@ router.post('/actions/invite', signinRequiredRoute('invite users', async functio
 }));
 
 
-async function renderInviteLinkPage(req, res, next) {
+/**
+ * Render the invite link management view, including unused and used links.
+ *
+ * @param req
+ *  Request containing the authenticated user
+ * @param res
+ *  Response used to render the invite template
+ * @param next
+ *  Express callback for error propagation
+ */
+async function renderInviteLinkPage(req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
   try {
+    const user = req.user;
+    if (!user) {
+      next(new Error('User required to view invite links.'));
+      return;
+    }
     const [pendingInviteLinks, usedInviteLinks] = await Promise.all([
-      InviteLink.getAvailable(req.user),
-      InviteLink.getUsed(req.user)
+      InviteLinkModel.getAvailable(user),
+      InviteLinkModel.getUsed(user)
     ]);
 
     render.template(req, res, 'invite', {
@@ -114,12 +152,12 @@ async function renderInviteLinkPage(req, res, next) {
 
 router.post('/actions/suppress-notice', actionHandler.suppressNotice);
 
-router.post('/actions/change-language', function (req, res) {
-  let maxAge = 1000 * 60 * config.sessionCookieDuration; // cookie age: 30 days
-  let lang = req.body.lang;
-  let redirectTo = req.body['redirect-to'];
+router.post('/actions/change-language', function (req: ActionsRequest, res: ActionsResponse) {
+  const maxAge = 1000 * 60 * config.sessionCookieDuration; // cookie age: 30 days
+  const lang = typeof req.body?.lang === 'string' ? req.body.lang : '';
+  const redirectTo = typeof req.body?.['redirect-to'] === 'string' ? req.body['redirect-to'] : undefined;
 
-  let hasLanguageNotice = req.body['has-language-notice'] ? true : false;
+  const hasLanguageNotice = Boolean(req.body?.['has-language-notice']);
 
   if (!languages.isValid(lang)) {
     req.flash('siteErrors', req.__('invalid language'));
@@ -147,8 +185,8 @@ router.post('/actions/change-language', function (req, res) {
 
 // Below actions have shorter names for convenience
 
-router.get('/signin', function (req, res) {
-  let pageErrors = req.flash('pageErrors');
+router.get('/signin', function (req: ActionsRequest, res: ActionsResponse) {
+  const pageErrors = req.flash('pageErrors');
   render.template(req, res, 'signin', {
     titleKey: 'sign in',
     pageErrors
@@ -156,7 +194,7 @@ router.get('/signin', function (req, res) {
 });
 
 
-router.post('/signin', function (req, res, next) {
+router.post('/signin', function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
   if (!req.body.username || !req.body.password) {
     if (!req.body.username)
       req.flash('pageErrors', req.__('need username'));
@@ -188,11 +226,11 @@ router.post('/signin', function (req, res, next) {
 });
 
 
-router.get('/new/user', function (req, res) {
+router.get('/new/user', function (req: ActionsRequest, res: ActionsResponse) {
   res.redirect('/register');
 });
 
-router.get('/register', function (req, res, next) {
+router.get('/register', function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
   viewInSignupLanguage(req);
   if (config.requireInviteLinks)
     return render.template(req, res, 'invite-needed', {
@@ -202,12 +240,12 @@ router.get('/register', function (req, res, next) {
     return sendRegistrationForm(req, res);
 });
 
-router.get('/register/:code', async function (req, res, next) {
+router.get('/register/:code', async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
   viewInSignupLanguage(req);
   const { code } = req.params;
 
   try {
-    const inviteLink = await InviteLink.get(code);
+    const inviteLink = await InviteLinkModel.get(code);
 
     if (inviteLink.usedBy) {
       return render.permissionError(req, res, {
@@ -228,12 +266,12 @@ router.get('/register/:code', async function (req, res, next) {
   }
 });
 
-router.post('/signout', function (req, res) {
+router.post('/signout', function (req: ActionsRequest, res: ActionsResponse) {
   req.logout(() => res.redirect('/'));
 });
 
 if (!config.requireInviteLinks) {
-  router.post('/register', async function (req, res, next) {
+  router.post('/register', async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
     viewInSignupLanguage(req);
 
     let formInfo = forms.parseSubmission(req, {
@@ -241,7 +279,7 @@ if (!config.requireInviteLinks) {
       formKey: 'register'
     });
 
-    if (req.flashHas('pageErrors')) {
+    if (req.flashHas?.('pageErrors')) {
       try {
         await sendRegistrationForm(req, res, formInfo);
       } catch (error) {
@@ -267,7 +305,7 @@ if (!config.requireInviteLinks) {
         returnToPath(req, res);
       });
     } catch (error) {
-      req.flashError(error);
+      req.flashError?.(error);
       try {
         await sendRegistrationForm(req, res, formInfo);
       } catch (formError) {
@@ -279,14 +317,14 @@ if (!config.requireInviteLinks) {
 }
 
 
-router.post('/register/:code', async function (req, res, next) {
+router.post('/register/:code', async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
   viewInSignupLanguage(req);
 
   const { code } = req.params;
 
   try {
 
-    const inviteLink = await InviteLink.get(code);
+    const inviteLink = await InviteLinkModel.get(code);
 
     if (inviteLink.usedBy)
       return render.permissionError(req, res, {
@@ -299,7 +337,7 @@ router.post('/register/:code', async function (req, res, next) {
       formKey: 'register'
     });
 
-    if (req.flashHas('pageErrors')) {
+    if (req.flashHas?.('pageErrors')) {
       try {
         await sendRegistrationForm(req, res, formInfo);
       } catch (error) {
@@ -329,7 +367,7 @@ router.post('/register/:code', async function (req, res, next) {
         returnToPath(req, res);
       });
     } catch (error) {
-      req.flashError(error);
+      req.flashError?.(error);
       try {
         await sendRegistrationForm(req, res, formInfo);
       } catch (formError) {
@@ -348,8 +386,12 @@ router.post('/register/:code', async function (req, res, next) {
   }
 });
 
-function sendRegistrationForm(req, res, formInfo) {
-  let pageErrors = req.flash('pageErrors');
+function sendRegistrationForm(
+  req: ActionsRequest,
+  res: ActionsResponse,
+  formInfo?: ReturnType<typeof forms.parseSubmission>
+) {
+  const pageErrors = req.flash('pageErrors');
 
   const { code } = req.params;
   const body = req.body || {};
@@ -370,8 +412,8 @@ function sendRegistrationForm(req, res, formInfo) {
 
 // Check for external redirect in returnTo. If present, redirect to /, otherwise
 // redirect to returnTo
-function returnToPath(req, res) {
-  let returnTo = req.body.returnTo;
+function returnToPath(req: ActionsRequest, res: ActionsResponse) {
+  let returnTo = typeof req.body.returnTo === 'string' ? req.body.returnTo : '';
   // leading slash followed by any non-slash character
   const localPathRegex = new RegExp('^/[^/]');
 
@@ -380,26 +422,32 @@ function returnToPath(req, res) {
   res.redirect(returnTo);
 }
 
-function redirectBackOrHome(req, res) {
+function redirectBackOrHome(req: ActionsRequest, res: ActionsResponse) {
   const backURL = req.get('referer') || '/';
   return res.redirect(backURL);
 }
 
 // If the ?signupLanguage query parameter or has been POSTed, and the language
 // is valid, show the form in the language (but do not set the cookie yet).
-function viewInSignupLanguage(req) {
+function viewInSignupLanguage(req: ActionsRequest) {
   const body = req.body || {};
-  const signupLanguage = req.query.signupLanguage || body.signupLanguage;
+  const signupLanguageQuery = req.query.signupLanguage;
+  const signupLanguageBody = body.signupLanguage;
+  const signupLanguage = typeof signupLanguageQuery === 'string'
+    ? signupLanguageQuery
+    : typeof signupLanguageBody === 'string'
+      ? signupLanguageBody
+      : undefined;
   if (signupLanguage && languages.isValid(signupLanguage))
     i18n.setLocale(req, signupLanguage);
 }
 
 // Once we know that the registration is likely to be successful, actually set
 // the locale cookie if a signup language was POSTed.
-function setSignupLanguage(req, res) {
-  const { signupLanguage } = req.body;
+function setSignupLanguage(req: ActionsRequest, res: ActionsResponse) {
+  const { signupLanguage } = req.body as { signupLanguage?: string };
   if (signupLanguage && languages.isValid(signupLanguage)) {
-    let maxAge = 1000 * 60 * config.sessionCookieDuration; // cookie age: 30 days
+    const maxAge = 1000 * 60 * config.sessionCookieDuration; // cookie age: 30 days
     res.cookie('locale', signupLanguage, {
       maxAge,
       httpOnly: true

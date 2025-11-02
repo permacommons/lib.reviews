@@ -2,13 +2,23 @@ import config from 'config';
 
 import render from './helpers/render.ts';
 import feeds from './helpers/feeds.ts';
-import Team from '../models/team.js';
-import Review from '../models/review.js';
+import Team from '../models/team.ts';
+import Review from '../models/review.ts';
 import ReviewProvider from './handlers/review-provider.ts';
 import reviewHandlers from './handlers/review-handlers.ts';
-import BlogPost from '../models/blog-post.js';
+import BlogPost from '../models/blog-post.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+
+type ReviewsRouteRequest = HandlerRequest;
+type ReviewsRouteResponse = HandlerResponse;
+type ReviewModelType = { getFeed(options?: Record<string, unknown>): Promise<Record<string, any>> };
+type TeamModelType = { filterNotStaleOrDeleted(): { sample: (count: number) => Promise<any> } };
+type BlogPostModelType = { getMostRecentBlogPostsBySlug(slug: string, options?: Record<string, unknown>): Promise<Record<string, any>> };
 
 const routes = ReviewProvider.getDefaultRoutes('review');
+const ReviewModel = Review as unknown as ReviewModelType;
+const TeamModel = Team as unknown as TeamModelType;
+const BlogPostModel = BlogPost as unknown as BlogPostModelType;
 
 routes.addFromThing = {
   path: '/new/review/:id',
@@ -26,14 +36,14 @@ const router = ReviewProvider.bakeRoutes(null, routes);
 
 // We show two query results on the front-page, the team developers blog
 // and a feed of recent reviews, filtered to include only trusted ones.
-router.get('/', async (req, res, next) => {
+router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next: HandlerNext) => {
   const queries = [
-    Review.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
-    Team.filterNotStaleOrDeleted().sample(3) // Random example teams
+    ReviewModel.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
+    TeamModel.filterNotStaleOrDeleted().sample(3) // Random example teams
   ];
 
   if (config.frontPageTeamBlog) {
-    queries.push(BlogPost.getMostRecentBlogPostsBySlug(
+    queries.push(BlogPostModel.getMostRecentBlogPostsBySlug(
       config.frontPageTeamBlog, { limit: 3 }
     ));
   }
@@ -98,7 +108,7 @@ router.get('/', async (req, res, next) => {
 
 router.get('/feed', reviewHandlers.getFeedHandler({ deferPageHeader: true }));
 
-router.get('/feed/atom', (req, res) => res.redirect(`/feed/atom/${req.locale}`));
+router.get('/feed/atom', (req: ReviewsRouteRequest, res: ReviewsRouteResponse) => res.redirect(`/feed/atom/${req.locale}`));
 
 router.get(
   '/feed/atom/:language',
@@ -109,6 +119,6 @@ router.get(
 
 router.get('/feed/before/:utcisodate', reviewHandlers.getFeedHandler({ deferPageHeader: true }));
 
-router.get('/new', (req, res) => res.redirect('/new/review'));
+router.get('/new', (req: ReviewsRouteRequest, res: ReviewsRouteResponse) => res.redirect('/new/review'));
 
 export default router;

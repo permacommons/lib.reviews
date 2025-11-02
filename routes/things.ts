@@ -1,10 +1,10 @@
-import express from 'express';
+import { Router } from 'express';
 import escapeHTML from 'escape-html';
 import * as url from 'node:url';
 import config from 'config';
 
-import Thing from '../models/thing.js';
-import Review from '../models/review.js';
+import Thing from '../models/thing.ts';
+import Review from '../models/review.ts';
 import render from './helpers/render.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import languages from '../locales/languages.ts';
@@ -15,14 +15,33 @@ import search from '../search.ts';
 import getMessages from '../util/get-messages.ts';
 import urlUtils from '../util/url-utils.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 
-const router = express.Router();
+type ThingRouteRequest<Params extends Record<string, string> = Record<string, string>> = HandlerRequest<Params>;
+type ThingRouteResponse = HandlerResponse;
+type ThingInstance = Record<string, any>;
+type ReviewFeed = Record<string, any>;
+type ThingRevision = Record<string, any>;
+
+type ReviewModelType = {
+  getFeed: (options: Record<string, unknown>) => Promise<ReviewFeed>;
+} & Record<string, unknown>;
+
+interface ThingURLsFormParams {
+  req: ThingRouteRequest<{ id: string }>;
+  res: ThingRouteResponse;
+  titleKey: string;
+  thing: ThingInstance;
+  formValues?: Record<string, any>;
+}
+
+const router = Router();
 
 // For handling form fields
 const editableFields = ['description', 'label'];
 
 
-router.get('/:id', function(req, res, next) {
+router.get('/:id', function(req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse, next: HandlerNext) {
   const { id } = req.params;
   slugs
     .resolveAndLoadThing(req, res, id)
@@ -30,13 +49,13 @@ router.get('/:id', function(req, res, next) {
     .catch(getResourceErrorHandler(req, res, next, 'thing', id));
 });
 
-router.get('/:id/manage/urls', signinRequiredRoute('manage links', (req, res, next) => {
+router.get('/:id/manage/urls', signinRequiredRoute('manage links', (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse, next: HandlerNext) => {
   const { id } = req.params,
     titleKey = res.locals.titleKey;
 
   slugs
     .resolveAndLoadThing(req, res, id)
-    .then(thing => {
+    .then(async thing => {
       thing.populateUserInfo(req.user);
       if (!thing.userCanEdit)
         return render.permissionError(req, res, { titleKey });
@@ -53,13 +72,13 @@ router.get('/:id/manage/urls', signinRequiredRoute('manage links', (req, res, ne
 // first URL in the array is the "primary" URL, used wherever we want to
 // offer a convenient single external link related to a review subject.
 router.post('/:id/manage/urls', signinRequiredRoute('manage links',
-  (req, res, next) => {
+  (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse, next: HandlerNext) => {
     const { id } = req.params,
       titleKey = res.locals.titleKey;
 
     slugs
       .resolveAndLoadThing(req, res, id)
-      .then(thing => {
+      .then(async thing => {
         thing.populateUserInfo(req.user);
         if (!thing.userCanEdit)
           return render.permissionError(req, res, { titleKey });
@@ -71,7 +90,7 @@ router.post('/:id/manage/urls', signinRequiredRoute('manage links',
   }));
 
 
-router.get('/:id/edit/:field', function(req, res, next) {
+router.get('/:id/edit/:field', function(req: ThingRouteRequest<{ id: string; field: string }>, res: ThingRouteResponse, next: HandlerNext) {
 
   if (!editableFields.includes(req.params.field))
     return next();
@@ -87,7 +106,7 @@ router.get('/:id/edit/:field', function(req, res, next) {
 
   slugs
     .resolveAndLoadThing(req, res, id)
-    .then(thing => {
+    .then(async thing => {
       thing.populateUserInfo(req.user);
       if (!thing.userCanEdit)
         return render.permissionError(req, res, { titleKey });
@@ -106,58 +125,59 @@ router.get('/:id/edit/:field', function(req, res, next) {
 
 router.post('/:id/edit/:field', processTextFieldUpdate);
 
-router.get('/:id/before/:utcisodate', function(req, res, next) {
+router.get('/:id/before/:utcisodate', function(req: ThingRouteRequest<{ id: string; utcisodate: string }>, res: ThingRouteResponse, next: HandlerNext) {
   const { id } = req.params;
   let utcISODate = req.params.utcisodate;
   slugs.resolveAndLoadThing(req, res, id)
     .then(thing => {
       let offsetDate = new Date(utcISODate);
-      if (!offsetDate || offsetDate == 'Invalid Date')
+      if (!offsetDate || Number.isNaN(offsetDate.getTime()))
         offsetDate = null;
       loadThingAndReviews(req, res, next, thing, offsetDate);
     })
     .catch(getResourceErrorHandler(req, res, next, 'thing', id));
 });
 
-router.get('/:id/atom/:language', function(req, res, next) {
+router.get('/:id/atom/:language', function(req: ThingRouteRequest<{ id: string; language: string }>, res: ThingRouteResponse, next: HandlerNext) {
   const { id } = req.params;
   let language = req.params.language;
   slugs
     .resolveAndLoadThing(req, res, id)
-    .then(thing => {
+    .then(async thing => {
 
       if (!languages.isValid(language))
         return res.redirect(`/${id}/atom/en`);
 
-      getReviewModel()
-        .then(Review => Review.getFeed({
+      try {
+        const ReviewModel = await getReviewModel();
+        const result = await ReviewModel.getFeed({
           thingID: thing.id,
           withThing: false,
           withTeams: true
-        }))
-        .then(result => {
+        });
 
-          let updatedDate;
-          result.feedItems.forEach(review => {
-            if (!updatedDate || (review.createdOn && review.createdOn > updatedDate))
-              updatedDate = review.createdOn;
-          });
+        let updatedDate;
+        result.feedItems.forEach(review => {
+          if (!updatedDate || (review.createdOn && review.createdOn > updatedDate))
+            updatedDate = review.createdOn;
+        });
 
-          req.setLocale(language);
-          res.type('application/atom+xml');
-          render.template(req, res, 'thing-feed-atom', {
-            titleKey: 'reviews of',
-            thing,
-            layout: 'layout-atom',
-            language,
-            updatedDate,
-            feedItems: result.feedItems,
-            selfURL: url.resolve(config.qualifiedURL, `/${id}/atom/${language}`),
-            htmlURL: url.resolve(config.qualifiedURL, `/${id}`)
-          });
-
-        })
-        .catch(next);
+        const setLocale = (req as unknown as { setLocale?: (locale: string) => void }).setLocale;
+        setLocale?.(language);
+        res.type('application/atom+xml');
+        render.template(req, res, 'thing-feed-atom', {
+          titleKey: 'reviews of',
+          thing,
+          layout: 'layout-atom',
+          language,
+          updatedDate,
+          feedItems: result.feedItems,
+          selfURL: url.resolve(config.qualifiedURL, `/${id}/atom/${language}`),
+          htmlURL: url.resolve(config.qualifiedURL, `/${id}`)
+        });
+      } catch (error) {
+        next(error);
+      }
 
 
     })
@@ -167,38 +187,46 @@ router.get('/:id/atom/:language', function(req, res, next) {
 
 // Legacy redirects
 
-router.get('/thing/:id', function(req, res) {
+router.get('/thing/:id', function(req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse) {
   const { id } = req.params;
   return res.redirect(`/${id}`);
 });
 
-router.get('/thing/:id/before/:utcisodate', function(req, res) {
+router.get('/thing/:id/before/:utcisodate', function(req: ThingRouteRequest<{ id: string; utcisodate: string }>, res: ThingRouteResponse) {
   const { id } = req.params;
   let utcISODate = req.params.utcisodate;
   return res.redirect(`/${id}/before/${utcISODate}`);
 });
 
-router.get('/thing/:id/atom/:language', function(req, res) {
+router.get('/thing/:id/atom/:language', function(req: ThingRouteRequest<{ id: string; language: string }>, res: ThingRouteResponse) {
   const { id } = req.params;
   let language = req.params.language;
   return res.redirect(`/${id}/atom/${language}`);
 });
 
-let reviewModelPromise;
-function getReviewModel() {
-  return Review;
+let reviewModelPromise: Promise<ReviewModelType> | undefined;
+function getReviewModel(): Promise<ReviewModelType> {
+  if (!reviewModelPromise)
+    reviewModelPromise = Promise.resolve(Review as unknown as ReviewModelType);
+  return reviewModelPromise;
 }
 
-async function loadThingAndReviews(req, res, next, thing, offsetDate) {
+async function loadThingAndReviews(
+  req: ThingRouteRequest<{ id: string }>,
+  res: ThingRouteResponse,
+  next: HandlerNext,
+  thing: ThingInstance,
+  offsetDate?: Date | null
+) {
   try {
-    const Review = getReviewModel();
+    const ReviewModel = await getReviewModel();
 
     thing.populateUserInfo(req.user);
     if (Array.isArray(thing.files)) {
       thing.files.forEach(file => file.populateUserInfo(req.user));
     }
 
-    const otherReviewsPromise = Review.getFeed({
+    const otherReviewsPromise = ReviewModel.getFeed({
       thingID: thing.id,
       withThing: false,
       withTeams: true,
@@ -223,7 +251,11 @@ async function loadThingAndReviews(req, res, next, thing, offsetDate) {
   }
 }
 
-function processTextFieldUpdate(req, res, next) {
+function processTextFieldUpdate(
+  req: ThingRouteRequest<{ id: string; field: string }>,
+  res: ThingRouteResponse,
+  next: HandlerNext
+) {
 
   const { field, id } = req.params;
 
@@ -250,33 +282,39 @@ function processTextFieldUpdate(req, res, next) {
       thing
         .newRevision(req.user)
         .then(newRev => {
-          let language = req.body['thing-language'];
+          const revision = newRev as ThingRevision;
+          const languageInput = req.body['thing-language'];
+          const language = typeof languageInput === 'string' ? languageInput : '';
           languages.validate(language);
-          let text = req.body[`thing-${field}`];
-          
+          const textInput = req.body[`thing-${field}`];
+          const text = typeof textInput === 'string' ? textInput : '';
+
           // Handle metadata fields (description, subtitle, authors) differently
           const metadataFields = ['description', 'subtitle', 'authors'];
           if (metadataFields.includes(field)) {
-            if (!newRev.metadata)
-              newRev.metadata = {};
-            if (!newRev.metadata[field])
-              newRev.metadata[field] = {};
-            newRev.metadata[field][language] = escapeHTML(text);
+            if (!revision.metadata)
+              revision.metadata = {};
+            const metadata = revision.metadata as ThingRevision;
+            if (!metadata[field])
+              metadata[field] = {};
+            (metadata[field] as Record<string, any>)[language] = escapeHTML(text);
           } else {
             // Handle direct fields like label
-            if (!newRev[field])
-              newRev[field] = {};
-            newRev[field][language] = escapeHTML(text);
+            if (!revision[field])
+              revision[field] = {};
+            (revision[field] as Record<string, any>)[language] = escapeHTML(text);
           }
-          
-          if (!newRev.originalLanguage)
-            newRev.originalLanguage = language;
+
+          if (!revision.originalLanguage)
+            revision.originalLanguage = language;
 
           let maybeUpdateSlug;
           if (field === 'label') // Must update slug to match label change
-            maybeUpdateSlug = newRev.updateSlug(req.user.id, language);
+            maybeUpdateSlug = typeof revision.updateSlug === 'function'
+              ? revision.updateSlug(req.user?.id, language)
+              : Promise.resolve(revision);
           else
-            maybeUpdateSlug = Promise.resolve(newRev); // Nothing to do
+            maybeUpdateSlug = Promise.resolve(revision); // Nothing to do
 
           maybeUpdateSlug
             .then(updatedRev => {
@@ -290,7 +328,7 @@ function processTextFieldUpdate(req, res, next) {
             })
             .catch(error => {
               if (error.name === 'InvalidLanguageError') {
-                req.flashError(error);
+                req.flashError?.(error);
                 sendThing(req, res, thing);
               } else
                 return next(error);
@@ -301,7 +339,13 @@ function processTextFieldUpdate(req, res, next) {
     .catch(getResourceErrorHandler(req, res, next, 'thing', id));
 }
 
-function sendForm(req, res, thing, edit, titleKey) {
+function sendForm(
+  req: ThingRouteRequest<{ id: string }>,
+  res: ThingRouteResponse,
+  thing: ThingInstance,
+  edit: Record<string, boolean>,
+  titleKey: string
+) {
   edit = Object.assign({
     label: false,
     description: false
@@ -309,12 +353,12 @@ function sendForm(req, res, thing, edit, titleKey) {
   let pageErrors = req.flash('pageErrors');
   let pageMessages = req.flash('pageMessages');
   let showLanguageNotice = false;
-  let user = req.user;
+  const user = req.user;
 
   // If not suppressed, show a notice informing the user that UI language
   // is content language
-  if (req.method == 'GET' && (!user.suppressedNotices ||
-      user.suppressedNotices.indexOf('language-notice-thing') == -1))
+  const suppressedNotices = Array.isArray(user?.suppressedNotices) ? user?.suppressedNotices : [];
+  if (req.method === 'GET' && suppressedNotices.indexOf('language-notice-thing') === -1)
     showLanguageNotice = true;
 
   render.template(req, res, 'thing-form', {
@@ -329,7 +373,12 @@ function sendForm(req, res, thing, edit, titleKey) {
 
 }
 
-function sendThing(req, res, thing, options) {
+function sendThing(
+  req: ThingRouteRequest<{ id: string }>,
+  res: ThingRouteResponse,
+  thing: ThingInstance,
+  options: Partial<{ otherReviews: ReviewFeed; userReviews: ReviewFeed }> = {}
+) {
   options = Object.assign({
     // Set to a feed of reviews not written by the currently logged in user
     otherReviews: [],
@@ -380,11 +429,12 @@ function sendThing(req, res, thing, options) {
 
 // Send the form for the "manage URLs" route, either with the current
 // URLs, or with data from the POST request
-function sendThingURLsForm(paramsObj) {
+function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
   const { req, res, titleKey, thing, formValues } = paramsObj;
   const pageErrors = req.flash('pageErrors'),
     pageMessages = req.flash('pageMessages');
-  let numberOfFields = thing.urls.length + 2;
+  const baseCount = Array.isArray(thing.urls) ? thing.urls.length : 0;
+  let numberOfFields = baseCount + 2;
   render.template(req, res, 'thing-urls', {
     titleKey,
     thing,
@@ -402,9 +452,9 @@ function sendThingURLsForm(paramsObj) {
 }
 
 // Handle data from a POST request for the "manage URLs" route
-function processThingURLsUpdate(paramsObj) {
+function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   const { req, res, titleKey, thing } = paramsObj;
-  const formDef = [{
+  const formDef: Array<Record<string, unknown>> = [{
     name: 'primary',
     type: 'number',
     required: true
@@ -420,15 +470,17 @@ function processThingURLsUpdate(paramsObj) {
       });
   }
 
-  let parsed = forms.parseSubmission(req, { formDef, formKey: 'thing-urls' });
+  let parsed = forms.parseSubmission(req, { formDef: formDef as any, formKey: 'thing-urls' });
 
   // Process errors handled by form parser
   if (parsed.hasUnknownFields || !parsed.hasRequiredFields)
     return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
 
   // Detect additional case of primary pointing to a blank field
-  let primaryURL = parsed.formValues.urls[parsed.formValues.primary];
-  if (typeof primaryURL !== 'string' || !primaryURL.length) {
+  const submittedURLs = parsed.formValues.urls as unknown[];
+  const primaryIndex = Number(parsed.formValues.primary);
+  const primaryURL = typeof submittedURLs?.[primaryIndex] === 'string' ? submittedURLs[primaryIndex] as string : '';
+  if (!primaryURL.length) {
     req.flash('pageErrors', req.__('need primary'));
     return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
   }
@@ -436,12 +488,13 @@ function processThingURLsUpdate(paramsObj) {
   // The primary URL is simply the first one in the array, so we
   // have to re-order -- and also filter any empty fields. Validation
   // is done by the model (and client-side for JS users).
-  let thingURLs = [primaryURL].concat(parsed.formValues.urls.filter(
-    url => url !== primaryURL && typeof url === 'string' && url.length
-  ));
+  const normalizedURLs = Array.isArray(submittedURLs) ? submittedURLs : [];
+  let thingURLs = [primaryURL].concat(normalizedURLs.filter(
+    url => typeof url === 'string' && url !== primaryURL && url.length
+  ) as string[]);
 
   // Now we need to make sure that none of the URLs are currently in use.
-  let urlLookups = [];
+  let urlLookups: Promise<unknown>[] = [];
   thingURLs.forEach(url => {
     urlLookups.push(
       Thing
@@ -454,7 +507,8 @@ function processThingURLsUpdate(paramsObj) {
   // Perform lookups
   Promise
     .all(urlLookups)
-    .then(results => {
+    .then(resultSet => {
+      const results = resultSet as Array<any>;
       let hasDuplicate = false;
       results.forEach((r, index) => {
         if (r.length) {
@@ -480,14 +534,14 @@ function processThingURLsUpdate(paramsObj) {
               sendThingURLsForm({ req, res, titleKey, thing: savedRev });
             })
             .catch(error => { // Problem with syncs
-              req.flashError(error);
+              req.flashError?.(error);
               sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
             });
         });
 
     })
     .catch(error => { // Problem with lookup
-      req.flashError(error);
+      req.flashError?.(error);
       sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
     });
 }

@@ -6,7 +6,7 @@ import render from '../helpers/render.ts';
 import api from '../helpers/api.ts';
 
 import apiUploadHandler from './api-upload-handler.ts';
-import { checkMIMEType, assignFilename } from '../uploads.js';
+import { checkMIMEType, assignFilename } from '../uploads.ts';
 import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
 
 type UploadFile = {

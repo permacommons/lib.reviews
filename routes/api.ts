@@ -1,12 +1,16 @@
-import express from 'express';
+import { Router } from 'express';
 
-import User from '../models/user.js';
-import Thing from '../models/thing.js';
+import User from '../models/user.ts';
+import Thing from '../models/thing.ts';
 import actionHandler from './handlers/action-handler.ts';
 import search from '../search.ts';
 import urlUtils from '../util/url-utils.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 
-const router = express.Router();
+type ApiRouteRequest = HandlerRequest;
+type ApiRouteResponse = HandlerResponse;
+
+const router = Router();
 
 // For true/false user preferences.
 router.post('/actions/:modify-preference', actionHandler.modifyPreference);
@@ -18,13 +22,15 @@ router.post('/actions/upload', actionHandler.upload);
 // Query existence/properties of a thing (review subject)
 // look up by canonical URL name via /thing/:label or use URL query parameter
 // e.g., ?url=http://yahoo.com
-router.get('/thing', function(req, res, next) {
-  if (req.query.url) {
-    let rv = {},
-      failureMsg = 'Could not retrieve review subject.',
-      userID = req.query.userID;
+router.get('/thing', function(req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
+  const urlQuery = req.query.url;
+  const urlParam = typeof urlQuery === 'string' ? urlQuery : Array.isArray(urlQuery) ? String(urlQuery[0] ?? '') : undefined;
+  if (urlParam) {
+    const rv: Record<string, unknown> = {};
+    const failureMsg = 'Could not retrieve review subject.';
+    const userID = typeof req.query.userID === 'string' ? req.query.userID : undefined;
 
-    if (!urlUtils.validate(req.query.url)) {
+    if (!urlUtils.validate(urlParam)) {
       rv.message = failureMsg;
       rv.errors = ['URL is not valid.'];
       res.status(400);
@@ -34,7 +40,7 @@ router.get('/thing', function(req, res, next) {
     }
 
     Thing
-      .lookupByURL(urlUtils.normalize(req.query.url), userID)
+      .lookupByURL(urlUtils.normalize(urlParam), userID)
       .then(result => {
         if (!result.length) {
           res.status(404);
@@ -74,26 +80,28 @@ router.get('/thing', function(req, res, next) {
 });
 
 // Search suggestions
-router.get('/suggest/thing/:prefix', function(req, res, next) {
+router.get('/suggest/thing/:prefix', function(req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
   const prefix = req.params.prefix.trim();
   search
     .suggestThing(prefix, req.locale)
     .then(results => {
-      let rv = {};
+    const rv: Record<string, unknown> = {};
 
-      // Simplify ElasticSearch result structure for API use (flatten, strip
-      // metadata; strip unneeded source data)
-      rv.results = results.suggest;
-      for (let k in rv.results) {
-        rv.results[k] = rv.results[k][0].options;
-        for (let option of rv.results[k]) {
-          option.urlID = option._source.urlID;
-          option.urls = option._source.urls;
-          option.description = option._source.description;
-          Reflect.deleteProperty(option, '_source');
-          Reflect.deleteProperty(option, '_index');
-        }
+    // Simplify ElasticSearch result structure for API use (flatten, strip
+    // metadata; strip unneeded source data)
+    const suggestions = (results as Record<string, any>).suggest as Record<string, any[]>;
+    rv.results = suggestions;
+    for (const key of Object.keys(suggestions)) {
+      const entries = suggestions[key][0].options;
+      for (const option of entries) {
+        option.urlID = option._source.urlID;
+        option.urls = option._source.urls;
+        option.description = option._source.description;
+        Reflect.deleteProperty(option, '_source');
+        Reflect.deleteProperty(option, '_index');
       }
+      suggestions[key] = entries;
+    }
 
       res.type('json');
       res.status(200);
@@ -102,9 +110,9 @@ router.get('/suggest/thing/:prefix', function(req, res, next) {
     .catch(next);
 });
 
-router.get('/user/:name', function(req, res) {
+router.get('/user/:name', function(req: ApiRouteRequest, res: ApiRouteResponse) {
   const { name } = req.params;
-  let rv = {};
+  const rv: Record<string, unknown> = {};
   User.filter({
     canonicalName: User.canonicalize(name)
   }).then(result => {

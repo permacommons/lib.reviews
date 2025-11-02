@@ -6,7 +6,7 @@ import {
   cleanupFiles,
   getFileRevs,
   completeUploads
-} from '../uploads.js';
+} from '../uploads.ts';
 import ReportedError from '../../util/reported-error.ts';
 import File from '../../models/file.ts';
 import api from '../helpers/api.ts';

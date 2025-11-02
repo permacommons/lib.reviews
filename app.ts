@@ -99,16 +99,16 @@ async function getApp(): Promise<express.Express> {
   const dal = await dalPromise;
   app.locals.dal = dal;
 
-  const { default: reviews } = await import('./routes/reviews.js');
-  const { default: actions } = await import('./routes/actions.js');
-  const { default: users } = await import('./routes/users.js');
-  const { default: teams } = await import('./routes/teams.js');
-  const { default: things } = await import('./routes/things.js');
-  const { default: files } = await import('./routes/files.js');
-  const { default: api } = await import('./routes/api.js');
-  const { default: pages } = await import('./routes/pages.js');
-  const { default: blogPosts } = await import('./routes/blog-posts.js');
-  const { stage1Router, stage2Router } = await import('./routes/uploads.js');
+  const { default: reviews } = await import('./routes/reviews.ts');
+  const { default: actions } = await import('./routes/actions.ts');
+  const { default: users } = await import('./routes/users.ts');
+  const { default: teams } = await import('./routes/teams.ts');
+  const { default: things } = await import('./routes/things.ts');
+  const { default: files } = await import('./routes/files.ts');
+  const { default: api } = await import('./routes/api.ts');
+  const { default: pages } = await import('./routes/pages.ts');
+  const { default: blogPosts } = await import('./routes/blog-posts.ts');
+  const { stage1Router, stage2Router } = await import('./routes/uploads.ts');
 
   const store = new PgSessionStore({
     pool: dal.pool,

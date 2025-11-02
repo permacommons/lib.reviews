@@ -1,14 +1,14 @@
-import express from 'express';
+import { Router } from 'express';
 
 import userHandlers from './handlers/user-handlers.ts';
 
-const router = express.Router();
+const router = Router();
 
-router.get('/:name', userHandlers.getUserHandler());
+router.get('/:name', userHandlers.getUserHandler({}));
 
-router.get('/:name/feed', userHandlers.getUserFeedHandler());
+router.get('/:name/feed', userHandlers.getUserFeedHandler({}));
 
-router.get('/:name/feed/before/:utcisodate', userHandlers.getUserFeedHandler());
+router.get('/:name/feed/before/:utcisodate', userHandlers.getUserFeedHandler({}));
 
 router.get('/:name/feed/atom/:language', userHandlers.getUserFeedHandler({ format: 'atom' }));
 

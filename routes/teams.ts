@@ -1,20 +1,26 @@
 import escapeHTML from 'escape-html';
 
 import TeamProvider from './handlers/team-provider.ts';
-import TeamJoinRequest from '../models/team-join-request.js';
+import TeamJoinRequest from '../models/team-join-request.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import render from './helpers/render.ts';
 import mlString from '../dal/lib/ml-string.js';
 import languages from '../locales/languages.ts';
 import slugs from './helpers/slugs.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 
 // Default routes for read, edit, add, delete
+type TeamRouteRequest<Params extends Record<string, string> = Record<string, string>> = HandlerRequest<Params>;
+type TeamRouteResponse = HandlerResponse;
+
+const TeamJoinRequestModel = TeamJoinRequest as unknown as { new(args: Record<string, unknown>): any };
+
 const router = TeamProvider.bakeRoutes('team');
 
-router.get('/team', (req, res) => res.redirect('/teams'));
+router.get('/team', (_req: TeamRouteRequest, res: TeamRouteResponse) => res.redirect('/teams'));
 
 // Feed of all reviews
-router.get('/team/:id/feed', (req, res, next) => {
+router.get('/team/:id/feed', (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
   const teamProvider = new TeamProvider(req, res, next, {
     action: 'feed',
     method: 'GET',
@@ -24,9 +30,9 @@ router.get('/team/:id/feed', (req, res, next) => {
 });
 
 // Feed of all reviews before a given date
-router.get('/team/:id/feed/before/:utcisodate', (req, res, next) => {
+router.get('/team/:id/feed/before/:utcisodate', (req: TeamRouteRequest<{ id: string; utcisodate: string }>, res: TeamRouteResponse, next: HandlerNext) => {
   let offsetDate = new Date(req.params.utcisodate);
-  if (!offsetDate || offsetDate == 'Invalid Date')
+  if (Number.isNaN(offsetDate.getTime()))
     offsetDate = null;
 
   let teamProvider = new TeamProvider(req, res, next, {
@@ -38,12 +44,12 @@ router.get('/team/:id/feed/before/:utcisodate', (req, res, next) => {
   teamProvider.execute();
 });
 
-router.get('/team/:id/feed/atom', (req, res) =>
+router.get('/team/:id/feed/atom', (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse) =>
   res.redirect(`/team/${req.params.id}/feed/atom/${req.locale}`)
 );
 
 // Feed of all reviews in Atom format
-router.get('/team/:id/feed/atom/:language', (req, res, next) => {
+router.get('/team/:id/feed/atom/:language', (req: TeamRouteRequest<{ id: string; language: string }>, res: TeamRouteResponse, next: HandlerNext) => {
   let { language } = req.params;
   if (!languages.isValid(language))
     language = 'en';
@@ -60,7 +66,7 @@ router.get('/team/:id/feed/atom/:language', (req, res, next) => {
 
 
 // Show list of all teams
-router.get('/teams', function(req, res, next) {
+router.get('/teams', function(req: TeamRouteRequest, res: TeamRouteResponse, next: HandlerNext) {
   let teamProvider = new TeamProvider(req, res, next, {
     action: 'browse',
     method: 'GET'
@@ -69,7 +75,7 @@ router.get('/teams', function(req, res, next) {
 });
 
 // Show membership roster for a specific team
-router.get('/team/:id/members', function(req, res, next) {
+router.get('/team/:id/members', function(req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
   let teamProvider = new TeamProvider(req, res, next, {
     action: 'members',
     method: 'GET',
@@ -79,7 +85,7 @@ router.get('/team/:id/members', function(req, res, next) {
 });
 
 // Moderator tool for managing requests which require moderator approval
-router.get('/team/:id/manage-requests', function(req, res, next) {
+router.get('/team/:id/manage-requests', function(req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
   let teamProvider = new TeamProvider(req, res, next, {
     action: 'manageRequests',
     method: 'GET',
@@ -89,7 +95,7 @@ router.get('/team/:id/manage-requests', function(req, res, next) {
 });
 
 // Moderator tool for managing requests which require moderator approval
-router.post('/team/:id/manage-requests', function(req, res, next) {
+router.post('/team/:id/manage-requests', function(req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
   let teamProvider = new TeamProvider(req, res, next, {
     action: 'manageRequests',
     method: 'POST',
@@ -99,7 +105,7 @@ router.post('/team/:id/manage-requests', function(req, res, next) {
 });
 
 // Process join requests, form is on team page itself
-router.post('/team/:id/join', function(req, res, next) {
+router.post('/team/:id/join', function(req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
   const { id } = req.params;
   slugs
     .resolveAndLoadTeam(req, res, id)
@@ -116,12 +122,15 @@ router.post('/team/:id/join', function(req, res, next) {
 
       if (team.modApprovalToJoin) {
         // Check if there's an existing join request (withdrawn, rejected, or approved)
-        const existingRequest = team.joinRequests.find(jr => jr.userID === req.user.id);
+        const existingRequest = team.joinRequests.find((jr: Record<string, any>) => jr.userID === req.user.id);
+
+        const joinRequestMessageInput = req.body['join-request-message'];
+        const joinRequestMessage = typeof joinRequestMessageInput === 'string' ? joinRequestMessageInput.trim() : '';
 
         if (existingRequest) {
           // Update existing request
           existingRequest.status = 'pending';
-          existingRequest.requestMessage = escapeHTML(req.body['join-request-message'].trim());
+          existingRequest.requestMessage = escapeHTML(joinRequestMessage);
           existingRequest.requestDate = new Date();
           existingRequest.rejectionDate = null;
           existingRequest.rejectedBy = null;
@@ -132,10 +141,10 @@ router.post('/team/:id/join', function(req, res, next) {
           .catch(next);
         } else {
           // Create new request
-          let teamJoinRequest = new TeamJoinRequest({
+          let teamJoinRequest = new TeamJoinRequestModel({
             teamID: team.id,
             userID: req.user.id,
-            requestMessage: escapeHTML(req.body['join-request-message'].trim()),
+            requestMessage: escapeHTML(joinRequestMessage),
             requestDate: new Date()
           });
           teamJoinRequest.save().then(() => {
@@ -160,7 +169,7 @@ router.post('/team/:id/join', function(req, res, next) {
 });
 
 // Process leave requests, form is on team page itself
-router.post('/team/:id/leave', function(req, res, next) {
+router.post('/team/:id/leave', function(req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
   const { id } = req.params;
   slugs
     .resolveAndLoadTeam(req, res, id)
@@ -173,7 +182,7 @@ router.post('/team/:id/leave', function(req, res, next) {
       team.moderators = team.moderators.filter(moderator => moderator.id !== req.user.id);
 
       // Mark any existing join request as withdrawn
-      const existingRequest = team.joinRequests.find(jr => jr.userID === req.user.id);
+      const existingRequest = team.joinRequests.find((jr: Record<string, any>) => jr.userID === req.user.id);
       const savePromises = [team.saveAll()];
 
       if (existingRequest) {

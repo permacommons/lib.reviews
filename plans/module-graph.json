@@ -8,19 +8,19 @@
         "./auth.ts",
         "./bootstrap/dal.ts",
         "./locales/languages.ts",
-        "./routes/actions.js",
-        "./routes/api.js",
-        "./routes/blog-posts.js",
+        "./routes/actions.ts",
+        "./routes/api.ts",
+        "./routes/blog-posts.ts",
         "./routes/errors.ts",
-        "./routes/files.js",
+        "./routes/files.ts",
         "./routes/helpers/api.js",
         "./routes/helpers/flash.js",
-        "./routes/pages.js",
-        "./routes/reviews.js",
-        "./routes/teams.js",
-        "./routes/things.js",
-        "./routes/uploads.js",
-        "./routes/users.js",
+        "./routes/pages.ts",
+        "./routes/reviews.ts",
+        "./routes/teams.ts",
+        "./routes/things.ts",
+        "./routes/uploads.ts",
+        "./routes/users.ts",
         "./util/client-assets.ts",
         "./util/csrf.js",
         "./util/debug.ts",
@@ -400,7 +400,7 @@
       ]
     },
     {
-      "source": "routes/actions.js",
+      "source": "routes/actions.ts",
       "dependencies": [
         "../locales/languages.ts",
         "../models/invite-link.js",
@@ -448,7 +448,7 @@
       "dependencies": []
     },
     {
-      "source": "routes/uploads.js",
+      "source": "routes/uploads.ts",
       "dependencies": [
         "../locales/languages.ts",
         "../models/file.js",
@@ -518,7 +518,7 @@
       ]
     },
     {
-      "source": "routes/api.js",
+      "source": "routes/api.ts",
       "dependencies": [
         "../models/thing.js",
         "../models/user.js",
@@ -528,7 +528,7 @@
       ]
     },
     {
-      "source": "routes/blog-posts.js",
+      "source": "routes/blog-posts.ts",
       "dependencies": [
         "./handlers/blog-post-provider.js"
       ]
@@ -593,7 +593,7 @@
       ]
     },
     {
-      "source": "routes/files.js",
+      "source": "routes/files.ts",
       "dependencies": [
         "../models/file.js",
         "./handlers/resource-error-handler.js",
@@ -612,7 +612,7 @@
       ]
     },
     {
-      "source": "routes/pages.js",
+      "source": "routes/pages.ts",
       "dependencies": [
         "../locales/languages.ts",
         "./helpers/render.js",
@@ -623,7 +623,7 @@
       ]
     },
     {
-      "source": "routes/reviews.js",
+      "source": "routes/reviews.ts",
       "dependencies": [
         "../models/blog-post.js",
         "../models/review.js",
@@ -663,7 +663,7 @@
       ]
     },
     {
-      "source": "routes/teams.js",
+      "source": "routes/teams.ts",
       "dependencies": [
         "../dal/lib/ml-string.js",
         "../locales/languages.ts",
@@ -691,7 +691,7 @@
       ]
     },
     {
-      "source": "routes/things.js",
+      "source": "routes/things.ts",
       "dependencies": [
         "../locales/languages.ts",
         "../models/review.js",
@@ -709,7 +709,7 @@
       ]
     },
     {
-      "source": "routes/users.js",
+      "source": "routes/users.ts",
       "dependencies": [
         "./handlers/user-handlers.js"
       ]
