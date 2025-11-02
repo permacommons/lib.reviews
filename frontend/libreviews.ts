@@ -6,15 +6,105 @@ import './styles/style.less';
 import Autocomplete from './lib/ac.js';
 import initializeSisyphus from './lib/sisyphus.js';
 
+/**
+ * Options for message parameterization.
+ */
+export interface MessageOptions {
+  /**
+   * Access key to append to the message.
+   */
+  accessKey?: string;
+  /**
+   * Single string parameter for %s placeholders.
+   */
+  stringParam?: string | number;
+  /**
+   * Multiple ordered string parameters for %1$s, %2$s, etc.
+   */
+  stringParams?: Array<string | number>;
+  /**
+   * Single numeric parameter for %d placeholders.
+   */
+  numberParam?: number;
+  /**
+   * Multiple ordered numeric parameters for %1$d, %2$d, etc.
+   */
+  numberParams?: number[];
+}
+
+/**
+ * Multi-language string object.
+ */
+export interface MLString {
+  [languageCode: string]: string;
+}
+
+/**
+ * Search suggestion result from the API.
+ */
+export interface SearchSuggestion {
+  title: string;
+  urlID: string;
+  description?: string;
+  language?: string;
+}
+
+/**
+ * API response from the thing suggestion endpoint.
+ */
+export interface SuggestResponse {
+  results?: Record<string, Array<{
+    _id: string;
+    text: string;
+    urlID: string;
+    description?: MLString;
+  }>>;
+}
+
+/**
+ * Active rich text editors by ID.
+ */
+export interface ActiveRTEs {
+  [editorId: string]: {
+    reRender: () => void;
+  };
+}
+
+/**
+ * Public API exposed by libreviews.
+ */
+export interface LibreviewsAPI {
+  msg: typeof msg;
+  resolveString: typeof resolveString;
+  getLanguageIDSpan: typeof getLanguageIDSpan;
+  trimInput: typeof trimInput;
+  enableRequiredGroup: typeof enableRequiredGroup;
+  disableRequiredGroup: typeof disableRequiredGroup;
+  repaintFocusedHelp: typeof repaintFocusedHelp;
+  addHelpListeners: typeof addHelpListeners;
+  updateContentClickHandlers: typeof updateContentClickHandlers;
+  validateURL: typeof validateURL;
+  urlHasSupportedProtocol: typeof urlHasSupportedProtocol;
+  activeRTEs: ActiveRTEs;
+}
+
 let initialized = false;
 
 initializeSisyphus();
 
-function msg(messageKey, options) {
-  if (!globalThis.config || !globalThis.config.messages || !globalThis.config.messages[messageKey])
+/**
+ * Retrieves a localized message from the global config by key, with optional
+ * parameter substitution.
+ *
+ * @param messageKey - Key for the message in the global config.messages object
+ * @param options - Optional parameters for interpolation and access keys
+ * @returns The formatted message string, or ?messageKey? if not found
+ */
+export function msg(messageKey: string, options?: MessageOptions): string {
+  if (!window.config || !window.config.messages || !window.config.messages[messageKey])
     return `?${messageKey}?`;
 
-  let rv = globalThis.config.messages[messageKey];
+  let rv = window.config.messages[messageKey];
 
   if (typeof options !== 'object')
     return rv;
@@ -33,25 +123,33 @@ function msg(messageKey, options) {
   if (Array.isArray(numberParams))
     rv = processOrderedParams(rv, 'd', numberParams);
 
-  if (accessKey && globalThis.config.messages['accesskey'])
-    rv += '\n' + globalThis.config.messages['accesskey'].replace('%s', accessKey);
+  if (accessKey && window.config.messages && window.config.messages['accesskey'])
+    rv += '\n' + window.config.messages['accesskey'].replace('%s', accessKey);
 
   return rv;
 
-  function processSingleParam(str, typeStr, param) {
-    return str.replace(`%${typeStr}`, param);
+  function processSingleParam(str: string, typeStr: string, param: string | number): string {
+    return str.replace(`%${typeStr}`, String(param));
   }
 
-  function processOrderedParams(str, typeStr, paramArr) {
+  function processOrderedParams(str: string, typeStr: string, paramArr: Array<string | number>): string {
     paramArr.forEach((orderedParam, index) => {
       index++;
-      str = str.replace(new RegExp(`%${index}\\$${typeStr}`, 'g'), orderedParam);
+      str = str.replace(new RegExp(`%${index}\\$${typeStr}`, 'g'), String(orderedParam));
     });
     return str;
   }
 }
 
-function resolveString(lang, strObj) {
+/**
+ * Resolves a multi-language string to a single language, preferring the
+ * specified language but falling back to any available language.
+ *
+ * @param lang - Preferred language code
+ * @param strObj - Multi-language string object
+ * @returns Resolved string or undefined if object is empty
+ */
+export function resolveString(lang: string, strObj?: MLString): string | undefined {
   if (strObj === undefined)
     return undefined;
 
@@ -66,21 +164,36 @@ function resolveString(lang, strObj) {
   return undefined;
 }
 
-function getLanguageIDSpan(lang) {
+/**
+ * Creates a styled language identifier badge for a given language code.
+ *
+ * @param lang - ISO language code
+ * @returns jQuery element containing the language badge
+ */
+export function getLanguageIDSpan(lang: string): JQuery<HTMLSpanElement> {
   if (typeof lang !== 'string')
     throw new Error('Need valid language identifier.');
 
   let title = msg(`language ${lang} composite name`);
   return $(`<span class="language-identifier" title="${title}">`)
     .text(lang.toUpperCase())
-    .prepend('<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>');
+    .prepend('<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>') as JQuery<HTMLSpanElement>;
 }
 
-function trimInput() {
+/**
+ * Trims whitespace from the value of an input or textarea element.
+ * Intended as a jQuery event handler bound with `this` context.
+ */
+export function trimInput(this: HTMLInputElement | HTMLTextAreaElement): void {
   this.value = this.value.trim();
 }
 
-function enableRequiredGroup(groupID) {
+/**
+ * Enables a group of required field indicators and marks inputs as required.
+ *
+ * @param groupID - Data attribute value identifying the required group
+ */
+export function enableRequiredGroup(groupID: string): void {
   $(`span[data-required-indicator-group="${groupID}"]`)
     .addClass('required')
     .removeClass('hidden');
@@ -88,7 +201,12 @@ function enableRequiredGroup(groupID) {
     .attr('data-required', '');
 }
 
-function disableRequiredGroup(groupID) {
+/**
+ * Disables a group of required field indicators and removes required status.
+ *
+ * @param groupID - Data attribute value identifying the required group
+ */
+export function disableRequiredGroup(groupID: string): void {
   $(`span[data-required-indicator-group="${groupID}"]`)
     .addClass('hidden')
     .removeClass('required');
@@ -96,7 +214,11 @@ function disableRequiredGroup(groupID) {
     .removeAttr('data-required');
 }
 
-const repaintFocusedHelp = () => {
+/**
+ * Repaints the help text for the currently focused input element.
+ * Used to adjust positioning after DOM mutations.
+ */
+export const repaintFocusedHelp = (): void => {
   let $focused = $(':focus');
   if (!$focused.length)
     return;
@@ -106,7 +228,13 @@ const repaintFocusedHelp = () => {
     showInputHelp.apply($focused[0]);
 };
 
-function addHelpListeners($input) {
+/**
+ * Attaches focus/blur listeners and mutation observers to display contextual
+ * help for an input field.
+ *
+ * @param $input - jQuery-wrapped input or textarea element
+ */
+export function addHelpListeners($input: JQuery<HTMLInputElement | HTMLTextAreaElement>): void {
   $input.focus(showInputHelp);
   $input.blur(hideInputHelp);
   if (typeof MutationObserver !== 'undefined') {
@@ -117,21 +245,40 @@ function addHelpListeners($input) {
   }
 }
 
-const updateContentClickHandlers = () => {
+/**
+ * Re-attaches click handlers for content warning toggles.
+ */
+export const updateContentClickHandlers = (): void => {
   $('summary.content-warning-notice').click(toggleDangerousContent);
 };
 
-function validateURL(url) {
+/**
+ * Validates a URL using a comprehensive regex pattern.
+ *
+ * @param url - URL string to validate
+ * @returns True if the URL is valid
+ */
+export function validateURL(url: string): boolean {
   const urlRegex = /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|\/|\?)*)*$/i;
   return urlRegex.test(url);
 }
 
-function urlHasSupportedProtocol(url) {
+/**
+ * Checks if a URL begins with a supported protocol (http, https, or ftp).
+ *
+ * @param url - URL string to check
+ * @returns True if the URL has a supported protocol
+ */
+export function urlHasSupportedProtocol(url: string): boolean {
   let protocolRegex = /^(https?|ftp):\/\//;
   return protocolRegex.test(url);
 }
 
-function toggleDangerousContent(event) {
+/**
+ * Toggles visibility of dangerous content with slide animation.
+ * Handler for content warning notices.
+ */
+function toggleDangerousContent(this: HTMLElement, event: JQuery.Event): void {
   if ($(this).parent().is('[open]')) {
     $(this).next('.dangerous-content').slideUp(200, () => {
       $(this).parent().removeAttr('open');
@@ -143,26 +290,29 @@ function toggleDangerousContent(event) {
   event.preventDefault();
 }
 
-function setupSearch() {
+/**
+ * Initializes the autocomplete widget for the global search input.
+ */
+function setupSearch(): void {
   let ac = new Autocomplete($('#search-input')[0], null, requestFn, null, rowFn, triggerFn);
   ac.delay = 0;
 
-  function triggerFn(result, event) {
+  function triggerFn(result: SearchSuggestion | null, event?: Event): void {
     if (!result || !result.urlID)
       return;
 
-    if (event && typeof event.preventDefault === 'function')
+    if (event && typeof (event as Event).preventDefault === 'function')
       event.preventDefault();
 
-    window.location = `/${result.urlID}`;
+    window.location.href = `/${result.urlID}`;
   }
 
-  function rowFn(row) {
+  function rowFn(this: Autocomplete, row: SearchSuggestion): HTMLDivElement {
     const $row = $('<div>');
 
     const $primary = $('<span>')
       .addClass(this.getCSS('PRIMARY_SPAN'))
-      .append($(Autocomplete.createMatchTextEls(this.value, row[this.primaryTextKey])))
+      .append($(Autocomplete.createMatchTextEls(this.value, row[this.primaryTextKey as keyof SearchSuggestion] as string)))
       .appendTo($row);
 
     if (row.language)
@@ -177,10 +327,10 @@ function setupSearch() {
         .appendTo($row);
     }
 
-    return $row[0];
+    return $row[0] as HTMLDivElement;
   }
 
-  function requestFn(query) {
+  function requestFn(this: Autocomplete, query: string): void {
     let time = Date.now();
     this.latestQuery = time;
     this.results = [];
@@ -188,36 +338,36 @@ function setupSearch() {
     if (query) {
       $
         .get(`/api/suggest/thing/${encodeURIComponent(query)}`)
-        .done(res => {
+        .done((res: SuggestResponse) => {
           if (time < this.latestQuery)
             return;
 
           this.results = [];
           if (res.results) {
-            let seenIDs = [];
+            let seenIDs: string[] = [];
 
-            let processLabelKey = (labelKey, labelLanguage) => {
-              for (let label of res.results[labelKey]) {
+            let processLabelKey = (labelKey: string, labelLanguage: string) => {
+              for (let label of res.results![labelKey]) {
                 if (seenIDs.indexOf(label._id) !== -1)
                   continue;
                 seenIDs.push(label._id);
 
-                let suggestion = {
+                let suggestion: SearchSuggestion = {
                   title: label.text,
                   urlID: label.urlID,
-                  description: resolveString(globalThis.config.language, label.description)
+                  description: resolveString(window.config?.language || 'en', label.description)
                 };
-                if (labelLanguage !== globalThis.config.language)
+                if (labelLanguage !== window.config?.language)
                   suggestion.language = labelLanguage;
 
                 this.results.push(suggestion);
               }
-              Reflect.deleteProperty(res.results, labelKey);
+              Reflect.deleteProperty(res.results!, labelKey);
             };
 
-            let myLabelKey = `labels-${globalThis.config.language}`;
+            let myLabelKey = `labels-${window.config?.language || 'en'}`;
             if (Array.isArray(res.results[myLabelKey]) && res.results[myLabelKey].length)
-              processLabelKey(myLabelKey, globalThis.config.language);
+              processLabelKey(myLabelKey, window.config?.language || 'en');
 
             for (let labelKey in res.results) {
               let labelLanguage = (labelKey.match(/labels-(.*)/) || [])[1];
@@ -234,7 +384,11 @@ function setupSearch() {
   }
 }
 
-function showInputHelp() {
+/**
+ * Displays contextual help for a focused input element.
+ * Handler bound with `this` context to the input element.
+ */
+function showInputHelp(this: HTMLElement): void {
   let id = $(this).attr('data-acts-as') || this.id;
   $('.help-text').hide();
   $(`#${id}-help`).show();
@@ -245,7 +399,7 @@ function showInputHelp() {
     posLabel = $(`label[for=${id}]`)[0].getBoundingClientRect();
     posHelp = $(`#${id}-help`)[0].getBoundingClientRect();
 
-    let maxRight;
+    let maxRight: number | undefined;
     $(this)
       .parents('form')
       .find('input,textarea')
@@ -257,7 +411,7 @@ function showInputHelp() {
 
     if (posHelp.left > posLabel.right && document.body.clientWidth >= Math.ceil(posLabel.width) + Math.ceil(posHelp.width) + 5) {
       let newTopPos = Math.floor(window.scrollY) + Math.floor(posLabel.top);
-      let newLeftPos = maxRight + 5;
+      let newLeftPos = maxRight! + 5;
       let style = `position:absolute;top:${newTopPos}px;display:inline-block;left:${newLeftPos}px;`;
       $(`#${id}-help`).attr('style', style);
     } else {
@@ -266,20 +420,28 @@ function showInputHelp() {
   }
 }
 
-function hideInputHelp() {
+/**
+ * Hides contextual help when an input loses focus, unless the help text
+ * itself is being hovered.
+ * Handler bound with `this` context to the input element.
+ */
+function hideInputHelp(this: HTMLElement): void {
   let id = $(this).attr('data-acts-as') || this.id;
   if (!$('.help-text:hover').length)
     $(`#${id}-help`).hide();
 }
 
-function initializePlugins() {
+/**
+ * Adds custom jQuery plugin methods for form validation and UI patterns.
+ */
+function initializePlugins(): void {
   $.fn.getEmptyInputs = function() {
     return this.filter(function() {
       return this.value === undefined || String(this.value) === '';
     });
   };
 
-  $.fn.highlightLabels = function(indicatorSelector) {
+  $.fn.highlightLabels = function(indicatorSelector?: string) {
     if (!indicatorSelector)
       indicatorSelector = 'span.required';
 
@@ -304,7 +466,7 @@ function initializePlugins() {
 
     this.click(requiredFieldHandler);
 
-    function requiredFieldHandler(event) {
+    function requiredFieldHandler(event: JQuery.ClickEvent) {
       $(`${formSelector}${requiredFieldsMessage},${formSelector}${formErrorMessage},${formSelector}label ${indicatorSelector}`).hide();
 
       let $emptyFields = $(`${formSelector}input[data-required],${formSelector}textarea[data-required],${formSelector}select[data-required]`)
@@ -326,6 +488,8 @@ function initializePlugins() {
       if (cb)
         cb.call(this, event);
     }
+
+    return this;
   };
 
   $.fn.lockTab = function() {
@@ -350,6 +514,8 @@ function initializePlugins() {
         $lastInput.focus();
       }
     });
+
+    return this;
   };
 
   $.fn.toggleSwitcher = function() {
@@ -368,19 +534,30 @@ function initializePlugins() {
       .removeClass('switcher-option-selectable')
       .addClass('switcher-option-selected')
       .prepend($selectedIndicator);
+
+    return this;
   };
 
-  $.fn.conditionalSwitcherClick = function(eventHandler) {
+  $.fn.conditionalSwitcherClick = function(eventHandler: (this: HTMLElement, event: JQuery.Event) => void) {
     this.click(function(event) {
       if ($(this).hasClass('switcher-option-selected'))
         return false;
       $(this).parent().toggleSwitcher();
       eventHandler.call(this, event);
     });
+
+    return this;
   };
 }
 
-function initializeLibreviews() {
+/**
+ * Initializes the libreviews frontend library with all event handlers,
+ * plugins, and UI enhancements. Safe to call multiple times; will only
+ * initialize once.
+ *
+ * @returns The public libreviews API
+ */
+function initializeLibreviews(): LibreviewsAPI {
   if (initialized)
     return libreviews;
 
@@ -388,11 +565,11 @@ function initializeLibreviews() {
   initializeSisyphus();
 
   $('input[type="radio"][data-enable-required-group]').focus(function() {
-    enableRequiredGroup($(this).attr('data-enable-required-group'));
+    enableRequiredGroup($(this).attr('data-enable-required-group')!);
   });
 
   $('input[type="radio"][data-disable-required-group]').focus(function() {
-    disableRequiredGroup($(this).attr('data-disable-required-group'));
+    disableRequiredGroup($(this).attr('data-disable-required-group')!);
   });
 
   $('button[data-dismiss-element]').click(function(event) {
@@ -454,7 +631,7 @@ function initializeLibreviews() {
   if ($('[data-help-for]').length) {
     $('[data-help-for]').each(function() {
       let inputID = $(this).attr('data-help-for');
-      let $input = $(`#${inputID}`);
+      let $input = $(`#${inputID}`) as JQuery<HTMLInputElement | HTMLTextAreaElement>;
       addHelpListeners($input);
     });
 
@@ -485,8 +662,8 @@ function initializeLibreviews() {
 
     let range = document.createRange();
     range.selectNode(copySource);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
+    window.getSelection()!.removeAllRanges();
+    window.getSelection()!.addRange(range);
     try {
       document.execCommand('copy');
     } catch (error) {
@@ -513,7 +690,7 @@ function initializeLibreviews() {
   return libreviews;
 }
 
-const libreviews = {
+const libreviews: LibreviewsAPI = {
   msg,
   resolveString,
   getLanguageIDSpan,
@@ -535,6 +712,6 @@ if (typeof window !== 'undefined') {
     window.libreviews = api;
 }
 
-export { msg, resolveString, getLanguageIDSpan, trimInput, enableRequiredGroup, disableRequiredGroup, repaintFocusedHelp, addHelpListeners, updateContentClickHandlers, validateURL, urlHasSupportedProtocol, initializeLibreviews };
+export { initializeLibreviews };
 
 export default libreviews;

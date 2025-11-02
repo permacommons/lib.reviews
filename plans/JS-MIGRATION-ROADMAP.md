@@ -98,15 +98,15 @@ Target the browser bundles next, starting with the shared infrastructure and end
 - [x] Update Vite and `package.json` scripts to emit `.d.ts` artifacts for shared code (`frontend/register.ts`) consumed by server-rendered templates.
 
 ##### 5.2 Core entrypoints & messaging
-- [ ] Convert runtime entrypoints to `.ts`, keeping dynamic imports split the same way as today.
-  - [ ] `frontend/libreviews.js`
-  - [ ] `frontend/review.js`
+- [x] Convert runtime entrypoints to `.ts`, keeping dynamic imports split the same way as today.
+  - [x] `frontend/libreviews.ts` (was `frontend/libreviews.js`)
+  - [x] `frontend/review.ts` (was `frontend/review.js`)
   - [x] `frontend/upload.ts` (was `frontend/upload.js`)
-  - [x] `frontend/upload-modal.js`
+  - [x] `frontend/upload-modal.ts` (was `frontend/upload-modal.js`)
   - [x] `frontend/user.ts` (was `frontend/user.js`)
   - [x] `frontend/manage-urls.ts` (was `frontend/manage-urls.js`)
-- [ ] Type the localization/message helpers by transforming `frontend/editor-messages.js`, `frontend/upload-modal-messages.js`, and `frontend/messages/*.json` into typed modules (or generated `.ts` exports) that feed the new entrypoints.
-- [ ] Ensure the flash messaging and modal bootstrapping utilities share interfaces with the server-rendered context objects defined in Wave 4.
+- [x] Type the localization/message helpers by transforming `frontend/editor-messages.js`, `frontend/upload-modal-messages.js`, and `frontend/messages/*.json` into typed modules (or generated `.ts` exports) that feed the new entrypoints.
+- [x] Ensure the flash messaging and modal bootstrapping utilities share interfaces with the server-rendered context objects defined in Wave 4.
 
 ##### 5.3 Editor & adapter ecosystem
 - [ ] Port the editor core (`frontend/editor.js`, `frontend/editor-menu.js`, `frontend/editor-prompt.js`, `frontend/editor-extended-keymap.js`, `frontend/editor-inputrules.js`, `frontend/editor-selection.js`, `frontend/editor-markdown.js`) to `.ts`, leaning on the new ProseMirror typings and centralising schema types.

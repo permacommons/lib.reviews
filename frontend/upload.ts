@@ -1,5 +1,5 @@
 import $ from './lib/jquery.js';
-import { msg } from './libreviews.js';
+import { msg } from './libreviews';
 
 const $uploadInput: JQuery<HTMLInputElement> = $('#upload-input');
 const $startUpload: JQuery<HTMLButtonElement> = $('#start-upload');

@@ -2,15 +2,6 @@ import $ from './lib/jquery.js';
 
 export type UsernameInput = JQuery<HTMLInputElement>;
 
-declare global {
-  interface Window {
-    config: {
-      illegalUsernameCharacters: string;
-      language: string;
-    };
-  }
-}
-
 const $username: UsernameInput = $('#username');
 
 if ($username.length) {
