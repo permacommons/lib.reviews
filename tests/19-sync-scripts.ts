@@ -9,7 +9,8 @@ type ThingModel = typeof import('../models/thing.ts').default;
 // Ensure the search mock is registered before loading the DAL bootstrap.
 mockSearch();
 
-const { setupPostgresTest } = await import('./helpers/setup-postgres-test.ts');
+type SetupPostgresTestFn = typeof import('./helpers/setup-postgres-test.ts')['setupPostgresTest'];
+const { setupPostgresTest } = (await import('./helpers/setup-postgres-test.ts')) as { setupPostgresTest: SetupPostgresTestFn };
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'sync_scripts',
@@ -92,7 +93,8 @@ test.serial('sync functionality works with metadata grouping', async t => {
   await thing.save();
 
   // Mock the Wikidata adapter to simulate sync
-  const WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.ts')).default;
+  type WikidataBackendAdapterCtor = typeof import('../adapters/wikidata-backend-adapter.ts').default;
+  const WikidataBackendAdapter = ((await import('../adapters/wikidata-backend-adapter.ts')).default) as WikidataBackendAdapterCtor;
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
 
   WikidataBackendAdapter.prototype.lookup = async function(url): Promise<AdapterLookupResult> {
@@ -128,7 +130,8 @@ test.serial('sync functionality works with metadata grouping', async t => {
 test.serial('adapter integration with PostgreSQL Thing model', async t => {
 
   // Test that adapters can work with the PostgreSQL Thing model
-  const adapters = (await import('../adapters/adapters.ts')).default;
+  type AdaptersModule = typeof import('../adapters/adapters.ts');
+  const adapters = ((await import('../adapters/adapters.ts')) as AdaptersModule).default;
 
   // Test adapter discovery
   const allAdapters = adapters.getAll();

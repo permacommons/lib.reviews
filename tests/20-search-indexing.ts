@@ -4,6 +4,7 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import searchModule from '../search.ts';
 
 type ThingModel = typeof import('../models/thing.ts').default;
 type ReviewModel = typeof import('../models/review.ts').default;
@@ -47,7 +48,7 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
   const search = {
     indexThing(thing) {
       // Skip indexing if this is an old or deleted revision (same logic as real function)
-      if (thing._old_rev_of || thing._rev_deleted) {
+      if (thing._oldRevOf || thing._revDeleted) {
         return Promise.resolve();
       }
 
@@ -56,7 +57,7 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
     },
     indexReview(review) {
       // Skip indexing if this is an old or deleted revision (same logic as real function)
-      if (review._old_rev_of || review._rev_deleted) {
+      if (review._oldRevOf || review._revDeleted) {
         return Promise.resolve();
       }
 
@@ -117,7 +118,6 @@ test.serial('indexThing handles PostgreSQL JSONB metadata structure', async t =>
 test.serial('indexThing skips old and deleted revisions', async t => {
 
   const { Thing } = dalFixture;
-  const { default: search } = await import('../search.ts');
 
   const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
 
@@ -147,17 +147,17 @@ test.serial('indexThing skips old and deleted revisions', async t => {
   deletedThing._setupPropertyAccessors();
 
   // Test indexing current revision
-  await search.indexThing(currentThing);
+  await searchModule.indexThing(currentThing);
   let things = indexedItems.filter(item => item.type === 'thing');
   t.is(things.length, 1, 'Should index current revision');
 
   // Test skipping old revision
-  await search.indexThing(oldThing);
+  await searchModule.indexThing(oldThing);
   things = indexedItems.filter(item => item.type === 'thing');
   t.is(things.length, 1, 'Should skip old revision');
 
   // Test skipping deleted revision
-  await search.indexThing(deletedThing);
+  await searchModule.indexThing(deletedThing);
   things = indexedItems.filter(item => item.type === 'thing');
   t.is(things.length, 1, 'Should skip deleted revision');
 });
@@ -175,7 +175,7 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
   const search = {
     indexThing(thing) {
       // Skip indexing if this is an old or deleted revision (same logic as real function)
-      if (thing._old_rev_of || thing._rev_deleted) {
+      if (thing._oldRevOf || thing._revDeleted) {
         return Promise.resolve();
       }
 
@@ -184,7 +184,7 @@ test.serial('indexReview handles PostgreSQL JSONB structure', async t => {
     },
     indexReview(review) {
       // Skip indexing if this is an old or deleted revision (same logic as real function)
-      if (review._old_rev_of || review._rev_deleted) {
+      if (review._oldRevOf || review._revDeleted) {
         return Promise.resolve();
       }
 
@@ -234,7 +234,6 @@ test.serial('indexReview skips old and deleted revisions', async t => {
 
   const Thing: ThingModel = dalFixture.getThingModel();
   const Review: ReviewModel = dalFixture.getReviewModel();
-  const { default: search } = await import('../search.ts');
 
   const { actor: testUser } = await dalFixture.createTestUser('Review Skip User');
 
@@ -275,17 +274,17 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   deletedReview._setupPropertyAccessors();
 
   // Test indexing current revision
-  await search.indexReview(currentReview);
+  await searchModule.indexReview(currentReview);
   let reviews = indexedItems.filter(item => item.type === 'review');
   t.is(reviews.length, 1, 'Should index current revision');
 
   // Test skipping old revision
-  await search.indexReview(oldReview);
+  await searchModule.indexReview(oldReview);
   reviews = indexedItems.filter(item => item.type === 'review');
   t.is(reviews.length, 1, 'Should skip old revision');
 
   // Test skipping deleted revision
-  await search.indexReview(deletedReview);
+  await searchModule.indexReview(deletedReview);
   reviews = indexedItems.filter(item => item.type === 'review');
   t.is(reviews.length, 1, 'Should skip deleted revision');
 });
@@ -312,7 +311,7 @@ test.serial('search indexing extracts multilingual content correctly', async t =
   const search = {
     indexThing(thing) {
       // Skip indexing if this is an old or deleted revision (same logic as real function)
-      if (thing._old_rev_of || thing._rev_deleted) {
+      if (thing._oldRevOf || thing._revDeleted) {
         return Promise.resolve();
       }
 
@@ -321,7 +320,7 @@ test.serial('search indexing extracts multilingual content correctly', async t =
     },
     indexReview(review) {
       // Skip indexing if this is an old or deleted revision (same logic as real function)
-      if (review._old_rev_of || review._rev_deleted) {
+      if (review._oldRevOf || review._revDeleted) {
         return Promise.resolve();
       }
 

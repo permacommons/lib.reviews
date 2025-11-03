@@ -7,6 +7,7 @@ import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import searchModule from '../search.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_integration',
@@ -43,9 +44,8 @@ test.beforeEach(async t => {
 test.after.always(async () => {
   unmockSearch();
 
-  const { default: search } = await import('../search.ts');
-  if (search && typeof search.close === 'function') {
-    await search.close();
+  if (searchModule && typeof (searchModule as any).close === 'function') {
+    await (searchModule as any).close();
   }
 });
 
@@ -69,7 +69,7 @@ test.serial('maintenance script bootstraps PostgreSQL models', async t => {
 test.serial('search indexing integration with PostgreSQL models', async t => {
 
   const { Thing, Review } = dalFixture;
-  const { default: search } = await import('../search.ts');
+  const search = searchModule;
 
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -136,7 +136,7 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
 test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => {
 
   const { Thing, Review } = dalFixture;
-  const { default: search } = await import('../search.ts');
+  const search = searchModule;
 
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -199,23 +199,23 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   for (const indexedThing of indexedThings) {
     t.truthy(indexedThing.data.id, 'Indexed thing should have ID');
     t.truthy(indexedThing.data.label, 'Indexed thing should have label');
-    t.falsy(indexedThing.data._old_rev_of, 'Indexed thing should not be old revision');
-    t.falsy(indexedThing.data._rev_deleted, 'Indexed thing should not be deleted');
+    t.falsy((indexedThing.data as any)._oldRevOf, 'Indexed thing should not be old revision');
+    t.falsy((indexedThing.data as any)._revDeleted, 'Indexed thing should not be deleted');
   }
 
   for (const indexedReview of indexedReviews) {
     t.truthy(indexedReview.data.id, 'Indexed review should have ID');
     t.truthy(indexedReview.data.thingID, 'Indexed review should have thing_id');
     t.truthy(indexedReview.data.title, 'Indexed review should have title');
-    t.falsy(indexedReview.data._old_rev_of, 'Indexed review should not be old revision');
-    t.falsy(indexedReview.data._rev_deleted, 'Indexed review should not be deleted');
+    t.falsy((indexedReview.data as any)._oldRevOf, 'Indexed review should not be old revision');
+    t.falsy((indexedReview.data as any)._revDeleted, 'Indexed review should not be deleted');
   }
 });
 
 test.serial('search indexing skips old and deleted revisions in bulk operations', async t => {
 
   const { Thing } = dalFixture;
-  const { default: search } = await import('../search.ts');
+  const search = searchModule;
 
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };

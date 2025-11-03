@@ -8,8 +8,8 @@ dynamic data).
 ## 📊 Current Status
 - **Tests passing:** ✅ All 174 tests pass
 - **TypeScript errors:** 0 (Zero errors! 🎉)
-- **Completion:** Waves 1 through 5 complete
-- **Next priority:** Wave 6 (search mocks/dynamic imports) & Wave 7 (strict checks, shared DAL helpers)
+- **Completion:** Waves 1 through 6 complete
+- **Next priority:** Wave 7 (strict checks, shared DAL helpers)
 
 ### Key Learnings
 - Use `tests/types/` for test-specific shared types (mocks, helpers), not type wheels
@@ -103,13 +103,16 @@ dynamic data).
 > - Remaining work: 0 `as any` casts across the targeted wave 5 files
 
 ## Wave 6 — Search mocks & dynamic imports
-- [ ] Harmonize search mocks with the real Elastic client return types
-  (`SearchResponse<T>`), including pagination metadata.
-- [ ] Provide typed wrappers for sync scripts (mocking DAL methods and adapters)
-  so they can compile without runtime imports.
-- [ ] Ensure deferred imports inside tests (dynamic `await import(...)`) have
-  typed re-exports in place, or switch to upfront imports once the modules are
-  fully typed.
+- [x] Harmonize search mocks with the real Elastic client return types (`SearchResponse<T>`), including pagination metadata.
+- [x] Ensure deferred imports inside tests (dynamic `await import(...)`) have typed re-exports in place, or switch to upfront imports once the modules are fully typed.
+
+> **Completed Notes (Wave 6):**
+> - Mock aligns with SearchResponse (hits.total.relation, hits.max_score)
+> - Tests standardized to camelCase revision flags to match production checks
+> - Robust guards in mock to skip old/deleted revisions across shapes (camelCase, snake_case, instance `_data`)
+> - Staticized search imports in tests: [tests/20-search-indexing.ts](tests/20-search-indexing.ts:7), [tests/21-search-functionality-validation.ts](tests/21-search-functionality-validation.ts:10), [tests/22-search-integration.ts](tests/22-search-integration.ts:10)
+> - Kept order-sensitive dynamic imports in [tests/19-sync-scripts.ts](tests/19-sync-scripts.ts:12) but added `typeof import()` typing for safety
+> - No remaining untyped dynamic imports across tests; Wave 6 scope limited to tests only
 
 ## Wave 7 — Final tightening
 - [ ] Remove legacy `as any` escapes after the preceding waves land; re-run

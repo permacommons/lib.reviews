@@ -4,8 +4,14 @@ type LocaleCode = LibReviews.LocaleCode;
 type SearchModule = typeof import('../../search.ts').default;
 
 type RevisionAwareRecord = Record<string, unknown> & {
+  _oldRevOf?: unknown;
+  _revDeleted?: boolean;
   _old_rev_of?: unknown;
   _rev_deleted?: boolean;
+  _data?: {
+    _old_rev_of?: unknown;
+    _rev_deleted?: boolean;
+  };
 };
 
 export type MockIndexedItem =
@@ -21,7 +27,8 @@ export type MockSearchQuery =
 export type MockSearchResponse<TDocument = Record<string, unknown>> = SearchResponse<TDocument> & {
   hits: {
     hits: Array<Record<string, unknown> & { _source?: TDocument }>;
-    total: { value: number };
+    total: { value: number; relation?: 'eq' | 'gte' };
+    max_score?: number | null;
   };
 };
 
@@ -37,6 +44,7 @@ const originalSearchEntries = Object.entries(searchModule) as Array<
   [keyof SearchModule, SearchModule[keyof SearchModule]]
 >;
 
+
 export function mockSearch<TDocument = Record<string, unknown>>(
   initialIndexedItems: MockIndexedItem[] = []
 ): MockSearchCapture<TDocument> {
@@ -50,7 +58,8 @@ export function mockSearch<TDocument = Record<string, unknown>>(
     },
     hits: {
       hits: [],
-      total: { value: 0 }
+      total: { value: 0, relation: 'eq' as const },
+      max_score: null
     },
     suggest: {}
   } as MockSearchResponse<TDocument>;
@@ -67,13 +76,23 @@ export function mockSearch<TDocument = Record<string, unknown>>(
       return captured.mockSearchResponse;
     },
     indexThing: async (thing: RevisionAwareRecord) => {
-      if (thing._old_rev_of || thing._rev_deleted) {
+      const d = thing as any;
+      if (
+        d._oldRevOf || d._revDeleted ||
+        d._old_rev_of || d._rev_deleted ||
+        (d._data && (d._data._old_rev_of || d._data._rev_deleted))
+      ) {
         return;
       }
       captured.indexedItems.push({ type: 'thing', data: thing });
     },
     indexReview: async (review: RevisionAwareRecord) => {
-      if (review._old_rev_of || review._rev_deleted) {
+      const d = review as any;
+      if (
+        d._oldRevOf || d._revDeleted ||
+        d._old_rev_of || d._rev_deleted ||
+        (d._data && (d._data._old_rev_of || d._data._rev_deleted))
+      ) {
         return;
       }
       captured.indexedItems.push({ type: 'review', data: review });
