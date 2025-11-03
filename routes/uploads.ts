@@ -415,11 +415,13 @@ function processUploadForm(
   const redirectBack = ({ message, error }: { message?: unknown[]; error?: unknown[] } = {}) => {
     if (Array.isArray(error)) {
       const [key, ...params] = error as [string, ...unknown[]];
-      req.flash('pageErrors', req.__(key, ...params));
+      const strParams = params.map(p => String(p));
+      req.flash('pageErrors', req.__(key, ...strParams));
     }
     if (Array.isArray(message)) {
       const [key, ...params] = message as [string, ...unknown[]];
-      req.flash('pageMessages', req.__(key, ...params));
+      const strParams = params.map(p => String(p));
+      req.flash('pageMessages', req.__(key, ...strParams));
     }
 
      res.redirect(`/${thing.urlID}`);

@@ -126,7 +126,7 @@ test.serial('Thing-Review: relationship and metrics', async t => {
 
   const avgRating = await thing.getAverageStarRating();
   const reviewCount = await thing.getReviewCount();
-  
+
   t.is(avgRating, 4, 'Average rating calculated correctly (5+3)/2 = 4');
   t.is(reviewCount, 2, 'Review count calculated correctly');
 
@@ -173,9 +173,9 @@ test.serial('Team-Review: association', async t => {
   });
   await review.save();
 
-  const reviewTeamTableName = dalFixture.schemaNamespace ? 
+  const reviewTeamTableName = dalFixture.schemaNamespace ?
     `${dalFixture.schemaNamespace}review_teams` : 'review_teams';
-  
+
   await dalFixture.query(
     `INSERT INTO ${reviewTeamTableName} (review_id, team_id) VALUES ($1, $2)`,
     [review.id, team.id]
@@ -185,7 +185,7 @@ test.serial('Team-Review: association', async t => {
     `SELECT * FROM ${reviewTeamTableName} WHERE review_id = $1 AND team_id = $2`,
     [review.id, team.id]
   );
-  
+
   t.is(associationResult.rows.length, 1, 'Review-team association created');
   t.is(associationResult.rows[0].review_id, review.id, 'Review ID matches');
   t.is(associationResult.rows[0].team_id, team.id, 'Team ID matches');
@@ -220,14 +220,14 @@ test.serial('Team-Review: Review.create with team associations', async t => {
   t.truthy(review.id, 'Review created successfully');
   t.truthy(review.thingID, 'Thing created for review');
 
-  const reviewTeamTableName = dalFixture.schemaNamespace ? 
+  const reviewTeamTableName = dalFixture.schemaNamespace ?
     `${dalFixture.schemaNamespace}review_teams` : 'review_teams';
-  
+
   const associationResult = await dalFixture.query(
     `SELECT * FROM ${reviewTeamTableName} WHERE review_id = $1 AND team_id = $2`,
     [review.id, team.id]
   );
-  
+
   t.is(associationResult.rows.length, 1, 'Team association created via Review.create');
   t.is(associationResult.rows[0].review_id, review.id, 'Review ID matches in association');
   t.is(associationResult.rows[0].team_id, team.id, 'Team ID matches in association');
@@ -308,9 +308,9 @@ test.serial('Revision system across Thing, Review, and Team models', async t => 
     [reviewRev1.id]
   );
 
-  t.is(parseInt(thingRevisions.rows[0].count), 2, 'Thing has 2 revisions');
-  t.is(parseInt(teamRevisions.rows[0].count), 2, 'Team has 2 revisions');
-  t.is(parseInt(reviewRevisions.rows[0].count), 2, 'Review has 2 revisions');
+  t.is(parseInt(String(thingRevisions.rows[0].count), 10), 2, 'Thing has 2 revisions');
+  t.is(parseInt(String(teamRevisions.rows[0].count), 10), 2, 'Team has 2 revisions');
+  t.is(parseInt(String(reviewRevisions.rows[0].count), 10), 2, 'Review has 2 revisions');
 });
 
 test.after.always(async () => {

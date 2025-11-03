@@ -1,13 +1,13 @@
 /**
  * PostgreSQL DAL Revision System Tests
- * 
+ *
  * Comprehensive test suite for the PostgreSQL DAL revision system.
  * Uses AVA-compatible fixtures with proper test isolation to support
  * concurrent test execution (AVA concurrency: 4).
- * 
+ *
  * Tests cover:
  * - First revision creation with partial indexes
- * - New revision mechanics and old revision archiving  
+ * - New revision mechanics and old revision archiving
  * - Filtering current vs stale/deleted revisions
  * - Error handling for deleted/stale revisions
  * - Performance with PostgreSQL partial indexes
@@ -17,8 +17,8 @@ import test from 'ava';
 import isUUID from 'is-uuid';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import {
-  getTestModelDefinitionsAVA, 
-  getTestTableDefinitionsAVA, 
+  getTestModelDefinitionsAVA,
+  getTestTableDefinitionsAVA,
   getTestUserDataAVA,
   createTestDocumentWithRevisionsAVA,
   assertRevisionEqualityAVA,
@@ -92,9 +92,9 @@ test.serial('DAL revision system: can create first revision with PostgreSQL part
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
-  const firstRev = await TestModel.createFirstRevision(testUser, { 
-    tags: ['create', 'test'] 
+
+  const firstRev = await TestModel.createFirstRevision(testUser, {
+    tags: ['create', 'test']
   });
 
   firstRev.title = 'Test Document';
@@ -115,7 +115,7 @@ test.serial('DAL revision system: new revision preserves existing revision mecha
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
+
   // Create initial revision
   const firstRev = await TestModel.createFirstRevision(testUser, { tags: ['create'] });
   firstRev.title = 'Original Title';
@@ -149,7 +149,7 @@ test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently w
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
+
   // Create multiple documents to test index performance
   const docs: RevisionInstance[] = [];
   for (let i = 0; i < 15; i++) { // Smaller number for faster tests
@@ -177,13 +177,13 @@ test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently w
   const queryTime = Date.now() - start;
 
   t.true(currentRevisions.length > 0, 'Found current revisions');
-  t.true(currentRevisions.every(rev => 
+  t.true(currentRevisions.every(rev =>
     !rev._data._old_rev_of && !rev._data._rev_deleted
   ), 'All results are current, non-deleted revisions');
 
   // Performance should be good with partial indexes
   t.true(queryTime < 200, 'Query completed efficiently with partial indexes');
-  
+
   // Verify count matches expected
   const expectedCount = 12; // 15 docs - 3 deleted = 12 current
   t.is(currentRevisions.length, expectedCount, 'Correct number of current revisions');
@@ -194,7 +194,7 @@ test.serial('DAL revision system: revision querying patterns', async t => {
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
+
   // Create document with revision history using helper
   const finalRev = await createTestDocumentWithRevisionsAVA(TestModel, testUser, 3);
   const docId = finalRev.id;
@@ -236,7 +236,7 @@ test.serial('DAL revision system: deleteAllRevisions maintains same table struct
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
+
   // Create document with revisions
   const finalRev = await createTestDocumentWithRevisionsAVA(TestModel, testUser, 2);
   const docId = finalRev.id;
@@ -264,7 +264,7 @@ test.serial('DAL revision system: deleteAllRevisions maintains same table struct
   );
 
   t.true(allRevisions.rows.every(row => row._rev_deleted), 'All revisions marked as deleted');
-  
+
   // Verify no current revisions found
   const currentCount = await countCurrentRevisionsAVA(dalFixture, tableName);
   t.is(currentCount, 0, 'No current revisions after deletion');
@@ -275,7 +275,7 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted 
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
+
   // Create and delete a document
   const doc = await TestModel.createFirstRevision(testUser, { tags: ['create'] });
   doc.title = 'To be deleted';
@@ -298,7 +298,7 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale re
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
+
   // Create document with multiple revisions
   const finalRev = await createTestDocumentWithRevisionsAVA(TestModel, testUser, 2);
   const originalId = finalRev.id;
@@ -309,7 +309,7 @@ test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale re
     `SELECT id FROM ${tableName} WHERE _old_rev_of = $1 LIMIT 1`,
     [originalId]
   );
-  const staleRevisionId = oldRevisions.rows[0].id;
+  const staleRevisionId = String((oldRevisions.rows[0] as { id: string }).id);
 
   // Try to get the stale revision
   const error = await t.throwsAsync(
@@ -325,15 +325,15 @@ test.serial('DAL revision system: revision filtering by user works correctly', a
 
   // Verify test isolation
   await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
-  
+
   // Create documents with different users
   const user1 = getTestUserDataAVA('1');
   const user2 = getTestUserDataAVA('2');
-  
+
   const doc1 = await TestModel.createFirstRevision(user1, { tags: ['create', 'user1'] });
   doc1.title = 'Document by User 1';
   await doc1.save();
-  
+
   const doc2 = await TestModel.createFirstRevision(user2, { tags: ['create', 'user2'] });
   doc2.title = 'Document by User 2';
   await doc2.save();
@@ -342,7 +342,7 @@ test.serial('DAL revision system: revision filtering by user works correctly', a
   const allDocs = await TestModel.filterNotStaleOrDeleted().run();
   const user1Docs = allDocs.filter(doc => doc._data._rev_user === user1.id);
   const user2Docs = allDocs.filter(doc => doc._data._rev_user === user2.id);
-  
+
   t.is(user1Docs.length, 1, 'Found one document by user 1');
   t.is(user1Docs[0].title, 'Document by User 1', 'Correct document returned');
   t.is(user2Docs.length, 1, 'Found one document by user 2');
@@ -362,7 +362,7 @@ test.serial('DAL revision system: test isolation verification', async t => {
 
   const tableName = dalFixture.getTableName('revisions');
   const afterCreate = await dalFixture.query(`SELECT COUNT(*) as count FROM ${tableName}`);
-  t.is(parseInt(afterCreate.rows[0].count, 10), 1, 'Document was created');
+  t.is(Number(afterCreate.rows[0].count), 1, 'Document was created');
 });
 
 test.after.always(async () => {

@@ -415,9 +415,14 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
   const dalTypes = dalModule.types;
   const capturedQueries: Array<{ sql: string; params: unknown[] }> = [];
   const mockDAL = createMockDAL({
-    async query(sql, params = []) {
+    async query<TRecord extends JsonObject = JsonObject>(
+      sql: string,
+      params: unknown[] = [],
+      _client?: import('pg').Pool | import('pg').PoolClient | null
+    ) {
       capturedQueries.push({ sql, params });
-      return createQueryResult([{ id: 'generated-id', camel_case_field: params[0] }]);
+      const row = { id: 'generated-id', camel_case_field: params[0] } as unknown as TRecord;
+      return createQueryResult<TRecord>([row]);
     }
   });
 

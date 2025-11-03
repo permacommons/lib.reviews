@@ -110,8 +110,12 @@ async function getApp(): Promise<express.Express> {
   const { default: blogPosts } = await import('./routes/blog-posts.ts');
   const { stage1Router, stage2Router } = await import('./routes/uploads.ts');
 
+  // Ensure DAL pool is initialized and typed for connect-pg-simple
+  const pool = dal.pool;
+  if (!pool)
+    throw new Error('DAL pool not initialized');
   const store = new PgSessionStore({
-    pool: dal.pool,
+    pool,
     tableName: 'session'
   });
 
@@ -133,8 +137,9 @@ async function getApp(): Promise<express.Express> {
 
   app.use(favicon(path.join(__dirname, 'static/img/favicon.ico')));
 
-  if (config.get('logger'))
-    app.use(logger(config.get('logger')));
+  const loggerConfigValue = config.get('logger');
+  if (typeof loggerConfigValue === 'string' && loggerConfigValue !== '')
+    app.use(logger(loggerConfigValue));
 
   app.use('/static/downloads', serveIndex(path.join(__dirname, 'static/downloads'), {
     icons: true,
@@ -211,7 +216,11 @@ async function getApp(): Promise<express.Express> {
     const localeCandidate = Array.isArray(rawLocale) ? rawLocale[0] : rawLocale;
     if (typeof localeCandidate === 'string' && languages.isValid(localeCandidate) && localeCandidate !== req.locale) {
       const newLocale = localeCandidate as LibReviews.LocaleCode;
-      req.localeChange = { old: req.locale ?? 'und', new: newLocale };
+      const oldLocale: LibReviews.LocaleCodeWithUndetermined =
+        (typeof req.locale === 'string' && languages.isValid(req.locale))
+          ? (req.locale as LibReviews.LocaleCode)
+          : 'und';
+      req.localeChange = { old: oldLocale, new: newLocale };
       i18n.setLocale(req, newLocale);
     }
     return next();

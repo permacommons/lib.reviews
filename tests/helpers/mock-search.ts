@@ -13,10 +13,42 @@ type RevisionAwareRecord = Record<string, unknown> & {
     _rev_deleted?: boolean;
   };
 };
+type MLText = Record<string, string>;
+
+export type ThingIndexShape = RevisionAwareRecord & {
+  id?: string;
+  urls?: string[];
+  urlID?: string;
+  label?: MLText;
+  aliases?: MLText;
+  metadata?: {
+    description?: MLText;
+    subtitle?: MLText;
+    authors?: Array<Record<string, unknown>>;
+  };
+};
+
+export type ReviewIndexShape = RevisionAwareRecord & {
+  id?: string;
+  thingID?: string;
+  title?: MLText;
+  text?: MLText;
+  html?: MLText;
+  starRating?: number;
+};
 
 export type MockIndexedItem =
-  | { type: 'thing'; data: RevisionAwareRecord }
-  | { type: 'review'; data: RevisionAwareRecord };
+  | { type: 'thing'; data: ThingIndexShape }
+  | { type: 'review'; data: ReviewIndexShape };
+
+export function isThingItem(item: MockIndexedItem): item is { type: 'thing'; data: ThingIndexShape } {
+  return item.type === 'thing';
+}
+
+export function isReviewItem(item: MockIndexedItem): item is { type: 'review'; data: ReviewIndexShape } {
+  return item.type === 'review';
+}
+
 
 export type MockSearchQuery =
   | { type: 'searchThings'; query: string; lang: LocaleCode }
@@ -24,12 +56,21 @@ export type MockSearchQuery =
   | { type: 'suggestThing'; prefix: string; lang: LocaleCode }
   | { type: 'rawSearch'; params: SearchParams };
 
-export type MockSearchResponse<TDocument = Record<string, unknown>> = SearchResponse<TDocument> & {
+export type MockSearchResponse<TDocument = Record<string, unknown>> = {
+  took: number;
+  timed_out: boolean;
+  _shards: {
+    total: number;
+    successful: number;
+    failed: number;
+    skipped: number;
+  };
   hits: {
     hits: Array<Record<string, unknown> & { _source?: TDocument }>;
     total: { value: number; relation?: 'eq' | 'gte' };
     max_score?: number | null;
   };
+  suggest: Record<string, unknown>;
 };
 
 export interface MockSearchCapture<TDocument = Record<string, unknown>> {
@@ -54,7 +95,8 @@ export function mockSearch<TDocument = Record<string, unknown>>(
     _shards: {
       total: 0,
       successful: 0,
-      failed: 0
+      failed: 0,
+      skipped: 0
     },
     hits: {
       hits: [],
@@ -71,27 +113,25 @@ export function mockSearch<TDocument = Record<string, unknown>>(
   };
 
   const mock: Partial<SearchModule> = {
-    _raw: async (params: SearchParams) => {
+    _raw: async <TResponse = unknown>(params: SearchParams): Promise<SearchResponse<TResponse>> => {
       captured.searchQueries.push({ type: 'rawSearch', params });
-      return captured.mockSearchResponse;
+      return captured.mockSearchResponse as unknown as SearchResponse<TResponse>;
     },
     indexThing: async (thing: RevisionAwareRecord) => {
-      const d = thing as any;
       if (
-        d._oldRevOf || d._revDeleted ||
-        d._old_rev_of || d._rev_deleted ||
-        (d._data && (d._data._old_rev_of || d._data._rev_deleted))
+        thing._oldRevOf || thing._revDeleted ||
+        thing._old_rev_of || thing._rev_deleted ||
+        (thing._data && (thing._data._old_rev_of || thing._data._rev_deleted))
       ) {
         return;
       }
       captured.indexedItems.push({ type: 'thing', data: thing });
     },
     indexReview: async (review: RevisionAwareRecord) => {
-      const d = review as any;
       if (
-        d._oldRevOf || d._revDeleted ||
-        d._old_rev_of || d._rev_deleted ||
-        (d._data && (d._data._old_rev_of || d._data._rev_deleted))
+        review._oldRevOf || review._revDeleted ||
+        review._old_rev_of || review._rev_deleted ||
+        (review._data && (review._data._old_rev_of || review._data._rev_deleted))
       ) {
         return;
       }
@@ -99,15 +139,15 @@ export function mockSearch<TDocument = Record<string, unknown>>(
     },
     searchThings: async (query: string, lang: LocaleCode = 'en') => {
       captured.searchQueries.push({ type: 'searchThings', query, lang });
-      return captured.mockSearchResponse;
+      return captured.mockSearchResponse as unknown as SearchResponse<any>;
     },
     searchReviews: async (query: string, lang: LocaleCode = 'en') => {
       captured.searchQueries.push({ type: 'searchReviews', query, lang });
-      return captured.mockSearchResponse;
+      return captured.mockSearchResponse as unknown as SearchResponse<any>;
     },
     suggestThing: async (prefix = '', lang: LocaleCode = 'en') => {
       captured.searchQueries.push({ type: 'suggestThing', prefix, lang });
-      return captured.mockSearchResponse;
+      return captured.mockSearchResponse as unknown as SearchResponse<any>;
     },
     createIndices: async () => {},
     deleteThing: async () => {},

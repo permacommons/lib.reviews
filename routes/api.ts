@@ -5,6 +5,7 @@ import Thing from '../models/thing.ts';
 import actionHandler from './handlers/action-handler.ts';
 import search from '../search.ts';
 import urlUtils from '../util/url-utils.ts';
+import languages from '../locales/languages.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 
 type ApiRouteRequest = HandlerRequest;
@@ -82,8 +83,9 @@ router.get('/thing', function(req: ApiRouteRequest, res: ApiRouteResponse, next:
 // Search suggestions
 router.get('/suggest/thing/:prefix', function(req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
   const prefix = req.params.prefix.trim();
+  const localeCode: LibReviews.LocaleCode = languages.isValid(req.locale) ? (req.locale as LibReviews.LocaleCode) : 'en';
   search
-    .suggestThing(prefix, req.locale)
+    .suggestThing(prefix, localeCode)
     .then(results => {
     const rv: Record<string, unknown> = {};
 

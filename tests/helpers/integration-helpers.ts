@@ -1,5 +1,5 @@
 import type { Response } from 'superagent';
-import type { SuperAgentTest } from 'supertest';
+import type { AgentLike } from '../types/integration.ts';
 
 export const extractCSRF = (html: string): string | null => {
   const matches = html.match(/<input type="hidden" value="(.*?)" name="_csrf">/);
@@ -31,7 +31,7 @@ export interface RegisterTestUserResult {
  * @returns {Promise<{registerResponse: import('superagent').Response, postResponse: import('superagent').Response, landingResponse?: import('superagent').Response}>}
  */
 export const registerTestUser = async (
-  agent: SuperAgentTest,
+  agent: AgentLike,
   options: RegisterTestUserOptions
 ): Promise<RegisterTestUserResult> => {
   const {

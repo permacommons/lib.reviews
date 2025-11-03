@@ -6,7 +6,7 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
 
-import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { mockSearch, unmockSearch, type MockIndexedItem, isThingItem, isReviewItem } from './helpers/mock-search.ts';
 import searchModule from '../search.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
@@ -19,7 +19,7 @@ let Review: ReviewModel;
 
 
 // Track indexing operations
-let indexedItems = [];
+let indexedItems: MockIndexedItem[] = [];
 
 test.before(async () => {
   await bootstrapPromise;
@@ -44,8 +44,8 @@ test.beforeEach(async t => {
 test.after.always(async () => {
   unmockSearch();
 
-  if (searchModule && typeof (searchModule as any).close === 'function') {
-    await (searchModule as any).close();
+  if (typeof searchModule.close === 'function') {
+    await searchModule.close();
   }
 });
 
@@ -116,16 +116,16 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   // Verify indexing
   t.is(indexedItems.length, 2, 'Should have indexed 2 items');
 
-  const indexedThing = indexedItems.find(item => item.type === 'thing');
-  const indexedReview = indexedItems.find(item => item.type === 'review');
+  const indexedThing = indexedItems.find(isThingItem);
+  const indexedReview = indexedItems.find(isReviewItem);
 
   t.truthy(indexedThing, 'Should have indexed the thing');
   t.truthy(indexedReview, 'Should have indexed the review');
 
   // Verify thing indexing
   t.is(indexedThing.data.id, thing.id, 'Indexed thing should have correct ID');
-  t.deepEqual(indexedThing.data.label, thing.label, 'Indexed thing should have correct label');
-  t.deepEqual(indexedThing.data.metadata.description, thing.metadata.description, 'Indexed thing should have correct description');
+  t.deepEqual(indexedThing.data.label!, thing.label, 'Indexed thing should have correct label');
+  t.deepEqual(indexedThing.data.metadata?.description, thing.metadata.description, 'Indexed thing should have correct description');
 
   // Verify review indexing
   t.is(indexedReview.data.id, review.id, 'Indexed review should have correct ID');
@@ -189,8 +189,8 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   }
 
   // Verify all items were indexed
-  const indexedThings = indexedItems.filter(item => item.type === 'thing');
-  const indexedReviews = indexedItems.filter(item => item.type === 'review');
+  const indexedThings = indexedItems.filter(isThingItem);
+  const indexedReviews = indexedItems.filter(isReviewItem);
 
   t.true(indexedThings.length >= 5, `Should have indexed at least 5 things (indexed ${indexedThings.length})`);
   t.true(indexedReviews.length >= 5, `Should have indexed at least 5 reviews (indexed ${indexedReviews.length})`);
@@ -199,16 +199,16 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   for (const indexedThing of indexedThings) {
     t.truthy(indexedThing.data.id, 'Indexed thing should have ID');
     t.truthy(indexedThing.data.label, 'Indexed thing should have label');
-    t.falsy((indexedThing.data as any)._oldRevOf, 'Indexed thing should not be old revision');
-    t.falsy((indexedThing.data as any)._revDeleted, 'Indexed thing should not be deleted');
+    t.falsy(indexedThing.data._oldRevOf, 'Indexed thing should not be old revision');
+    t.falsy(indexedThing.data._revDeleted, 'Indexed thing should not be deleted');
   }
 
   for (const indexedReview of indexedReviews) {
     t.truthy(indexedReview.data.id, 'Indexed review should have ID');
     t.truthy(indexedReview.data.thingID, 'Indexed review should have thing_id');
     t.truthy(indexedReview.data.title, 'Indexed review should have title');
-    t.falsy((indexedReview.data as any)._oldRevOf, 'Indexed review should not be old revision');
-    t.falsy((indexedReview.data as any)._revDeleted, 'Indexed review should not be deleted');
+    t.falsy(indexedReview.data._oldRevOf, 'Indexed review should not be old revision');
+    t.falsy(indexedReview.data._revDeleted, 'Indexed review should not be deleted');
   }
 });
 
@@ -253,14 +253,12 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   }
 
   // Verify only current revisions were indexed
-  const indexedThings = indexedItems.filter(item =>
-    item.type === 'thing' &&
-    item.data.urls &&
-    item.data.urls.includes('https://example.com/revision-test')
-  );
+  const indexedThings = indexedItems
+    .filter(isThingItem)
+    .filter(item => Boolean(item.data.urls && item.data.urls.includes('https://example.com/revision-test')));
 
   t.is(indexedThings.length, 1, 'Should only index one revision');
-  t.is(indexedThings[0].data.label.en, 'Updated Version', 'Should index the updated version');
+  t.is(indexedThings[0].data.label!.en, 'Updated Version', 'Should index the updated version');
 });
 
 test.after.always(async () => {

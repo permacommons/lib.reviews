@@ -6,7 +6,7 @@ declare global {
 
     interface Request {
       dal?: import('../dal/index.ts').DalContext;
-      locale?: LibReviews.LocaleCode;
+      locale: string;
       language?: LibReviews.LocaleCodeWithUndetermined;
       localeChange?: { old: LibReviews.LocaleCodeWithUndetermined; new: LibReviews.LocaleCodeWithUndetermined };
       isAPI?: boolean;
@@ -15,14 +15,10 @@ declare global {
       flashError?(error: unknown): void;
       csrfToken?(): string;
       permissions?: Record<LibReviews.PermissionFlag | string, boolean>;
-      __?(message: string | { phrase: string; locale?: string }, ...args: unknown[]): string;
-      __n?(...args: unknown[]): string;
     }
 
     interface Response {
       locals: Locals;
-      __?(message: string | { phrase: string; locale?: string }, ...args: unknown[]): string;
-      __n?(...args: unknown[]): string;
     }
 
     interface Locals extends AppLocals {}

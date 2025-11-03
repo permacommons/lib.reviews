@@ -8,8 +8,8 @@ dynamic data).
 ## 📊 Current Status
 - **Tests passing:** ✅ All 174 tests pass
 - **TypeScript errors:** 0 (Zero errors! 🎉)
-- **Completion:** Waves 1 through 6 complete
-- **Next priority:** Wave 7 (strict checks, shared DAL helpers)
+- **Completion:** Waves 1–6 complete; Wave 7 in progress
+- **Next priority:** Wave 7 (docs and helper consolidation; stricter flags follow-up)
 
 ### Key Learnings
 - Use `tests/types/` for test-specific shared types (mocks, helpers), not type wheels
@@ -102,7 +102,7 @@ dynamic data).
 > - Search validation suite uses `@ts-expect-error` for explicit invalid input cases
 > - Remaining work: 0 `as any` casts across the targeted wave 5 files
 
-## Wave 6 — Search mocks & dynamic imports
+## Wave 6 — Search mocks & dynamic imports ✅
 - [x] Harmonize search mocks with the real Elastic client return types (`SearchResponse<T>`), including pagination metadata.
 - [x] Ensure deferred imports inside tests (dynamic `await import(...)`) have typed re-exports in place, or switch to upfront imports once the modules are fully typed.
 
@@ -115,11 +115,13 @@ dynamic data).
 > - No remaining untyped dynamic imports across tests; Wave 6 scope limited to tests only
 
 ## Wave 7 — Final tightening
-- [ ] Remove legacy `as any` escapes after the preceding waves land; re-run
-  `tsc --noEmit -p tsconfig.tests.json` to verify zero errors.
-- [ ] Enable stricter compiler flags for the test project (`noImplicitAny`,
-  `exactOptionalPropertyTypes`) and resolve remaining issues.
-- [ ] Update contributor docs (`tests/README.md`) to reflect the new testing
-  conventions, highlighting how to add typed fixtures and mocks.
-- [ ] Consolidate repeat DAL/model stubs behind shared helpers so suites rely on
-  the same typed fixture patterns (prepping for DAL roadmap Phase 5).
+- [x] Remove legacy `as any` escapes after the preceding waves land; re-run `tsc --noEmit -p tsconfig.tests.json` to verify zero errors.
+- [-] Enable stricter compiler flags for the test project (`noImplicitAny`, `exactOptionalPropertyTypes`) and resolve remaining issues.
+- [ ] Update contributor docs (`tests/README.md`) to reflect the new testing conventions, highlighting how to add typed fixtures and mocks.
+- [ ] Consolidate repeat DAL/model stubs behind shared helpers so suites rely on the same typed fixture patterns (prepping for DAL roadmap Phase 5).
+
+> Completed Notes (Wave 7):
+> - Morgan logger overload resolved by narrowing config value before use ([app.ts](app.ts:140)).
+> - markdown-it html5Media translateFn unknown spread fixed by typing params as any[] ([md.use()](util/md.ts:57)).
+> - pg pool cleanup made version-agnostic with structural guards ([DALFixtureAVA.cleanup()](tests/fixtures/dal-fixture-ava.ts:358)).
+> - QueryResult generics and COUNT parsing aligned with callers ([tests/17-query-builder-unit.ts](tests/17-query-builder-unit.ts:416), [tests/10-dal-revision-system.ts](tests/10-dal-revision-system.ts:364), [tests/15-integration-thing-review-team.ts](tests/15-integration-thing-review-team.ts:311)).

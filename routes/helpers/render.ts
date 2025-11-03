@@ -56,7 +56,8 @@ const template = (
     ...extraJSConfig
   };
 
-  Object.assign(jsConfig.messages, languages.getCompositeNamesAsMessageObject(req.locale));
+  const localeCode: LocaleCode = languages.isValid(req.locale) ? (req.locale as LocaleCode) : 'en';
+  Object.assign(jsConfig.messages, languages.getCompositeNamesAsMessageObject(localeCode));
 
   vars.configScript = `window.config = ${JSON.stringify(jsConfig)};`;
 
@@ -76,14 +77,14 @@ const template = (
     const langKey = lang as LocaleCode;
     const nameObj: TemplateLanguageName = {
       langKey,
-      name: languages.getCompositeName(langKey, req.locale)
+      name: languages.getCompositeName(langKey, localeCode)
     };
-    if (langKey === req.locale)
+    if (langKey === localeCode)
       nameObj.isCurrentLanguage = true;
     vars.languageNames.push(nameObj);
   });
 
-  const currentLocale = (req.locale ?? 'en') as LocaleCode;
+  const currentLocale = localeCode;
   vars.currentLanguage = {
     langKey: currentLocale,
     name: languages.getNativeName(currentLocale)

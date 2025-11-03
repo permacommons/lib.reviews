@@ -27,14 +27,18 @@ export interface ModelConstructor<
   [key: string]: unknown;
 }
 
-import type { QueryResult } from 'pg';
+import type { Pool, PoolClient, QueryResult } from 'pg';
 
 export interface DataAccessLayer {
   schemaNamespace?: string;
-  connect(): Promise<DataAccessLayer>;
+  connect(): Promise<this>;
   disconnect(): Promise<void>;
   migrate(): Promise<void>;
-  query<T = JsonObject>(text: string, params?: unknown[]): Promise<QueryResult<T>>;
+  query<TRecord extends JsonObject = JsonObject>(
+    text: string,
+    params?: unknown[],
+    client?: Pool | PoolClient | null
+  ): Promise<QueryResult<TRecord>>;
   getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     name: string
   ): ModelConstructor<TRecord, TVirtual>;
@@ -45,7 +49,5 @@ export interface DataAccessLayer {
   ): ModelConstructor<TRecord, TVirtual>;
   getRegisteredModels(): Map<string, ModelConstructor>;
   getModelRegistry?(): unknown;
-  pool?: {
-    on?: (event: string, handler: (...args: unknown[]) => void) => void;
-  };
+  pool?: Pool;
 }

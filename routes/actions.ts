@@ -55,11 +55,12 @@ router.get('/actions/search', function (req: ActionsRequest, res: ActionsRespons
       : '';
   const query = rawQuery.trim();
   if (query) {
+    const localeCode = languages.isValid(req.locale) ? (req.locale as LibReviews.LocaleCode) : 'en';
     Promise
-      .all([search.searchThings(query, req.locale), search.searchReviews(query, req.locale)])
-      .then(results => {
-        let labelMatches = results[0].hits.hits;
-        let textMatches = search.filterDuplicateInnerHighlights(results[1].hits.hits, 'review');
+      .all([search.searchThings(query, localeCode), search.searchReviews(query, localeCode)])
+      .then(([thingsResult, reviewsResult]) => {
+        let labelMatches = thingsResult.hits.hits;
+        let textMatches = search.filterDuplicateInnerHighlights(reviewsResult.hits.hits, 'review');
         const noMatches = !labelMatches.length && !textMatches.length;
 
         render.template(req, res, 'search', {
