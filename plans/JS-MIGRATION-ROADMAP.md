@@ -116,12 +116,13 @@ Target the browser bundles next, starting with the shared infrastructure and end
 #### Wave 6 — tests, tooling & strictness
 Finalize the migration by bringing tests, scripts, and compiler settings in line with the fully typed runtime.
 
-- [ ] Port AVA to TypeScript: rename `tests/*.js` to `.ts`, update fixtures and helpers, and convert `tests/run-ava.ts` into a typed runner that compiles under `tsconfig.tests.json`.
-- [ ] Type the supporting Node scripts in `bin/` and `tools/` (including `bin/www.js`, maintenance scripts, and DB utilities) using `tsconfig.node.json`, replacing any ad-hoc `.d.ts` declarations with concrete modules.
+- [x] Port AVA to TypeScript: rename `tests/*.js` to `.ts`, update fixtures and helpers, and convert `tests/run-ava.ts` into a typed runner that compiles under `tsconfig.tests.json`.
+- [ ] Type the supporting Node scripts in `bin/` and `tools/` (including `bin/www.js`, maintenance scripts, and DB utilities) using `tsconfig.node.json`, replacing any ad-hoc `.d.ts` declarations with concrete modules. They can be run via tsx for now and will be part of the prod buil in the next step.
 - [ ] Introduce a production-ready TypeScript build for server and CLI entry points (e.g., `tsconfig.backend.build.json` + `npm run build:backend` emitting to `build/server`) and update deployment tooling to run the compiled JavaScript while keeping `tsx` for local execution.
 - [ ] Convert backend adapter sync scripts to TypeScript and type their orchestration against DAL and search services: [`adapters/sync/sync-all.js`](adapters/sync/sync-all.js), [`adapters/sync/sync-wikidata.js`](adapters/sync/sync-wikidata.js). Update adapter test mocks and dynamic imports accordingly, consuming the typed registry [`adapters/adapters.ts`](adapters/adapters.ts).
+- [ ] Confirm Typedoc configuration matches current codebase structure and that Typedoc builds successfully
 - [ ] Add documentation/Typedoc coverage checks for the migrated util, DAL, and route modules to guarantee API comments stay synced with implementations.
-- [ ] Expand automation: configure AVA to load `.ts` files, run `tsc --noEmit` with the test project in CI, and wire `npm run typecheck:tests` into the default workflow.
+- [ ] Add typecheck to CI
 - [ ] Ratchet TypeScript compiler options sequentially (`noImplicitAny`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, then `strict: true`), resolving surfaced issues before enabling the next flag.
 - [ ] Replace any lingering `@ts-ignore` directives with more precise types or `@ts-expect-error` (where the failure is intentional) and mirror the lint enforcement during the subsequent Biome migration.
 
@@ -152,9 +153,6 @@ Replace ESLint with Biome for linting and formatting.
 
 ### Integration
 - [ ] Add Biome npm scripts (`biome check`, `biome format`)
-- [ ] Update VSCode/editor settings for Biome
-- [ ] Configure pre-commit hooks if needed
-- [ ] Update CI/CD to use Biome
 
 ### Cleanup
 - [ ] Remove ESLint dependencies
@@ -167,6 +165,11 @@ Replace ESLint with Biome for linting and formatting.
 - [ ] Fix any new issues found
 - [ ] Verify formatting is consistent
 - [ ] Run full test suite
+
+## Automation
+- [ ] Update VSCode/editor settings for Biome
+- [ ] Configure pre-commit hooks if needed
+- [ ] Update CI/CD to use Biome
 
 ### Documentation
 - [ ] Update contributor guidelines for Biome
@@ -188,22 +191,4 @@ Replace ESLint with Biome for linting and formatting.
 ### Deployment
 - [ ] Update deployment scripts for ESM/TS
 - [ ] Update Node.js version if needed
-- [ ] Deploy to staging environment
-- [ ] Smoke test in staging
 - [ ] Deploy to production
-
-### Monitoring
-- [ ] Monitor for runtime errors
-- [ ] Check performance metrics
-- [ ] Verify no regressions
-- [ ] Collect team feedback
-
----
-
-## Notes
-
-- Each phase should be completed and validated before moving to the next
-- Consider doing Phase 1 and 2 in smaller increments (per-directory)
-- Create feature branches for each major phase
-- Run tests frequently during migration
-- Document any blockers or issues encountered
