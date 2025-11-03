@@ -4,18 +4,25 @@
 import { initializeDAL } from '../bootstrap/dal.ts';
 import Thing from '../models/thing.js';
 
-async function generateSlugs() {
+type SluggableThing = {
+  label?: unknown;
+  updateSlug(userID: string | undefined, language?: string): Promise<SluggableThing>;
+  save(): Promise<unknown>;
+};
+
+async function generateSlugs(): Promise<void> {
   await initializeDAL();
   const things = await Thing
     .filter({ _oldRevOf: false }, { default: true })
     .filter({ _revDeleted: false }, { default: true })
-    .run();
+    .run() as SluggableThing[];
 
-  const updates = [];
+  const updates: Array<Promise<SluggableThing>> = [];
   for (const thing of things) {
     if (!thing.label) {
       continue;
     }
+    // Legacy maintenance tasks run without a user context; propagate the historical behaviour.
     updates.push(thing.updateSlug(undefined, 'en'));
   }
 
@@ -27,7 +34,7 @@ async function generateSlugs() {
 
 generateSlugs()
   .then(() => process.exit(0))
-  .catch(error => {
+  .catch((error: unknown) => {
     console.error('Failed to generate Thing slugs:', error);
     process.exit(1);
   });

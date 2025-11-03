@@ -7,12 +7,15 @@
  */
 
 import { spawn } from 'node:child_process';
+import type { SpawnOptions } from 'node:child_process';
 import { once } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Writable } from 'node:stream';
 
 import config from 'config';
+import type { PostgresConfig } from 'config';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,9 +27,31 @@ const TAR_FILE = `dump-${ISO_DATE}.tgz`;
 const TEMP_SCHEMA = 'dump_public_export';
 
 // Convenience helper for current revision predicate using a table alias
-const nonDeleted = alias => `COALESCE(${alias}._rev_deleted, FALSE) = FALSE`;
+const nonDeleted = (alias: string): string => `COALESCE(${alias}._rev_deleted, FALSE) = FALSE`;
 
-const sanitizedUserOverrides = {
+type SelectOverrides = Record<string, string>;
+
+interface ViewJoin {
+  type?: string;
+  target: string;
+  alias?: string;
+  on: string;
+}
+
+interface ViewConfig {
+  name: string;
+  baseTable: string;
+  alias: string;
+  selectOverrides?: SelectOverrides;
+  joins?: ViewJoin[];
+  where?: string;
+}
+
+interface RunCommandOptions extends SpawnOptions {
+  outputStream?: Writable;
+}
+
+const sanitizedUserOverrides: SelectOverrides = {
   email: 'NULL::VARCHAR(128)',
   password: 'NULL::TEXT',
   invite_link_count: '0',
@@ -38,7 +63,7 @@ const sanitizedUserOverrides = {
   prefers_rich_text_editor: 'FALSE'
 };
 
-const VIEW_CONFIGS = [
+const VIEW_CONFIGS: ViewConfig[] = [
   {
     name: 'sanitized_users',
     baseTable: 'users',
@@ -196,11 +221,11 @@ const VIEW_CONFIGS = [
 ];
 
 // Get PostgreSQL connection config
-const pgConfig = config.get('postgres');
-const dbHost = pgConfig.host || 'localhost';
-const dbPort = pgConfig.port || 5432;
-const dbName = pgConfig.database || 'libreviews';
-const dbUser = pgConfig.user || 'libreviews_user';
+const pgConfig = config.get<PostgresConfig>('postgres');
+const dbHost = pgConfig.host ?? 'localhost';
+const dbPort = pgConfig.port ?? 5432;
+const dbName = pgConfig.database ?? 'libreviews';
+const dbUser = pgConfig.user ?? 'libreviews_user';
 
 console.log('Creating sanitized database dump using view strategy...');
 console.log(`Database: ${dbName} on ${dbHost}:${dbPort}`);
@@ -214,33 +239,23 @@ const outputPath = path.join(EXPORT_DIR, SQL_FILE);
 const tarPath = path.join(EXPORT_DIR, TAR_FILE);
 
 /**
- * Run a shell command and return a promise
- *
- * @param {string} command - Command to execute
- * @param {string[]} args - Command arguments
- * @param {Object} options - Spawn options
- * @param {Object} options.env - Environment variables for the process
- * @param {Stream} options.outputStream - If provided, stdout will be piped to this stream (without closing it)
- * @param {string|Array} options.stdio - Standard stdio configuration (default: 'inherit' or custom if outputStream provided)
- * @returns {Promise<void>} Resolves when command exits successfully, rejects on error
+ * Run a shell command and wait for completion.
  */
-function runCommand(command, args, options = {}) {
+function runCommand(command: string, args: string[], options: RunCommandOptions = {}): Promise<void> {
   return new Promise((resolve, reject) => {
-    const spawnOptions = {
-      ...options,
-      stdio: options.outputStream
-        ? ['ignore', 'pipe', 'inherit']
-        : (options.stdio || 'inherit')
+    const { outputStream, stdio, ...spawnOverrides } = options;
+    const spawnOptions: SpawnOptions = {
+      ...spawnOverrides,
+      stdio: outputStream ? ['ignore', 'pipe', 'inherit'] : (stdio ?? 'inherit')
     };
 
-    const { outputStream, ...cleanOptions } = spawnOptions;
-    const proc = spawn(command, args, cleanOptions);
+    const proc = spawn(command, args, spawnOptions);
 
-    if (outputStream) {
+    if (outputStream && proc.stdout) {
       proc.stdout.pipe(outputStream, { end: false });
     }
 
-    proc.on('close', (code) => {
+    proc.on('close', code => {
       if (code === 0) {
         resolve();
       } else {
@@ -252,7 +267,7 @@ function runCommand(command, args, options = {}) {
   });
 }
 
-async function getTableColumnNames(tableName, env) {
+async function getTableColumnNames(tableName: string, env: NodeJS.ProcessEnv): Promise<string[]> {
   const columnsQuery = `
     SELECT column_name
     FROM information_schema.columns
@@ -263,8 +278,14 @@ async function getTableColumnNames(tableName, env) {
   return new Promise((resolve, reject) => {
     const psql = spawn('psql', ['-t', '-A', '-c', columnsQuery], { env, stdio: ['ignore', 'pipe', 'inherit'] });
     let output = '';
-    psql.stdout.on('data', (data) => { output += data.toString(); });
-    psql.on('close', (code) => {
+
+    if (psql.stdout) {
+      psql.stdout.on('data', data => {
+        output += data.toString();
+      });
+    }
+
+    psql.on('close', code => {
       if (code === 0) {
         const columns = output
           .split('\n')
@@ -279,12 +300,12 @@ async function getTableColumnNames(tableName, env) {
   });
 }
 
-async function getTableColumnsString(tableName, env) {
+async function getTableColumnsString(tableName: string, env: NodeJS.ProcessEnv): Promise<string> {
   const columns = await getTableColumnNames(tableName, env);
   return columns.join(', ');
 }
 
-async function createViewFromConfig(configEntry, env) {
+async function createViewFromConfig(configEntry: ViewConfig, env: NodeJS.ProcessEnv): Promise<void> {
   const columns = await getTableColumnNames(configEntry.baseTable, env);
   const selectExpressions = columns.map(column => {
     if (configEntry.selectOverrides && Object.prototype.hasOwnProperty.call(configEntry.selectOverrides, column)) {
@@ -317,7 +338,13 @@ async function createViewFromConfig(configEntry, env) {
   await runCommand('psql', ['-c', statement], { env });
 }
 
-async function copyFromView(targetTable, viewName, outputStream, env, { orderBy = null } = {}) {
+async function copyFromView(
+  targetTable: string,
+  viewName: string,
+  outputStream: fs.WriteStream,
+  env: NodeJS.ProcessEnv,
+  { orderBy = null }: { orderBy?: string | null } = {}
+): Promise<void> {
   const columns = await getTableColumnsString(targetTable, env);
   outputStream.write(`\n--\n-- Data for Name: ${targetTable}; Type: TABLE DATA; Schema: public; Owner: -\n--\n\n`);
   outputStream.write(`COPY public.${targetTable} (${columns}) FROM stdin;\n`);
@@ -329,7 +356,7 @@ async function copyFromView(targetTable, viewName, outputStream, env, { orderBy 
   outputStream.write('\\.\n\n');
 }
 
-async function ensureTempSchema(env) {
+async function ensureTempSchema(env: NodeJS.ProcessEnv): Promise<void> {
   await runCommand('psql', ['-c', `DROP SCHEMA IF EXISTS ${TEMP_SCHEMA} CASCADE`], { env });
   await runCommand('psql', ['-c', `CREATE SCHEMA ${TEMP_SCHEMA}`], { env });
   for (const configEntry of VIEW_CONFIGS) {
@@ -337,15 +364,15 @@ async function ensureTempSchema(env) {
   }
 }
 
-async function cleanupTempSchema(env) {
+async function cleanupTempSchema(env: NodeJS.ProcessEnv): Promise<void> {
   await runCommand('psql', ['-c', `DROP SCHEMA IF EXISTS ${TEMP_SCHEMA} CASCADE`], { env });
 }
 
 /**
  * Main dump process
  */
-async function createDump() {
-  const env = {
+async function createDump(): Promise<void> {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     PGHOST: dbHost,
     PGPORT: dbPort.toString(),
@@ -361,7 +388,7 @@ async function createDump() {
     console.log(`Overwriting existing dump for ${ISO_DATE}`);
   }
 
-  let outputStream = null;
+  let outputStream: fs.WriteStream | null = null;
   try {
     await ensureTempSchema(env);
 
@@ -429,22 +456,30 @@ async function createDump() {
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
     console.log(`File size: ${sizeMB} MB`);
   } catch (error) {
-    console.error('Error creating dump:', error);
+    const serialized = error instanceof Error ? error : new Error(String(error));
+    console.error('Error creating dump:', serialized);
     process.exitCode = 1;
   } finally {
     if (outputStream && !outputStream.closed) {
       outputStream.end();
-      await once(outputStream, 'finish').catch(() => {});
+      try {
+        await once(outputStream, 'finish');
+      } catch {
+        // ignore flush errors during teardown
+      }
     }
     try {
       await cleanupTempSchema(env);
     } catch (cleanupError) {
-      console.error('Failed to clean up temporary schema:', cleanupError);
+      const serializedCleanupError = cleanupError instanceof Error
+        ? cleanupError
+        : new Error(String(cleanupError));
+      console.error('Failed to clean up temporary schema:', serializedCleanupError);
     }
     if (fs.existsSync(outputPath)) {
       try {
         fs.unlinkSync(outputPath);
-      } catch (unlinkErr) {
+      } catch {
         // ignore cleanup errors for partially written files
       }
     }
@@ -452,6 +487,7 @@ async function createDump() {
 }
 
 createDump().catch(error => {
-  console.error('Fatal error:', error);
+  const serialized = error instanceof Error ? error : new Error(String(error));
+  console.error('Fatal error:', serialized);
   process.exit(1);
 });

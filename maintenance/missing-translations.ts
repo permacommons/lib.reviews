@@ -7,20 +7,23 @@ import languages from '../locales/languages.ts';
 
 /* eslint no-sync: "off" */
 
+type MessageCatalog = Record<string, string>;
+type SupportedLocale = LibReviews.LocaleCode | 'qqq';
+
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const basePath = path.join(moduleDir, '../locales');
-const langKeys = languages.getValidLanguages();
+const langKeys: SupportedLocale[] = [...languages.getValidLanguages()];
 // qqq is a pseudo language code (reserved for local use in the ISO standard)
 // which, per translatewiki.net convention, is used for message documentation
 langKeys.push('qqq');
 
-const enMessageKeys = Object.keys(jsonfile.readFileSync(path.join(basePath, 'en.json')));
+const enMessageKeys = Object.keys(jsonfile.readFileSync<MessageCatalog>(path.join(basePath, 'en.json')));
 
 for (const langKey of langKeys) {
   if (langKey === 'en')
     continue;
 
-  const messageKeys = Object.keys(jsonfile.readFileSync(path.join(basePath, `${langKey}.json`)));
+  const messageKeys = Object.keys(jsonfile.readFileSync<MessageCatalog>(path.join(basePath, `${langKey}.json`)));
   const missingKeys = enMessageKeys.filter(getKeyFilter(messageKeys));
 
   if (missingKeys.length) {
@@ -35,8 +38,6 @@ for (const langKey of langKeys) {
   }
 }
 
-function getKeyFilter(xxMessageKeys) {
-  return function(ele) {
-    return xxMessageKeys.indexOf(ele) === -1;
-  };
+function getKeyFilter(referenceKeys: string[]) {
+  return (candidateKey: string): boolean => !referenceKeys.includes(candidateKey);
 }

@@ -10,6 +10,8 @@
   "include": [
     "bin/**/*.js",
     "bin/**/*.ts",
+    "maintenance/**/*.js",
+    "maintenance/**/*.ts",
     "tools/**/*.js",
     "tools/**/*.ts",
     "tests/run-ava.ts",

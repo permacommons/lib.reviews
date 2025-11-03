@@ -6,10 +6,10 @@
   "scripts": {
     "build": "vite build && npm run build:types:frontend",
     "build:types:frontend": "tsc -p tsconfig.frontend.dts.json",
-    "start": "NODE_ENV=production node --import tsx/esm bin/www.js",
-    "start-dev": "NODE_ENV=development DEBUG=libreviews:* node --import tsx/esm bin/www.js",
+    "start": "NODE_ENV=production tsx bin/www.ts",
+    "start-dev": "NODE_ENV=development DEBUG=libreviews:* tsx bin/www.ts",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
-    "test": "NODE_ENV=development NODE_APP_INSTANCE=testing node --import tsx/esm tests/run-ava.ts",
+    "test": "NODE_ENV=development NODE_APP_INSTANCE=testing tsx tests/run-ava.ts",
     "make-docs": "typedoc --options typedoc.json",
     "typecheck": "npm run typecheck:backend && npm run typecheck:node && npm run typecheck:frontend && npm run typecheck:tests",
     "typecheck:backend": "tsc --noEmit -p tsconfig.backend.json",

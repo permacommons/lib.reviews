@@ -118,7 +118,7 @@
  // review
  webHooks: {"newReview":[]},
 
- // If you want to run the IRC bot in tools/irc-bot.js,
+// If you want to run the IRC bot in tools/irc-bot.ts,
  // adjust the settings below in your config.
  irc: {
    appPort: 9100,

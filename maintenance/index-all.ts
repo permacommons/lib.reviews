@@ -7,33 +7,35 @@ import promiseLimit from 'promise-limit';
 import Thing from '../models/thing.js';
 import Review from '../models/review.js';
 
-const limit = promiseLimit(2); // Throttle index updates
+type IndexableThing = Parameters<typeof search.indexThing>[0];
+type IndexableReview = Parameters<typeof search.indexReview>[0];
+
+const limit = promiseLimit<unknown>(2); // Throttle index updates
 
 // Commonly run from command-line, force output
 debug.util.enabled = true;
 debug.errorLog.enabled = true;
 
-async function updateIndices() {
+async function updateIndices(): Promise<void> {
   await initializeDAL();
   debug.util('Using PostgreSQL models for indexing');
 
   // Get revisions we need to index & create indices
   // Only get current revisions (not old or deleted)
-  const setupResults = await Promise.all([
-    Thing.filterNotStaleOrDeleted().run(),
-    Review.filterNotStaleOrDeleted().run(),
-    search.createIndices()
+  const createIndicesPromise = search.createIndices();
+  const [things, reviews] = await Promise.all([
+    Thing.filterNotStaleOrDeleted().run() as Promise<IndexableThing[]>,
+    Review.filterNotStaleOrDeleted().run() as Promise<IndexableReview[]>
   ]);
-  
-  const [things, reviews] = setupResults;
-  
+  await createIndicesPromise;
+
   debug.util(`Found ${things.length} things and ${reviews.length} reviews to index`);
-  
-  let indexUpdates = [
+
+  const indexUpdates: Array<Promise<unknown>> = [
     ...things.map(thing => limit(() => search.indexThing(thing))),
     ...reviews.map(review => limit(() => search.indexReview(review)))
   ];
-  
+
   await Promise.all(indexUpdates);
 }
 
@@ -43,8 +45,9 @@ updateIndices()
     debug.util('All search indices updated!');
     process.exit(0);
   })
-  .catch(error => {
+  .catch((error: unknown) => {
     debug.error('Problem updating search indices. The error was:');
-    debug.error({ error });
+    const detail = error instanceof Error ? error : new Error(String(error));
+    debug.error(detail);
     process.exit(1);
   });

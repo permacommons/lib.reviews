@@ -6,6 +6,8 @@ declare module 'config' {
     port: number;
     certPath: string;
     keyPath: string;
+    host?: string;
+    caPath?: string;
   }
 
   interface PostgresConfig {
