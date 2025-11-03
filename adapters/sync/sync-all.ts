@@ -10,17 +10,27 @@ import { initializeDAL } from '../../bootstrap/dal.ts';
 import Thing from '../../models/thing.js';
 import debug from '../../util/debug.ts';
 
-const limit = promiseLimit(2); // Max 2 URL batch updates at a time
+type SyncableThing = {
+  urls?: string[];
+  setURLs(urls?: string[]): void;
+  updateActiveSyncs(): Promise<unknown>;
+};
+
+const limit = promiseLimit<unknown>(2); // Max 2 URL batch updates at a time
 
 // Commonly run from command-line, force output
 debug.util.enabled = true;
 debug.errorLog.enabled = true;
 
-async function syncAll() {
+async function syncAll(): Promise<void> {
   await initializeDAL();
-  const things = await Thing.filterNotStaleOrDeleted().run();
-  // Reset sync settings
-  things.forEach(thing => thing.setURLs(thing.urls));
+  const things = await Thing.filterNotStaleOrDeleted().run() as SyncableThing[];
+
+  // Reset sync settings to ensure model-side mutations are applied consistently.
+  for (const thing of things) {
+    thing.setURLs(thing.urls);
+  }
+
   await Promise.all(
     things.map(thing => limit(() => thing.updateActiveSyncs())) // Throttle updates
   );
@@ -32,8 +42,9 @@ syncAll()
     debug.util('All updates complete.');
     process.exit(0);
   })
-  .catch(error => {
+  .catch((error: unknown) => {
     debug.error('A problem occurred during the synchronization.');
-    debug.error({ error });
+    const detail = error instanceof Error ? error : new Error(String(error));
+    debug.error(detail);
     process.exit(1);
   });

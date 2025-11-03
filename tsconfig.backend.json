@@ -19,7 +19,6 @@
     "config/**/*.js",
     "config/**/*.ts",
     "dal/**/*.js",
-    "db-postgres.js",
     "deployment/**/*.js",
     "models/**/*.js",
     "models/**/*.ts",

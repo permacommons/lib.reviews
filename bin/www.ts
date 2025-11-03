@@ -7,7 +7,7 @@ import https from 'node:https';
 import type { Server as HttpsServer, ServerOptions as HttpsServerOptions } from 'node:https';
 
 import getApp from '../app.ts';
-import dbPostgres from '../db-postgres.js';
+import dbPostgres from '../db-postgres.ts';
 
 type NormalizedPort = number | string | false;
 
