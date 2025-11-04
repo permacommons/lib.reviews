@@ -66,8 +66,9 @@ jobs:
       - name: Docs coverage (util/dal/routes)
         run: npm run docs:coverage
 
-      - name: Build frontend assets
-        run: npm run build:frontend
+      - name: Create a deployment build
+        run: npm run build:deploy
 
       - name: Run tests
         run: npm run test
+
