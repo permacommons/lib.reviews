@@ -332,8 +332,8 @@ test.serial('QueryBuilder supports revision filtering', async t => {
   t.true(things.length >= 1);
   // All results should be current revisions
   for (const thingResult of things) {
-    t.is(thingResult._old_rev_of, null);
-    t.not(thingResult._rev_deleted, true);
+    t.is(thingResult._oldRevOf, null);
+    t.not(thingResult._revDeleted, true);
   }
 });
 
@@ -369,8 +369,8 @@ test.serial('QueryBuilder supports revision tag filtering', async t => {
   t.true(reviews.length >= 1);
   // Results should have the specified tag
   for (const reviewResult of reviews) {
-    if (reviewResult._rev_tags) {
-      t.true(reviewResult._rev_tags.includes('test-tag'));
+    if (reviewResult._revTags) {
+      t.true(reviewResult._revTags.includes('test-tag'));
     }
   }
 });

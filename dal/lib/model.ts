@@ -883,7 +883,7 @@ class Model<
       return this._revisionHandlers[handlerName];
     }
 
-    const hasRevisionFields = this.schema && Object.prototype.hasOwnProperty.call(this.schema, '_rev_id');
+    const hasRevisionFields = this.schema && Object.prototype.hasOwnProperty.call(this.schema, '_revID');
     if (!hasRevisionFields) {
       const modelName = this.tableName || this.name || 'Model';
       throw new Error(`Revision support is not enabled for ${modelName}`);
@@ -1033,20 +1033,13 @@ class Model<
 
     for (const [fieldName, fieldDef] of Object.entries(schema)) {
       if (fieldDef && !fieldDef.isVirtual) {
-        // Revision fields (starting with _) are internal database fields
-        // that don't use the camelCase accessor system
-        if (fieldName.startsWith('_')) {
-          const value = this._data[fieldName];
-          this._data[fieldName] = fieldDef.validate(value, fieldName);
-        } else {
-          // Regular fields use the camelCase property accessor
-          const value = this.getValue(fieldName);
-          const validatedValue = fieldDef.validate(value, fieldName);
+        // Use getValue/setValue for all fields to respect field mappings
+        const value = this.getValue(fieldName);
+        const validatedValue = fieldDef.validate(value, fieldName);
 
-          // If validation transformed the value, update it and mark as changed
-          if (!deepEqual(validatedValue, value)) {
-            this.setValue(fieldName, validatedValue);
-          }
+        // If validation transformed the value, update it and mark as changed
+        if (!deepEqual(validatedValue, value)) {
+          this.setValue(fieldName, validatedValue);
         }
       }
     }

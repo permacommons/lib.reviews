@@ -91,10 +91,10 @@ const applyRevisionMetadata = (
     : (Array.isArray(tags) ? [...tags] : [tags]);
   const resolvedRevId = revId || randomUUID();
 
-  instance._rev_id = resolvedRevId;
-  instance._rev_user = resolvedUserId;
-  instance._rev_date = timestamp;
-  instance._rev_tags = resolvedTags;
+  instance._revID = resolvedRevId;
+  instance._revUser = resolvedUserId;
+  instance._revDate = timestamp;
+  instance._revTags = resolvedTags;
 
   return instance;
 };
@@ -142,8 +142,7 @@ const revision: RevisionHelpers = {
 
       const rev = await this.newRevision(user, { tags: deletionTags });
 
-      rev._data._rev_deleted = true;
-      rev._changed.add('_rev_deleted');
+      rev._revDeleted = true;
 
       await rev.save();
 
@@ -243,12 +242,12 @@ const revision: RevisionHelpers = {
 
   getSchema() {
     return {
-      _rev_user: types.string().uuid(4).required(true),
-      _rev_date: types.date().required(true),
-      _rev_id: types.string().uuid(4).required(true),
-      _old_rev_of: types.string().uuid(4),
-      _rev_deleted: types.boolean().default(false),
-      _rev_tags: types.array(types.string()).default([])
+      _revUser: types.string().uuid(4).required(true),
+      _revDate: types.date().required(true),
+      _revID: types.string().uuid(4).required(true),
+      _oldRevOf: types.string().uuid(4),
+      _revDeleted: types.boolean().default(false),
+      _revTags: types.array(types.string()).default([])
     };
   },
 
