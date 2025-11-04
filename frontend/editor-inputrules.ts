@@ -1,3 +1,4 @@
+// Adapted from https://github.com/ProseMirror/prosemirror-example-setup
 import {
   inputRules,
   wrappingInputRule,
