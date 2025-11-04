@@ -23,5 +23,8 @@
   "excludePrivate": true,
   "readme": "none",
   "githubPages": false,
-  "cleanOutputDir": false
+  "cleanOutputDir": false,
+  "validation": {
+    "notExported": false
+  }
 }

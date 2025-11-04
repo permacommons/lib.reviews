@@ -57,9 +57,6 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
   nativeToWikidata: Record<string, string>;
 
   /**
-   * See {@link AbstractAutocompleteAdapter} for parameter documentation, not
-   * shown here due to [jsdoc bug](https://github.com/jsdoc3/jsdoc/issues/1012).
-   *
    * @inheritdoc
    */
   constructor(updateCallback: UpdateCallback, searchBoxSelector: string) {

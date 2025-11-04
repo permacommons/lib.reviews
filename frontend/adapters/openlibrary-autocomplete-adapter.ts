@@ -43,9 +43,6 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
   limit: number;
 
   /**
-   * See {@link AbstractAutocompleteAdapter} for parameter documentation, not
-   * shown here due to [jsdoc bug](https://github.com/jsdoc3/jsdoc/issues/1012).
-   *
    * @inheritdoc
    */
   constructor(updateCallback: UpdateCallback, searchBoxSelector: string) {
