@@ -187,6 +187,10 @@ const forms = {
         if (field.keyValueMap) {
           const id = (field.name.match(uuidRegex) || [])[1];
 
+          // FIXME: This creates an array [] and then adds properties to it like arr['uuid'] = val,
+          // resulting in an array with length 0 but with properties. This is semantically confusing
+          // and requires downstream code to call Object.keys() to extract the property names.
+          // Should initialize as {} for UUID-based key-value maps and [] only for true arrays.
           if (typeof formValues[key] !== 'object')
             formValues[key] = [];
 
