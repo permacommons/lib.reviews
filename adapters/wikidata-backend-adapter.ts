@@ -124,8 +124,7 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
         let wdStr = escapeHTML(entry.value);
         if (typeof maxLength === 'number')
           wdStr = wdStr.substr(0, maxLength);
-        // Preserve original behavior: escape again when assigning (matches legacy code)
-        mlStr[native] = escapeHTML(entry.value);
+        mlStr[native] = escapeHTML(wdStr);
       }
     }
     return mlStr;

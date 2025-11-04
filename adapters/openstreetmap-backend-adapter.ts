@@ -89,8 +89,7 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
       // Traditional and Simplified Chinese). We map against the more common variants.
       const key = 'name:' + language;
       if (tags[key]) {
-        // Preserve legacy behavior: do not escape language-specific name tags
-        label[language] = tags[key];
+        label[language] = escapeHTML(tags[key]);
       }
     }
 
