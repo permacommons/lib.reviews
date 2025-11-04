@@ -120,18 +120,18 @@ Finalize the migration by bringing tests, scripts, and compiler settings in line
 - [x] Type the supporting Node scripts in `bin/` and `tools/` (including `bin/www.ts`, maintenance scripts, and DB utilities) using `tsconfig.node.json`, replacing any ad-hoc `.d.ts` declarations with concrete modules. They can be run via tsx for now and will be part of the prod buil in the next step.
 - [x] Introduce a production-ready TypeScript build for server and CLI entry points (e.g., `tsconfig.backend.build.json` + `npm run build:backend` emitting to `build/server`) and update deployment tooling to run the compiled JavaScript while keeping `tsx` for local execution.
 - [x] Convert backend adapter sync scripts to TypeScript and type their orchestration against DAL and search services: [`adapters/sync/sync-all.ts`](adapters/sync/sync-all.ts), [`adapters/sync/sync-wikidata.ts`](adapters/sync/sync-wikidata.ts). Update adapter test mocks and dynamic imports accordingly, consuming the typed registry [`adapters/adapters.ts`](adapters/adapters.ts).
-- [ ] Confirm Typedoc configuration matches current codebase structure and that Typedoc builds successfully
-- [ ] Add documentation/Typedoc coverage checks for the migrated util, DAL, and route modules to guarantee API comments stay synced with implementations.
-- [ ] Add typecheck to CI
+- [x] Confirm Typedoc configuration matches current codebase structure and that Typedoc builds successfully
+- [x] Add documentation/Typedoc coverage checks for the migrated util, DAL, and route modules to guarantee API comments stay synced with implementations.
+- [x] Add typecheck to CI
 - [ ] Ratchet TypeScript compiler options sequentially (`noImplicitAny`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, then `strict: true`), resolving surfaced issues before enabling the next flag.
-- [ ] Replace any lingering `@ts-ignore` directives with more precise types or `@ts-expect-error` (where the failure is intentional) and mirror the lint enforcement during the subsequent Biome migration.
+- [x] Replace any lingering `@ts-ignore` directives with more precise types or `@ts-expect-error` (where the failure is intentional) and mirror the lint enforcement during the subsequent Biome migration.
 
 ### Exit criteria for Phase 2
 - [x] All source files under `models/`, `dal/`, `routes/`, `frontend/`, `util/`, and `adapters/` compiled as TypeScript, with typed adapter registry [`adapters/adapters.ts`](adapters/adapters.ts) and no `.js` shims under `adapters/`.
-- [ ] `tsc --noEmit` passes in CI for application code and tests.
-- [ ] Type coverage report (`ts-prune` or `type-coverage`) shows ≥90% typed declarations.
+- [x] `tsc --noEmit` passes in CI for application code and tests.
+- [~] Type coverage report (`ts-prune` or `type-coverage`) shows ≥90% typed declarations.
 - [ ] Documentation updated (`README`, `CONTRIBUTING`) with TypeScript setup instructions.
-- [ ] Typedoc includes backend and frontend entry points without warnings.
+- [x] Typedoc includes backend and frontend entry points without warnings.
 
 ---
 
