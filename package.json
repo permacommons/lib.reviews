@@ -23,7 +23,11 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:frontend": "tsc --noEmit -p tsconfig.frontend.json",
     "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",
-    "typecheck:ci": "npm run typecheck:backend && tsc --noEmit -p tsconfig.docs.json"
+    "typecheck:ci": "npm run typecheck:backend && tsc --noEmit -p tsconfig.docs.json",
+    "type-coverage": "npm run type-coverage:backend && npm run type-coverage:frontend && npm run type-coverage:tests",
+    "type-coverage:backend": "type-coverage --project tsconfig.backend.json",
+    "type-coverage:frontend": "type-coverage --project tsconfig.frontend.json",
+    "type-coverage:tests": "type-coverage --project tsconfig.tests.json"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
@@ -116,16 +120,17 @@
     "ava": "^6.4.1",
     "chalk": "^5.6.2",
     "dependency-cruiser": "^17.2.0",
+    "esbuild": "^0.25.12",
+    "fast-glob": "^3.3.3",
     "jsdom": "^24.0.0",
     "less": "^4.2.0",
     "nock": "^14.0.10",
     "supertest": "^7.1.4",
     "tsx": "^4.20.6",
+    "type-coverage": "^2.29.7",
     "typedoc": "^0.27.7",
     "typescript": "^5.6.3",
-    "vite": "^7.1.11",
-    "esbuild": "^0.25.12",
-    "fast-glob": "^3.3.3"
+    "vite": "^7.1.11"
   },
   "overrides": {
     "agentkeepalive": "^4.6.0"
