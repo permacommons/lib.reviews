@@ -257,10 +257,15 @@ class ReviewProvider extends AbstractBREADProvider {
     formValues.originalLanguage = language;
 
     // Files uploaded from the editor
-    if (formValues.files && !Array.isArray(formValues.files) && typeof formValues.files === 'object')
-      formValues.files = Object.keys(formValues.files);
-    else if (!Array.isArray(formValues.files))
+    if (formValues.files && typeof formValues.files === 'object') {
+      // Handle both plain objects and arrays-with-properties (created by keyValueMap form parsing)
+      // For arrays with properties but no elements, Object.keys() extracts the property keys
+      if (!Array.isArray(formValues.files) || formValues.files.length === 0) {
+        formValues.files = Object.keys(formValues.files);
+      }
+    } else if (!formValues.files) {
       formValues.files = [];
+    }
 
     this
       .resolveTeamData(formValues)
@@ -368,10 +373,15 @@ class ReviewProvider extends AbstractBREADProvider {
       this.isPreview = true;
     }
 
-    if (formValues.files && !Array.isArray(formValues.files) && typeof formValues.files === 'object')
-      formValues.files = Object.keys(formValues.files);
-    else if (!Array.isArray(formValues.files))
+    if (formValues.files && typeof formValues.files === 'object') {
+      // Handle both plain objects and arrays-with-properties (created by keyValueMap form parsing)
+      // For arrays with properties but no elements, Object.keys() extracts the property keys
+      if (!Array.isArray(formValues.files) || formValues.files.length === 0) {
+        formValues.files = Object.keys(formValues.files);
+      }
+    } else if (!formValues.files) {
       formValues.files = [];
+    }
 
     const abort = async (error?: unknown) => {
       if (error)
