@@ -251,7 +251,6 @@ const search = {
       index: 'libreviews',
       id: review.id,
       routing: review.thingID,
-      type: 'review',
       body: {
         createdOn: review.createdOn,
         title: mlString.stripHTML(review.title),
@@ -286,7 +285,6 @@ const search = {
     const params: IndexDocumentParams<Record<string, unknown>> = {
       index: 'libreviews',
       id: thing.id,
-      type: 'thing',
       body: {
         createdOn: thing.createdOn,
         label: mlString.stripHTML(thing.label),
@@ -308,8 +306,7 @@ const search = {
   deleteThing(thing: { id: string }): Promise<unknown> {
     const params: DeleteDocumentParams = {
       index: 'libreviews',
-      id: thing.id,
-      type: 'thing'
+      id: thing.id
     };
     return getClient().delete(params)
       .catch(error => debug.error({ error }));
@@ -318,8 +315,7 @@ const search = {
   deleteReview(review: { id: string }): Promise<unknown> {
     const params: DeleteDocumentParams = {
       index: 'libreviews',
-      id: review.id,
-      type: 'review'
+      id: review.id
     };
     return getClient().delete(params)
       .catch(error => debug.error({ error }));
