@@ -376,7 +376,7 @@ class ReviewProvider extends AbstractBREADProvider {
     const abort = async (error?: unknown) => {
       if (error)
         this.req.flashError(error);
-      await this.add_GET(formValues, undefined);
+      await this.add_GET(formValues, review.thing);
     };
 
     this
