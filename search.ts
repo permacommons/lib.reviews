@@ -247,7 +247,10 @@ const search = {
       return Promise.resolve();
     }
 
-    const params: IndexDocumentParams<Record<string, unknown>> = {
+    // Note: The @types/elasticsearch package has outdated types that require
+    // a 'type' parameter, but modern ES 7+ doesn't use (or accept) this parameter.
+    // We use 'as unknown as' to bypass the incorrect type requirement.
+    const params = {
       index: 'libreviews',
       id: review.id,
       routing: review.thingID,
@@ -262,7 +265,7 @@ const search = {
           parent: review.thingID
         }
       }
-    };
+    } as unknown as IndexDocumentParams<Record<string, unknown>>;
 
     return getClient().index(params)
       .catch(error => debug.error({ error }));
@@ -282,7 +285,10 @@ const search = {
     const subtitle = thing.subtitle;
     const authors = thing.authors;
 
-    const params: IndexDocumentParams<Record<string, unknown>> = {
+    // Note: The @types/elasticsearch package has outdated types that require
+    // a 'type' parameter, but modern ES 7+ doesn't use (or accept) this parameter.
+    // We use 'as unknown as' to bypass the incorrect type requirement.
+    const params = {
       index: 'libreviews',
       id: thing.id,
       body: {
@@ -297,26 +303,28 @@ const search = {
         urls: thing.urls,
         urlID: thing.urlID
       }
-    };
+    } as unknown as IndexDocumentParams<Record<string, unknown>>;
 
     return getClient().index(params)
       .catch(error => debug.error({ error }));
   },
 
   deleteThing(thing: { id: string }): Promise<unknown> {
-    const params: DeleteDocumentParams = {
+    // Note: The @types/elasticsearch package requires 'type', but ES 7+ doesn't use it.
+    const params = {
       index: 'libreviews',
       id: thing.id
-    };
+    } as DeleteDocumentParams;
     return getClient().delete(params)
       .catch(error => debug.error({ error }));
   },
 
   deleteReview(review: { id: string }): Promise<unknown> {
-    const params: DeleteDocumentParams = {
+    // Note: The @types/elasticsearch package requires 'type', but ES 7+ doesn't use it.
+    const params = {
       index: 'libreviews',
       id: review.id
-    };
+    } as DeleteDocumentParams;
     return getClient().delete(params)
       .catch(error => debug.error({ error }));
   },
