@@ -71,9 +71,9 @@ const BlogPostModel = BlogPost as unknown as BlogPostModelHandle;
 
 class BlogPostProvider extends AbstractBREADProvider {
   static formDefs: Record<string, any>;
-  protected language?: LocaleCodeWithUndetermined;
-  protected utcISODate?: string;
-  protected postID!: string;
+  protected declare language?: LocaleCodeWithUndetermined;
+  protected declare utcISODate?: string;
+  protected declare postID: string;
   protected isPreview = false;
   protected editing = false;
 

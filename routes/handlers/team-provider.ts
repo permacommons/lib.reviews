@@ -29,8 +29,8 @@ class TeamProvider extends AbstractBREADProvider {
   static formDefs: Record<string, any>;
   protected isPreview = false;
   protected editing = false;
-  protected format?: string;
-  protected language?: string;
+  protected declare format?: string;
+  protected declare language?: string;
 
   constructor(req: HandlerRequest, res: HandlerResponse, next: HandlerNext, options?: Record<string, unknown>) {
     super(req, res, next, options);
