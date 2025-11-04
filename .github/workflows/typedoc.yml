@@ -24,4 +24,4 @@ jobs:
         run: npm ci
 
       - name: Build TypeDoc site
-        run: npm run make-docs
+        run: npm run build:docs

@@ -61,7 +61,6 @@ type UploadResponse = HandlerResponse;
  *  Express response
  * @returns
  *  callback invoked by the Multer middleware
- * @memberof APIUploadHandler
  */
 function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
   return (fileFilterError?: unknown) => {
@@ -121,7 +120,6 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
  *  Request data
  * @returns
  *  Validation errors, if any.
- * @memberof APIUploadHandler
  */
 function validateAllMetadata(files: UploadFile[], data: Record<string, any>): Error[] {
   const errors: Error[] = [],
@@ -159,7 +157,6 @@ function validateAllMetadata(files: UploadFile[], data: Record<string, any>): Er
  *  Add a filename suffix to each field (used for requests with multiple files)
  * @returns
  *  Validation errors for this field, if any
- * @memberof APIUploadHandler
  */
 function validateMetadata(file: UploadFile, data: Record<string, any>, { addSuffix = false } = {}) {
   const validLicenses = (File as unknown as { getValidLicenses: () => string[] }).getValidLicenses();
@@ -209,7 +206,6 @@ function validateMetadata(file: UploadFile, data: Record<string, any>, { addSuff
  *  keys which will be ignored _unless_ they access a truthy value
  * @returns
  *  errors for each validation issue or an empty array
- * @memberof APIUploadHandler
  */
 function checkRequired(
   obj: Record<string, any>,
@@ -248,7 +244,6 @@ function checkRequired(
  * @param data
  * @returns
  *  the revisions for further processing
- * @memberof APIUploadHandler
  */
 function addMetadata(files: UploadFile[], fileRevs: FileRevision[], data: Record<string, any>) {
   const multiple = Boolean(data.multiple);
@@ -272,7 +267,6 @@ function addMetadata(files: UploadFile[], fileRevs: FileRevision[], data: Record
  *  Validation options
  * @param options.addSuffix=false
  *  Add a filename suffix to each field (used for requests with multiple files)
- * @memberof APIUploadHandler
  */
 function addMetadataToFileRev(file: UploadFile, fileRev: FileRevision, data: Record<string, any>, { addSuffix = false } = {}) {
   const field = (key: string) => addSuffix ? `${key}-${file.originalname}` : key;
@@ -298,7 +292,6 @@ function addMetadataToFileRev(file: UploadFile, fileRev: FileRevision, data: Rec
  *  Express response
  * @param fileRevs
  *  the saved file metadata revisions
- * @memberof APIUploadHandler
  */
 function reportUploadSuccess(req: UploadRequest, res: UploadResponse, fileRevs: FileRevision[]) {
   const uploads = req.files.map((file, index) => ({

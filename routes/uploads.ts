@@ -559,7 +559,6 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
  * @param  {File[]} fileRevs
  *  uploads to complete
  * @returns {File[]}
- * @memberof Uploads
  */
 async function completeUploads(fileRevs: UploadRevision[], uploadsDir: string): Promise<UploadRevision[]> {
   for (let fileRev of fileRevs)
