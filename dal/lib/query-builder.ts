@@ -231,6 +231,24 @@ function inferArrayCast(values: unknown[], { preferText = false }: { preferText?
   return null;
 }
 
+/**
+ * Fluent query builder for the PostgreSQL DAL.
+ *
+ * Produces parameterized SQL for SELECT/COUNT/DELETE with support for filters,
+ * ordering, pagination, and both simple and complex joins. Instances are
+ * model-aware (leveraging table/column metadata) and implement Promise-like
+ * behavior so they can be awaited directly.
+ *
+ * Typical usage:
+ *   const results = await new QueryBuilder(Model, dal)
+ *     .filter({ id: '...' })
+ *     .orderBy('created_on', 'DESC')
+ *     .limit(10)
+ *     .run();
+ *
+ * The builder also supports function-style filters and automatic translation
+ * of camelCase fields to snake_case database columns when applicable.
+ */
 class QueryBuilder implements PromiseLike<QueryInstance[]> {
   modelClass: QueryModel;
   dal: DataAccessLayer;

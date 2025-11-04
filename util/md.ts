@@ -5,6 +5,13 @@ import i18n from 'i18n';
 
 type MarkdownItWithMessages = MarkdownIt & { getMarkdownMessageKeys?: () => string[] };
 
+/**
+ * Return the set of internationalized markdown notice keys that must be
+ * bundled with the frontend (e.g., spoiler/NSFW warnings) so plugins can
+ * render localized container labels.
+ *
+ * @returns Array of message keys to include with frontend bundles
+ */
 const getMarkdownMessageKeys = () => Array.from(markdownMessages);
 
 /** Keys that must be bundled with the frontend for markdown notices. */

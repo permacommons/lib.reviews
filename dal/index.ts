@@ -37,6 +37,12 @@ type CreateDataAccessLayer = ((config?: Partial<PostgresConfig>) => DataAccessLa
   revision: typeof revision;
 };
 
+/**
+ * Create a PostgreSQL Data Access Layer (DAL) instance.
+ *
+ * @param config Optional PostgreSQL configuration overrides used to initialize the DAL instance.
+ * @returns A ready-to-use DAL instance bound to the provided configuration.
+ */
 const createDataAccessLayer = ((config?: Partial<PostgresConfig>) => new DataAccessLayerCtor(config)) as CreateDataAccessLayer;
 
 createDataAccessLayer.DataAccessLayer = DataAccessLayerCtor;

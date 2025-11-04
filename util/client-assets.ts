@@ -30,7 +30,11 @@ const PROJECT_ROOT = process.cwd();
  */
 let manifestDirOverride: string | null = null;
 
-/** Set manifest root directory and clear any cached manifest. */
+/**
+ * Set manifest root directory and clear any cached manifest.
+ *
+ * @param dir Absolute path to the directory containing Vite's manifest.json
+ */
 function setManifestDir(dir: string): void {
   manifestDirOverride = dir;
   resetManifestCache();
@@ -144,6 +148,9 @@ function getManifest(): Manifest {
 /**
  * Resolves the scripts and styles required to serve the requested frontend
  * bundles. Entries are deduplicated and always include the base `lib` bundle.
+ *
+ * @param requestedEntries Optional list of entry names to include in addition to "lib"
+ * @returns Object containing public script and style URLs for the requested entries
  */
 function getClientAssets(requestedEntries?: unknown[]): ClientAssetsResult {
   const ordered: string[] = [];

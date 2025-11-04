@@ -50,6 +50,15 @@ type FileModelType = {
   getStashedUpload(userID: string, name: string): Promise<UploadRevision | null>;
 };
 
+// Uploading is a two step process. In the first step, the user simply posts the
+// file or files. In the second step, they provide information such as the
+// license and description. This first step has to be handled prior to the CSRF
+// middleware because of the requirement of managing upload streams and
+// multipart forms.
+//
+// Whether or not an upload is finished, as long as we have a valid file, we
+// keep it on disk, initially in a temporary directory. We also create a
+// record in the "files" table for it that can be completed later.
 const stage1Router = Router();
 const stage2Router = Router();
 const FileModel = File as unknown as FileModelType;
@@ -107,54 +116,71 @@ const uploadFormDef = [{
   }
 ];
 
-// Uploading is a two step process. In the first step, the user simply posts the
-// file or files. In the second step, they provide information such as the
-// license and description. This first step has to be handled prior to the CSRF
-// middleware because of the requirement of managing upload streams and
-// multipart forms.
-//
-// Whether or not an upload is finished, as long as we have a valid file, we
-// keep it on disk, initially in a temporary directory. We also create a
-// record in the "files" table for it that can be completed later.
-stage1Router.post('/:id/upload', function(req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
+stage1Router.post('/:id/upload',
+  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
 
-  // On to stage 2
-  if (!is(req, ['multipart']))
-    return next();
+    // On to stage 2
+    if (!is(req, ['multipart']))
+      return next();
 
-  let id = req.params.id.trim();
-  slugs.resolveAndLoadThing(req, res, id)
-    .then(thing => {
+    let id = req.params.id.trim();
+    slugs.resolveAndLoadThing(req, res, id)
+      .then(thing => {
 
-      thing.populateUserInfo(req.user);
-      if (!thing.userCanUpload)
-        return render.permissionError(req, res, {
-          titleKey: 'add media'
+        thing.populateUserInfo(req.user);
+        if (!thing.userCanUpload)
+          return render.permissionError(req, res, {
+            titleKey: 'add media'
+          });
+
+        let storage = multer.diskStorage({
+          destination: config.uploadTempDir,
+          filename: assignFilename
         });
 
-      let storage = multer.diskStorage({
-        destination: config.uploadTempDir,
-        filename: assignFilename
-      });
+        let upload = multer({
+          limits: {
+            fileSize: config.uploadMaxSize
+          },
+          fileFilter: getFileFilter(req, res),
+          storage
+        }).array('media');
 
-      let upload = multer({
-        limits: {
-          fileSize: config.uploadMaxSize
-        },
-        fileFilter: getFileFilter(req, res),
-        storage
-      }).array('media');
+        // Execute the actual upload middleware
+        upload(req, res, getUploadHandler(req, res, next, thing));
+      })
+      .catch(getResourceErrorHandler(req, res, next, 'thing', id));
+  }
+);
 
-      // Execute the actual upload middleware
-      upload(req, res, getUploadHandler(req, res, next, thing));
-    })
-    .catch(getResourceErrorHandler(req, res, next, 'thing', id));
-});
+stage2Router.post('/:id/upload',
+  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
+    let id = req.params.id.trim();
+    slugs.resolveAndLoadThing(req, res, id)
+      .then(thing => {
 
+        thing.populateUserInfo(req.user);
+        if (!thing.userCanUpload)
+          return render.permissionError(req, res, {
+            titleKey: 'add media'
+          });
 
-// Note that at the time the filter runs, we won't have the complete file yet,
-// so we may temporarily store files and delete them later if, after
-// investigation, they turn out to contain unacceptable content.
+        processUploadForm(req, res, next, thing);
+
+      })
+      .catch(getResourceErrorHandler(req, res, next, 'thing', id));
+  }
+);
+
+/**
+ * Create a Multer file filter bound to the current request and response.
+ * Validates candidate files against permitted MIME types, producing an
+ * error for unsupported types and allowing permitted ones to proceed.
+ *
+ * @param req Request object for the upload route context
+ * @param res Response object for the upload route context
+ * @returns A Multer FileFilter callback that enforces permitted types
+ */
 function getFileFilter(req: UploadsRequest<{ id: string }>, res: UploadsResponse) {
   return (_req: UploadsRequest, file: UploadedFile, done: FileFilterCallback) => {
     const { fileTypeError, isPermitted } = checkMIMEType(file);
@@ -162,8 +188,13 @@ function getFileFilter(req: UploadsRequest<{ id: string }>, res: UploadsResponse
   };
 }
 
-// Check if MIME type appears okay. That doesn't mean the file is acceptable -
-// file could be pretending to be something it isn't
+/**
+ * Check whether a file's reported MIME type is permitted for upload.
+ * This does not validate the file contents—only the claimed type.
+ *
+ * @param file Uploaded file metadata (original name, mimetype, etc.)
+ * @returns Object indicating any validation error and whether the file is permitted
+ */
 function checkMIMEType(file: UploadedFile): { fileTypeError: Error | null; isPermitted: boolean } {
   if (!allowedTypes.includes(file.mimetype))
     return {
@@ -241,6 +272,13 @@ function getUploadHandler(
   };
 }
 
+/**
+ * Validate a batch of uploaded files for correctness and safety.
+ * Uses magic-number detection for most types and specialized checks for SVG.
+ *
+ * @param files Array of uploaded file descriptors to validate
+ * @returns Resolved MIME types for each file (aligned by index)
+ */
 async function validateFiles(files: UploadedFile[]): Promise<string[]> {
   const validators: Promise<string>[] = [];
   files.forEach(file => {
@@ -260,6 +298,17 @@ async function validateFiles(files: UploadedFile[]): Promise<string[]> {
   return fileTypes;
 }
 
+/**
+ * Create initial File model revisions for each uploaded file and populate
+ * core metadata (name, MIME type, uploader, timestamps), optionally tagging
+ * each revision for audit/traceability.
+ *
+ * @param files Files received from the client
+ * @param fileTypes Validated MIME types corresponding to each file
+ * @param user Authenticated user responsible for the upload
+ * @param tags Optional tags applied to each created file revision
+ * @returns Array of File revisions ready to be associated to a Thing
+ */
 async function getFileRevs(
   files: UploadedFile[],
   fileTypes: string[],
@@ -301,6 +350,14 @@ async function attachFileRevsToThing(fileRevs: UploadRevision[], thing: ThingIns
   return fileRevs;
 }
 
+/**
+ * Remove any temporarily staged files associated with the current request.
+ * Intended for early-abort paths (e.g., CSRF failure or filter error),
+ * this function ensures disk cleanup for partially processed uploads.
+ *
+ * @param req Request object that may contain a files array
+ * @returns Nothing; resolves once cleanup attempts are complete
+ */
 async function cleanupFiles(req: UploadsRequest & { files?: UploadedFile[] }): Promise<void> {
   if (!Array.isArray(req.files) || !req.files?.length)
     return;
@@ -343,8 +400,13 @@ async function validateFile(filePath: string, claimedType: string | undefined): 
     return type.mime;
 }
 
-// SVGs can't be validated by magic number check. This, too, is a relatively
-// shallow validation, not a full XML parse.
+/**
+ * Perform a shallow validation that a file contains SVG data.
+ * Reads the file and checks content using an SVG detector.
+ *
+ * @param filePath Path to the staged file on disk
+ * @returns The canonical MIME type string for SVG when valid
+ */
 async function validateSVG(filePath: string): Promise<string> {
   if (!filePath)
     throw new ReportedError({
@@ -363,7 +425,8 @@ async function validateSVG(filePath: string): Promise<string> {
 
 // If an upload is unfinished, it can still be viewed at its destination URL
 // by the user who uploaded it.
-stage1Router.get('/static/uploads/restricted/:name', function(req: UploadsRequest<{ name: string }>, res: UploadsResponse, next: HandlerNext) {
+stage1Router.get('/static/uploads/restricted/:name',
+  function(req: UploadsRequest<{ name: string }>, res: UploadsResponse, next: HandlerNext) {
   if (!req.user)
     return next();
 
@@ -382,26 +445,6 @@ stage1Router.get('/static/uploads/restricted/:name', function(req: UploadsReques
       res.sendFile(path.join(config.uploadTempDir, upload.name));
     })
     .catch(next);
-});
-
-// This route handles step 2 of a file upload, the addition of metadata.
-// Step 1 is handled as an earlier middleware in process-uploads.js, due to the
-// requirement of handling file streams and a multipart form.
-stage2Router.post('/:id/upload', function(req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
-  let id = req.params.id.trim();
-  slugs.resolveAndLoadThing(req, res, id)
-    .then(thing => {
-
-      thing.populateUserInfo(req.user);
-      if (!thing.userCanUpload)
-        return render.permissionError(req, res, {
-          titleKey: 'add media'
-        });
-
-      processUploadForm(req, res, next, thing);
-
-    })
-    .catch(getResourceErrorHandler(req, res, next, 'thing', id));
 });
 
 function processUploadForm(
@@ -531,6 +574,15 @@ async function processUploads(uploads: UploadRevision[], formValues: Record<stri
 }
 
 
+/**
+ * Move a staged upload to its final public location and mark it complete.
+ * Ensures safe filenames, performs the move, and persists metadata.
+ * If persistence fails, the file is moved back to the staging area.
+ *
+ * @param upload Upload revision to finalize
+ * @param uploadsDir Destination directory for completed uploads
+ * @returns Nothing; resolves once the upload is finalized or rolled back
+ */
 async function completeUpload(upload: UploadRevision, uploadsDir: string): Promise<void> {
   // File names are sanitized on input but ..
   // This error is not shown to the user but logged, hence native.
@@ -556,9 +608,9 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
  * Move a set of uploads to their final location and set the "completed"
  * property to true.
  *
- * @param  {File[]} fileRevs
- *  uploads to complete
- * @returns {File[]}
+ * @param fileRevs Upload revisions to complete
+ * @param uploadsDir Destination directory for completed uploads
+ * @returns The same uploads after being finalized
  */
 async function completeUploads(fileRevs: UploadRevision[], uploadsDir: string): Promise<UploadRevision[]> {
   for (let fileRev of fileRevs)
@@ -566,6 +618,14 @@ async function completeUploads(fileRevs: UploadRevision[], uploadsDir: string): 
   return fileRevs;
 }
 
+/**
+ * Generate a sanitized, unique filename for a freshly uploaded file by
+ * appending a timestamp to the original name while preserving the extension.
+ *
+ * @param _req Request object (unused)
+ * @param file Uploaded file descriptor containing the original name
+ * @param done Multer callback invoked with the generated filename
+ */
 function assignFilename(_req: UploadsRequest, file: UploadedFile, done: (error: Error | null, filename?: string) => void) {
   let p = path.parse(file.originalname);
   let name = `${p.name}-${Date.now()}${p.ext}`;

@@ -9,7 +9,13 @@ export interface FetchWithTimeoutOptions extends RequestInit {
   signal?: AbortSignal;
 }
 
-/** Wraps `fetch` with optional timeout handling and improved error messages. */
+/**
+ * Wraps `fetch` with optional timeout handling and improved error messages.
+ *
+ * @param url Request URL or URL object to fetch
+ * @param options Optional request options including timeout, label, and signal
+ * @returns The Response object from the request
+ */
 export async function fetchWithTimeout(url: string | URL, {
   timeout,
   label = 'HTTP',
@@ -28,7 +34,13 @@ export async function fetchWithTimeout(url: string | URL, {
   }
 }
 
-/** Fetches JSON responses while reusing {@link fetchWithTimeout}. */
+/**
+ * Fetches JSON responses while reusing {@link fetchWithTimeout}.
+ *
+ * @param url Request URL or URL object to fetch
+ * @param options Optional request options including timeout, label, and signal
+ * @returns Parsed JSON response body
+ */
 export async function fetchJSON<T = unknown>(url: string | URL, options: FetchWithTimeoutOptions = {}): Promise<T> {
   const response = await fetchWithTimeout(url, options);
   if (!response.ok) {

@@ -60,6 +60,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check
+        run: npm run typecheck:ci
+
+      - name: Docs coverage (util/dal/routes)
+        run: npm run docs:coverage
+
       - name: Build frontend assets
         run: npm run build:frontend
 

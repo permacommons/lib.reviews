@@ -52,6 +52,9 @@ export interface DebugErrorFunction {
 /**
  * Recursively redacts credentials and nested secrets before serializing the
  * object to JSON for debugging. Primitive values are returned unchanged.
+ *
+ * @param value Arbitrary value to sanitize for safe logging
+ * @returns Sanitized value with sensitive fields redacted
  */
 function sanitizeForLogging<T>(value: T): T {
   if (value === null || typeof value !== 'object')
