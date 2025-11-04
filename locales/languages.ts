@@ -4,12 +4,12 @@
 // External dependencies
 import jsonfile from 'jsonfile';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 // Internal dependencies
 import ReportedError from '../util/reported-error.ts';
 
-const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
 
 // To add support for a new language, first add the locale file (JSON format)
 // with the translations to the locales/ directory. Then add the new language
@@ -71,7 +71,8 @@ interface CldrLanguageFile {
 const langData: LanguageNameData = Object.create(null);
 
 // Import language names from CLDR module
-const cldrPath = path.join(moduleDir, '../node_modules/cldr-localenames-full/main');
+const cldrPkgPath = require.resolve('cldr-localenames-full/package.json');
+const cldrPath = path.join(path.dirname(cldrPkgPath), 'main');
 
 /* eslint no-sync: "off" */
 VALID_LANGUAGES.forEach(language => {

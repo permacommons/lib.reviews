@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && npm run build:types:frontend",
+    "build:frontend": "vite build",
     "build:types:frontend": "tsc -p tsconfig.frontend.dts.json",
-    "start": "NODE_ENV=production tsx bin/www.ts",
+    "build:backend": "node scripts/build-backend.mjs",
+    "build:assets:copy": "cp -r locales views build/server/bin/",
+    "build:deploy": "npm run clean && npm run build:frontend && npm run build:backend && npm run build:assets:copy",
+    "clean": "rm -rf build",
+    "deploy": "npm run build:deploy",
+    "start": "NODE_ENV=production node build/server/bin/www.js",
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* tsx bin/www.ts",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing tsx tests/run-ava.ts",
@@ -115,7 +120,9 @@
     "tsx": "^4.20.6",
     "typedoc": "^0.27.7",
     "typescript": "^5.6.3",
-    "vite": "^7.1.11"
+    "vite": "^7.1.11",
+    "esbuild": "^0.25.12",
+    "fast-glob": "^3.3.3"
   },
   "overrides": {
     "agentkeepalive": "^4.6.0"

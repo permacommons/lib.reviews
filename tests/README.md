@@ -68,7 +68,7 @@ npm run test
 
 `tests/run-ava.ts` performs the following:
 
-1. Checks if the Vite manifest exists (triggering `npm run build` on demand)
+1. Checks if the Vite manifest exists (triggering `npm run build:frontend` on demand)
 2. **Checks PostgreSQL DAL readiness** - tests will exit immediately if PostgreSQL
    is not available or not properly configured
 3. Sets the required environment variables (`NODE_APP_INSTANCE=testing`)

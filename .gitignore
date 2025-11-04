@@ -2,6 +2,9 @@
 logs
 *.log
 
+# Bild artifacts
+build
+
 # Runtime data
 pids
 *.pid

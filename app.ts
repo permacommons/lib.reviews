@@ -60,7 +60,14 @@ async function getApp(): Promise<express.Express> {
 
   const asyncJobs: Array<Promise<unknown>> = [];
 
-  asyncJobs.push(...['deleted', 'static/uploads', 'static/downloads'].map(setupDirectory));
+    // Resolve runtime paths for static assets and deleted files (environment-agnostic).
+    // Final architecture: serve static/ and deleted/ from the repository root in both
+    // development and production to avoid copying/wiping immutable assets.
+    const repoRoot = process.cwd();
+    const resolvedStaticDir = path.join(repoRoot, 'static');
+    const resolvedUploadsDir = path.join(resolvedStaticDir, 'uploads');
+    const resolvedDownloadsDir = path.join(resolvedStaticDir, 'downloads');
+    const resolvedDeletedDir = path.join(repoRoot, 'deleted');
 
   const dalPromise = initializeDAL();
   asyncJobs.push(dalPromise);
@@ -78,6 +85,31 @@ async function getApp(): Promise<express.Express> {
   });
 
   const app = express();
+
+  // Centralize absolute runtime paths for routes/middlewares to consume
+  app.locals.paths = {
+    runtimeRoot: __dirname,
+    staticDir: resolvedStaticDir,
+    uploadsDir: resolvedUploadsDir,
+    downloadsDir: resolvedDownloadsDir,
+    deletedDir: resolvedDeletedDir
+  } as {
+    runtimeRoot: string;
+    staticDir: string;
+    uploadsDir: string;
+    downloadsDir: string;
+    deletedDir: string;
+  };
+
+  // Ensure required directories exist at startup
+  asyncJobs.push(...[
+    app.locals.paths.deletedDir,
+    app.locals.paths.uploadsDir,
+    app.locals.paths.downloadsDir
+  ].map(setupDirectory));
+
+  // Pin the Vite manifest directory for production builds to avoid guessing
+  clientAssets.setManifestDir(path.join(process.cwd(), 'build', 'frontend', '.vite'));
 
   app.set('views', path.join(__dirname, 'views'));
 
@@ -135,13 +167,13 @@ async function getApp(): Promise<express.Express> {
 
   app.use(compression());
 
-  app.use(favicon(path.join(__dirname, 'static/img/favicon.ico')));
+  app.use(favicon(path.join(app.locals.paths.staticDir, 'img', 'favicon.ico')));
 
   const loggerConfigValue = config.get('logger');
   if (typeof loggerConfigValue === 'string' && loggerConfigValue !== '')
     app.use(logger(loggerConfigValue));
 
-  app.use('/static/downloads', serveIndex(path.join(__dirname, 'static/downloads'), {
+  app.use('/static/downloads', serveIndex(app.locals.paths.downloadsDir, {
     icons: true,
     template: path.join(__dirname, 'views/downloads.html')
   }));
@@ -152,7 +184,7 @@ async function getApp(): Promise<express.Express> {
     return next();
   });
 
-  app.use('/static', express.static(path.join(__dirname, 'static')));
+  app.use('/static', express.static(app.locals.paths.staticDir));
 
   if (process.env.NODE_ENV !== 'production') {
     app.get('/assets/manifest.json', (req, res, next) => {
@@ -165,7 +197,7 @@ async function getApp(): Promise<express.Express> {
     });
   }
 
-  app.use('/assets', express.static(path.join(__dirname, 'build', 'vite'), {
+  app.use('/assets', express.static(path.join(process.cwd(), 'build', 'frontend'), {
     fallthrough: true,
     maxAge: '1y'
   }));
@@ -259,7 +291,7 @@ async function getApp(): Promise<express.Express> {
  * @memberof App
  */
 async function setupDirectory(dir: string): Promise<void> {
-  const directory = path.join(__dirname, dir);
+  const directory = path.isAbsolute(dir) ? dir : path.join(__dirname, dir);
   try {
     await fs.promises.mkdir(directory);
     debug.app(`Directory '${directory}' did not exist yet, creating.`);

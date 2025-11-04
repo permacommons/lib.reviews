@@ -32,7 +32,10 @@ type FileRevision = {
   [key: string]: unknown;
 };
 
-const finalizeUploads = completeUploads as unknown as (fileRevs: FileRevision[]) => Promise<FileRevision[]>;
+/**
+ * completeUploads is invoked with an explicit uploadsDir from req.app.locals.paths.
+ * This avoids per-module path guessing and keeps prod/dev parity.
+ */
 
 /**
  * Process uploads via the API.
@@ -102,7 +105,7 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
     validateFiles(req.files)
       .then(fileTypes => getFileRevs(req.files, fileTypes, req.user, ['upload', 'upload-via-api']))
       .then(fileRevs => addMetadata(req.files, fileRevs as FileRevision[], req.body ?? {}))
-      .then(fileRevs => finalizeUploads(fileRevs))
+      .then(fileRevs => completeUploads(fileRevs as unknown as FileRevision[], req.app.locals.paths.uploadsDir))
       .then(persistRevisions)
       .then(fileRevs => reportUploadSuccess(req, res, fileRevs))
       .catch(error => abortUpload([error instanceof Error ? error : new Error(String(error))]));

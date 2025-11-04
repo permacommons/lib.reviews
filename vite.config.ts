@@ -13,7 +13,7 @@ export default defineConfig({
   plugins: [],
   server: { allowedHosts: ['dev.test'] },
   build: {
-    outDir: 'build/vite',
+    outDir: 'build/frontend',
     emptyOutDir: false,
     manifest: true,
     rollupOptions: {

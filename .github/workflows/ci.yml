@@ -60,8 +60,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build assets
-        run: npm run build
+      - name: Build frontend assets
+        run: npm run build:frontend
 
       - name: Run tests
         run: npm run test

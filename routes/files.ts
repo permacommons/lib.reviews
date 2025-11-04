@@ -81,7 +81,7 @@ router.post('/file/:id/delete', function(req: FilesRouteRequest<{ id: string }>,
       if (!file.userCanDelete)
         return render.permissionError(req, res, { titleKey });
 
-      deleteFile(file, req.user)
+      deleteFile(req, file, req.user)
         .then(() => {
           render.template(req, res, 'file-deleted', {
             file,
@@ -93,9 +93,15 @@ router.post('/file/:id/delete', function(req: FilesRouteRequest<{ id: string }>,
     .catch(getResourceErrorHandler(req, res, next, 'file', id));
 });
 
-async function deleteFile(file: Record<string, any>, user: Record<string, any>) {
-  const oldPath = path.join(__dirname, '../static/uploads', file.name);
-  const newPath = path.join(__dirname, '../deleted', file.name);
+
+async function deleteFile(req: FilesRouteRequest, file: Record<string, any>, user: Record<string, any>) {
+  const { uploadsDir, deletedDir } = req.app.locals.paths as {
+    uploadsDir: string;
+    deletedDir: string;
+  };
+
+  const oldPath = path.join(uploadsDir, file.name);
+  const newPath = path.join(deletedDir, file.name);
 
   await file.deleteAllRevisions(user);
   await rename(oldPath, newPath);

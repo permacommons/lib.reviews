@@ -14,18 +14,18 @@ const args = process.argv.slice(2);
 if (args.length === 0)
   args.push('--verbose', 'tests/[0-9]*-*.ts');
 
-const manifestPath = resolve(process.cwd(), 'build', 'vite', '.vite', 'manifest.json');
+const manifestPath = resolve(process.cwd(), 'build', 'frontend', '.vite', 'manifest.json');
 if (!existsSync(manifestPath)) {
-  process.stdout.write(`Missing Vite manifest at ${manifestPath}. Running "npm run build"…\n`);
+  process.stdout.write(`Missing Vite manifest at ${manifestPath}. Running "npm run build:frontend"…\n`);
   const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const buildResult = spawnSync(npmCommand, ['run', 'build'], {
+  const buildResult = spawnSync(npmCommand, ['run', 'build:frontend'], {
     stdio: 'inherit',
     env: process.env
   });
 
   if (buildResult.status !== 0) {
     const exitCode = buildResult.status ?? 1;
-    process.stderr.write('\n`npm run build` failed; aborting test run.\n');
+    process.stderr.write('\n`npm run build:frontend` failed; aborting test run.\n');
     process.exit(exitCode);
   }
 

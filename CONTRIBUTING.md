@@ -12,7 +12,7 @@ We welcome contributions to [any of our open issues](https://github.com/permacom
 2. **Clone** the repository
 3. **Setup PostgreSQL** (see Database Setup below)
 4. **Install dependencies:** `npm install`
-5. **Build assets:** `npm run build`
+5. **Build frontend assets:** `npm run build:frontend`
 6. **Configure** (optional): Copy `config/default.json5` to `config/development.json5` and customize
 7. **Start dev server:** `npm run start-dev`
 8. **Run tests:** `npm run test`
@@ -94,7 +94,7 @@ The application automatically applies pending migrations on startup. You can sto
 - **Connection failures:** Verify PostgreSQL is running on `localhost:5432`
 - **Permission errors:** Re-run `dal/setup-db-grants.sql`
 - **Missing extensions:** Ensure `pgcrypto` exists in both databases
-- **Asset build issues:** Delete `build/vite` and rebuild
+- **Asset build issues:** Delete `build/frontend` and rebuild
 
 ## Development
 
@@ -126,7 +126,7 @@ Copy `config/default.json5` to `config/development.json5` to customize your loca
 npm run test
 ```
 
-The test script automatically ensures a production Vite manifest exists, running `npm run build` if necessary before starting the AVA test suite.
+The test script automatically ensures a production Vite manifest exists, running `npm run build:frontend` if necessary before starting the AVA test suite.
 
 ## Technical Overview
 
@@ -254,7 +254,7 @@ Historical database dumps (from before 2025-10-30) are available in RethinkDB fo
 
 ## Front-end Development
 
-- **Build system:** Vite (`npm run build`), source in `frontend/` directory
+- **Build system:** Vite (`npm run build:frontend`), source in `frontend/` directory
 - **Module system:** Not consistently using CommonJS yet (only in editor module)
 - **Globals:** We minimize globals, but use:
   - `window.config` - Settings and UI messages specific to current user and page

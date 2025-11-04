@@ -457,7 +457,7 @@ function processUploadForm(
   // problem, move the upload to its final location, update its metadata and
   // mark it as finished.
   getFiles(uploadIDs)
-    .then(files => processUploads(files, formData.formValues, language))
+    .then(files => processUploads(files, formData.formValues, language, req.app.locals.paths.uploadsDir))
     .then(() => redirectBack({ message: ['upload completed'] }))
     .catch(error => {
       req.flashError?.(error);
@@ -466,7 +466,7 @@ function processUploadForm(
 }
 
 
-async function processUploads(uploads: UploadRevision[], formValues: Record<string, any>, language: string): Promise<void> {
+async function processUploads(uploads: UploadRevision[], formValues: Record<string, any>, language: string, uploadsDir: string): Promise<void> {
     let completeUploadPromises: Promise<unknown>[] = [];
     uploads.forEach(upload => {
 
@@ -524,21 +524,22 @@ async function processUploads(uploads: UploadRevision[], formValues: Record<stri
           userMessage: 'unexpected form data'
         });
       }
-      completeUploadPromises.push(completeUpload(upload));
+      completeUploadPromises.push(completeUpload(upload, uploadsDir));
     });
 
     await Promise.all(completeUploadPromises);
 }
 
-async function completeUpload(upload: UploadRevision): Promise<void> {
+
+async function completeUpload(upload: UploadRevision, uploadsDir: string): Promise<void> {
   // File names are sanitized on input but ..
   // This error is not shown to the user but logged, hence native.
   if (!upload.name || /[/<>]/.test(upload.name))
     throw new Error(`Invalid filename: ${upload.name}`);
 
   // Move the file to its final location so it can be served
-  let oldPath = path.join(config.uploadTempDir, upload.name),
-    newPath = path.join(__dirname, '../static/uploads', upload.name);
+  const oldPath = path.join(config.uploadTempDir, upload.name);
+  const newPath = path.join(uploadsDir, upload.name);
 
   await rename(oldPath, newPath);
   upload.completed = true;
@@ -560,9 +561,9 @@ async function completeUpload(upload: UploadRevision): Promise<void> {
  * @returns {File[]}
  * @memberof Uploads
  */
-async function completeUploads(fileRevs: UploadRevision[]): Promise<UploadRevision[]> {
+async function completeUploads(fileRevs: UploadRevision[], uploadsDir: string): Promise<UploadRevision[]> {
   for (let fileRev of fileRevs)
-    await completeUpload(fileRev);
+    await completeUpload(fileRev, uploadsDir);
   return fileRevs;
 }
 
