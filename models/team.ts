@@ -285,7 +285,7 @@ async function _getTeamMembers(teamId: string): Promise<Record<string, any>[]> {
     return result.rows.map((row: Record<string, any>) => {
       delete row.password;
       delete row.email;
-      return model._createInstance ? model._createInstance(row) : new (User as any)(row);
+      return (User as any)._createInstance(row);
     });
   } catch (error) {
     debug.error('Error getting team members');
@@ -317,7 +317,7 @@ async function _getTeamModerators(teamId: string): Promise<Record<string, any>[]
     return result.rows.map((row: Record<string, any>) => {
       delete row.password;
       delete row.email;
-      return model._createInstance ? model._createInstance(row) : new (User as any)(row);
+      return (User as any)._createInstance(row);
     });
   } catch (error) {
     debug.error('Error getting team moderators');
