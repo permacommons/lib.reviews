@@ -19,7 +19,7 @@ export default function getResourceErrorHandler(
 ): (error: ResourceError) => void {
 
   if (!messageKeyPrefix || !bodyParam)
-    throw new Error('We need a prefix for message keys, and a parameter containing e.g. the ID fo the resource.');
+    throw new Error('We need a prefix for message keys, and a parameter containing e.g. the ID of the resource.');
 
   const escapedBodyParam = escapeHTML(bodyParam);
 
