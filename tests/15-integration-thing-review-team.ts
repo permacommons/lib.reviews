@@ -18,7 +18,7 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   ],
 });
 
-let User, Thing, Review, Team;
+let Thing, Review, Team;
 
 test.before(async () => {
   await bootstrapPromise;
@@ -26,13 +26,11 @@ test.before(async () => {
   mockSearch();
 
   const models = await dalFixture.initializeModels([
-    { key: 'users', alias: 'User' },
     { key: 'things', alias: 'Thing' },
     { key: 'reviews', alias: 'Review' },
     { key: 'teams', alias: 'Team' },
   ]);
 
-  User = models.User;
   Thing = models.Thing;
   Review = models.Review;
   Team = models.Team;

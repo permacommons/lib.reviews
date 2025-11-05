@@ -623,7 +623,7 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
   upload.completed = true;
   try {
     await upload.save();
-  } catch (error) {
+  } catch {
     // Problem saving the metadata. Move upload back to
     // temporary stash.
     await rename(newPath, oldPath);

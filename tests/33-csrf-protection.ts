@@ -18,7 +18,7 @@ setupPostgresTest(test, {
   schemaNamespace: 'csrf_protection',
 });
 
-test.before(async t => {
+test.before(async _t => {
   mockSearch();
 });
 

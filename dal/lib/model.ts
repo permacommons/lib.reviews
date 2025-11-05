@@ -405,7 +405,7 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
   >(
     tableName: string,
     schema: ModelSchema<TRecord, TVirtual>,
-    options: JsonObject = {},
+    options: JsonObject,
     dal: DataAccessLayer
   ): ModelConstructor<TRecord, TVirtual, TInstance> {
     // Create the model constructor
@@ -1120,8 +1120,6 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Property value
    */
   getValue(key) {
-    const schema = this.runtime.schema;
-
     if (this._virtualFields.hasOwnProperty(key)) {
       return this._virtualFields[key];
     }

@@ -93,7 +93,7 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
       feedItems,
       blogPosts,
       blogKey: config.frontPageTeamBlogKey,
-      showBlog: config.frontPageTeamBlog ? true : false,
+      showBlog: !!config.frontPageTeamBlog,
       team: config.frontPageTeamBlog
         ? {
             id: config.frontPageTeamBlog,

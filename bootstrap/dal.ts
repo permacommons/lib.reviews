@@ -476,7 +476,9 @@ export async function createTestHarness(options: TestHarnessOptions = {}): Promi
 
     if (testDAL.pool && typeof testDAL.pool.on === 'function') {
       testDAL.pool.on('connect', (client: { query: (sql: string) => Promise<unknown> }) => {
-        client.query(`SET search_path TO ${safeSchema}, public`).catch(() => {});
+        client.query(`SET search_path TO ${safeSchema}, public`).catch(() => {
+          // Intentionally ignore errors - this is a best-effort schema setting
+        });
       });
     }
 

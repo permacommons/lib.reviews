@@ -96,9 +96,11 @@ function onError(error: NodeJS.ErrnoException, port: number | string): never {
 
   // handle specific listen errors with friendly messages
   switch (error.code) {
+    // biome-ignore lint/suspicious/noFallthroughSwitchClause: process.exit terminates execution
     case 'EACCES':
       console.error(`Port ${port} requires elevated privileges`);
       process.exit(1);
+    // biome-ignore lint/suspicious/noFallthroughSwitchClause: process.exit terminates execution
     case 'EADDRINUSE':
       console.error(`Port ${port} is already in use`);
       process.exit(1);

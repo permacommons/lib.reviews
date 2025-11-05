@@ -17,12 +17,11 @@ import AbstractBREADProvider from './abstract-bread-provider.ts';
 const { getEditorMessages } = frontendMessages;
 
 const TeamModel = Team as any;
-const TeamJoinRequestModel = TeamJoinRequest as any;
+const _TeamJoinRequestModel = TeamJoinRequest as any;
 const BlogPostModel = BlogPost as any;
 
 type TeamInstance = Record<string, any>;
 type TeamFormValues = Record<string, any>;
-type TeamJoinRequestInstance = Record<string, any>;
 
 class TeamProvider extends AbstractBREADProvider {
   static formDefs: Record<string, any>;

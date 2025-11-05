@@ -358,7 +358,7 @@ function calcCoverage(root, areas) {
   return { perArea, missing, total, paramWarnings };
 }
 
-function formatPercent(n) {
+function _formatPercent(n) {
   return (n * 100).toFixed(1) + '%';
 }
 

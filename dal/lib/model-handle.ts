@@ -135,7 +135,7 @@ export function createModelHandle<
             (value as (...args: unknown[]) => unknown).apply(model, args);
         }
         return value;
-      } catch (error) {
+      } catch {
         return undefined;
       }
     },
@@ -151,7 +151,7 @@ export function createModelHandle<
       try {
         const model = getRegisteredModel();
         return prop in model;
-      } catch (error) {
+      } catch {
         return false;
       }
     },
@@ -208,7 +208,7 @@ export function createAutoModelHandle<
             return model[propName as keyof typeof model];
           }
           return value;
-        } catch (error) {
+        } catch {
           return value;
         }
       },
@@ -250,7 +250,7 @@ export function createAutoModelHandle<
             (value as (...args: unknown[]) => unknown).apply(model, args);
         }
         return value;
-      } catch (error) {
+      } catch {
         return undefined;
       }
     },
@@ -266,7 +266,7 @@ export function createAutoModelHandle<
       try {
         const model = getRegisteredModel();
         return prop in model;
-      } catch (error) {
+      } catch {
         return false;
       }
     },

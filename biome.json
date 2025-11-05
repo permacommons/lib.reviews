@@ -18,6 +18,7 @@
     "lineEnding": "lf"
   },
   "javascript": {
+    "globals": ["$", "config"],
     "formatter": {
       "quoteStyle": "single",
       "quoteProperties": "asNeeded",
@@ -40,7 +41,7 @@
         "noUselessRename": "error",
         "noUselessTernary": "warn",
         "useArrowFunction": "warn",
-        "useLiteralKeys": "warn",
+        "useLiteralKeys": "off",
         "useRegexLiterals": "error"
       },
       "correctness": {
@@ -129,7 +130,8 @@
       "linter": {
         "rules": {
           "suspicious": {
-            "noExplicitAny": "off"
+            "noExplicitAny": "off",
+            "noEmptyBlockStatements": "off"
           }
         }
       }

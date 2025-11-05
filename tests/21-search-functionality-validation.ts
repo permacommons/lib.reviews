@@ -17,7 +17,7 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
 });
 
 let Thing: ThingModel;
-let Review: ReviewModel;
+let _Review: ReviewModel;
 
 let searchQueries;
 let mockSearchResponse;
@@ -35,7 +35,7 @@ test.before(async () => {
   ]);
 
   Thing = dalFixture.getThingModel();
-  Review = dalFixture.getReviewModel();
+  _Review = dalFixture.getReviewModel();
 });
 
 test.after.always(unmockSearch);
@@ -93,7 +93,7 @@ test.serial('suggestThing API maintains compatibility with existing interface', 
 });
 
 test.serial('search queries include new PostgreSQL fields', async t => {
-  const search = searchModule;
+  const _search = searchModule;
 
   // Create test data with PostgreSQL structure
   const testUserId = randomUUID();
