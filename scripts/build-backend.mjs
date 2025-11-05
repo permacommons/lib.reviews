@@ -26,7 +26,8 @@ const devExternalPkgs = Object.keys(pkg.devDependencies ?? {});
 const entryPatterns = [
   'bin/**/*.ts',
   'maintenance/**/*.ts',
-  'tools/**/*.ts'
+  'tools/**/*.ts',
+  'adapters/sync/**/*.ts'
 ];
 const ignore = ['**/*.d.ts'];
 
