@@ -77,7 +77,6 @@ const langData: LanguageNameData = Object.create(null);
 const cldrPkgPath = require.resolve('cldr-localenames-full/package.json');
 const cldrPath = path.join(path.dirname(cldrPkgPath), 'main');
 
-/* eslint no-sync: "off" */
 VALID_LANGUAGES.forEach(language => {
   const contents = jsonfile.readFileSync<CldrLanguageFile>(
     path.join(cldrPath, language, 'languages.json')

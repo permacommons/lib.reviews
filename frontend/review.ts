@@ -1,5 +1,4 @@
 /* global config */
-/* eslint prefer-reflect: "off" */
 
 import { polyfill as es6PromisePolyfill } from 'es6-promise';
 import type {

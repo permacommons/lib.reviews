@@ -5,8 +5,6 @@ import jsonfile from 'jsonfile';
 
 import languages from '../locales/languages.ts';
 
-/* eslint no-sync: "off" */
-
 type MessageCatalog = Record<string, string>;
 type SupportedLocale = LibReviews.LocaleCode | 'qqq';
 

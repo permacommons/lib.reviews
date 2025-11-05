@@ -178,7 +178,7 @@ lib.reviews is a TypeScript application using modern ESM patterns.
 
 - Object literals and arrow functions can be written on a single line
 
-- We use [eslint](http://eslint.org/) with [babel-eslint](https://github.com/babel/babel-eslint). See [.eslintrc.json](https://github.com/permacommons/lib.reviews/blob/master/.eslintrc.json) for configuration.
+- We use [Biome](https://biomejs.dev/) for linting and formatting. See [biome.json](https://github.com/permacommons/lib.reviews/blob/main/biome.json) for configuration.
 
 - Semicolons are encouraged for navigating multi-line statements:
 

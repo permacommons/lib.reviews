@@ -1,5 +1,3 @@
-/* eslint prefer-reflect: "off" */
-
 import 'prosemirror-view/style/prosemirror.css';
 import 'prosemirror-menu/style/menu.css';
 import './styles/editor-overrides.css';

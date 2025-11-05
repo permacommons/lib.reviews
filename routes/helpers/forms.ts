@@ -53,7 +53,6 @@ const toStringValue = (value: unknown): string => String(value ?? '');
 
 const forms = {
   // TODO: refactor me
-  /* eslint complexity: "off" */
   /**
    * Parse and validate a form submission according to a schema definition.
    * Applies CSRF, CAPTCHA, and field type conversions before returning
