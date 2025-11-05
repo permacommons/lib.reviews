@@ -28,6 +28,7 @@ export default function getResourceErrorHandler(
       // In "not found" case, we also attempt to redirect any URL with trailing
       // whitespace (some number of '%20's at the end) to its canonical version.
       case 'DocumentNotFound':
+      // biome-ignore lint/suspicious/noFallthroughSwitchClause: Intentional fallthrough
       case 'DocumentNotFoundError':
         if (/%20$/.test(req.originalUrl))
           return res.redirect(req.originalUrl.replace(/(.+?)(%20)+$/, '$1'));

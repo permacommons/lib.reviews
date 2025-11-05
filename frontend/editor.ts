@@ -273,10 +273,18 @@ function renderRTE($textarea: JQuery<HTMLTextAreaElement>): JQuery<HTMLDivElemen
 
   const instance: RichTextEditorInstance = {
     editorView,
-    enterFullScreen: () => {},
-    exitFullScreen: () => {},
-    nuke: () => {},
-    reRender: () => {},
+    enterFullScreen: () => {
+      // Placeholder - implementation added later
+    },
+    exitFullScreen: () => {
+      // Placeholder - implementation added later
+    },
+    nuke: () => {
+      // Placeholder - implementation added later
+    },
+    reRender: () => {
+      // Placeholder - implementation added later
+    },
   };
 
   rtes[myID] = instance;

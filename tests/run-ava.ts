@@ -5,7 +5,9 @@ import process from 'process';
 
 // Suppress unhandled rejection warnings during DAL check
 // The check will handle errors gracefully
-const rejectionHandler = () => {};
+const rejectionHandler = () => {
+  // Intentionally empty - just suppressing warnings
+};
 process.on('unhandledRejection', rejectionHandler);
 
 const { checkDALReadinessOrExit } = await import('./helpers/check-dal-readiness.ts');

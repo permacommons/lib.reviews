@@ -121,7 +121,7 @@ test.serial('GET /api/thing?url=<url> returns thing data with review metrics', a
   reviewRev.starRating = 4;
   reviewRev.createdBy = user.id;
   reviewRev.createdOn = new Date();
-  const review = await reviewRev.save();
+  const _review = await reviewRev.save();
 
   const response = await agent
     .get('/api/thing?url=https://example.com/test-product')
@@ -258,7 +258,7 @@ test.serial('POST /api/actions/toggle-preference toggles a user preference', asy
 });
 
 test.serial('POST /api/actions/modify-preference requires authentication', async t => {
-  const response = await supertest(app)
+  const _response = await supertest(app)
     .post('/api/actions/enable-preference')
     .set('X-Requested-With', 'XMLHttpRequest')
     .send({ preferenceName: 'prefersRichTextEditor' })
@@ -377,7 +377,7 @@ test.serial('POST /api/actions/suppress-notice rejects invalid notice types', as
 });
 
 test.serial('POST /api/actions/suppress-notice requires authentication', async t => {
-  const response = await supertest(app)
+  const _response = await supertest(app)
     .post('/api/actions/suppress-notice')
     .set('X-Requested-With', 'XMLHttpRequest')
     .send({ noticeType: 'language-notice-review' })
@@ -515,7 +515,7 @@ test.serial('POST /api/actions/upload requires authentication', async t => {
     'base64'
   );
 
-  const response = await supertest(app)
+  const _response = await supertest(app)
     .post('/api/actions/upload')
     .set('x-requested-with', 'XMLHttpRequest')
     .field('description', 'Tiny PNG')

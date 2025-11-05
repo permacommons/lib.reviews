@@ -112,7 +112,9 @@ if (typeof window !== 'undefined' && window.getSelection && document.createRange
 
 if (!saveSelection || !restoreSelection) {
   saveSelection = () => ({ start: 0, end: 0 });
-  restoreSelection = () => {};
+  restoreSelection = () => {
+    // No-op fallback when document.selection is not available
+  };
 }
 
 export { saveSelection, restoreSelection };

@@ -26,7 +26,7 @@ function createServer(handler) {
 
 test('dispatch posts payload to configured endpoints', async t => {
   const requests = [];
-  const { server, listen, close } = createServer((req, res) => {
+  const { listen, close } = createServer((req, res) => {
     const chunks = [];
     req.on('data', chunk => chunks.push(chunk));
     req.on('end', () => {
@@ -63,7 +63,7 @@ test('dispatch posts payload to configured endpoints', async t => {
 });
 
 test('failed dispatch reports status code', async t => {
-  const { server, listen, close } = createServer((req, res) => {
+  const { listen, close } = createServer((req, res) => {
     res.statusCode = 500;
     res.end('nope');
   });

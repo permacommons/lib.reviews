@@ -155,10 +155,18 @@ export function mockSearch<TDocument = Record<string, unknown>>(
       captured.searchQueries.push({ type: 'suggestThing', prefix, lang });
       return captured.mockSearchResponse as unknown as SearchResponse<any>;
     },
-    createIndices: async () => {},
-    deleteThing: async () => {},
-    deleteReview: async () => {},
-    close: () => {},
+    createIndices: async () => {
+      // No-op mock
+    },
+    deleteThing: async () => {
+      // No-op mock
+    },
+    deleteReview: async () => {
+      // No-op mock
+    },
+    close: () => {
+      // No-op mock
+    },
   };
 
   Object.assign(searchModule as Record<string, unknown>, mock as Record<string, unknown>);

@@ -29,7 +29,7 @@ test.before(async () => {
   ]);
 });
 
-test.beforeEach(async t => {
+test.beforeEach(async _t => {
   // Clear captured calls before each test
   indexedItems.length = 0;
 });

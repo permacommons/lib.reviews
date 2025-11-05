@@ -87,8 +87,8 @@ hbs.registerHelper('times', function (this: unknown, n: number, block: HelperOpt
 
   for (let i = 1; i <= n; i++) {
     data.zeroIndex = i - 1;
-    data.first = i == 1 ? true : false;
-    data.last = i == n ? true : false;
+    data.first = i == 1;
+    data.last = i == n;
     rv += (block.fn?.(i, { data }) ?? '').trim();
   }
   return rv;

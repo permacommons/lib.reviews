@@ -665,7 +665,7 @@ function initializeLibreviews(): LibreviewsAPI {
     window.getSelection()!.addRange(range);
     try {
       document.execCommand('copy');
-    } catch (error) {
+    } catch {
       console.error('Copying not supported in your browser.');
     }
   });

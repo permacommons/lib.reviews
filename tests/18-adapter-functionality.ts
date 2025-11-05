@@ -15,7 +15,7 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
 });
 
 let Thing;
-let adapters, WikidataBackendAdapter, OpenLibraryBackendAdapter;
+let adapters, WikidataBackendAdapter, _OpenLibraryBackendAdapter;
 
 test.before(async () => {
   await bootstrapPromise;
@@ -27,7 +27,7 @@ test.before(async () => {
 
   adapters = (await import('../adapters/adapters.ts')).default;
   WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.ts')).default;
-  OpenLibraryBackendAdapter = (await import('../adapters/openlibrary-backend-adapter.ts')).default;
+  _OpenLibraryBackendAdapter = (await import('../adapters/openlibrary-backend-adapter.ts')).default;
 });
 
 test.after.always(unmockSearch);

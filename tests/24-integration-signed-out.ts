@@ -31,7 +31,7 @@ setupPostgresTest(test, {
   schemaNamespace: 'integration_signed_out',
 });
 
-test.before(async t => {
+test.before(async _t => {
   mockSearch();
 });
 

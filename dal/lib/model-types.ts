@@ -4,10 +4,9 @@ export interface JsonObject {
   [key: string]: JsonValue;
 }
 
-// biome-ignore lint/correctness/noUnusedVariables: Type parameters used by consumers and in Model interface
 export interface ModelInstance<
-  TRecord extends JsonObject = JsonObject,
-  TVirtual extends JsonObject = JsonObject,
+  _TRecord extends JsonObject = JsonObject,
+  _TVirtual extends JsonObject = JsonObject,
 > {
   [key: string]: unknown;
   save?(options?: JsonObject): Promise<this>;

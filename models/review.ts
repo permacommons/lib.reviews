@@ -253,7 +253,6 @@ async function getWithData(id) {
  */
 async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}) {
   const thing = await Review.findOrCreateThing(reviewObj);
-  const reviewId = reviewObj.id || undefined;
 
   // Check for existing reviews by this user for this thing
   const existingQuery = `

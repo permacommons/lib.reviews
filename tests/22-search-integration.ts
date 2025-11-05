@@ -22,8 +22,8 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   cleanupTables: ['users', 'things', 'reviews'],
 });
 
-let Thing: ThingModel;
-let Review: ReviewModel;
+let _Thing: ThingModel;
+let _Review: ReviewModel;
 
 // Track indexing operations
 let indexedItems: MockIndexedItem[] = [];
@@ -39,11 +39,11 @@ test.before(async () => {
     { key: 'reviews', alias: 'Review' },
   ]);
 
-  Thing = dalFixture.getThingModel();
-  Review = dalFixture.getReviewModel();
+  _Thing = dalFixture.getThingModel();
+  _Review = dalFixture.getReviewModel();
 });
 
-test.beforeEach(async t => {
+test.beforeEach(async _t => {
   // Clear indexed items before each test
   indexedItems.length = 0;
 });

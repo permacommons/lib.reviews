@@ -812,7 +812,7 @@ async function updateSlug(
   let baseSlug;
   try {
     baseSlug = _generateSlugName(resolved.str);
-  } catch (error) {
+  } catch {
     return this;
   }
 

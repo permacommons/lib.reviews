@@ -77,7 +77,6 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
 
     // Names without a language code are stored as 'undetermined' - while those
     // could sometimes be inferred from the country, this is often tricky in practice.
-    // biome-ignore lint/complexity/useLiteralKeys: Using bracket notation for consistency with dynamic keys below
     if (tags['name']) {
       label['und'] = escapeHTML(tags['name']);
     }

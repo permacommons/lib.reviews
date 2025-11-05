@@ -184,10 +184,10 @@ class ReviewProvider extends AbstractBREADProvider {
         showLanguageNotice,
         pageMessages,
         thing,
-        editing: this.editing ? true : false,
+        editing: !!this.editing,
       },
       {
-        editing: this.editing ? true : false,
+        editing: !!this.editing,
         messages: getMessages(
           this.req.locale,
           getMarkdownMessageKeys(),
