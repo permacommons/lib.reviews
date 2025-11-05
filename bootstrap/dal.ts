@@ -79,7 +79,8 @@ maybeAddInitializer('thing_slugs', thingSlugModule.initializeModel);
 maybeAddInitializer('reviews', reviewModule.initializeModel);
 maybeAddInitializer('blog_posts', blogPostModule.initializeModel);
 maybeAddInitializer('files', fileModule.initializeModel);
-maybeAddInitializer('invite_links', inviteLinkModule.initializeModel);
+// invite_links now uses manifest-based initialization (force import side effect)
+void inviteLinkModule;
 
 let globalDAL: DataAccessLayer | null = null;
 let initializationPromise: Promise<DataAccessLayer> | null = null;

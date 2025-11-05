@@ -1,78 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import config from 'config';
 import isUUID from 'is-uuid';
-import dal from '../dal/index.ts';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
-import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
-import { getPostgresDAL } from '../db-postgres.ts';
+import { createModel } from '../dal/lib/create-model.ts';
+import type { ModelInstance } from '../dal/lib/model-types.ts';
+import types from '../dal/lib/type.ts';
 import debug from '../util/debug.ts';
-
-const { types } = dal;
-let InviteLink = null;
-
-/**
- * Initialize the PostgreSQL InviteLink model
- * @param dal - Optional DAL instance for testing
- */
-async function initializeInviteLinkModel(dal = null) {
-  const activeDAL = dal || (await getPostgresDAL());
-
-  if (!activeDAL) {
-    debug.db('PostgreSQL DAL not available, skipping InviteLink model initialization');
-    return null;
-  }
-
-  try {
-    const schema = {
-      id: types
-        .string()
-        .uuid(4)
-        .default(() => randomUUID()),
-      createdBy: types.string().uuid(4).required(true),
-      createdOn: types.date().default(() => new Date()),
-      usedBy: types.string().uuid(4),
-      url: types.virtual().default(function () {
-        const identifier = this.getValue ? this.getValue('id') : this.id;
-        return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
-      }),
-    };
-
-    const { model, isNew } = initializeModel({
-      dal: activeDAL,
-      baseTable: 'invite_links',
-      schema,
-      camelToSnake: {
-        createdBy: 'created_by',
-        createdOn: 'created_on',
-        usedBy: 'used_by',
-      },
-      staticMethods: {
-        getAvailable,
-        getUsed,
-        get: getInviteByID,
-      },
-    });
-    InviteLink = model;
-
-    if (isNew) {
-      debug.db('PostgreSQL InviteLink model initialized');
-    }
-  } catch (error) {
-    debug.error('Failed to initialize PostgreSQL InviteLink model:', error);
-    return null;
-  }
-
-  return InviteLink;
-}
 
 /**
  * Build the canonical registration URL for an invite link instance.
  *
  * @param invite - Invite link instance or plain object
- * @returns {string|undefined} Fully qualified invite URL
+ * @returns Fully qualified invite URL
  */
-function buildInviteURL(invite) {
+function buildInviteURL(invite: ModelInstance): string | undefined {
   if (!invite) {
     return undefined;
   }
@@ -84,9 +25,9 @@ function buildInviteURL(invite) {
  * Normalize fields on a hydrated invite link instance.
  *
  * @param invite - Invite link instance
- * @returns {Object} The normalized invite instance
+ * @returns The normalized invite instance
  */
-function normalizeInviteInstance(invite) {
+function normalizeInviteInstance(invite: ModelInstance): ModelInstance {
   if (!invite) {
     return invite;
   }
@@ -94,159 +35,170 @@ function normalizeInviteInstance(invite) {
   return invite;
 }
 
-/**
- * Get pending invite links created by the given user.
- *
- * @param user - User whose pending invites to load
- * @param user.id - User identifier
- * @returns {Promise<Object[]>} Pending invite links, newest first
- */
-async function getAvailable(user) {
-  if (!user || !user.id) {
-    return [];
-  }
-
-  try {
-    const query = `
-      SELECT *
-      FROM ${InviteLink.tableName}
-      WHERE created_by = $1
-        AND (used_by IS NULL)
-      ORDER BY created_on DESC
-    `;
-
-    const result = await InviteLink.dal.query(query, [user.id]);
-    return result.rows.map(row => normalizeInviteInstance(InviteLink._createInstance(row)));
-  } catch (error) {
-    debug.error('Failed to fetch pending invite links:', error);
-    return [];
-  }
-}
-
-/**
- * Get redeemed invite links created by the given user, including user info.
- *
- * @param user - User whose redeemed invites to load
- * @param user.id - User identifier
- * @returns {Promise<Object[]>} Redeemed invite links, newest first
- */
-async function getUsed(user) {
-  if (!user || !user.id) {
-    return [];
-  }
-
-  try {
-    const query = `
-      SELECT *
-      FROM ${InviteLink.tableName}
-      WHERE created_by = $1
-        AND used_by IS NOT NULL
-      ORDER BY created_on DESC
-    `;
-
-    const result = await InviteLink.dal.query(query, [user.id]);
-    const invites = result.rows.map(row =>
-      normalizeInviteInstance(InviteLink._createInstance(row))
-    );
-
-    const usedByIds = [...new Set(invites.map(invite => invite.usedBy).filter(Boolean))];
-    if (usedByIds.length === 0) {
-      return invites;
-    }
-
-    const userQuery = `
-      SELECT id, display_name, canonical_name, registration_date, is_trusted, is_site_moderator, is_super_user
-      FROM users
-      WHERE id = ANY($1)
-    `;
-    const userResult = await InviteLink.dal.query(userQuery, [usedByIds]);
-    const userMap = new Map();
-
-    userResult.rows.forEach(row => {
-      userMap.set(row.id, {
-        ...row,
-        displayName: row.display_name,
-        urlName:
-          row.canonical_name ||
-          (row.display_name ? encodeURIComponent(row.display_name.replace(/ /g, '_')) : undefined),
-        registrationDate: row.registration_date,
-      });
-    });
-
-    invites.forEach(invite => {
-      if (invite.usedBy && userMap.has(invite.usedBy)) {
-        invite.usedByUser = userMap.get(invite.usedBy);
+// Manifest-based model definition
+const inviteLinkManifest = {
+  tableName: 'invite_links',
+  hasRevisions: false,
+  schema: {
+    id: types
+      .string()
+      .uuid(4)
+      .default(() => randomUUID()),
+    createdBy: types.string().uuid(4).required(true),
+    createdOn: types.date().default(() => new Date()),
+    usedBy: types.string().uuid(4),
+    url: types.virtual().default(function () {
+      const identifier = this.getValue ? this.getValue('id') : this.id;
+      return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
+    }),
+  },
+  camelToSnake: {
+    createdBy: 'created_by',
+    createdOn: 'created_on',
+    usedBy: 'used_by',
+  },
+  staticMethods: {
+    /**
+     * Get pending invite links created by the given user.
+     *
+     * @param user - User whose pending invites to load
+     * @returns Pending invite links, newest first
+     */
+    async getAvailable(user: { id?: string }): Promise<ModelInstance[]> {
+      if (!user || !user.id) {
+        return [];
       }
-    });
 
-    return invites;
-  } catch (error) {
-    debug.error('Failed to fetch redeemed invite links:', error);
-    return [];
-  }
-}
+      try {
+        const query = `
+          SELECT *
+          FROM ${this.tableName}
+          WHERE created_by = $1
+            AND (used_by IS NULL)
+          ORDER BY created_on DESC
+        `;
 
-/**
- * Fetch a single invite link by its identifier.
- *
- * @param id - Invite link identifier (UUID)
- * @returns {Promise<Object>} Invite link instance
- * @throws {DocumentNotFound} When no invite with the provided id exists
- */
-async function getInviteByID(id) {
-  if (!id) {
-    const error = new DocumentNotFound('Invite link not found');
-    error.name = 'DocumentNotFoundError';
-    throw error;
-  }
+        const result = await this.dal.query(query, [user.id]);
+        return result.rows.map((row: unknown) =>
+          normalizeInviteInstance(this._createInstance(row))
+        );
+      } catch (error) {
+        debug.error('Failed to fetch pending invite links:', error);
+        return [];
+      }
+    },
 
-  if (!isUUID.v4(id)) {
-    const error = new DocumentNotFound(`invite_links with id ${id} not found`);
-    error.name = 'DocumentNotFoundError';
-    throw error;
-  }
+    /**
+     * Get redeemed invite links created by the given user, including user info.
+     *
+     * @param user - User whose redeemed invites to load
+     * @returns Redeemed invite links, newest first
+     */
+    async getUsed(user: { id?: string }): Promise<ModelInstance[]> {
+      if (!user || !user.id) {
+        return [];
+      }
 
-  try {
-    const query = `
-      SELECT *
-      FROM ${InviteLink.tableName}
-      WHERE id = $1
-      LIMIT 1
-    `;
+      try {
+        const query = `
+          SELECT *
+          FROM ${this.tableName}
+          WHERE created_by = $1
+            AND used_by IS NOT NULL
+          ORDER BY created_on DESC
+        `;
 
-    const result = await InviteLink.dal.query(query, [id]);
-    if (result.rows.length === 0) {
-      const error = new DocumentNotFound(`invite_links with id ${id} not found`);
-      error.name = 'DocumentNotFoundError';
-      throw error;
-    }
+        const result = await this.dal.query(query, [user.id]);
+        const invites = result.rows.map((row: unknown) =>
+          normalizeInviteInstance(this._createInstance(row))
+        );
 
-    return normalizeInviteInstance(InviteLink._createInstance(result.rows[0]));
-  } catch (error) {
-    if (error instanceof DocumentNotFound || error.name === 'DocumentNotFoundError') {
-      throw error;
-    }
-    debug.error('Failed to fetch invite link by id:', error);
-    throw error;
-  }
-}
+        const usedByIds = [...new Set(invites.map(invite => invite.usedBy).filter(Boolean))];
+        if (usedByIds.length === 0) {
+          return invites;
+        }
 
-const InviteLinkHandle = createAutoModelHandle('invite_links', initializeInviteLinkModel);
+        const userQuery = `
+          SELECT id, display_name, canonical_name, registration_date, is_trusted, is_site_moderator, is_super_user
+          FROM users
+          WHERE id = ANY($1)
+        `;
+        const userResult = await this.dal.query(userQuery, [usedByIds]);
+        const userMap = new Map();
 
-/**
- * Obtain the PostgreSQL InviteLink model, initializing if necessary.
- *
- * @param [dal] - Optional DAL for testing
- * @returns {Promise<Function|null>} Initialized model constructor or null
- */
-async function getPostgresInviteLinkModel(dal = null) {
-  InviteLink = await initializeInviteLinkModel(dal);
-  return InviteLink;
-}
+        userResult.rows.forEach((row: Record<string, unknown>) => {
+          userMap.set(row.id, {
+            ...row,
+            displayName: row.display_name,
+            urlName:
+              row.canonical_name ||
+              (row.display_name
+                ? encodeURIComponent(String(row.display_name).replace(/ /g, '_'))
+                : undefined),
+            registrationDate: row.registration_date,
+          });
+        });
 
-export default InviteLinkHandle;
-export {
-  initializeInviteLinkModel as initializeModel,
-  initializeInviteLinkModel,
-  getPostgresInviteLinkModel,
-};
+        invites.forEach(invite => {
+          if (invite.usedBy && userMap.has(invite.usedBy)) {
+            invite.usedByUser = userMap.get(invite.usedBy);
+          }
+        });
+
+        return invites;
+      } catch (error) {
+        debug.error('Failed to fetch redeemed invite links:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Fetch a single invite link by its identifier.
+     *
+     * @param id - Invite link identifier (UUID)
+     * @returns Invite link instance
+     * @throws DocumentNotFound when no invite with the provided id exists
+     */
+    async get(id: string): Promise<ModelInstance> {
+      if (!id) {
+        const error = new DocumentNotFound('Invite link not found');
+        error.name = 'DocumentNotFoundError';
+        throw error;
+      }
+
+      if (!isUUID.v4(id)) {
+        const error = new DocumentNotFound(`invite_links with id ${id} not found`);
+        error.name = 'DocumentNotFoundError';
+        throw error;
+      }
+
+      try {
+        const query = `
+          SELECT *
+          FROM ${this.tableName}
+          WHERE id = $1
+          LIMIT 1
+        `;
+
+        const result = await this.dal.query(query, [id]);
+        if (result.rows.length === 0) {
+          const error = new DocumentNotFound(`invite_links with id ${id} not found`);
+          error.name = 'DocumentNotFoundError';
+          throw error;
+        }
+
+        return normalizeInviteInstance(this._createInstance(result.rows[0]));
+      } catch (error) {
+        if (error instanceof DocumentNotFound || (error as Error).name === 'DocumentNotFoundError') {
+          throw error;
+        }
+        debug.error('Failed to fetch invite link by id:', error);
+        throw error;
+      }
+    },
+  },
+} as const;
+
+const InviteLink = createModel(inviteLinkManifest);
+
+export default InviteLink;
