@@ -5,8 +5,6 @@ import jsonfile from 'jsonfile';
 
 import languages from '../locales/languages.ts';
 
-/* eslint no-sync: "off" */
-
 type MessageCatalog = Record<string, string>;
 type SupportedLocale = LibReviews.LocaleCode | 'qqq';
 
@@ -17,13 +15,16 @@ const langKeys: SupportedLocale[] = [...languages.getValidLanguages()];
 // which, per translatewiki.net convention, is used for message documentation
 langKeys.push('qqq');
 
-const enMessageKeys = Object.keys(jsonfile.readFileSync<MessageCatalog>(path.join(basePath, 'en.json')));
+const enMessageKeys = Object.keys(
+  jsonfile.readFileSync<MessageCatalog>(path.join(basePath, 'en.json'))
+);
 
 for (const langKey of langKeys) {
-  if (langKey === 'en')
-    continue;
+  if (langKey === 'en') continue;
 
-  const messageKeys = Object.keys(jsonfile.readFileSync<MessageCatalog>(path.join(basePath, `${langKey}.json`)));
+  const messageKeys = Object.keys(
+    jsonfile.readFileSync<MessageCatalog>(path.join(basePath, `${langKey}.json`))
+  );
   const missingKeys = enMessageKeys.filter(getKeyFilter(messageKeys));
 
   if (missingKeys.length) {
@@ -33,7 +34,9 @@ for (const langKey of langKeys) {
 
   const extraKeys = messageKeys.filter(getKeyFilter(enMessageKeys));
   if (extraKeys.length) {
-    console.log(`\nThe following keys exist in ${langKey}.json which are not in the English version:`);
+    console.log(
+      `\nThe following keys exist in ${langKey}.json which are not in the English version:`
+    );
     console.log(extraKeys.join('\n'));
   }
 }

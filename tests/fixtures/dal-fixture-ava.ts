@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto';
-import { logNotice, logOK } from '../helpers/test-helpers.ts';
-import { createTestHarness } from '../../bootstrap/dal.ts';
 import pgModule from 'pg';
+import { createTestHarness } from '../../bootstrap/dal.ts';
 import { initializeModel } from '../../dal/lib/model-initializer.ts';
 import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
+import { logNotice, logOK } from '../helpers/test-helpers.ts';
 
 type ThingModel = typeof import('../../models/thing.ts').default;
 type ThingSlugModel = typeof import('../../models/thing-slug.ts').default;
@@ -35,7 +35,7 @@ const KNOWN_MODEL_BASE_NAMES: Record<KnownModelAlias, string> = {
   File: 'files',
   Team: 'teams',
   TeamSlug: 'team_slugs',
-  TeamJoinRequest: 'team_join_requests'
+  TeamJoinRequest: 'team_join_requests',
 };
 
 type TableDefinition = {
@@ -159,7 +159,7 @@ class DALFixtureAVA {
     const envDefaults = {
       NODE_ENV: 'development',
       NODE_CONFIG_DISABLE_WATCH: 'Y',
-      NODE_APP_INSTANCE: this.testInstance
+      NODE_APP_INSTANCE: this.testInstance,
     };
 
     const envConfig = { ...envDefaults, ...(normalizedOptions.env || {}) };
@@ -177,7 +177,7 @@ class DALFixtureAVA {
       harness = await createTestHarness({
         schemaName: this.schemaName,
         schemaNamespace: this.schemaNamespace,
-        registerModels: true
+        registerModels: true,
       });
     } catch (error) {
       this.bootstrapError = error;
@@ -214,18 +214,18 @@ class DALFixtureAVA {
           camelToSnake: modelDef.camelToSnake,
           withRevision: modelDef.hasRevisions
             ? {
-              static: [
-                'createFirstRevision',
-                'getNotStaleOrDeleted',
-                'filterNotStaleOrDeleted',
-                'getMultipleNotStaleOrDeleted'
-              ],
-              instance: ['newRevision', 'deleteAllRevisions']
-            }
+                static: [
+                  'createFirstRevision',
+                  'getNotStaleOrDeleted',
+                  'filterNotStaleOrDeleted',
+                  'getMultipleNotStaleOrDeleted',
+                ],
+                instance: ['newRevision', 'deleteAllRevisions'],
+              }
             : false,
           staticMethods: modelDef.staticMethods,
           instanceMethods: modelDef.instanceMethods,
-          registryKey: modelDef.registryKey || modelDef.name
+          registryKey: modelDef.registryKey || modelDef.name,
         });
 
         this.customModels.set(modelDef.name, model as ModelConstructor);
@@ -238,9 +238,7 @@ class DALFixtureAVA {
     const tableDefinitions = normalizedOptions.tableDefs as TableDefinition[] | undefined;
     if (Array.isArray(tableDefinitions) && tableDefinitions.length > 0) {
       await this.createTestTables(tableDefinitions);
-      const managed = tableDefinitions
-        .map(def => def?.name)
-        .filter(Boolean);
+      const managed = tableDefinitions.map(def => def?.name).filter(Boolean);
       if (managed.length > 0) {
         const unique = new Set([...this.managedTables, ...managed]);
         this.managedTables = Array.from(unique);
@@ -263,11 +261,12 @@ class DALFixtureAVA {
 
     const qualifiedTables = tableNames.map(name => `${this.schemaNamespace}${name}`);
     try {
-      await this.dal.query(
-        `TRUNCATE ${qualifiedTables.join(', ')} RESTART IDENTITY CASCADE`
-      );
+      await this.dal.query(`TRUNCATE ${qualifiedTables.join(', ')} RESTART IDENTITY CASCADE`);
     } catch (error) {
-      console.warn(`Warning: Failed to truncate tables ${qualifiedTables.join(', ')}:`, error.message);
+      console.warn(
+        `Warning: Failed to truncate tables ${qualifiedTables.join(', ')}:`,
+        error.message
+      );
     }
   }
 
@@ -415,14 +414,20 @@ class DALFixtureAVA {
     return Object.prototype.hasOwnProperty.call(KNOWN_MODEL_BASE_NAMES, value);
   }
 
-  private cacheKnownModel(alias: string | null | undefined, model: ModelConstructor | null | undefined): void {
+  private cacheKnownModel(
+    alias: string | null | undefined,
+    model: ModelConstructor | null | undefined
+  ): void {
     if (!alias || !model || !this.isKnownAlias(alias)) {
       return;
     }
     this.knownModels[alias] = model as KnownModels[KnownModelAlias];
   }
 
-  private cacheKnownModelByBase(baseName: string | null | undefined, model: ModelConstructor | null | undefined): void {
+  private cacheKnownModelByBase(
+    baseName: string | null | undefined,
+    model: ModelConstructor | null | undefined
+  ): void {
     if (!baseName || !model) {
       return;
     }
@@ -553,7 +558,7 @@ class DALFixtureAVA {
     const user = await this.userModel.create({
       name,
       password: 'secret123',
-      email: `${uuid}@example.com`
+      email: `${uuid}@example.com`,
     });
 
     const handle: TestUserHandle = {
@@ -561,8 +566,8 @@ class DALFixtureAVA {
       actor: {
         id: user.id,
         is_super_user: false,
-        is_trusted: true
-      }
+        is_trusted: true,
+      },
     };
 
     return handle;
@@ -591,7 +596,9 @@ class DALFixtureAVA {
    * @param {Array} loaders - Array of loader configs or functions
    * @returns {Object} Map of loaded models keyed by base table name
    */
-  async initializeModels(descriptors: ModelDescriptor[] = []): Promise<Record<string, ModelConstructor>> {
+  async initializeModels(
+    descriptors: ModelDescriptor[] = []
+  ): Promise<Record<string, ModelConstructor>> {
     if (!this.dal || !this.connected) {
       throw new Error('DAL not initialized');
     }
@@ -635,7 +642,9 @@ class DALFixtureAVA {
   }
 }
 
-export const createDALFixtureAVA = (testInstance: string = 'testing-2', options: { schemaNamespace?: string } = {}) =>
-  new DALFixtureAVA(testInstance, options);
+export const createDALFixtureAVA = (
+  testInstance: string = 'testing-2',
+  options: { schemaNamespace?: string } = {}
+) => new DALFixtureAVA(testInstance, options);
 
 export default DALFixtureAVA;

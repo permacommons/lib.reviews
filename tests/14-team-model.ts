@@ -1,17 +1,11 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
-
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'team_model',
-  cleanupTables: [
-    'team_moderators',
-    'team_members',
-    'teams',
-    'users'
-  ]
+  cleanupTables: ['team_moderators', 'team_members', 'teams', 'users'],
 });
 
 let User, Team;
@@ -23,7 +17,7 @@ test.before(async () => {
 
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
-    { key: 'teams', alias: 'Team' }
+    { key: 'teams', alias: 'Team' },
   ]);
 
   User = models.User;
@@ -37,43 +31,42 @@ test.after.always(unmockSearch);
 // ============================================================================
 
 test.serial('Team model: create team with JSONB multilingual fields', async t => {
-
   const { actor: founder } = await dalFixture.createTestUser('Team Founder');
 
   const teamRev = await Team.createFirstRevision(founder, { tags: ['create'] });
   teamRev.name = {
     en: 'Awesome Team',
     de: 'Fantastisches Team',
-    fr: 'Équipe Géniale'
+    fr: 'Équipe Géniale',
   };
   teamRev.motto = {
     en: 'Excellence in everything',
     de: 'Exzellenz in allem',
-    fr: 'Excellence en tout'
+    fr: 'Excellence en tout',
   };
   teamRev.description = {
     text: {
       en: 'We are a team dedicated to excellence.',
       de: 'Wir sind ein Team, das sich der Exzellenz verschrieben hat.',
-      fr: 'Nous sommes une équipe dédiée à l\'excellence.'
+      fr: "Nous sommes une équipe dédiée à l'excellence.",
     },
     html: {
       en: '<p>We are a team dedicated to <strong>excellence</strong>.</p>',
       de: '<p>Wir sind ein Team, das sich der <strong>Exzellenz</strong> verschrieben hat.</p>',
-      fr: '<p>Nous sommes une équipe dédiée à l\'<strong>excellence</strong>.</p>'
-    }
+      fr: "<p>Nous sommes une équipe dédiée à l'<strong>excellence</strong>.</p>",
+    },
   };
   teamRev.rules = {
     text: {
       en: 'Be respectful and collaborative.',
       de: 'Seien Sie respektvoll und kooperativ.',
-      fr: 'Soyez respectueux et collaboratif.'
+      fr: 'Soyez respectueux et collaboratif.',
     },
     html: {
       en: '<p>Be <em>respectful</em> and <em>collaborative</em>.</p>',
       de: '<p>Seien Sie <em>respektvoll</em> und <em>kooperativ</em>.</p>',
-      fr: '<p>Soyez <em>respectueux</em> et <em>collaboratif</em>.</p>'
-    }
+      fr: '<p>Soyez <em>respectueux</em> et <em>collaboratif</em>.</p>',
+    },
   };
   teamRev.modApprovalToJoin = true;
   teamRev.onlyModsCanBlog = false;
@@ -83,59 +76,64 @@ test.serial('Team model: create team with JSONB multilingual fields', async t =>
   teamRev.originalLanguage = 'en';
   teamRev.confersPermissions = {
     show_error_details: true,
-    translate: false
+    translate: false,
   };
 
   const saved = await teamRev.save();
-  
+
   t.truthy(saved.id, 'Team saved with generated UUID');
   t.deepEqual(saved.name, teamRev.name, 'Multilingual name stored correctly');
   t.deepEqual(saved.motto, teamRev.motto, 'Multilingual motto stored correctly');
   t.deepEqual(saved.description, teamRev.description, 'Multilingual description stored correctly');
   t.deepEqual(saved.rules, teamRev.rules, 'Multilingual rules stored correctly');
-  t.deepEqual(saved.confersPermissions, teamRev.confersPermissions, 'Permissions config stored correctly');
+  t.deepEqual(
+    saved.confersPermissions,
+    teamRev.confersPermissions,
+    'Permissions config stored correctly'
+  );
   t.true(saved.modApprovalToJoin, 'Moderation settings stored correctly');
 });
 
-test.serial('Team model: create team with members and moderators using saveAll and getWithData', async t => {
+test.serial(
+  'Team model: create team with members and moderators using saveAll and getWithData',
+  async t => {
+    const founderData = await dalFixture.createTestUser('Team Founder');
+    const member1Data = await dalFixture.createTestUser('Member 1');
+    const member2Data = await dalFixture.createTestUser('Member 2');
 
-  const founderData = await dalFixture.createTestUser('Team Founder');
-  const member1Data = await dalFixture.createTestUser('Member 1');
-  const member2Data = await dalFixture.createTestUser('Member 2');
+    const teamRev = await Team.createFirstRevision(founderData.actor, { tags: ['create'] });
+    teamRev.name = { en: 'Test Team with Members' };
+    teamRev.createdBy = founderData.id;
+    teamRev.createdOn = new Date();
 
-  const teamRev = await Team.createFirstRevision(founderData.actor, { tags: ['create'] });
-  teamRev.name = { en: 'Test Team with Members' };
-  teamRev.createdBy = founderData.id;
-  teamRev.createdOn = new Date();
+    teamRev.members = [founderData.actor, member1Data.actor, member2Data.actor];
+    teamRev.moderators = [founderData.actor, member1Data.actor];
 
-  teamRev.members = [founderData.actor, member1Data.actor, member2Data.actor];
-  teamRev.moderators = [founderData.actor, member1Data.actor];
+    const saved = await teamRev.saveAll({
+      members: true,
+      moderators: true,
+    });
 
-  const saved = await teamRev.saveAll({
-    members: true,
-    moderators: true
-  });
+    t.truthy(saved.id, 'Team saved with ID');
 
-  t.truthy(saved.id, 'Team saved with ID');
+    const teamWithData = await Team.getWithData(saved.id);
 
-  const teamWithData = await Team.getWithData(saved.id);
+    t.truthy(teamWithData.members, 'Team has members array');
+    t.truthy(teamWithData.moderators, 'Team has moderators array');
+    t.is(teamWithData.members.length, 3, 'Team has 3 members');
+    t.is(teamWithData.moderators.length, 2, 'Team has 2 moderators');
 
-  t.truthy(teamWithData.members, 'Team has members array');
-  t.truthy(teamWithData.moderators, 'Team has moderators array');
-  t.is(teamWithData.members.length, 3, 'Team has 3 members');
-  t.is(teamWithData.moderators.length, 2, 'Team has 2 moderators');
+    const memberIds = teamWithData.members.map(m => m.id).sort();
+    const expectedMemberIds = [founderData.id, member1Data.id, member2Data.id].sort();
+    t.deepEqual(memberIds, expectedMemberIds, 'All members retrieved correctly');
 
-  const memberIds = teamWithData.members.map(m => m.id).sort();
-  const expectedMemberIds = [founderData.id, member1Data.id, member2Data.id].sort();
-  t.deepEqual(memberIds, expectedMemberIds, 'All members retrieved correctly');
-
-  const moderatorIds = teamWithData.moderators.map(m => m.id).sort();
-  const expectedModeratorIds = [founderData.id, member1Data.id].sort();
-  t.deepEqual(moderatorIds, expectedModeratorIds, 'All moderators retrieved correctly');
-});
+    const moderatorIds = teamWithData.moderators.map(m => m.id).sort();
+    const expectedModeratorIds = [founderData.id, member1Data.id].sort();
+    t.deepEqual(moderatorIds, expectedModeratorIds, 'All moderators retrieved correctly');
+  }
+);
 
 test.serial('Team model: populateUserInfo sets permission flags correctly', async t => {
-
   const founderData = await dalFixture.createTestUser('Team Founder');
   const moderatorData = await dalFixture.createTestUser('Team Moderator');
   const memberData = await dalFixture.createTestUser('Team Member');

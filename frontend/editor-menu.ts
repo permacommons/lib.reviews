@@ -1,29 +1,34 @@
-import $ from './lib/jquery.js';
+import { guessMediaType } from 'markdown-it-html5-media';
+import { setBlockType, toggleMark, wrapIn } from 'prosemirror-commands';
 import {
-  wrapItem,
   blockTypeItem,
   Dropdown,
   DropdownSubmenu,
+  icons,
   joinUpItem,
   liftItem,
-  undoItem,
-  redoItem,
-  icons,
+  type MenuElement,
   MenuItem,
-  type MenuElement
+  redoItem,
+  undoItem,
+  wrapItem,
 } from 'prosemirror-menu';
-
-import type { Schema, NodeType, Attrs, MarkType } from 'prosemirror-model';
-import { NodeSelection, TextSelection, EditorState, Transaction, type Command } from 'prosemirror-state';
-import { toggleMark, wrapIn, setBlockType } from 'prosemirror-commands';
-import { wrapInList, splitListItem, liftListItem, sinkListItem } from 'prosemirror-schema-list';
+import type { Attrs, MarkType, NodeType, Schema } from 'prosemirror-model';
+import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
+import {
+  type Command,
+  EditorState,
+  NodeSelection,
+  TextSelection,
+  Transaction,
+} from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 
 import unescapeHTML from 'unescape-html';
+import { openPrompt, type PromptSpec, TextField } from './editor-prompt.ts';
+import $ from './lib/jquery.js';
 import libreviews, { msg } from './libreviews.ts';
-import { TextField, openPrompt, type PromptSpec } from './editor-prompt.ts';
 import { uploadModal } from './upload-modal.ts';
-import { guessMediaType } from 'markdown-it-html5-media';
 
 type MediaKind = 'image' | 'video' | 'audio';
 
@@ -101,8 +106,7 @@ function canInsert(state: EditorState, nodeType: NodeType): boolean {
   const $from = state.selection.$from;
   for (let depth = $from.depth; depth >= 0; depth--) {
     const index = $from.index(depth);
-    if ($from.node(depth).canReplaceWith(index, index, nodeType))
-      return true;
+    if ($from.node(depth).canReplaceWith(index, index, nodeType)) return true;
   }
   return false;
 }
@@ -114,9 +118,12 @@ function insertMediaItem(nodeTypes: MediaNodeTypes, schema: Schema): MenuItem {
     select(state: EditorState) {
       return canInsert(state, nodeTypes.image);
     },
-    run(state: EditorState, _dispatch: ((tr: Transaction) => void) | undefined, view?: EditorView | null) {
-      if (!view)
-        return;
+    run(
+      state: EditorState,
+      _dispatch: ((tr: Transaction) => void) | undefined,
+      view?: EditorView | null
+    ) {
+      if (!view) return;
       const { from, to } = state.selection;
       let attrs: MediaAttributes | null = null;
       let showCaptionField = true;
@@ -128,26 +135,29 @@ function insertMediaItem(nodeTypes: MediaNodeTypes, schema: Schema): MenuItem {
           case 'image':
             attrs = {
               src: state.selection.node.attrs.src,
-              alt: state.selection.node.attrs.alt ||
-                state.selection.node.attrs.description || null
+              alt: state.selection.node.attrs.alt || state.selection.node.attrs.description || null,
             };
             break;
           case 'video':
           case 'audio':
             attrs = {
               src: state.selection.node.attrs.src,
-              description: state.selection.node.attrs.description ||
-                state.selection.node.attrs.alt || null
+              description:
+                state.selection.node.attrs.description || state.selection.node.attrs.alt || null,
             };
             break;
           default:
-            // No default
+          // No default
         }
         showCaptionField = false;
       }
       const fields: Record<string, TextField> = {};
 
-      fields.src = new TextField({ label: msg('media url'), required: true, value: attrs?.src ?? undefined });
+      fields.src = new TextField({
+        label: msg('media url'),
+        required: true,
+        value: attrs?.src ?? undefined,
+      });
 
       if (showCaptionField) {
         fields.caption = new TextField({
@@ -157,7 +167,9 @@ function insertMediaItem(nodeTypes: MediaNodeTypes, schema: Schema): MenuItem {
 
       fields.alt = new TextField({
         label: msg('media alt text'),
-        value: attrs ? (attrs.alt ?? attrs.description ?? undefined) : state.doc.textBetween(from, to, " ")
+        value: attrs
+          ? (attrs.alt ?? attrs.description ?? undefined)
+          : state.doc.textBetween(from, to, ' '),
       });
 
       openPrompt({
@@ -173,14 +185,21 @@ function insertMediaItem(nodeTypes: MediaNodeTypes, schema: Schema): MenuItem {
             callbackAttrs.description = callbackAttrs.alt;
             Reflect.deleteProperty(callbackAttrs, 'alt');
           }
-          let tr = view.state.tr.replaceSelectionWith(nodeTypes[nodeType].createAndFill(callbackAttrs as Attrs));
+          let tr = view.state.tr.replaceSelectionWith(
+            nodeTypes[nodeType].createAndFill(callbackAttrs as Attrs)
+          );
           if (callbackAttrs.caption && callbackAttrs.caption.length)
-            tr = addCaption({ description: callbackAttrs.caption + '\n', schema, state: view.state, transaction: tr });
+            tr = addCaption({
+              description: callbackAttrs.caption + '\n',
+              schema,
+              state: view.state,
+              transaction: tr,
+            });
           view.dispatch(tr);
           view.focus();
-        }
+        },
       });
-    }
+    },
   });
 }
 
@@ -188,7 +207,7 @@ function addCaption({
   description,
   schema,
   state,
-  transaction
+  transaction,
 }: {
   description: string;
   schema: Schema;
@@ -198,19 +217,13 @@ function addCaption({
   const hardBreak = schema.nodes.hard_break;
   const strongMark = schema.marks.strong;
 
-  if (!hardBreak || !strongMark)
-    return transaction;
+  if (!hardBreak || !strongMark) return transaction;
 
   const br = hardBreak.create();
-  const descriptionNode = schema.text(
-    description,
-    [strongMark.create()]
-  );
+  const descriptionNode = schema.text(description, [strongMark.create()]);
   const pos = state.selection.$anchor.pos;
 
-  return transaction
-    .insert(pos + 1, br)
-    .insert(pos + 2, descriptionNode);
+  return transaction.insert(pos + 1, br).insert(pos + 2, descriptionNode);
 }
 
 function horizontalRuleItem(hr: NodeType): MenuItem {
@@ -221,12 +234,10 @@ function horizontalRuleItem(hr: NodeType): MenuItem {
       return canInsert(state, hr);
     },
     run(state: EditorState, dispatch?: (tr: Transaction) => void) {
-      if (dispatch)
-        dispatch(state.tr.replaceSelectionWith(hr.create()));
-    }
+      if (dispatch) dispatch(state.tr.replaceSelectionWith(hr.create()));
+    },
   });
 }
-
 
 function cmdItem(cmd: Command, options: MenuItemInit): MenuItem {
   const { attrs: _attrs, ...rest } = options;
@@ -241,17 +252,15 @@ function cmdItem(cmd: Command, options: MenuItemInit): MenuItem {
     },
     select(state: EditorState) {
       return cmd(state);
-    }
+    },
   };
   return new MenuItem(spec);
 }
 
 function markActive(state: EditorState, type: MarkType): boolean {
   const { from, $from, to, empty } = state.selection;
-  if (empty)
-    return !!type.isInSet(state.storedMarks || $from.marks());
-  else
-    return state.doc.rangeHasMark(from, to, type);
+  if (empty) return !!type.isInSet(state.storedMarks || $from.marks());
+  else return state.doc.rangeHasMark(from, to, type);
 }
 
 function markItem(markType: MarkType, options: MenuItemInit): MenuItem {
@@ -259,7 +268,7 @@ function markItem(markType: MarkType, options: MenuItemInit): MenuItem {
     ...options,
     active(state: EditorState) {
       return markActive(state, markType);
-    }
+    },
   };
   return cmdItem(toggleMark(markType), passedOptions);
 }
@@ -271,19 +280,21 @@ function fullScreenItem(): ExtendedMenuItem {
     active(this: { enabled?: boolean }) {
       return this.enabled ?? false;
     },
-    run(this: { enabled?: boolean }, state: EditorState, _dispatch: ((tr: Transaction) => void) | undefined, view?: EditorView | null) {
-      if (!view)
-        return false;
+    run(
+      this: { enabled?: boolean },
+      state: EditorState,
+      _dispatch: ((tr: Transaction) => void) | undefined,
+      view?: EditorView | null
+    ) {
+      if (!view) return false;
 
       const $rteContainer = $(view.dom).closest('.rte-container');
       const idMatch = $rteContainer[0]?.id.match(/\d+/);
       const id = idMatch ? idMatch[0] : undefined;
-      if (!id)
-        return false;
+      if (!id) return false;
 
       const rte = libreviews.activeRTEs[id];
-      if (!rte)
-        return false;
+      if (!rte) return false;
 
       if (!this.enabled) {
         rte.enterFullScreen?.();
@@ -294,7 +305,7 @@ function fullScreenItem(): ExtendedMenuItem {
       }
       view.updateState(state);
       return true;
-    }
+    },
   }) as ExtendedMenuItem;
 }
 
@@ -306,8 +317,7 @@ function uploadModalItem(mediaNodes: MediaNodeTypes, schema: Schema): MenuItem {
       return false;
     },
     run(state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView | null) {
-      if (!dispatch || !view)
-        return;
+      if (!dispatch || !view) return;
 
       // For some forms, we submit uploaded file IDs so they can be processed
       // server-side
@@ -315,11 +325,10 @@ function uploadModalItem(mediaNodes: MediaNodeTypes, schema: Schema): MenuItem {
 
       uploadModal(uploads => {
         const [firstUpload] = uploads as UploadMetadata[];
-        if (!firstUpload)
-          return;
+        if (!firstUpload) return;
 
         const attrs: MediaAttributes = {
-          src: `/static/uploads/${encodeURIComponent(firstUpload.uploadedFileName)}`
+          src: `/static/uploads/${encodeURIComponent(firstUpload.uploadedFileName)}`,
         };
         const nodeType = guessMediaType(attrs.src) as MediaKind;
         const description = generateDescriptionFromUpload(firstUpload);
@@ -328,22 +337,24 @@ function uploadModalItem(mediaNodes: MediaNodeTypes, schema: Schema): MenuItem {
         dispatch(tr);
 
         if ($form.length) {
-          $form.append(`<input type="hidden" ` +
-            ` name="uploaded-file-${firstUpload.fileID}" value="1">`);
+          $form.append(
+            `<input type="hidden" ` + ` name="uploaded-file-${firstUpload.fileID}" value="1">`
+          );
           if ($form.find('#social-media-image-select').length) {
             const language = config.language ?? 'en';
             const localizedDescription = firstUpload.description[language] ?? '';
             let summarizedDesc = localizedDescription.substring(0, 80);
-            if (localizedDescription.length > 80)
-              summarizedDesc += '...';
-            $('#social-media-image-select').append(`<option value="${firstUpload.fileID}">` +
-            `${firstUpload.uploadedFileName}: ${summarizedDesc}` +
-            `</option>`);
+            if (localizedDescription.length > 80) summarizedDesc += '...';
+            $('#social-media-image-select').append(
+              `<option value="${firstUpload.fileID}">` +
+                `${firstUpload.uploadedFileName}: ${summarizedDesc}` +
+                '</option>'
+            );
           }
         }
         view.focus();
       });
-    }
+    },
   });
 }
 
@@ -363,16 +374,17 @@ function generateDescriptionFromUpload(upload: UploadMetadata): string {
       break;
     default:
       license = msg('license in caption', {
-        stringParam: msg(`${upload.license} short`)
+        stringParam: msg(`${upload.license} short`),
       });
   }
 
   let rights;
-  if (!creator) // Own work
+  if (!creator)
+    // Own work
     rights = msg('rights in caption, own work', { stringParam: license });
   else
-    rights = msg('rights in caption, someone else\'s work', {
-      stringParams: [creator, license]
+    rights = msg("rights in caption, someone else's work", {
+      stringParams: [creator, license],
     });
   const caption = msg('caption', { stringParams: [description, rights] });
   // Final newline is important to ensure resulting markdown is parsed correctly
@@ -384,16 +396,15 @@ function formatCustomWarningItem(nodeType: NodeType): MenuItem {
     title: msg('format as custom warning help'),
     label: msg('format as custom warning'),
     run(state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView | null) {
-      if (!view)
-        return;
+      if (!view) return;
       const prompt = {
         view: view as unknown as PromptSpec['view'],
         title: msg('format as custom warning dialog title'),
         fields: {
           message: new TextField({
             label: msg('custom warning text'),
-            required: true
-          })
+            required: true,
+          }),
         },
         callback(attrs) {
           // Used to translate node back into markdown
@@ -402,20 +413,19 @@ function formatCustomWarningItem(nodeType: NodeType): MenuItem {
           const command = wrapIn(nodeType, warningAttrs);
           command(state, dispatch ?? view.dispatch);
           view.focus();
-        }
+        },
       };
       openPrompt(prompt);
     },
     select(state: EditorState) {
       return wrapIn(nodeType)(state);
-    }
+    },
   });
 }
 
 function linkItem(schema: Schema): MenuItem {
   const linkMark = schema.marks.link;
-  if (!linkMark)
-    throw new Error('Link mark not found in schema');
+  if (!linkMark) throw new Error('Link mark not found in schema');
 
   return new MenuItem({
     title: msg('add or remove link', { accessKey: 'k' }),
@@ -424,8 +434,7 @@ function linkItem(schema: Schema): MenuItem {
       return markActive(state, linkMark);
     },
     run(state: EditorState, dispatch?: (tr: Transaction) => void, view?: EditorView | null) {
-      if (!view)
-        return false;
+      if (!view) return false;
 
       if (markActive(state, linkMark)) {
         toggleMark(linkMark)(state, dispatch ?? view.dispatch);
@@ -436,15 +445,15 @@ function linkItem(schema: Schema): MenuItem {
         href: new TextField({
           label: msg('web address'),
           required,
-          clean: (val: string) => !/^https?:\/\//i.test(val) ? 'http://' + val : val
-        })
+          clean: (val: string) => (!/^https?:\/\//i.test(val) ? 'http://' + val : val),
+        }),
       };
       // User has not selected any text, so needs to provide it via dialog
       if (view.state.selection.empty) {
         fields.linkText = new TextField({
           label: msg('link text'),
           required,
-          clean: (val: string) => val.trim()
+          clean: (val: string) => val.trim(),
         });
       }
       openPrompt({
@@ -458,25 +467,29 @@ function linkItem(schema: Schema): MenuItem {
             toggleMark(linkMark, linkAttrs)(view.state, view.dispatch);
             // Advance cursor to end of selection (not necessarily head,
             // depending on selection direction)
-            const rightmost = view.state.selection.$anchor.pos > view.state.selection.$head.pos ?
-              view.state.selection.$anchor : view.state.selection.$head;
+            const rightmost =
+              view.state.selection.$anchor.pos > view.state.selection.$head.pos
+                ? view.state.selection.$anchor
+                : view.state.selection.$head;
             view.dispatch(view.state.tr.setSelection(TextSelection.between(rightmost, rightmost)));
             // Disable link mark so user can now type normally again
             toggleMark(linkMark, linkAttrs)(view.state, view.dispatch);
           } else {
             view.dispatch(
               view.state.tr
-              .replaceSelectionWith(schema.text(linkAttrs.linkText))
-              .addMark(view.state.selection.$from.pos,
-                view.state.selection.$from.pos + linkAttrs.linkText.length,
-                linkMark.create({ href: linkAttrs.href }))
+                .replaceSelectionWith(schema.text(linkAttrs.linkText))
+                .addMark(
+                  view.state.selection.$from.pos,
+                  view.state.selection.$from.pos + linkAttrs.linkText.length,
+                  linkMark.create({ href: linkAttrs.href })
+                )
             );
           }
           view.focus();
-        }
+        },
       });
       return true;
-    }
+    },
   });
 }
 
@@ -491,7 +504,7 @@ function headingItems(nodeType: NodeType): MenuItem[] {
     headingItems[i - 1] = blockTypeItem(nodeType, {
       title: msg('format as level heading help', { accessKey: String(i), numberParam: i }),
       label: msg('format as level heading', { numberParam: i }),
-      attrs: { level: i }
+      attrs: { level: i },
     });
   return headingItems;
 }
@@ -500,7 +513,7 @@ function buildMenuItems(schema: Schema): { menu: MenuElement[][]; items: EditorM
   const maybeMediaNodes = {
     image: schema.nodes.image,
     video: schema.nodes.video,
-    audio: schema.nodes.audio
+    audio: schema.nodes.audio,
   };
 
   if (!maybeMediaNodes.image || !maybeMediaNodes.video || !maybeMediaNodes.audio)
@@ -509,7 +522,7 @@ function buildMenuItems(schema: Schema): { menu: MenuElement[][]; items: EditorM
   const mediaNodes: MediaNodeTypes = {
     image: maybeMediaNodes.image,
     video: maybeMediaNodes.video,
-    audio: maybeMediaNodes.audio
+    audio: maybeMediaNodes.audio,
   };
 
   const containerWarning = schema.nodes.container_warning;
@@ -521,46 +534,63 @@ function buildMenuItems(schema: Schema): { menu: MenuElement[][]; items: EditorM
   const orderedListNode = schema.nodes.ordered_list;
   const horizontalRuleNode = schema.nodes.horizontal_rule;
 
-  if (!containerWarning || !headingNode || !paragraphNode || !codeBlockNode ||
-    !blockquoteNode || !bulletListNode || !orderedListNode || !horizontalRuleNode)
+  if (
+    !containerWarning ||
+    !headingNode ||
+    !paragraphNode ||
+    !codeBlockNode ||
+    !blockquoteNode ||
+    !bulletListNode ||
+    !orderedListNode ||
+    !horizontalRuleNode
+  )
     throw new Error('Schema is missing required nodes for the editor menu');
 
   const items: EditorMenuItems = {
-    toggleStrong: markItem(schema.marks.strong, { title: msg('toggle bold', { accessKey: 'b' }), icon: icons.strong }),
-    toggleEm: markItem(schema.marks.em, { title: msg('toggle italic', { accessKey: 'i' }), icon: icons.em }),
-    toggleCode: markItem(schema.marks.code, { title: msg('toggle code', { accessKey: '`' }), icon: icons.code }),
+    toggleStrong: markItem(schema.marks.strong, {
+      title: msg('toggle bold', { accessKey: 'b' }),
+      icon: icons.strong,
+    }),
+    toggleEm: markItem(schema.marks.em, {
+      title: msg('toggle italic', { accessKey: 'i' }),
+      icon: icons.em,
+    }),
+    toggleCode: markItem(schema.marks.code, {
+      title: msg('toggle code', { accessKey: '`' }),
+      icon: icons.code,
+    }),
     toggleLink: linkItem(schema),
     insertMedia: insertMediaItem(mediaNodes, schema),
     insertHorizontalRule: horizontalRuleItem(horizontalRuleNode),
     wrapBulletList: wrapListItem(bulletListNode, {
       title: msg('format as bullet list', { accessKey: '8' }),
-      icon: icons.bulletList
+      icon: icons.bulletList,
     }),
     wrapOrderedList: wrapListItem(orderedListNode, {
       title: msg('format as numbered list', { accessKey: '9' }),
-      icon: icons.orderedList
+      icon: icons.orderedList,
     }),
     wrapBlockQuote: wrapItem(blockquoteNode, {
       title: msg('format as quote', { accessKey: '>' }),
-      icon: icons.blockquote
+      icon: icons.blockquote,
     }),
     makeParagraph: blockTypeItem(paragraphNode, {
       title: msg('format as paragraph help', { accessKey: '0' }),
-      label: msg('format as paragraph')
+      label: msg('format as paragraph'),
     }),
     makeCodeBlock: blockTypeItem(codeBlockNode, {
       title: msg('format as code block help'),
-      label: msg('format as code block')
+      label: msg('format as code block'),
     }),
     formatSpoilerWarning: wrapItem(containerWarning, {
       title: msg('format as spoiler help'),
       label: msg('format as spoiler'),
-      attrs: { markup: 'spoiler', message: msg('spoiler warning') }
+      attrs: { markup: 'spoiler', message: msg('spoiler warning') },
     }),
     formatNSFWWarning: wrapItem(containerWarning, {
       title: msg('format as nsfw help'),
       label: msg('format as nsfw'),
-      attrs: { markup: 'nsfw', message: msg('nsfw warning') }
+      attrs: { markup: 'nsfw', message: msg('nsfw warning') },
     }),
     formatCustomWarning: formatCustomWarningItem(containerWarning),
     makeHeading: headingItems(headingNode),
@@ -568,41 +598,54 @@ function buildMenuItems(schema: Schema): { menu: MenuElement[][]; items: EditorM
     undo: undoItem,
     redo: redoItem,
     joinUp: joinUpItem,
-    lift: liftItem
+    lift: liftItem,
   };
 
   // Only trusted users can upload files directly from within the RTE.
-  if (config.isTrusted)
-    items.upload = uploadModalItem(mediaNodes, schema);
+  if (config.isTrusted) items.upload = uploadModalItem(mediaNodes, schema);
 
   const insertDropdown = new Dropdown([items.insertMedia, items.insertHorizontalRule], {
     label: msg('insert'),
-    title: msg('insert help')
+    title: msg('insert help'),
   });
 
-  const headingSubmenu = new DropdownSubmenu([...items.makeHeading], { label: msg('format as heading') });
+  const headingSubmenu = new DropdownSubmenu([...items.makeHeading], {
+    label: msg('format as heading'),
+  });
 
   const typeDropdown = new Dropdown(
     [
-      items.makeParagraph, items.makeCodeBlock, items.formatSpoilerWarning,
-      items.formatNSFWWarning, items.formatCustomWarning, headingSubmenu
-    ], {
+      items.makeParagraph,
+      items.makeCodeBlock,
+      items.formatSpoilerWarning,
+      items.formatNSFWWarning,
+      items.formatCustomWarning,
+      headingSubmenu,
+    ],
+    {
       label: msg('format block'),
-      title: msg('format block help')
-    });
+      title: msg('format block help'),
+    }
+  );
 
   const mediaOptions: MenuElement[] = [insertDropdown];
 
   // Only trusted users can upload files directly via the RTE.
-  if (items.upload)
-    mediaOptions.push(items.upload);
+  if (items.upload) mediaOptions.push(items.upload);
 
   const menu: MenuElement[][] = [
     [items.toggleStrong, items.toggleEm, items.toggleCode, items.toggleLink],
     mediaOptions,
-    [typeDropdown, items.wrapBulletList, items.wrapOrderedList, items.wrapBlockQuote, items.joinUp, items.lift],
+    [
+      typeDropdown,
+      items.wrapBulletList,
+      items.wrapOrderedList,
+      items.wrapBlockQuote,
+      items.joinUp,
+      items.lift,
+    ],
     [items.undo, items.redo],
-    [items.fullScreen]
+    [items.fullScreen],
   ];
 
   // We expose the items object so it can be used to externally trigger a menu

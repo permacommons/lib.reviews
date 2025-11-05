@@ -29,7 +29,11 @@
     "type-coverage": "npm run type-coverage:backend && npm run type-coverage:frontend && npm run type-coverage:tests",
     "type-coverage:backend": "type-coverage --project tsconfig.backend.json",
     "type-coverage:frontend": "type-coverage --project tsconfig.frontend.json",
-    "type-coverage:tests": "type-coverage --project tsconfig.tests.json"
+    "type-coverage:tests": "type-coverage --project tsconfig.tests.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
@@ -92,6 +96,7 @@
     "unescape-html": "^1.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.3.3",
     "@types/body-parser": "^1.19.5",
     "@types/compression": "^1.8.1",
     "@types/connect-pg-simple": "^7.0.3",

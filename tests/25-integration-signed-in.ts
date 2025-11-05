@@ -1,11 +1,12 @@
 import test from 'ava';
-import supertest from 'supertest';
-import isUUID from 'is-uuid';
-import { promises as fs } from 'fs';
 import config from 'config';
+import { promises as fs } from 'fs';
+import isUUID from 'is-uuid';
+import supertest from 'supertest';
 import { extractCSRF, registerTestUser } from './helpers/integration-helpers.ts';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
+
 const loadAppModule = () => import('../app.ts');
 
 mockSearch();
@@ -21,8 +22,8 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
     'teams',
     'things',
     'files',
-    'users'
-  ]
+    'users',
+  ],
 });
 
 let User, Team, TeamJoinRequest;
@@ -35,7 +36,7 @@ test.before(async () => {
     { key: 'users', alias: 'User' },
     { key: 'teams', alias: 'Team' },
     { key: 'team_slugs', alias: 'TeamSlug' },
-    { key: 'team_join_requests', alias: 'TeamJoinRequest' }
+    { key: 'team_join_requests', alias: 'TeamJoinRequest' },
   ]);
 
   User = models.User;
@@ -45,32 +46,32 @@ test.before(async () => {
   await fs.mkdir(config.uploadTempDir, { recursive: true });
 
   const { default: getApp, resetAppForTesting } = await loadAppModule();
-  if (typeof resetAppForTesting === 'function')
-    await resetAppForTesting();
+  if (typeof resetAppForTesting === 'function') await resetAppForTesting();
   app = await getApp();
 });
 
 test.serial('We can register an account via the form (captcha disabled)', async t => {
-
   const agent = supertest.agent(app);
   const username = 'A friend of many GNUs';
   const { landingResponse } = await registerTestUser(agent, {
     username,
-    password: 'toGNUornottoGNU'
+    password: 'toGNUornottoGNU',
   });
 
   t.truthy(landingResponse);
-  t.regex(landingResponse.text, /Thank you for registering a lib\.reviews account, A friend of many GNUs!/);
+  t.regex(
+    landingResponse.text,
+    /Thank you for registering a lib\.reviews account, A friend of many GNUs!/
+  );
   t.pass();
 });
 
 test.serial('We can create and edit a review', async t => {
-
   const agent = supertest.agent(app);
   const username = `ReviewCreator-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const newReviewResponse = await agent.get('/new/review');
@@ -86,10 +87,11 @@ test.serial('We can create and edit a review', async t => {
       _csrf: csrf,
       'review-url': 'http://zombo.com/',
       'review-title': 'The unattainable is unknown',
-      'review-text': 'This is a decent enough resource if you want to do anything, although the newsletter is not available yet and it requires Flash. Check out http://html5zombo.com/ as well.',
+      'review-text':
+        'This is a decent enough resource if you want to do anything, although the newsletter is not available yet and it requires Flash. Check out http://html5zombo.com/ as well.',
       'review-rating': 3,
       'review-language': 'en',
-      'review-action': 'publish'
+      'review-action': 'publish',
     })
     .expect(302);
 
@@ -105,7 +107,8 @@ test.serial('We can create and edit a review', async t => {
   }
 
   const editURL = match[1];
-  const editResponse = await agent.get(editURL)
+  const editResponse = await agent
+    .get(editURL)
     .expect(200)
     .expect(/Editing a review of/)
     .expect(/value="The unattainable is unknown"/);
@@ -121,7 +124,7 @@ test.serial('We can create and edit a review', async t => {
       'review-text': 'I just checked, and I can still do anything on Zombo.com.',
       'review-rating': '3',
       'review-language': 'en',
-      'review-action': 'publish'
+      'review-action': 'publish',
     })
     .expect(302);
 
@@ -135,12 +138,11 @@ test.serial('We can create and edit a review', async t => {
 });
 
 test.serial('We can edit a thing description', async t => {
-
   const agent = supertest.agent(app);
   const username = `ThingEditor-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   // Make user trusted so they can edit things
@@ -150,7 +152,8 @@ test.serial('We can edit a thing description', async t => {
   await user.save();
 
   // Create a review first (which creates a thing)
-  const newReviewResponse = await agent.get('/new/review')
+  const newReviewResponse = await agent
+    .get('/new/review')
     .expect(200)
     .expect(/New review/);
 
@@ -166,7 +169,7 @@ test.serial('We can edit a thing description', async t => {
       'review-text': 'This is a test review for description editing.',
       'review-rating': '4',
       'review-language': 'en',
-      'review-action': 'publish'
+      'review-action': 'publish',
     })
     .expect(302);
 
@@ -184,7 +187,8 @@ test.serial('We can edit a thing description', async t => {
   }
 
   const editDescURL = editDescMatch[1];
-  const editDescResponse = await agent.get(editDescURL)
+  const editDescResponse = await agent
+    .get(editDescURL)
     .expect(200)
     .expect(/Edit description/);
 
@@ -197,7 +201,7 @@ test.serial('We can edit a thing description', async t => {
     .send({
       _csrf: csrf,
       'thing-description': 'This is a test description for the thing.',
-      'thing-language': 'en'
+      'thing-language': 'en',
     })
     .expect(302);
 
@@ -211,15 +215,15 @@ test.serial('We can edit a thing description', async t => {
 });
 
 test.serial('We can create a new team', async t => {
-
   const agent = supertest.agent(app);
   const username = `TeamCreator-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
-  await agent.get('/new/team')
+  await agent
+    .get('/new/team')
     .expect(403)
     .expect(/do not have permission/);
 
@@ -230,7 +234,8 @@ test.serial('We can create a new team', async t => {
   user.isTrusted = true;
   await user.save();
 
-  const newTeamResponse = await agent.get('/new/team')
+  const newTeamResponse = await agent
+    .get('/new/team')
     .expect(200)
     .expect(/Rules for joining/);
 
@@ -250,7 +255,7 @@ test.serial('We can create a new team', async t => {
       'team-rules': 'No leftovers.',
       'team-only-mods-can-blog': true,
       'team-language': 'en',
-      'team-action': 'publish'
+      'team-action': 'publish',
     })
     .expect(302);
 
@@ -263,13 +268,12 @@ test.serial('We can create a new team', async t => {
 });
 
 test.serial('Team join request workflow: join, approve, leave, rejoin', async t => {
-
   // Create moderator who will manage the team
   const modAgent = supertest.agent(app);
   const modUsername = `TeamMod-${Date.now()}`;
   await registerTestUser(modAgent, {
     username: modUsername,
-    password: 'modpass123'
+    password: 'modpass123',
   });
 
   const modUrlName = modUsername.replace(/ /g, '_');
@@ -292,7 +296,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
       'team-rules': 'Be nice',
       'team-mod-approval-to-join': true,
       'team-language': 'en',
-      'team-action': 'publish'
+      'team-action': 'publish',
     })
     .expect(302);
 
@@ -304,7 +308,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
   const username = `TeamJoiner-${Date.now()}`;
   await registerTestUser(userAgent, {
     username: username,
-    password: 'userpass123'
+    password: 'userpass123',
   });
 
   const userUrlName = username.replace(/ /g, '_');
@@ -320,7 +324,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
     .send({
       _csrf: joinCsrf,
       'join-request-message': 'I would like to join',
-      'agree-to-rules': 'on'
+      'agree-to-rules': 'on',
     })
     .expect(302);
 
@@ -348,7 +352,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
     .send({
       _csrf: manageCsrf,
       [`action-${requestId}`]: 'accept',
-      'manage-requests-action': 'process-requests'
+      'manage-requests-action': 'process-requests',
     })
     .expect(302);
 
@@ -364,11 +368,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
   const teamPageAfterApproval = await userAgent.get(teamURL).expect(200);
   const leaveCsrf = extractCSRF(teamPageAfterApproval.text);
 
-  await userAgent
-    .post(`${teamURL}/leave`)
-    .type('form')
-    .send({ _csrf: leaveCsrf })
-    .expect(302);
+  await userAgent.post(`${teamURL}/leave`).type('form').send({ _csrf: leaveCsrf }).expect(302);
 
   // Verify request status changed to withdrawn
   joinRequests = await TeamJoinRequest.filter({ userID: user.id });
@@ -380,7 +380,11 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
 
   // User can rejoin - should reuse existing request
   const rejoinPageResponse = await userAgent.get(teamURL).expect(200);
-  t.notRegex(rejoinPageResponse.text, /team has been received/i, 'Should not show withdrawn request message');
+  t.notRegex(
+    rejoinPageResponse.text,
+    /team has been received/i,
+    'Should not show withdrawn request message'
+  );
 
   const rejoinCsrf = extractCSRF(rejoinPageResponse.text);
 
@@ -390,7 +394,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
     .send({
       _csrf: rejoinCsrf,
       'join-request-message': 'I would like to rejoin',
-      'agree-to-rules': 'on'
+      'agree-to-rules': 'on',
     })
     .expect(302);
 
@@ -406,7 +410,6 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
 test.after.always(async () => {
   unmockSearch();
   const { resetAppForTesting } = await loadAppModule();
-  if (typeof resetAppForTesting === 'function')
-    await resetAppForTesting();
+  if (typeof resetAppForTesting === 'function') await resetAppForTesting();
   await dalFixture.cleanup();
 });

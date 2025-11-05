@@ -4,27 +4,31 @@
  * @namespace Uploads
  */
 
-import { Router } from 'express';
-import multer from 'multer';
-import path from 'node:path';
 import fs from 'node:fs';
-import isSVG from 'is-svg';
-import config from 'config';
-import is from 'type-is';
-import { promisify } from 'node:util';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.ts';
+import { promisify } from 'node:util';
+import config from 'config';
+import { Router } from 'express';
+import isSVG from 'is-svg';
+import type { FileFilterCallback } from 'multer';
+import multer from 'multer';
+import is from 'type-is';
+import languages from '../locales/languages.ts';
 import File from '../models/file.ts';
-import getResourceErrorHandler from './handlers/resource-error-handler.ts';
-import render from './helpers/render.ts';
-import slugs from './helpers/slugs.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import {
+  generateToken,
+  getTokenFromRequest,
+  getTokenFromState,
+  invalidCsrfTokenError,
+} from '../util/csrf.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import languages from '../locales/languages.ts';
+import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import forms from './helpers/forms.ts';
-import type { FileFilterCallback } from 'multer';
-import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import render from './helpers/render.ts';
+import slugs from './helpers/slugs.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +36,8 @@ const __dirname = path.dirname(__filename);
 const readFile = promisify(fs.readFile);
 const rename = promisify(fs.rename);
 const unlink = promisify(fs.unlink);
-type UploadsRequest<Params extends Record<string, string> = Record<string, string>> = HandlerRequest<Params>;
+type UploadsRequest<Params extends Record<string, string> = Record<string, string>> =
+  HandlerRequest<Params>;
 type UploadsResponse = HandlerResponse;
 type UploadedFile = {
   originalname: string;
@@ -45,7 +50,10 @@ type UploadedFile = {
 type UploadRevision = Record<string, any>;
 type ThingInstance = Record<string, any>;
 type FileModelType = {
-  createFirstRevision(user: Express.User, options?: Record<string, unknown>): Promise<UploadRevision>;
+  createFirstRevision(
+    user: Express.User,
+    options?: Record<string, unknown>
+  ): Promise<UploadRevision>;
   getNotStaleOrDeleted(id: string): Promise<UploadRevision>;
   getStashedUpload(userID: string, name: string): Promise<UploadRevision | null>;
 };
@@ -72,78 +80,88 @@ async function detectFileType(filePath) {
 }
 
 const allowedTypes = [
-  'image/png', 'image/gif', 'image/svg+xml', 'image/jpeg', 'image/webp',
-  'video/webm', 'video/ogg',
-  'audio/ogg', 'audio/mpeg'
+  'image/png',
+  'image/gif',
+  'image/svg+xml',
+  'image/jpeg',
+  'image/webp',
+  'video/webm',
+  'video/ogg',
+  'audio/ogg',
+  'audio/mpeg',
 ];
 
 // You can upload multiple uploads in one batch; this form is used to process
 // the metadata
-const uploadFormDef = [{
+const uploadFormDef = [
+  {
     name: 'upload-language',
-    required: true
-  }, {
+    required: true,
+  },
+  {
     name: 'upload-%uuid',
     required: false,
-    keyValueMap: 'uploads'
-  }, {
+    keyValueMap: 'uploads',
+  },
+  {
     name: 'upload-%uuid-description',
     required: false,
     type: 'text',
-    keyValueMap: 'descriptions'
-  }, {
+    keyValueMap: 'descriptions',
+  },
+  {
     name: 'upload-%uuid-by',
     required: false,
     type: 'string', // can be 'uploader' or 'other'
-    keyValueMap: 'creators'
-  }, {
+    keyValueMap: 'creators',
+  },
+  {
     required: false,
     name: 'upload-%uuid-creator',
     type: 'text',
-    keyValueMap: 'creatorDetails'
+    keyValueMap: 'creatorDetails',
   },
   {
     name: 'upload-%uuid-source',
     required: false,
     type: 'text',
-    keyValueMap: 'sources'
+    keyValueMap: 'sources',
   },
   {
     name: 'upload-license-%uuid',
     required: false,
     type: 'string', // enum defined in model
-    keyValueMap: 'licenses'
-  }
+    keyValueMap: 'licenses',
+  },
 ];
 
-stage1Router.post('/:id/upload',
-  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
-
+stage1Router.post(
+  '/:id/upload',
+  (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) => {
     // On to stage 2
-    if (!is(req, ['multipart']))
-      return next();
+    if (!is(req, ['multipart'])) return next();
 
     let id = req.params.id.trim();
-    slugs.resolveAndLoadThing(req, res, id)
+    slugs
+      .resolveAndLoadThing(req, res, id)
       .then(thing => {
-
         thing.populateUserInfo(req.user);
         if (!thing.userCanUpload)
           return render.permissionError(req, res, {
-            titleKey: 'add media'
+            titleKey: 'add media',
           });
 
         let storage = multer.diskStorage({
           destination: config.uploadTempDir,
-          filename: assignFilename
+          filename: assignFilename,
         });
 
         let upload = multer({
           limits: {
-            fileSize: config.uploadMaxSize
+            fileSize: config.uploadMaxSize,
           },
           fileFilter: getFileFilter(req, res),
-          storage
+          storage,
         }).array('media');
 
         // Execute the actual upload middleware
@@ -153,20 +171,20 @@ stage1Router.post('/:id/upload',
   }
 );
 
-stage2Router.post('/:id/upload',
-  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
+stage2Router.post(
+  '/:id/upload',
+  (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) => {
     let id = req.params.id.trim();
-    slugs.resolveAndLoadThing(req, res, id)
+    slugs
+      .resolveAndLoadThing(req, res, id)
       .then(thing => {
-
         thing.populateUserInfo(req.user);
         if (!thing.userCanUpload)
           return render.permissionError(req, res, {
-            titleKey: 'add media'
+            titleKey: 'add media',
           });
 
         processUploadForm(req, res, next, thing);
-
       })
       .catch(getResourceErrorHandler(req, res, next, 'thing', id));
   }
@@ -200,14 +218,14 @@ function checkMIMEType(file: UploadedFile): { fileTypeError: Error | null; isPer
     return {
       fileTypeError: new ReportedError({
         userMessage: 'unsupported file type',
-        userMessageParams: [file.originalname, file.mimetype]
+        userMessageParams: [file.originalname, file.mimetype],
       }),
-      isPermitted: false
+      isPermitted: false,
     };
   else
     return {
       fileTypeError: null,
-      isPermitted: true
+      isPermitted: true,
     };
 }
 
@@ -219,7 +237,10 @@ function getUploadHandler(
   thing: ThingInstance
 ) {
   return (error?: unknown) => {
-    const uploadRequest = req as UploadsRequest<{ id: string }> & { files?: UploadedFile[]; flashError?: (error: unknown) => void };
+    const uploadRequest = req as UploadsRequest<{ id: string }> & {
+      files?: UploadedFile[];
+      flashError?: (error: unknown) => void;
+    };
 
     const abortUpload = (uploadError: unknown) => {
       // Async, but we don't wait for completion. Note that multer performs
@@ -241,8 +262,7 @@ function getUploadHandler(
 
     // An error at this stage most likely means an unsupported file type was among the batch.
     // We reject the whole batch and report the bad apple.
-    if (error)
-      return abortUpload(error);
+    if (error) return abortUpload(error);
 
     const files = uploadRequest.files ?? [];
     if (files.length) {
@@ -253,15 +273,14 @@ function getUploadHandler(
       }
 
       validateFiles(files)
-        .then(fileTypes => getFileRevs(files, fileTypes, user,
-          ['upload', 'upload-via-form']))
+        .then(fileTypes => getFileRevs(files, fileTypes, user, ['upload', 'upload-via-form']))
         .then(fileRevs => attachFileRevsToThing(fileRevs, thing))
         .then(uploadedFiles =>
           render.template(req, res, 'thing-upload-step-2', {
             titleKey: 'add media',
             thing,
             uploadedFiles,
-            csrfToken: generateToken(req)
+            csrfToken: generateToken(req),
           })
         )
         .catch(abortUpload);
@@ -285,14 +304,17 @@ async function validateFiles(files: UploadedFile[]): Promise<string[]> {
     const filePath = typeof file.path === 'string' ? file.path : '';
     // SVG files need full examination
     if (!filePath) {
-      validators.push(Promise.reject(new ReportedError({
-        userMessage: 'unrecognized file type',
-        userMessageParams: [file.originalname]
-      })));
+      validators.push(
+        Promise.reject(
+          new ReportedError({
+            userMessage: 'unrecognized file type',
+            userMessageParams: [file.originalname],
+          })
+        )
+      );
     } else if (file.mimetype != 'image/svg+xml')
       validators.push(validateFile(filePath, file.mimetype));
-    else
-      validators.push(validateSVG(filePath));
+    else validators.push(validateSVG(filePath));
   });
   const fileTypes = await Promise.all(validators);
   return fileTypes;
@@ -330,7 +352,10 @@ async function getFileRevs(
   return fileRevs;
 }
 
-async function attachFileRevsToThing(fileRevs: UploadRevision[], thing: ThingInstance): Promise<UploadRevision[]> {
+async function attachFileRevsToThing(
+  fileRevs: UploadRevision[],
+  thing: ThingInstance
+): Promise<UploadRevision[]> {
   // Note that the file association is stored in a separate table, so we do not
   // create a new Thing revision in this case
   if (!Array.isArray(fileRevs) || !fileRevs.length) {
@@ -359,13 +384,12 @@ async function attachFileRevsToThing(fileRevs: UploadRevision[], thing: ThingIns
  * @returns Nothing; resolves once cleanup attempts are complete
  */
 async function cleanupFiles(req: UploadsRequest & { files?: UploadedFile[] }): Promise<void> {
-  if (!Array.isArray(req.files) || !req.files?.length)
-    return;
+  if (!Array.isArray(req.files) || !req.files?.length) return;
 
   try {
-    await Promise.all(req.files
-      .filter(file => typeof file.path === 'string')
-      .map(file => unlink(String(file.path))));
+    await Promise.all(
+      req.files.filter(file => typeof file.path === 'string').map(file => unlink(String(file.path)))
+    );
   } catch (error) {
     debug.error({ error, req });
   }
@@ -378,7 +402,7 @@ async function validateFile(filePath: string, claimedType: string | undefined): 
   if (!filePath)
     throw new ReportedError({
       userMessage: 'unrecognized file type',
-      userMessageParams: ['']
+      userMessageParams: [''],
     });
   const type = await detectFileType(filePath);
 
@@ -396,8 +420,7 @@ async function validateFile(filePath: string, claimedType: string | undefined): 
       userMessage: 'mime mismatch',
       userMessageParams: [path.basename(filePath), claimedType, type.mime],
     });
-  else
-    return type.mime;
+  else return type.mime;
 }
 
 /**
@@ -411,11 +434,10 @@ async function validateSVG(filePath: string): Promise<string> {
   if (!filePath)
     throw new ReportedError({
       userMessage: 'unrecognized file type',
-      userMessageParams: ['']
+      userMessageParams: [''],
     });
   const data = await readFile(filePath);
-  if (isSVG(data))
-    return 'image/svg+xml';
+  if (isSVG(data)) return 'image/svg+xml';
   else
     throw new ReportedError({
       userMessage: 'not valid svg',
@@ -425,27 +447,29 @@ async function validateSVG(filePath: string): Promise<string> {
 
 // If an upload is unfinished, it can still be viewed at its destination URL
 // by the user who uploaded it.
-stage1Router.get('/static/uploads/restricted/:name',
-  function(req: UploadsRequest<{ name: string }>, res: UploadsResponse, next: HandlerNext) {
-  if (!req.user)
-    return next();
+stage1Router.get(
+  '/static/uploads/restricted/:name',
+  (req: UploadsRequest<{ name: string }>, res: UploadsResponse, next: HandlerNext) => {
+    if (!req.user) return next();
 
-  const userIDValue = req.user.id;
-  const userID = typeof userIDValue === 'string' ? userIDValue
-    : typeof userIDValue === 'number' ? String(userIDValue) : null;
+    const userIDValue = req.user.id;
+    const userID =
+      typeof userIDValue === 'string'
+        ? userIDValue
+        : typeof userIDValue === 'number'
+          ? String(userIDValue)
+          : null;
 
-  if (!userID)
-    return next();
+    if (!userID) return next();
 
-  FileModel
-    .getStashedUpload(userID, req.params.name)
-    .then(upload => {
-      if (!upload)
-        return next();
-      res.sendFile(path.join(config.uploadTempDir, upload.name));
-    })
-    .catch(next);
-});
+    FileModel.getStashedUpload(userID, req.params.name)
+      .then(upload => {
+        if (!upload) return next();
+        res.sendFile(path.join(config.uploadTempDir, upload.name));
+      })
+      .catch(next);
+  }
+);
 
 function processUploadForm(
   req: UploadsRequest<{ id: string }>,
@@ -453,7 +477,6 @@ function processUploadForm(
   _next: HandlerNext,
   thing: ThingInstance
 ) {
-
   // Flash a message from a [key, param1, ...] array, then redirect to thing
   const redirectBack = ({ message, error }: { message?: unknown[]; error?: unknown[] } = {}) => {
     if (Array.isArray(error)) {
@@ -467,8 +490,8 @@ function processUploadForm(
       req.flash('pageMessages', req.__(key, ...strParams));
     }
 
-     res.redirect(`/${thing.urlID}`);
-   };
+    res.redirect(`/${thing.urlID}`);
+  };
 
   const languageValue = req.body['upload-language'];
   const language = typeof languageValue === 'string' ? languageValue : '';
@@ -479,18 +502,17 @@ function processUploadForm(
   let formData = forms.parseSubmission(req, {
     formDef: uploadFormDef,
     formKey: 'upload-file',
-    language
+    language,
   });
 
-  if (req.flashHas?.('pageErrors'))
-    return redirectBack();
+  if (req.flashHas?.('pageErrors')) return redirectBack();
 
   let uploadIDs;
-  let hasUploads = typeof formData.formValues.uploads == 'object' &&
+  let hasUploads =
+    typeof formData.formValues.uploads == 'object' &&
     (uploadIDs = Object.keys(formData.formValues.uploads)).length;
 
-  if (!hasUploads)
-    return redirectBack({ error: ['data missing'] });
+  if (!hasUploads) return redirectBack({ error: ['data missing'] });
 
   const getFiles = async (ids: string[]) =>
     await Promise.all(ids.map(id => FileModel.getNotStaleOrDeleted(id)));
@@ -500,7 +522,9 @@ function processUploadForm(
   // problem, move the upload to its final location, update its metadata and
   // mark it as finished.
   getFiles(uploadIDs)
-    .then(files => processUploads(files, formData.formValues, language, req.app.locals.paths.uploadsDir))
+    .then(files =>
+      processUploads(files, formData.formValues, language, req.app.locals.paths.uploadsDir)
+    )
     .then(() => redirectBack({ message: ['upload completed'] }))
     .catch(error => {
       req.flashError?.(error);
@@ -508,71 +532,73 @@ function processUploadForm(
     });
 }
 
+async function processUploads(
+  uploads: UploadRevision[],
+  formValues: Record<string, any>,
+  language: string,
+  uploadsDir: string
+): Promise<void> {
+  let completeUploadPromises: Promise<unknown>[] = [];
+  uploads.forEach(upload => {
+    const getVal = (obj: Record<string, any>) =>
+      !Array.isArray(obj) || !obj[upload.id] ? null : obj[upload.id];
 
-async function processUploads(uploads: UploadRevision[], formValues: Record<string, any>, language: string, uploadsDir: string): Promise<void> {
-    let completeUploadPromises: Promise<unknown>[] = [];
-    uploads.forEach(upload => {
+    upload.description = getVal(formValues.descriptions);
 
-      const getVal = (obj: Record<string, any>) => !Array.isArray(obj) || !obj[upload.id] ? null : obj[upload.id];
+    if (!upload.description || !upload.description[language])
+      throw new ReportedError({
+        message: 'Form data for upload %s lacks a description.',
+        messageParams: [upload.name],
+        userMessage: 'upload needs description',
+      });
 
-      upload.description = getVal(formValues.descriptions);
+    let by = getVal(formValues.creators);
+    if (!by)
+      throw new ReportedError({
+        message: 'Form data for upload missing creator information.',
+        userMessage: 'data missing',
+      });
 
-      if (!upload.description || !upload.description[language])
+    if (by === 'other') {
+      upload.creator = getVal(formValues.creatorDetails);
+
+      if (!upload.creator || !upload.creator[language])
         throw new ReportedError({
-          message: `Form data for upload %s lacks a description.`,
+          message: 'Form data for upload %s lacks creator information.',
           messageParams: [upload.name],
-          userMessage: 'upload needs description',
+          userMessage: 'upload needs creator',
         });
 
-      let by = getVal(formValues.creators);
-      if (!by)
+      upload.source = getVal(formValues.sources);
+
+      if (!upload.source || !upload.source[language])
         throw new ReportedError({
-          message: `Form data for upload missing creator information.`,
-          userMessage: 'data missing'
+          message: 'Form data for upload %s lacks source information.',
+          messageParams: [upload.name],
+          userMessage: 'upload needs source',
         });
 
-      if (by === 'other') {
-        upload.creator = getVal(formValues.creatorDetails);
+      upload.license = getVal(formValues.licenses);
 
-        if (!upload.creator || !upload.creator[language])
-          throw new ReportedError({
-            message: 'Form data for upload %s lacks creator information.',
-            messageParams: [upload.name],
-            userMessage: 'upload needs creator'
-          });
-
-        upload.source = getVal(formValues.sources);
-
-        if (!upload.source || !upload.source[language])
-          throw new ReportedError({
-            message: 'Form data for upload %s lacks source information.',
-            messageParams: [upload.name],
-            userMessage: 'upload needs source'
-          });
-
-        upload.license = getVal(formValues.licenses);
-
-        if (!upload.license)
-          throw new ReportedError({
-            message: 'Form data for upload %s lacks license information.',
-            messageParams: [upload.name],
-            userMessage: 'upload needs license'
-          });
-
-      } else if (by === 'uploader') {
-        upload.license = 'cc-by-sa';
-      } else {
+      if (!upload.license)
         throw new ReportedError({
-          message: 'Upload form contained unexpected form data.',
-          userMessage: 'unexpected form data'
+          message: 'Form data for upload %s lacks license information.',
+          messageParams: [upload.name],
+          userMessage: 'upload needs license',
         });
-      }
-      completeUploadPromises.push(completeUpload(upload, uploadsDir));
-    });
+    } else if (by === 'uploader') {
+      upload.license = 'cc-by-sa';
+    } else {
+      throw new ReportedError({
+        message: 'Upload form contained unexpected form data.',
+        userMessage: 'unexpected form data',
+      });
+    }
+    completeUploadPromises.push(completeUpload(upload, uploadsDir));
+  });
 
-    await Promise.all(completeUploadPromises);
+  await Promise.all(completeUploadPromises);
 }
-
 
 /**
  * Move a staged upload to its final public location and mark it complete.
@@ -597,7 +623,7 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
   upload.completed = true;
   try {
     await upload.save();
-  } catch (error) {
+  } catch {
     // Problem saving the metadata. Move upload back to
     // temporary stash.
     await rename(newPath, oldPath);
@@ -612,9 +638,11 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
  * @param uploadsDir Destination directory for completed uploads
  * @returns The same uploads after being finalized
  */
-async function completeUploads(fileRevs: UploadRevision[], uploadsDir: string): Promise<UploadRevision[]> {
-  for (let fileRev of fileRevs)
-    await completeUpload(fileRev, uploadsDir);
+async function completeUploads(
+  fileRevs: UploadRevision[],
+  uploadsDir: string
+): Promise<UploadRevision[]> {
+  for (let fileRev of fileRevs) await completeUpload(fileRev, uploadsDir);
   return fileRevs;
 }
 
@@ -626,7 +654,11 @@ async function completeUploads(fileRevs: UploadRevision[], uploadsDir: string): 
  * @param file Uploaded file descriptor containing the original name
  * @param done Multer callback invoked with the generated filename
  */
-function assignFilename(_req: UploadsRequest, file: UploadedFile, done: (error: Error | null, filename?: string) => void) {
+function assignFilename(
+  _req: UploadsRequest,
+  file: UploadedFile,
+  done: (error: Error | null, filename?: string) => void
+) {
   let p = path.parse(file.originalname);
   let name = `${p.name}-${Date.now()}${p.ext}`;
   name.replace(/<>&/g, '');
@@ -642,5 +674,5 @@ export {
   getFileRevs,
   assignFilename,
   completeUpload,
-  completeUploads
+  completeUploads,
 };

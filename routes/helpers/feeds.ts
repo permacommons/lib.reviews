@@ -35,7 +35,7 @@ const getEmbeddedFeeds = (req: Request, options: EmbeddedFeedOptions = {}): Embe
       url: `${atomURLPrefix}/${currentLocale}`,
       type: 'application/atom+xml',
       title: `[${currentLocale}] ${req.__(atomURLTitleKey)}`,
-      language: currentLocale
+      language: currentLocale,
     });
 
     const otherLanguages = languages.getValidLanguages().filter(lang => lang !== currentLocale);
@@ -44,11 +44,13 @@ const getEmbeddedFeeds = (req: Request, options: EmbeddedFeedOptions = {}): Embe
       embeddedFeeds.push({
         url: `${atomURLPrefix}/${otherLanguage}`,
         type: 'application/atom+xml',
-        title: `[${otherLanguage}] ` + req.__({
-          phrase: atomURLTitleKey,
-          locale: otherLanguage
-        }),
-        language: otherLanguage
+        title:
+          `[${otherLanguage}] ` +
+          req.__({
+            phrase: atomURLTitleKey,
+            locale: otherLanguage,
+          }),
+        language: otherLanguage,
       });
     }
   }
@@ -57,7 +59,7 @@ const getEmbeddedFeeds = (req: Request, options: EmbeddedFeedOptions = {}): Embe
 };
 
 const feeds = {
-  getEmbeddedFeeds
+  getEmbeddedFeeds,
 };
 
 export type FeedsHelper = typeof feeds;

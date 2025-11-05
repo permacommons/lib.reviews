@@ -1,12 +1,12 @@
-import config from 'config';
 import { randomUUID } from 'node:crypto';
+import config from 'config';
 import isUUID from 'is-uuid';
-import debug from '../util/debug.ts';
 import dal from '../dal/index.ts';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { getPostgresDAL } from '../db-postgres.ts';
+import debug from '../util/debug.ts';
 
 const { types } = dal;
 let InviteLink = null;
@@ -16,7 +16,7 @@ let InviteLink = null;
  * @param dal - Optional DAL instance for testing
  */
 async function initializeInviteLinkModel(dal = null) {
-  const activeDAL = dal || await getPostgresDAL();
+  const activeDAL = dal || (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping InviteLink model initialization');
@@ -25,14 +25,17 @@ async function initializeInviteLinkModel(dal = null) {
 
   try {
     const schema = {
-      id: types.string().uuid(4).default(() => randomUUID()),
+      id: types
+        .string()
+        .uuid(4)
+        .default(() => randomUUID()),
       createdBy: types.string().uuid(4).required(true),
       createdOn: types.date().default(() => new Date()),
       usedBy: types.string().uuid(4),
-      url: types.virtual().default(function() {
+      url: types.virtual().default(function () {
         const identifier = this.getValue ? this.getValue('id') : this.id;
         return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
-      })
+      }),
     };
 
     const { model, isNew } = initializeModel({
@@ -42,13 +45,13 @@ async function initializeInviteLinkModel(dal = null) {
       camelToSnake: {
         createdBy: 'created_by',
         createdOn: 'created_on',
-        usedBy: 'used_by'
+        usedBy: 'used_by',
       },
       staticMethods: {
         getAvailable,
         getUsed,
-        get: getInviteByID
-      }
+        get: getInviteByID,
+      },
     });
     InviteLink = model;
 
@@ -142,7 +145,9 @@ async function getUsed(user) {
     `;
 
     const result = await InviteLink.dal.query(query, [user.id]);
-    const invites = result.rows.map(row => normalizeInviteInstance(InviteLink._createInstance(row)));
+    const invites = result.rows.map(row =>
+      normalizeInviteInstance(InviteLink._createInstance(row))
+    );
 
     const usedByIds = [...new Set(invites.map(invite => invite.usedBy).filter(Boolean))];
     if (usedByIds.length === 0) {
@@ -161,8 +166,10 @@ async function getUsed(user) {
       userMap.set(row.id, {
         ...row,
         displayName: row.display_name,
-        urlName: row.canonical_name || (row.display_name ? encodeURIComponent(row.display_name.replace(/ /g, '_')) : undefined),
-        registrationDate: row.registration_date
+        urlName:
+          row.canonical_name ||
+          (row.display_name ? encodeURIComponent(row.display_name.replace(/ /g, '_')) : undefined),
+        registrationDate: row.registration_date,
       });
     });
 
@@ -241,5 +248,5 @@ export default InviteLinkHandle;
 export {
   initializeInviteLinkModel as initializeModel,
   initializeInviteLinkModel,
-  getPostgresInviteLinkModel
+  getPostgresInviteLinkModel,
 };

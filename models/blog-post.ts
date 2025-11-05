@@ -1,11 +1,11 @@
 import dal from '../dal/index.ts';
+import dalErrors from '../dal/lib/errors.ts';
 import mlString from '../dal/lib/ml-string.ts';
+import modelHandle from '../dal/lib/model-handle.ts';
+import modelInitializer from '../dal/lib/model-initializer.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
-import dalErrors from '../dal/lib/errors.ts';
 import User from './user.ts';
-import modelInitializer from '../dal/lib/model-initializer.ts';
-import modelHandle from '../dal/lib/model-handle.ts';
 
 let postgresModulePromise;
 async function loadDbPostgres() {
@@ -41,7 +41,7 @@ let BlogPost = null;
  * @param dal - Optional DAL instance for testing
  */
 async function initializeBlogPostModel(dal = null) {
-  const activeDAL = dal || await getPostgresDAL();
+  const activeDAL = dal || (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping BlogPost model initialization');
@@ -59,7 +59,7 @@ async function initializeBlogPostModel(dal = null) {
       createdBy: types.string().uuid(4).required(true),
       originalLanguage: types.string().max(4).required(true).validator(isValidLanguage),
       userCanEdit: types.virtual().default(false),
-      userCanDelete: types.virtual().default(false)
+      userCanDelete: types.virtual().default(false),
     };
 
     const { model, isNew } = initializeModel({
@@ -70,20 +70,20 @@ async function initializeBlogPostModel(dal = null) {
         teamID: 'team_id',
         createdOn: 'created_on',
         createdBy: 'created_by',
-        originalLanguage: 'original_language'
+        originalLanguage: 'original_language',
       },
       withRevision: {
         static: ['createFirstRevision', 'getNotStaleOrDeleted'],
-        instance: ['deleteAllRevisions']
+        instance: ['deleteAllRevisions'],
       },
       staticMethods: {
         getWithCreator,
         getMostRecentBlogPosts,
-        getMostRecentBlogPostsBySlug
+        getMostRecentBlogPostsBySlug,
       },
       instanceMethods: {
-        populateUserInfo
-      }
+        populateUserInfo,
+      },
     });
     BlogPost = model;
 
@@ -102,7 +102,7 @@ async function initializeBlogPostModel(dal = null) {
 /**
  * Get the PostgreSQL BlogPost model (initialize if needed)
  * @param dal - Optional DAL instance for testing
-*/
+ */
 async function getPostgresBlogPostModel(dal = null) {
   if (!BlogPost || dal) {
     BlogPost = await initializeBlogPostModel(dal);
@@ -124,10 +124,10 @@ interface BlogPostFeedOptions {
   offsetDate?: Date;
 }
 
-async function getMostRecentBlogPosts(teamID, {
-  limit = 10,
-  offsetDate
-}: BlogPostFeedOptions = {}) {
+async function getMostRecentBlogPosts(
+  teamID,
+  { limit = 10, offsetDate }: BlogPostFeedOptions = {}
+) {
   if (!teamID) {
     throw new Error('We require a team ID to fetch blog posts.');
   }
@@ -222,7 +222,7 @@ async function _attachCreator(post) {
     post.creator = {
       id: user.id,
       displayName: user.displayName,
-      urlName: user.urlName
+      urlName: user.urlName,
     };
   } catch (error) {
     debug.db('Failed to load blog post creator:', error);
@@ -234,4 +234,8 @@ async function _attachCreator(post) {
 const BlogPostHandle = createAutoModelHandle('blog_posts', initializeBlogPostModel);
 
 export default BlogPostHandle;
-export { initializeBlogPostModel, initializeBlogPostModel as initializeModel, getPostgresBlogPostModel };
+export {
+  initializeBlogPostModel,
+  initializeBlogPostModel as initializeModel,
+  getPostgresBlogPostModel,
+};

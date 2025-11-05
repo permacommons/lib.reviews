@@ -1,12 +1,11 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
-
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'thing_model',
-  cleanupTables: ['things', 'users']
+  cleanupTables: ['things', 'users'],
 });
 
 let Thing;
@@ -16,9 +15,7 @@ test.before(async () => {
 
   mockSearch();
 
-  const models = await dalFixture.initializeModels([
-    { key: 'things', alias: 'Thing' }
-  ]);
+  const models = await dalFixture.initializeModels([{ key: 'things', alias: 'Thing' }]);
 
   Thing = models.Thing;
 });
@@ -26,7 +23,6 @@ test.before(async () => {
 test.after.always(unmockSearch);
 
 test('Thing model: create first revision and lookup by URL', async t => {
-
   const { actor: creator } = await dalFixture.createTestUser('Thing Creator');
   const url = `https://example.com/${randomUUID()}`;
 
@@ -50,23 +46,22 @@ test('Thing model: create first revision and lookup by URL', async t => {
 });
 
 test('Thing model: populateUserInfo sets permission flags', async t => {
-
   const { actor: creatorActor } = await dalFixture.createTestUser('Thing Creator');
   const { actor: otherUserActor } = await dalFixture.createTestUser('Thing Moderator');
-  
+
   // Convert actor objects to have camelCase properties for populateUserInfo
   const creator = {
     id: creatorActor.id,
     isTrusted: creatorActor.is_trusted,
     isSuperUser: creatorActor.is_super_user,
-    isSiteModerator: false
+    isSiteModerator: false,
   };
-  
+
   const otherUser = {
     id: otherUserActor.id,
     isTrusted: false,
     isSuperUser: otherUserActor.is_super_user,
-    isSiteModerator: true
+    isSiteModerator: true,
   };
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });

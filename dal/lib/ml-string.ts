@@ -2,8 +2,8 @@ import { decodeHTML } from 'entities';
 import stripTags from 'striptags';
 
 import languages from '../../locales/languages.ts';
-import types, { ObjectType } from './type.ts';
 import { ValidationError } from './errors.ts';
+import types, { ObjectType } from './type.ts';
 
 const langKeys = languages.getValidLanguagesAndUndetermined() as string[];
 
@@ -28,7 +28,12 @@ export interface MultilingualRichText {
   html?: MultilingualString;
 }
 
-export type MultilingualInput = MultilingualString | MultilingualStringArray | MultilingualRichText | null | undefined;
+export type MultilingualInput =
+  | MultilingualString
+  | MultilingualStringArray
+  | MultilingualRichText
+  | null
+  | undefined;
 
 const mlString = {
   /**
@@ -39,7 +44,7 @@ const mlString = {
     const objectType = types.object();
 
     // Add custom validator for multilingual string structure
-    objectType.validator((value) => {
+    objectType.validator(value => {
       if (value === null || value === undefined) {
         return true;
       }
@@ -50,21 +55,29 @@ const mlString = {
 
       for (const [langKey, langValue] of Object.entries(value as MultilingualValue)) {
         if (!langKeys.includes(langKey)) {
-          throw new ValidationError(`Invalid language code: ${langKey}. Valid codes are: ${langKeys.join(', ')}`);
+          throw new ValidationError(
+            `Invalid language code: ${langKey}. Valid codes are: ${langKeys.join(', ')}`
+          );
         }
 
         if (array) {
           if (!Array.isArray(langValue)) {
-            throw new ValidationError(`Value for language '${langKey}' must be an array when array=true`);
+            throw new ValidationError(
+              `Value for language '${langKey}' must be an array when array=true`
+            );
           }
 
           for (const [index, item] of langValue.entries()) {
             if (typeof item !== 'string') {
-              throw new ValidationError(`Array item at index ${index} for language '${langKey}' must be a string`);
+              throw new ValidationError(
+                `Array item at index ${index} for language '${langKey}' must be a string`
+              );
             }
 
             if (maxLength && item.length > maxLength) {
-              throw new ValidationError(`Array item at index ${index} for language '${langKey}' exceeds maximum length of ${maxLength} characters`);
+              throw new ValidationError(
+                `Array item at index ${index} for language '${langKey}' exceeds maximum length of ${maxLength} characters`
+              );
             }
           }
         } else {
@@ -73,7 +86,9 @@ const mlString = {
           }
 
           if (maxLength && langValue.length > maxLength) {
-            throw new ValidationError(`Value for language '${langKey}' exceeds maximum length of ${maxLength} characters`);
+            throw new ValidationError(
+              `Value for language '${langKey}' exceeds maximum length of ${maxLength} characters`
+            );
           }
         }
       }
@@ -88,7 +103,10 @@ const mlString = {
    * Find the best fit for a given language from a multilingual string object,
    * taking into account fallbacks.
    */
-  resolve(lang: string, strObj: Record<string, string> | null | undefined): ResolveResult | undefined {
+  resolve(
+    lang: string,
+    strObj: Record<string, string> | null | undefined
+  ): ResolveResult | undefined {
     if (strObj === undefined || strObj === null) {
       return undefined;
     }
@@ -96,7 +114,7 @@ const mlString = {
     if (strObj[lang] !== undefined && strObj[lang] !== '') {
       return {
         str: strObj[lang],
-        lang
+        lang,
       };
     }
 
@@ -106,7 +124,7 @@ const mlString = {
       if (value !== undefined && value !== '') {
         return {
           str: value,
-          lang: fallbackLanguage
+          lang: fallbackLanguage,
         };
       }
     }
@@ -115,7 +133,7 @@ const mlString = {
       if (languages.isValid(availableLanguage) && value !== undefined && value !== '') {
         return {
           str: value,
-          lang: availableLanguage
+          lang: availableLanguage,
         };
       }
     }
@@ -151,7 +169,7 @@ const mlString = {
       return strObjArr;
     }
 
-    return strObjArr.map((value) => mlString.stripHTML(value));
+    return strObjArr.map(value => mlString.stripHTML(value));
   },
 
   /**
@@ -173,7 +191,7 @@ const mlString = {
    * Generate PostgreSQL JSONB query for searching across all languages in a multilingual field.
    */
   buildMultiLanguageQuery(fieldName: string, _searchTerm: string, operator = 'ILIKE'): string {
-    const conditions = langKeys.map((lang) => `${fieldName}->>'${lang}' ${operator} $1`);
+    const conditions = langKeys.map(lang => `${fieldName}->>'${lang}' ${operator} $1`);
     return `(${conditions.join(' OR ')})`;
   },
 
@@ -198,7 +216,7 @@ const mlString = {
    */
   isValidLanguageKey(langKey: string): boolean {
     return langKeys.includes(langKey);
-  }
+  },
 };
 
 export type MlStringHelpers = typeof mlString;

@@ -1,12 +1,12 @@
 // External dependencies
-import type { Request, Response } from 'express';
-import config from 'config';
-import { parse as parseURL } from 'node:url';
-import clientAssets from '../../util/client-assets.ts';
 
+import { parse as parseURL } from 'node:url';
+import config from 'config';
+import type { Request, Response } from 'express';
 // Internal dependencies
 import languages from '../../locales/languages.ts';
 import type { TemplateContext, TemplateLanguageName } from '../../types/http/locals.ts';
+import clientAssets from '../../util/client-assets.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 
@@ -53,7 +53,7 @@ const template = (
     language: req.locale,
     userPrefersRichTextEditor: req.user?.prefersRichTextEditor,
     messages: {},
-    ...extraJSConfig
+    ...extraJSConfig,
   };
 
   const localeCode: LocaleCode = languages.isValid(req.locale) ? (req.locale as LocaleCode) : 'en';
@@ -77,32 +77,27 @@ const template = (
     const langKey = lang as LocaleCode;
     const nameObj: TemplateLanguageName = {
       langKey,
-      name: languages.getCompositeName(langKey, localeCode)
+      name: languages.getCompositeName(langKey, localeCode),
     };
-    if (langKey === localeCode)
-      nameObj.isCurrentLanguage = true;
+    if (langKey === localeCode) nameObj.isCurrentLanguage = true;
     vars.languageNames.push(nameObj);
   });
 
   const currentLocale = localeCode;
   vars.currentLanguage = {
     langKey: currentLocale,
-    name: languages.getNativeName(currentLocale)
+    name: languages.getNativeName(currentLocale),
   };
 
-  if (req.csrfToken)
-    vars.csrfToken = req.csrfToken();
+  if (req.csrfToken) vars.csrfToken = req.csrfToken();
 
   vars.qualifiedURL = config.qualifiedURL;
   vars.urlPath = parseURL(req.originalUrl).pathname ?? undefined;
 
-  const registerRegex = new RegExp('^/register(/|$)');
-  if (req.query.returnTo)
-    vars.returnTo = String(req.query.returnTo);
-  else if (req.path === '/signin' || registerRegex.test(req.path))
-    vars.returnTo = '/';
-  else
-    vars.returnTo = vars.urlPath;
+  const registerRegex = /^\/register(\/|$)/;
+  if (req.query.returnTo) vars.returnTo = String(req.query.returnTo);
+  else if (req.path === '/signin' || registerRegex.test(req.path)) vars.returnTo = '/';
+  else vars.returnTo = vars.urlPath;
 
   if (typeof req.localeChange === 'object' && req.localeChange?.old && req.localeChange?.new)
     vars.localeChange = req.localeChange;
@@ -137,7 +132,7 @@ const render = {
   template,
   signinRequired,
   permissionError,
-  resourceError
+  resourceError,
 };
 
 export type RenderHelper = typeof render;

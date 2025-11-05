@@ -1,26 +1,26 @@
-import dal from '../dal/index.ts';
-import debug from '../util/debug.ts';
-import ReportedError from '../util/reported-error.ts';
-import languages from '../locales/languages.ts';
+import { randomUUID } from 'crypto';
 import adapters from '../adapters/adapters.ts';
-import Thing from './thing.ts';
-import Team from './team.ts';
+import dal from '../dal/index.ts';
 import { createModelModule } from '../dal/lib/model-handle.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
-import { randomUUID } from 'crypto';
+import languages from '../locales/languages.ts';
+import debug from '../util/debug.ts';
+import ReportedError from '../util/reported-error.ts';
+import Team from './team.ts';
+import Thing from './thing.ts';
 
 type PostgresModule = typeof import('../db-postgres.ts');
 
 type ReviewRecord = JsonObject;
 type ReviewVirtual = JsonObject;
 type ReviewInstance = ModelInstance<ReviewRecord, ReviewVirtual> & Record<string, any>;
-type ReviewModel = ModelConstructor<ReviewRecord, ReviewVirtual, ReviewInstance> & Record<string, any>;
+type ReviewModel = ModelConstructor<ReviewRecord, ReviewVirtual, ReviewInstance> &
+  Record<string, any>;
 
 let postgresModulePromise: Promise<PostgresModule> | null = null;
 async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.ts');
+  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
   return postgresModulePromise;
 }
 
@@ -34,7 +34,7 @@ const { proxy: reviewHandleProxy, register: registerReviewHandle } = createModel
   ReviewVirtual,
   ReviewInstance
 >({
-  tableName: 'reviews'
+  tableName: 'reviews',
 });
 
 const ReviewHandle = reviewHandleProxy as ReviewModel;
@@ -43,7 +43,7 @@ const { types, mlString, revision } = dal;
 const { isValid: isValidLanguage } = languages;
 
 const reviewOptions = {
-  maxTitleLength: 255
+  maxTitleLength: 255,
 };
 
 interface ReviewFeedOptions {
@@ -74,7 +74,7 @@ let Review = null;
  * @param dal - Optional DAL instance for testing
  */
 async function initializeReviewModel(dal = null) {
-  const activeDAL = dal || await getPostgresDAL();
+  const activeDAL = dal || (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping Review model initialization');
@@ -104,7 +104,7 @@ async function initializeReviewModel(dal = null) {
       // Virtual permission fields
       userCanDelete: types.virtual().default(false),
       userCanEdit: types.virtual().default(false),
-      userIsAuthor: types.virtual().default(false)
+      userIsAuthor: types.virtual().default(false),
     };
 
     const { model, isNew } = initializeModel({
@@ -117,7 +117,7 @@ async function initializeReviewModel(dal = null) {
         createdOn: 'created_on',
         createdBy: 'created_by',
         originalLanguage: 'original_language',
-        socialImageID: 'social_image_id'
+        socialImageID: 'social_image_id',
       },
       withRevision: true,
       staticMethods: {
@@ -125,11 +125,11 @@ async function initializeReviewModel(dal = null) {
         create: createReview,
         validateSocialImage,
         findOrCreateThing,
-        getFeed
+        getFeed,
       },
       instanceMethods: {
         populateUserInfo,
-        deleteAllRevisionsWithThing
+        deleteAllRevisionsWithThing,
       },
       relations: [
         {
@@ -138,7 +138,7 @@ async function initializeReviewModel(dal = null) {
           sourceKey: 'thing_id',
           targetKey: 'id',
           hasRevisions: true,
-          cardinality: 'one'
+          cardinality: 'one',
         },
         {
           name: 'creator',
@@ -146,7 +146,7 @@ async function initializeReviewModel(dal = null) {
           sourceKey: 'created_by',
           targetKey: 'id',
           hasRevisions: false,
-          cardinality: 'one'
+          cardinality: 'one',
         },
         {
           name: 'socialImage',
@@ -154,7 +154,7 @@ async function initializeReviewModel(dal = null) {
           sourceKey: 'social_image_id',
           targetKey: 'id',
           hasRevisions: true,
-          cardinality: 'one'
+          cardinality: 'one',
         },
         {
           name: 'teams',
@@ -165,11 +165,11 @@ async function initializeReviewModel(dal = null) {
           through: {
             table: 'review_teams',
             sourceForeignKey: 'review_id',
-            targetForeignKey: 'team_id'
+            targetForeignKey: 'team_id',
           },
-          cardinality: 'many'
-        }
-      ]
+          cardinality: 'many',
+        },
+      ],
     });
     Review = model;
 
@@ -181,7 +181,7 @@ async function initializeReviewModel(dal = null) {
       value: reviewOptions,
       writable: false,
       enumerable: true,
-      configurable: false
+      configurable: false,
     });
 
     debug.db('PostgreSQL Review model initialized with all methods');
@@ -205,7 +205,7 @@ async function getWithData(id) {
   // Get the review with socialImage and creator relations via joins
   const joinOptions = {
     socialImage: true,
-    creator: true
+    creator: true,
   };
 
   const review = await Review.getNotStaleOrDeleted(id, joinOptions);
@@ -253,7 +253,6 @@ async function getWithData(id) {
  */
 async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}) {
   const thing = await Review.findOrCreateThing(reviewObj);
-  const reviewId = reviewObj.id || undefined;
 
   // Check for existing reviews by this user for this thing
   const existingQuery = `
@@ -273,8 +272,8 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
       userMessage: 'previously reviewed submission',
       userMessageParams: [
         `/review/${existingResult.rows[0].id}`,
-        `/review/${existingResult.rows[0].id}/edit`
-      ]
+        `/review/${existingResult.rows[0].id}/edit`,
+      ],
     });
   }
 
@@ -282,7 +281,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
   Review.validateSocialImage({
     socialImageID: reviewObj.socialImageID,
     newFileIDs: files,
-    fileObjects: thing.files || []
+    fileObjects: thing.files || [],
   });
 
   // Add files to thing if provided
@@ -304,7 +303,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
   revision.applyRevisionMetadata(review, {
     userId: reviewObj.createdBy,
     date: reviewObj.createdOn,
-    tags
+    tags,
   });
 
   try {
@@ -314,7 +313,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
     }
 
     await review.saveAll({
-      teams: true
+      teams: true,
     });
 
     review.thing = thing;
@@ -326,7 +325,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
     } else {
       throw new ReviewError({
         parentError: error,
-        payload: { review }
+        payload: { review },
       });
     }
   }
@@ -344,7 +343,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
 function validateSocialImage({
   socialImageID = undefined,
   newFileIDs = [],
-  fileObjects = []
+  fileObjects = [],
 } = {}) {
   if (socialImageID) {
     let isValidFile = false;
@@ -413,7 +412,7 @@ async function findOrCreateThing(reviewObj) {
   revision.applyRevisionMetadata(thing, {
     userId: reviewObj.createdBy,
     date,
-    tags: ['create-via-review']
+    tags: ['create-via-review'],
   });
 
   // Get adapter data for the URL
@@ -466,9 +465,8 @@ async function getFeed({
   withThing = true,
   withTeams = true,
   withoutCreator,
-  limit = 10
+  limit = 10,
 }: ReviewFeedOptions = {}): Promise<ReviewFeedResult> {
-
   let query = `
     SELECT r.* FROM ${Review.tableName} r
     WHERE (_old_rev_of IS NULL)
@@ -558,7 +556,9 @@ async function getFeed({
           const safeUser = {
             ...user,
             displayName: user.display_name,
-            urlName: user.display_name ? encodeURIComponent(user.display_name.replace(/ /g, '_')) : undefined
+            urlName: user.display_name
+              ? encodeURIComponent(user.display_name.replace(/ /g, '_'))
+              : undefined,
           };
           userMap.set(user.id, safeUser);
         });
@@ -619,10 +619,12 @@ async function getFeed({
         if (reviewIds.length > 0) {
           debug.db(`Batch fetching teams for ${reviewIds.length} reviews in feed...`);
 
-          const reviewTeamTableName = Review.dal.schemaNamespace ?
-            `${Review.dal.schemaNamespace}review_teams` : 'review_teams';
-          const teamTableName = Review.dal.schemaNamespace ?
-            `${Review.dal.schemaNamespace}teams` : 'teams';
+          const reviewTeamTableName = Review.dal.schemaNamespace
+            ? `${Review.dal.schemaNamespace}review_teams`
+            : 'review_teams';
+          const teamTableName = Review.dal.schemaNamespace
+            ? `${Review.dal.schemaNamespace}teams`
+            : 'teams';
 
           // Get all review-team associations
           const placeholders = reviewIds.map((_, index) => `$${index + 1}`).join(', ');
@@ -703,14 +705,14 @@ function populateUserInfo(user) {
  */
 async function deleteAllRevisionsWithThing(user) {
   const p1 = this.deleteAllRevisions(user, {
-    tags: ['delete-with-thing']
+    tags: ['delete-with-thing'],
   });
 
   // This would need proper thing relationship
   let p2 = Promise.resolve();
   if (this.thing) {
     p2 = this.thing.deleteAllRevisions(user, {
-      tags: ['delete-via-review']
+      tags: ['delete-via-review'],
     });
   }
 
@@ -726,10 +728,12 @@ async function deleteAllRevisionsWithThing(user) {
  */
 async function _getReviewTeams(reviewId) {
   try {
-    const reviewTeamTableName = Review.dal.schemaNamespace ?
-      `${Review.dal.schemaNamespace}review_teams` : 'review_teams';
-    const teamTableName = Review.dal.schemaNamespace ?
-      `${Review.dal.schemaNamespace}teams` : 'teams';
+    const reviewTeamTableName = Review.dal.schemaNamespace
+      ? `${Review.dal.schemaNamespace}review_teams`
+      : 'review_teams';
+    const teamTableName = Review.dal.schemaNamespace
+      ? `${Review.dal.schemaNamespace}teams`
+      : 'teams';
 
     const query = `
       SELECT t.* FROM ${teamTableName} t
@@ -753,21 +757,32 @@ async function _getReviewTeams(reviewId) {
  */
 class ReviewError extends ReportedError {
   constructor(options) {
-    if (typeof options === 'object' && options.parentError instanceof Error &&
-      typeof options.payload?.review === 'object') {
-
+    if (
+      typeof options === 'object' &&
+      options.parentError instanceof Error &&
+      typeof options.payload?.review === 'object'
+    ) {
       const parentMessage = options.parentError.message;
 
-      if (parentMessage.includes('star_rating') && parentMessage.includes('greater than or equal to 1')) {
+      if (
+        parentMessage.includes('star_rating') &&
+        parentMessage.includes('greater than or equal to 1')
+      ) {
         options.userMessage = 'invalid star rating';
         options.userMessageParams = [String(options.payload.review.star_rating)];
-      } else if (parentMessage.includes('star_rating') && parentMessage.includes('less than or equal to 5')) {
+      } else if (
+        parentMessage.includes('star_rating') &&
+        parentMessage.includes('less than or equal to 5')
+      ) {
         options.userMessage = 'invalid star rating';
         options.userMessageParams = [String(options.payload.review.star_rating)];
       } else if (parentMessage.includes('star_rating') && parentMessage.includes('integer')) {
         options.userMessage = 'invalid star rating';
         options.userMessageParams = [String(options.payload.review.star_rating)];
-      } else if (parentMessage.includes('title') && parentMessage.includes(`${Review.options.maxTitleLength}`)) {
+      } else if (
+        parentMessage.includes('title') &&
+        parentMessage.includes(`${Review.options.maxTitleLength}`)
+      ) {
         options.userMessage = 'review title too long';
       } else if (parentMessage.includes('original_language')) {
         options.userMessage = 'invalid language';
@@ -782,13 +797,13 @@ registerReviewHandle({
   initializeModel: initializeReviewModel,
   handleOptions: {
     staticProperties: {
-      options: reviewOptions
-    }
+      options: reviewOptions,
+    },
   },
   additionalExports: {
     initializeReviewModel,
-    ReviewError
-  }
+    ReviewError,
+  },
 });
 
 export default ReviewHandle;

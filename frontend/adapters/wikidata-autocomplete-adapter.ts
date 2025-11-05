@@ -1,8 +1,9 @@
 /* global $, config */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
-import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
+
 import type { LookupResult, UpdateCallback } from '../../types/frontend/adapters.js';
 import type Autocomplete from '../lib/ac.js';
+import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
 
 interface WikidataEntity {
   labels?: Record<string, { value: string }>;
@@ -63,7 +64,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     super(updateCallback, searchBoxSelector);
     // Adapter settings
     this.sourceID = 'wikidata';
-    this.supportedPattern = new RegExp('^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)(?:#.*)?$', 'i');
+    this.supportedPattern = /^http(s)*:\/\/(www.)*wikidata.org\/(entity|wiki)\/(Q\d+)(?:#.*)?$/i;
     this.apiBaseURL = 'https://www.wikidata.org/w/api.php';
     this.queryServiceBaseURL = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql';
 
@@ -90,7 +91,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
       'Q17633526', // Wikinews article
       'Q11266439', // Template
       'Q4167836', // Category
-      'Q14204246' // Wikimedia project page
+      'Q14204246', // Wikimedia project page
     ];
 
     /**
@@ -102,7 +103,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
      */
     this.nativeToWikidata = {
       pt: 'pt-br',
-      'pt-PT': 'pt'
+      'pt-PT': 'pt',
     };
   }
 
@@ -117,7 +118,11 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     return new Promise((resolve, reject) => {
       const qNumber = (url.match(this.supportedPattern!) || [])[4];
       if (!qNumber)
-        return reject(new Error('URL does not appear to contain a Q number (e.g., Q42) or is not a Wikidata URL.'));
+        return reject(
+          new Error(
+            'URL does not appear to contain a Q number (e.g., Q42) or is not a Wikidata URL.'
+          )
+        );
 
       // in case the URL had a lower case "q"
       const qNumberUpper = qNumber.toUpperCase();
@@ -132,40 +137,55 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
         uselang: language,
         languagefallback: 1,
         props: 'labels|descriptions',
-        ids: qNumberUpper
+        ids: qNumberUpper,
       };
 
       $.get({
-          url: this.apiBaseURL,
-          jsonp: 'callback',
-          dataType: 'jsonp',
-          data: queryObj
-        })
+        url: this.apiBaseURL,
+        jsonp: 'callback',
+        dataType: 'jsonp',
+        data: queryObj,
+      })
         .done((data: WikidataAPIResponse) => {
-          if (typeof data !== 'object' || !data.success || !data.entities || !data.entities[qNumberUpper])
-            return reject(new Error('Did not get a valid Wikidata entity for query: ' + qNumberUpper));
+          if (
+            typeof data !== 'object' ||
+            !data.success ||
+            !data.entities ||
+            !data.entities[qNumberUpper]
+          )
+            return reject(
+              new Error('Did not get a valid Wikidata entity for query: ' + qNumberUpper)
+            );
 
           // Descriptions result will be an empty object if no description is available, so
           const entity = data.entities[qNumberUpper];
           // will always pass this test
           if (!entity.labels || !entity.descriptions)
-            return reject(new Error('Did not get label and description information for query: ' + qNumberUpper));
+            return reject(
+              new Error('Did not get label and description information for query: ' + qNumberUpper)
+            );
 
           if (!entity.labels[language])
-            return reject(new Error('Did not get a label for ' + qNumberUpper + 'for the specified language: ' + language));
+            return reject(
+              new Error(
+                'Did not get a label for ' +
+                  qNumberUpper +
+                  'for the specified language: ' +
+                  language
+              )
+            );
 
           const label = entity.labels[language].value;
           let description: string | undefined;
 
-          if (entity.descriptions[language])
-            description = entity.descriptions[language].value;
+          if (entity.descriptions[language]) description = entity.descriptions[language].value;
 
           resolve({
             data: {
               label,
-              description
+              description,
             },
-            sourceID: this.sourceID!
+            sourceID: this.sourceID!,
           });
         })
         .fail(reject);
@@ -200,7 +220,11 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
    * @param query - the query string
    * @param offset - the offset from which to continue a previous query.
    */
-  protected _requestHandler(this: Autocomplete<AutocompleteRow>, query: string, offset?: number): void {
+  protected _requestHandler(
+    this: Autocomplete<AutocompleteRow>,
+    query: string,
+    offset?: number
+  ): void {
     const time = Date.now();
 
     // Keep track of most recently fired query so we can ignore responses
@@ -221,14 +245,16 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     // Turn on spinner
     this.adapter.enableSpinner();
 
-    const language = (this.adapter as WikidataAutocompleteAdapter).nativeToWikidata[config.language] || config.language;
+    const language =
+      (this.adapter as WikidataAutocompleteAdapter).nativeToWikidata[config.language] ||
+      config.language;
 
     // Build union filter of excluded item classes
-    const excludedClassesStr = (this.adapter as WikidataAutocompleteAdapter).excludedItemClasses.reduce((str, qNumber) => {
-      if (!str)
-        str = `{ ?item wdt:P31 wd:${qNumber} }`;
-      else
-        str += `\n      UNION { ?item wdt:P31 wd:${qNumber} }`;
+    const excludedClassesStr = (
+      this.adapter as WikidataAutocompleteAdapter
+    ).excludedItemClasses.reduce((str, qNumber) => {
+      if (!str) str = `{ ?item wdt:P31 wd:${qNumber} }`;
+      else str += `\n      UNION { ?item wdt:P31 wd:${qNumber} }`;
       return str;
     }, '');
 
@@ -272,24 +298,27 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     ORDER BY ?ordinal`;
 
     $.get({
-        url: (this.adapter as WikidataAutocompleteAdapter).queryServiceBaseURL,
-        dataType: 'json',
-        data: {
-          query: sparqlQuery,
-          format: 'json'
-        },
-        timeout: (this.adapter as WikidataAutocompleteAdapter).queryServiceTimeout
-      })
+      url: (this.adapter as WikidataAutocompleteAdapter).queryServiceBaseURL,
+      dataType: 'json',
+      data: {
+        query: sparqlQuery,
+        format: 'json',
+      },
+      timeout: (this.adapter as WikidataAutocompleteAdapter).queryServiceTimeout,
+    })
       .done((data: SPARQLResponse) => {
         // Don't update if a more recent query has superseded this one
-        if (time < (this as any).latestQuery)
-          return;
+        if (time < (this as any).latestQuery) return;
 
         this.adapter.disableSpinner();
         this.results = [];
 
-        if (typeof data !== 'object' || !data.results ||
-          !data.results.bindings || !data.results.bindings.length) {
+        if (
+          typeof data !== 'object' ||
+          !data.results ||
+          !data.results.bindings ||
+          !data.results.bindings.length
+        ) {
           // Render blank results and error, abort
           this.render();
           this.renderNoResults();
@@ -299,8 +328,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
         for (const item of data.results.bindings) {
           this.results.push(this.extractRow(item, query));
           i++;
-          if (i == (this.adapter as WikidataAutocompleteAdapter).displayResults)
-            break;
+          if (i == (this.adapter as WikidataAutocompleteAdapter).displayResults) break;
         }
         this.render();
 
@@ -309,7 +337,8 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
         // query conditions. If we still got back more than we display, we
         // can now render the pagination. Alternatively, if this is already
         // a pagination request, the user should be able to go back as well :)
-        const thereAreMoreResults = data.results.bindings.length >
+        const thereAreMoreResults =
+          data.results.bindings.length >
           (this.adapter as WikidataAutocompleteAdapter).displayResults;
 
         if (thereAreMoreResults || !isFirstPage)
@@ -318,7 +347,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
             isFirstPage,
             bindings: data.results.bindings,
             offset,
-            queryString: query
+            queryString: query,
           });
       })
       .fail(_error => {
@@ -343,7 +372,11 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
    *  application, plus a derived `title` property for rendering this row in
    *  the autocomplete widget.
    */
-  protected _extractRowHandler(this: Autocomplete<AutocompleteRow>, item: SPARQLBinding, queryString: string): AutocompleteRow {
+  protected _extractRowHandler(
+    this: Autocomplete<AutocompleteRow>,
+    item: SPARQLBinding,
+    queryString: string
+  ): AutocompleteRow {
     const row = { url: '', label: '', title: '', description: undefined as string | undefined };
     row.url = `https:${item.url!.value}`; // Returned URL is protocol relative
 
@@ -351,20 +384,18 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
       // Title may be modified below
       row.title = row.label = item.label.value;
 
-    if (item.description)
-      row.description = item.description.value;
+    if (item.description) row.description = item.description.value;
 
     // If the result does not contain the query string directly, but some
     // other part of the item such as its aliases returned a match, we
     // include the match in the rendered result (similar to the Wikidata.org
     // search box).
-    const isInexactMatch = typeof row.title == 'string' &&
+    const isInexactMatch =
+      typeof row.title == 'string' &&
       row.title.toUpperCase().indexOf(queryString.toUpperCase()) == -1;
 
-    if (isInexactMatch && item.matchText)
-      row.title += ` (${item.matchText.value})`;
-    else if (!row.title && item.matchText)
-      row.title = item.matchText.value;
+    if (isInexactMatch && item.matchText) row.title += ` (${item.matchText.value})`;
+    else if (!row.title && item.matchText) row.title = item.matchText.value;
 
     return row;
   }
@@ -374,20 +405,17 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
    *
    * @param spec - Navigation settings
    */
-  protected _renderNavHandler(this: Autocomplete<AutocompleteRow>, spec: {
-    isFirstPage: boolean;
-    thereAreMoreResults: boolean;
-    bindings: SPARQLBinding[];
-    offset?: number;
-    queryString: string;
-  }): void {
-    const {
-      isFirstPage,
-      thereAreMoreResults,
-      bindings,
-      offset,
-      queryString
-    } = spec;
+  protected _renderNavHandler(
+    this: Autocomplete<AutocompleteRow>,
+    spec: {
+      isFirstPage: boolean;
+      thereAreMoreResults: boolean;
+      bindings: SPARQLBinding[];
+      offset?: number;
+      queryString: string;
+    }
+  ): void {
+    const { isFirstPage, thereAreMoreResults, bindings, offset, queryString } = spec;
 
     // CSS classes for template
     const css = {
@@ -396,33 +424,35 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
       wrap: 'ac-adapter-get-more',
       more: 'ac-adapter-more-results',
       active: 'ac-adapter-get-active',
-      left: "fa fa-caret-left", // icon
-      right: "fa fa-caret-right"
+      left: 'fa fa-caret-left', // icon
+      right: 'fa fa-caret-right',
     };
 
     // Access keys for navigation
     const keys = {
       prev: '<',
-      next: '>'
+      next: '>',
     };
 
     //  UI messages
     const msg = {
       more: libreviewsMsg('more results'),
       prev: libreviewsMsg('load previous page', { accessKey: keys.prev }),
-      next: libreviewsMsg('load next page', { accessKey: keys.next })
+      next: libreviewsMsg('load next page', { accessKey: keys.next }),
     };
 
     // Templates
     const $navPlaceholder = $(`<div class="${css.prev}">&nbsp;</div>`);
     const $navWrapper = $(`<div class="${css.wrap}"></div>`);
     const $navMoreResultsText = $(`<div class="${css.more}">${msg.more}</div>`);
-    const $navPreviousPage =
-      $(`<div accesskey="${keys.prev}" class="${css.prev} ${css.active}" ` +
-        `title="${msg.prev}"><span class="${css.left}">&nbsp;</span></div>`);
-    const $navNextPage =
-      $(`<div class="${css.next} ${css.active}" accesskey="${keys.next}" ` +
-        `title="${msg.next}"><span class="${css.right}">&nbsp;</span></div>`);
+    const $navPreviousPage = $(
+      `<div accesskey="${keys.prev}" class="${css.prev} ${css.active}" ` +
+        `title="${msg.prev}"><span class="${css.left}">&nbsp;</span></div>`
+    );
+    const $navNextPage = $(
+      `<div class="${css.next} ${css.active}" accesskey="${keys.next}" ` +
+        `title="${msg.next}"><span class="${css.right}">&nbsp;</span></div>`
+    );
 
     const $wrapper = $((this as any).rowWrapperEl);
     const $getMore = $navWrapper.appendTo($wrapper);
@@ -438,23 +468,21 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     // the result set _before_ the filter criteria (disambig pages etc.) are
     // applied. We can just continue from there.
     if (thereAreMoreResults) {
-      const nextOffset = (offset || 0) +
+      const nextOffset =
+        (offset || 0) +
         +bindings[(this.adapter as WikidataAutocompleteAdapter).displayResults].ordinal!.value;
 
       // Add whitespace placeholder
-      if (isFirstPage)
-        $navPlaceholder.appendTo($getMore);
+      if (isFirstPage) $navPlaceholder.appendTo($getMore);
 
       // Add "MORE RESULTS" centered text
       $navMoreResultsText.appendTo($getMore);
 
       // Add "next page" navigation
-      $navNextPage
-        .appendTo($getMore)
-        .click(() => {
-          (this as any).prevStack.push(offset);
-          this.requestFn!(queryString, nextOffset);
-        });
+      $navNextPage.appendTo($getMore).click(() => {
+        (this as any).prevStack.push(offset);
+        this.requestFn!(queryString, nextOffset);
+      });
     } else if (!isFirstPage) {
       // Add "MORE RESULTS" centered text
       $navMoreResultsText.appendTo($getMore);

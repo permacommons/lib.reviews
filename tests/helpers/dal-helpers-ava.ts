@@ -34,9 +34,9 @@ export function getTestModelDefinitionsAVA() {
         id: types.string().uuid(4),
         title: types.string().max(255),
         content: types.string(),
-        ...revision.getSchema()
+        ...revision.getSchema(),
       },
-      options: {}
+      options: {},
     },
     {
       name: 'users', // Will be prefixed by fixture
@@ -45,10 +45,10 @@ export function getTestModelDefinitionsAVA() {
         id: types.string().uuid(4),
         display_name: types.string().max(255).required(true),
         canonical_name: types.string().max(255).required(true),
-        email: types.string().email().required(true)
+        email: types.string().email().required(true),
       },
-      options: {}
-    }
+      options: {},
+    },
   ];
 }
 
@@ -78,8 +78,8 @@ export function getTestTableDefinitionsAVA() {
          WHERE _old_rev_of IS NULL AND _rev_deleted = false`,
         `CREATE INDEX IF NOT EXISTS idx_revisions_old_rev_of
          ON revisions (_old_rev_of)
-         WHERE _old_rev_of IS NOT NULL`
-      ]
+         WHERE _old_rev_of IS NOT NULL`,
+      ],
     },
     {
       name: 'users', // Will be prefixed by fixture
@@ -95,9 +95,9 @@ export function getTestTableDefinitionsAVA() {
         `CREATE INDEX IF NOT EXISTS idx_users_canonical_name
          ON users (canonical_name)`,
         `CREATE INDEX IF NOT EXISTS idx_users_email
-         ON users (email)`
-      ]
-    }
+         ON users (email)`,
+      ],
+    },
   ];
 }
 
@@ -109,7 +109,7 @@ export function getTestUserDataAVA(suffix = '') {
     id: `550e8400-e29b-41d4-a716-44665544000${suffix || '0'}`,
     display_name: `Test User${suffix ? ' ' + suffix : ''}`,
     canonical_name: `testuser${suffix || ''}`,
-    email: `test${suffix || ''}@example.com`
+    email: `test${suffix || ''}@example.com`,
   };
 }
 
@@ -126,7 +126,7 @@ export function* getTestRevisionDataGeneratorAVA(userId, prefix = '') {
       content: `This is test content for document ${counter}`,
       _rev_user: userId,
       _rev_date: new Date(),
-      _rev_tags: ['test', 'generated', 'ava']
+      _rev_tags: ['test', 'generated', 'ava'],
     };
   }
 }
@@ -136,7 +136,12 @@ export function* getTestRevisionDataGeneratorAVA(userId, prefix = '') {
  * Includes retry logic to handle concurrent execution issues that can occur
  * when multiple tests try to create documents simultaneously
  */
-export async function createTestDocumentWithRevisionsAVA(model, user, revisionCount = 3, titlePrefix = '') {
+export async function createTestDocumentWithRevisionsAVA(
+  model,
+  user,
+  revisionCount = 3,
+  titlePrefix = ''
+) {
   // Create first revision with retry logic for concurrency
   let firstRev;
   let retries = 3;
@@ -163,7 +168,9 @@ export async function createTestDocumentWithRevisionsAVA(model, user, revisionCo
     retries = 3;
     while (retries > 0) {
       try {
-        const newRev = await currentRev.newRevision(user, { tags: ['edit', `revision-${i}`, 'ava'] });
+        const newRev = await currentRev.newRevision(user, {
+          tags: ['edit', `revision-${i}`, 'ava'],
+        });
         newRev.title = `${titlePrefix}Updated Title ${i}`;
         newRev.content = `Updated content ${i}`;
         await newRev.save();
@@ -231,7 +238,7 @@ export function createIsolatedTestData(testTitle, index = 0) {
     id: testId,
     title: `Test Document for ${testTitle} (${index})`,
     content: `Isolated test content for ${testTitle} at ${timestamp}`,
-    prefix: `${testId}_`
+    prefix: `${testId}_`,
   };
 }
 
@@ -242,7 +249,11 @@ export function createIsolatedTestData(testTitle, index = 0) {
 export async function verifyTestIsolation(t, dal, tableName, expectedCount = 0) {
   const result = await dal.query(`SELECT COUNT(*) as count FROM ${tableName}`);
   const actualCount = parseInt(result.rows[0].count, 10);
-  t.is(actualCount, expectedCount, `Test isolation check: expected ${expectedCount} records, found ${actualCount}`);
+  t.is(
+    actualCount,
+    expectedCount,
+    `Test isolation check: expected ${expectedCount} records, found ${actualCount}`
+  );
   return actualCount;
 }
 
@@ -281,7 +292,7 @@ export async function createTestData(dal) {
     registration_date: new Date(),
     is_trusted: true,
     is_site_moderator: false,
-    is_super_user: false
+    is_super_user: false,
   };
 
   const user2Data = {
@@ -293,20 +304,46 @@ export async function createTestData(dal) {
     registration_date: new Date(),
     is_trusted: false,
     is_site_moderator: false,
-    is_super_user: false
+    is_super_user: false,
   };
 
   // Insert users directly into database
   const userTableName = dal.schemaNamespace ? `${dal.schemaNamespace}users` : 'users';
-  await dal.query(`
+  await dal.query(
+    `
     INSERT INTO ${userTableName} (id, display_name, canonical_name, email, password, registration_date, is_trusted, is_site_moderator, is_super_user)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-  `, [user1Data.id, user1Data.display_name, user1Data.canonical_name, user1Data.email, user1Data.password, user1Data.registration_date, user1Data.is_trusted, user1Data.is_site_moderator, user1Data.is_super_user]);
+  `,
+    [
+      user1Data.id,
+      user1Data.display_name,
+      user1Data.canonical_name,
+      user1Data.email,
+      user1Data.password,
+      user1Data.registration_date,
+      user1Data.is_trusted,
+      user1Data.is_site_moderator,
+      user1Data.is_super_user,
+    ]
+  );
 
-  await dal.query(`
+  await dal.query(
+    `
     INSERT INTO ${userTableName} (id, display_name, canonical_name, email, password, registration_date, is_trusted, is_site_moderator, is_super_user)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-  `, [user2Data.id, user2Data.display_name, user2Data.canonical_name, user2Data.email, user2Data.password, user2Data.registration_date, user2Data.is_trusted, user2Data.is_site_moderator, user2Data.is_super_user]);
+  `,
+    [
+      user2Data.id,
+      user2Data.display_name,
+      user2Data.canonical_name,
+      user2Data.email,
+      user2Data.password,
+      user2Data.registration_date,
+      user2Data.is_trusted,
+      user2Data.is_site_moderator,
+      user2Data.is_super_user,
+    ]
+  );
 
   // Create test things
   const thing1Id = randomUUID();
@@ -319,7 +356,7 @@ export async function createTestData(dal) {
     aliases: { en: ['Book One', 'First Book'] },
     metadata: {
       description: { en: 'A test book for testing' },
-      authors: [{ en: 'Test Author' }]
+      authors: [{ en: 'Test Author' }],
     },
     original_language: 'en',
     canonical_slug_name: 'test-book-1',
@@ -330,7 +367,7 @@ export async function createTestData(dal) {
     _rev_date: new Date(),
     _rev_tags: ['test'],
     _old_rev_of: null,
-    _rev_deleted: false
+    _rev_deleted: false,
   };
 
   const thing2Data = {
@@ -340,7 +377,7 @@ export async function createTestData(dal) {
     aliases: { en: ['Book Two', 'Second Book'] },
     metadata: {
       description: { en: 'Another test book' },
-      authors: [{ en: 'Another Author' }]
+      authors: [{ en: 'Another Author' }],
     },
     original_language: 'en',
     canonical_slug_name: 'test-book-2',
@@ -351,20 +388,58 @@ export async function createTestData(dal) {
     _rev_date: new Date(),
     _rev_tags: ['test'],
     _old_rev_of: null,
-    _rev_deleted: false
+    _rev_deleted: false,
   };
 
   // Insert things directly into database
   const thingTableName = dal.schemaNamespace ? `${dal.schemaNamespace}things` : 'things';
-  await dal.query(`
+  await dal.query(
+    `
     INSERT INTO ${thingTableName} (id, urls, label, aliases, metadata, original_language, canonical_slug_name, created_on, created_by, _rev_id, _rev_user, _rev_date, _rev_tags, _old_rev_of, _rev_deleted)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-  `, [thing1Data.id, thing1Data.urls, JSON.stringify(thing1Data.label), JSON.stringify(thing1Data.aliases), JSON.stringify(thing1Data.metadata), thing1Data.original_language, thing1Data.canonical_slug_name, thing1Data.created_on, thing1Data.created_by, thing1Data._rev_id, thing1Data._rev_user, thing1Data._rev_date, thing1Data._rev_tags, thing1Data._old_rev_of, thing1Data._rev_deleted]);
+  `,
+    [
+      thing1Data.id,
+      thing1Data.urls,
+      JSON.stringify(thing1Data.label),
+      JSON.stringify(thing1Data.aliases),
+      JSON.stringify(thing1Data.metadata),
+      thing1Data.original_language,
+      thing1Data.canonical_slug_name,
+      thing1Data.created_on,
+      thing1Data.created_by,
+      thing1Data._rev_id,
+      thing1Data._rev_user,
+      thing1Data._rev_date,
+      thing1Data._rev_tags,
+      thing1Data._old_rev_of,
+      thing1Data._rev_deleted,
+    ]
+  );
 
-  await dal.query(`
+  await dal.query(
+    `
     INSERT INTO ${thingTableName} (id, urls, label, aliases, metadata, original_language, canonical_slug_name, created_on, created_by, _rev_id, _rev_user, _rev_date, _rev_tags, _old_rev_of, _rev_deleted)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-  `, [thing2Data.id, thing2Data.urls, JSON.stringify(thing2Data.label), JSON.stringify(thing2Data.aliases), JSON.stringify(thing2Data.metadata), thing2Data.original_language, thing2Data.canonical_slug_name, thing2Data.created_on, thing2Data.created_by, thing2Data._rev_id, thing2Data._rev_user, thing2Data._rev_date, thing2Data._rev_tags, thing2Data._old_rev_of, thing2Data._rev_deleted]);
+  `,
+    [
+      thing2Data.id,
+      thing2Data.urls,
+      JSON.stringify(thing2Data.label),
+      JSON.stringify(thing2Data.aliases),
+      JSON.stringify(thing2Data.metadata),
+      thing2Data.original_language,
+      thing2Data.canonical_slug_name,
+      thing2Data.created_on,
+      thing2Data.created_by,
+      thing2Data._rev_id,
+      thing2Data._rev_user,
+      thing2Data._rev_date,
+      thing2Data._rev_tags,
+      thing2Data._old_rev_of,
+      thing2Data._rev_deleted,
+    ]
+  );
 
   // Create test reviews
   const review1Id = randomUUID();
@@ -385,7 +460,7 @@ export async function createTestData(dal) {
     _rev_date: new Date(),
     _rev_tags: ['test'],
     _old_rev_of: null,
-    _rev_deleted: false
+    _rev_deleted: false,
   };
 
   const review2Data = {
@@ -403,20 +478,58 @@ export async function createTestData(dal) {
     _rev_date: new Date(),
     _rev_tags: ['test'],
     _old_rev_of: null,
-    _rev_deleted: false
+    _rev_deleted: false,
   };
 
   // Insert reviews directly into database
   const reviewTableName = dal.schemaNamespace ? `${dal.schemaNamespace}reviews` : 'reviews';
-  await dal.query(`
+  await dal.query(
+    `
     INSERT INTO ${reviewTableName} (id, thing_id, title, text, html, star_rating, created_on, created_by, original_language, _rev_id, _rev_user, _rev_date, _rev_tags, _old_rev_of, _rev_deleted)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-  `, [review1Data.id, review1Data.thing_id, JSON.stringify(review1Data.title), JSON.stringify(review1Data.text), JSON.stringify(review1Data.html), review1Data.star_rating, review1Data.created_on, review1Data.created_by, review1Data.original_language, review1Data._rev_id, review1Data._rev_user, review1Data._rev_date, review1Data._rev_tags, review1Data._old_rev_of, review1Data._rev_deleted]);
+  `,
+    [
+      review1Data.id,
+      review1Data.thing_id,
+      JSON.stringify(review1Data.title),
+      JSON.stringify(review1Data.text),
+      JSON.stringify(review1Data.html),
+      review1Data.star_rating,
+      review1Data.created_on,
+      review1Data.created_by,
+      review1Data.original_language,
+      review1Data._rev_id,
+      review1Data._rev_user,
+      review1Data._rev_date,
+      review1Data._rev_tags,
+      review1Data._old_rev_of,
+      review1Data._rev_deleted,
+    ]
+  );
 
-  await dal.query(`
+  await dal.query(
+    `
     INSERT INTO ${reviewTableName} (id, thing_id, title, text, html, star_rating, created_on, created_by, original_language, _rev_id, _rev_user, _rev_date, _rev_tags, _old_rev_of, _rev_deleted)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-  `, [review2Data.id, review2Data.thing_id, JSON.stringify(review2Data.title), JSON.stringify(review2Data.text), JSON.stringify(review2Data.html), review2Data.star_rating, review2Data.created_on, review2Data.created_by, review2Data.original_language, review2Data._rev_id, review2Data._rev_user, review2Data._rev_date, review2Data._rev_tags, review2Data._old_rev_of, review2Data._rev_deleted]);
+  `,
+    [
+      review2Data.id,
+      review2Data.thing_id,
+      JSON.stringify(review2Data.title),
+      JSON.stringify(review2Data.text),
+      JSON.stringify(review2Data.html),
+      review2Data.star_rating,
+      review2Data.created_on,
+      review2Data.created_by,
+      review2Data.original_language,
+      review2Data._rev_id,
+      review2Data._rev_user,
+      review2Data._rev_date,
+      review2Data._rev_tags,
+      review2Data._old_rev_of,
+      review2Data._rev_deleted,
+    ]
+  );
 
   return {
     user1: user1Data,
@@ -424,6 +537,6 @@ export async function createTestData(dal) {
     thing1: thing1Data,
     thing2: thing2Data,
     review1: review1Data,
-    review2: review2Data
+    review2: review2Data,
   };
 }

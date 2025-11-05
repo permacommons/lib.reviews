@@ -8,7 +8,10 @@ declare global {
       dal?: import('../dal/index.ts').DalContext;
       locale: string;
       language?: LibReviews.LocaleCodeWithUndetermined;
-      localeChange?: { old: LibReviews.LocaleCodeWithUndetermined; new: LibReviews.LocaleCodeWithUndetermined };
+      localeChange?: {
+        old: LibReviews.LocaleCodeWithUndetermined;
+        new: LibReviews.LocaleCodeWithUndetermined;
+      };
       isAPI?: boolean;
       flash(key: string, value?: string | string[]): string[];
       flashHas?(key: string): boolean;

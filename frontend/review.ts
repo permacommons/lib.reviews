@@ -1,14 +1,26 @@
 /* global config */
-/* eslint prefer-reflect: "off" */
 
-import $ from './lib/jquery.js';
 import { polyfill as es6PromisePolyfill } from 'es6-promise';
+import type {
+  IAutocompleteAdapter,
+  ILookupAdapter,
+  LookupError,
+  LookupResult,
+  Thing,
+  UpdateCallbackData,
+} from '../types/frontend/adapters';
 import NativeLookupAdapter from './adapters/native-lookup-adapter.js';
+import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter.js';
 import OpenStreetMapLookupAdapter from './adapters/openstreetmap-lookup-adapter.js';
 import WikidataAutocompleteAdapter from './adapters/wikidata-autocomplete-adapter.js';
-import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter.js';
-import libreviews, { msg, repaintFocusedHelp, trimInput, validateURL, urlHasSupportedProtocol } from './libreviews';
-import type { ILookupAdapter, IAutocompleteAdapter, LookupResult, LookupError, UpdateCallbackData, Thing } from '../types/frontend/adapters';
+import $ from './lib/jquery.js';
+import libreviews, {
+  msg,
+  repaintFocusedHelp,
+  trimInput,
+  urlHasSupportedProtocol,
+  validateURL,
+} from './libreviews';
 
 es6PromisePolyfill();
 
@@ -29,7 +41,7 @@ const adapters: Array<ILookupAdapter | IAutocompleteAdapter> = [
   new NativeLookupAdapter(null),
   new OpenStreetMapLookupAdapter(null),
   new WikidataAutocompleteAdapter(updateURLAndReviewSubject, '#review-search-database'),
-  new OpenLibraryAutocompleteAdapter(updateURLAndReviewSubject, '#review-search-database')
+  new OpenLibraryAutocompleteAdapter(updateURLAndReviewSubject, '#review-search-database'),
 ];
 
 /**
@@ -51,8 +63,7 @@ let lastAdapter: IAutocompleteAdapter | undefined;
 // Our form's behavior depends significantly on whether we're creating
 // a new review, or editing an old one.
 let editing = config.editing;
-let textFields = editing ? '#review-title,#review-text' :
-  '#review-url,#review-title,#review-text';
+let textFields = editing ? '#review-title,#review-text' : '#review-url,#review-title,#review-text';
 
 /**
  * Holds instance of external library for client-side storage of new reviews
@@ -63,7 +74,9 @@ let textFields = editing ? '#review-title,#review-text' :
 let sisyphus: Sisyphus | undefined;
 
 // Add inputs used only with JS here so they don't appear/conflict when JS is disabled
-$('#star-rating-control').append(`<input id="review-rating" name="review-rating" type="hidden" data-required>`);
+$('#star-rating-control').append(
+  `<input id="review-rating" name="review-rating" type="hidden" data-required>`
+);
 
 /**
  * Rating value of previous POST request, if any.
@@ -82,20 +95,17 @@ $('[id^=star-button-]')
 
 // Little "X" icon that makes previously looked up information from Wikidata
 // and other sources go away and clears out the URL field
-$('#remove-resolved-info')
-  .click(removeResolvedInfo)
-  .keyup(maybeRemoveResolvedInfo);
+$('#remove-resolved-info').click(removeResolvedInfo).keyup(maybeRemoveResolvedInfo);
 
 // Highlight rating from POST request
-if (postRating)
-  selectStar.apply($(`#star-button-${postRating}`)[0]);
+if (postRating) selectStar.apply($(`#star-button-${postRating}`)[0]);
 
 // We only have to worry about review subject lookup for new reviews,
 // not when editing existing reviews
 if (!editing) {
   initializeURLValidation();
   $(textFields).change(hideAbandonDraft);
-  $('#review-url').keyup(function(event) {
+  $('#review-url').keyup(function (event) {
     handleURLLookup.call(this, event, true); // Suppresses modal while typing
   });
   $('#review-url').keyup(handleURLFixes);
@@ -109,14 +119,13 @@ if (!editing) {
   // When writing a review of an existing thing, the URL field is not
   // available, so do not attempt to store data to it.
   let maybeExcludeURL = '';
-  if (!$('#review-url').length)
-    maybeExcludeURL = ',#review-url';
+  if (!$('#review-url').length) maybeExcludeURL = ',#review-url';
 
   // Persist form in local storage
   sisyphus = $('#review-form').sisyphus({
     onBeforeRestore: restoreDynamicFields,
     onRestore: processLoadedData,
-    excludeFields: $('[data-ignore-autosave]' + maybeExcludeURL)
+    excludeFields: $('[data-ignore-autosave]' + maybeExcludeURL),
   });
 
   // Wire up mode switcher for source of review subject: URL or database
@@ -127,7 +136,7 @@ if (!editing) {
   $('#source-selector-dropdown').change(selectSource);
 
   // Bubbling interferes with autocomplete's window-level click listener
-  $('#source-selector-dropdown').click(function(event) {
+  $('#source-selector-dropdown').click(event => {
     event.stopPropagation();
   });
 
@@ -148,8 +157,7 @@ if ($('#preview-contents').length && $('#review-url').val()) {
  * @memberof Review
  */
 function hideDraftNotice(): void {
-  if ($('#draft-notice').is(':visible'))
-    $('#draft-notice').fadeOut(200);
+  if ($('#draft-notice').is(':visible')) $('#draft-notice').fadeOut(200);
 }
 
 /**
@@ -164,8 +172,7 @@ function removeResolvedInfo(): void {
   handleURLLookup.apply($('#review-url')[0]);
   handleURLValidation.apply($('#review-url')[0]);
   // Update saved data w/ empty URL
-  if (sisyphus)
-    sisyphus.saveAllData();
+  if (sisyphus) sisyphus.saveAllData();
 
   // Focus back on URL field.
   // We don't clear out any search fields in case the user quickly wants
@@ -180,8 +187,7 @@ function removeResolvedInfo(): void {
  * @memberof Review
  */
 function maybeRemoveResolvedInfo(event: JQuery.Event): void {
-  if (event.keyCode == 13 || event.keyCode == 32)
-    removeResolvedInfo();
+  if (event.keyCode == 13 || event.keyCode == 32) removeResolvedInfo();
 }
 
 /**
@@ -191,8 +197,7 @@ function maybeRemoveResolvedInfo(event: JQuery.Event): void {
  * @memberof Review
  */
 function hideAbandonDraft(): void {
-  if ($('#abandon-draft').is(':visible'))
-    $('#abandon-draft').fadeOut(200);
+  if ($('#abandon-draft').is(':visible')) $('#abandon-draft').fadeOut(200);
 }
 
 /**
@@ -244,14 +249,17 @@ function addHTTPS(event: JQuery.Event): void {
  *
  * @memberof Review
  */
-function handleURLLookup(this: HTMLInputElement, _event?: JQuery.Event, suppressModal?: boolean): void {
+function handleURLLookup(
+  this: HTMLInputElement,
+  _event?: JQuery.Event,
+  suppressModal?: boolean
+): void {
   let inputEle = this;
   let inputURL = inputEle.value;
   let promises: Array<Promise<LookupResult | LookupError>> = [];
 
   // Avoid duplicate lookups on keyup
-  if (inputURL === lastLookup)
-    return;
+  if (inputURL === lastLookup) return;
 
   // Track lookups, regardless of success or failure
   lastLookup = inputURL;
@@ -272,42 +280,41 @@ function handleURLLookup(this: HTMLInputElement, _event?: JQuery.Event, suppress
   // We use a mapped array so we can catch failing promises and pass along
   // the error as payload, instead of aborting the whole process if even
   // one of the queries fails.
-  Promise
-    .all(promises.map(promise => promise.catch(error => ({ error }))))
-    .then(results => {
-      // If the URL field has been cleared since the user started the query,
-      // don't bother with the result of the lookup
-      if (!inputEle.value)
-        return;
-      // Use first valid result in order of the array. Since the native lookup
-      // is the first array element, it will take precedence over any adapters.
-      for (let result of results) {
-        if ('data' in result && result.data && result.data.label) {
-
-          // User has previously reviewed this subject
-          if (result.data.thing && typeof result.data.thing.reviews == 'object' &&
-            result.data.thing.reviews.length) {
-            if (!suppressModal) {
-              showModalForEditingExistingReview(result.data);
-              return;
-            } else {
-              // Don't show modal - perhaps user is still typing.
-              // May have to show modal later, so don't cache lookup
-              lastLookup = undefined;
-            }
+  Promise.all(promises.map(promise => promise.catch(error => ({ error })))).then(results => {
+    // If the URL field has been cleared since the user started the query,
+    // don't bother with the result of the lookup
+    if (!inputEle.value) return;
+    // Use first valid result in order of the array. Since the native lookup
+    // is the first array element, it will take precedence over any adapters.
+    for (let result of results) {
+      if ('data' in result && result.data && result.data.label) {
+        // User has previously reviewed this subject
+        if (
+          result.data.thing &&
+          typeof result.data.thing.reviews == 'object' &&
+          result.data.thing.reviews.length
+        ) {
+          if (!suppressModal) {
+            showModalForEditingExistingReview(result.data);
+            return;
+          } else {
+            // Don't show modal - perhaps user is still typing.
+            // May have to show modal later, so don't cache lookup
+            lastLookup = undefined;
           }
-          updateReviewSubject({
-            url: inputURL,
-            label: result.data.label,
-            description: result.data.description, // may be undefined
-            subtitle: result.data.subtitle,
-            thing: result.data.thing // may be undefined
-          });
-          return;
         }
-        clearResolvedInfo();
+        updateReviewSubject({
+          url: inputURL,
+          label: result.data.label,
+          description: result.data.description, // may be undefined
+          subtitle: result.data.subtitle,
+          thing: result.data.thing, // may be undefined
+        });
+        return;
       }
-    });
+      clearResolvedInfo();
+    }
+  });
 }
 
 /**
@@ -322,26 +329,29 @@ function handleURLLookup(this: HTMLInputElement, _event?: JQuery.Event, suppress
  *  at the database level.
  */
 function showModalForEditingExistingReview(data: { label: string; thing?: Thing }): void {
-  if (!data.thing || !data.thing.reviews)
-    return;
+  if (!data.thing || !data.thing.reviews) return;
 
   const $modal = $(`<div class="hidden-regular" id="review-modal"></div>`)
     .append('<p>' + msg('previously reviewed') + '</p>')
     .append('<p><b>' + data.label + '</b></p>')
     .append('<p>' + msg('abandon form changes') + '</p>')
-    .append('<button class="pure-button pure-button-primary button-rounded" id="edit-existing-review">' +
-      msg('edit review') + '</button>')
-    .append('&nbsp;<a href="#" id="pick-different-subject">' + msg('pick a different subject') + '</a>');
+    .append(
+      '<button class="pure-button pure-button-primary button-rounded" id="edit-existing-review">' +
+        msg('edit review') +
+        '</button>'
+    )
+    .append(
+      '&nbsp;<a href="#" id="pick-different-subject">' + msg('pick a different subject') + '</a>'
+    );
   $modal.insertAfter('#review-subject');
   $modal.modal({
     escapeClose: false,
     clickClose: false,
-    showClose: false
+    showClose: false,
   });
   $('#edit-existing-review').click(() => {
     // Clear draft
-    if (sisyphus)
-      sisyphus.manuallyReleaseData();
+    if (sisyphus) sisyphus.manuallyReleaseData();
     window.location.assign(`/review/${data.thing!.reviews![0].id}/edit`);
   });
   $('#pick-different-subject').click(event => {
@@ -388,7 +398,6 @@ function handleURLValidation(this: HTMLInputElement): void {
   }
 }
 
-
 /**
  * Update UI based on URL corrections of validation problems. This is
  * registered on keyup for the URL input field, so corrections are instantly
@@ -416,8 +425,7 @@ function handleURLFixes(this: HTMLInputElement): void {
  * @memberof Review
  */
 function updateURLAndReviewSubject(data: UpdateCallbackData): void {
-  if (!data.url)
-    throw new Error('To update a URL, we must get one.');
+  if (!data.url) throw new Error('To update a URL, we must get one.');
   $('#review-url').val(data.url);
 
   // Re-validate URL. There shouldn't be any problems with the new URL, so
@@ -435,8 +443,7 @@ function updateURLAndReviewSubject(data: UpdateCallbackData): void {
 
   updateReviewSubject(data);
   // Make sure we save draft in case user aborts here
-  if (sisyphus)
-    sisyphus.saveAllData();
+  if (sisyphus) sisyphus.saveAllData();
 }
 
 /**
@@ -449,22 +456,20 @@ function updateURLAndReviewSubject(data: UpdateCallbackData): void {
  */
 function updateReviewSubject(data: UpdateCallbackData): void {
   const { url, label, description, subtitle, thing } = data;
-  if (!label)
-    throw new Error('Review subject must have a label.');
+  if (!label) throw new Error('Review subject must have a label.');
   let wasFocused = $('#resolved-url a').is(':focus');
   $('.resolved-info').empty();
   $('#resolved-url').append(`<a href="${url}" target="_blank">${label}</a>`);
-  if (description)
-    $('#resolved-description').html(description);
-  if (subtitle)
-    $('#resolved-subtitle').html(`<i>${subtitle}</i>`);
+  if (description) $('#resolved-description').html(description);
+  if (subtitle) $('#resolved-subtitle').html(`<i>${subtitle}</i>`);
 
   if (thing) {
-    $('#resolved-thing').append(`<a href="/${thing.urlID}" target="_blank">${msg('more info')}</a>`);
+    $('#resolved-thing').append(
+      `<a href="/${thing.urlID}" target="_blank">${msg('more info')}</a>`
+    );
   }
   $('#review-subject').show();
-  if (wasFocused)
-    $('#resolved-url a').focus();
+  if (wasFocused) $('#resolved-url a').focus();
   $('.review-label-group').hide();
   // We don't want to submit previously entered label data
   $('#review-label').val('');
@@ -472,7 +477,6 @@ function updateReviewSubject(data: UpdateCallbackData): void {
   if ($('#review-label').is(':focus') || document.activeElement === document.body)
     $('#review-title').focus();
 }
-
 
 /**
  * Clear out old draft
@@ -484,14 +488,11 @@ function emptyAllFormFields(event: JQuery.Event): void {
   clearStars();
   $('#review-url,#review-title,#review-text,#review-rating').val('');
   $('#review-url').trigger('change');
-  for (let rte in libreviews.activeRTEs)
-    libreviews.activeRTEs[rte].reRender();
-  if (sisyphus)
-    sisyphus.manuallyReleaseData();
+  for (let rte in libreviews.activeRTEs) libreviews.activeRTEs[rte].reRender();
+  if (sisyphus) sisyphus.manuallyReleaseData();
   hideDraftNotice();
   event.preventDefault();
 }
-
 
 /**
  * Restore fields that were dynamically added by JavaScript and not part of
@@ -522,8 +523,7 @@ function processLoadedData(): void {
 
   // Only show notice if we've actually recovered some data
   if (rating || $('#review-url').val() || $('#review-title').val() || $('#review-text').val()) {
-    if (rating)
-      selectStar.apply($(`#star-button-${rating}`)[0]);
+    if (rating) selectStar.apply($(`#star-button-${rating}`)[0]);
 
     $('#draft-notice').show();
     // Repaint help in case it got pushed down
@@ -537,7 +537,6 @@ function processLoadedData(): void {
   }
 }
 
-
 /**
  * Replace star images with their placeholder versions
  *
@@ -545,13 +544,9 @@ function processLoadedData(): void {
  * @memberof Review
  */
 function clearStars(start?: number): void {
-
-  if (!start || typeof start !== "number")
-    start = 1;
-  for (let i = start; i < 6; i++)
-    replaceStar(i, `/static/img/star-placeholder.svg`, 'star-holder');
+  if (!start || typeof start !== 'number') start = 1;
+  for (let i = start; i < 6; i++) replaceStar(i, '/static/img/star-placeholder.svg', 'star-holder');
 }
-
 
 /**
  * replaceStar - Helper function to replace individual star image
@@ -562,12 +557,8 @@ function clearStars(start?: number): void {
  * @memberof Review
  */
 function replaceStar(id: number, src: string, className: string): void {
-  $(`#star-button-${id}`)
-    .attr('src', src)
-    .removeClass()
-    .addClass(className);
+  $(`#star-button-${id}`).attr('src', src).removeClass().addClass(className);
 }
-
 
 /**
  * Handler to restore star rating to a previously selected setting.
@@ -576,8 +567,7 @@ function replaceStar(id: number, src: string, className: string): void {
  */
 function restoreSelected(): void {
   let selectedStar = $('#star-rating-control').attr('data-selected');
-  if (selectedStar)
-    selectStar.apply($(`#star-button-${selectedStar}`)[0]);
+  if (selectedStar) selectStar.apply($(`#star-button-${selectedStar}`)[0]);
 }
 
 /**
@@ -591,11 +581,9 @@ function indicateStar(this: HTMLElement): number {
   let selectedStar = Number(this.id.match(/\d/)![0]);
   for (let i = 1; i <= selectedStar; i++)
     replaceStar(i, `/static/img/star-${selectedStar}-full.svg`, 'star-full');
-  if (selectedStar < 5)
-    clearStars(selectedStar + 1);
+  if (selectedStar < 5) clearStars(selectedStar + 1);
   return selectedStar;
 }
-
 
 /**
  * Key handler for selecting stars with `[Enter]` or `[Space]`.
@@ -603,8 +591,7 @@ function indicateStar(this: HTMLElement): number {
  * @param  {Event} event - the key event
  */
 function maybeSelectStar(this: HTMLElement, event: JQuery.Event): void {
-  if (event.keyCode == 13 || event.keyCode == 32)
-    selectStar.apply(this);
+  if (event.keyCode == 13 || event.keyCode == 32) selectStar.apply(this);
 }
 
 /**
@@ -615,13 +602,10 @@ function maybeSelectStar(this: HTMLElement, event: JQuery.Event): void {
 function selectStar(this: HTMLElement): void {
   let selectedStar = indicateStar.apply(this);
   $('#star-rating-control').attr('data-selected', String(selectedStar));
-  $('#star-rating-control img[id^=star-button-]')
-    .off('mouseout')
-    .mouseout(restoreSelected);
+  $('#star-rating-control img[id^=star-button-]').off('mouseout').mouseout(restoreSelected);
   $('#review-rating').val(String(selectedStar));
   $('#review-rating').trigger('change');
 }
-
 
 /**
  * Add template for URL validation errors, including "Add HTTP" and "Add HTTPS"
@@ -632,7 +616,7 @@ function selectStar(this: HTMLElement): void {
 function initializeURLValidation(): void {
   $('#url-validation').append(
     `<div id="review-url-error" class="validation-error">${msg('not a url')}</div>` +
-    `<div class="helper-links"><a href="#" id="add-https">${msg('add https')}</a> &ndash; <a href="#" id="add-http">${msg('add http')}</a></div>`
+      `<div class="helper-links"><a href="#" id="add-https">${msg('add https')}</a> &ndash; <a href="#" id="add-http">${msg('add http')}</a></div>`
   );
 }
 
@@ -647,10 +631,8 @@ function activateReviewViaURL(): void {
   $('#review-via-url-inputs').removeClass('hidden');
   $('.review-label-group').removeClass('hidden-regular');
   $('#source-selector').toggleClass('hidden', true);
-  if (!$('#review-url').val())
-    $('#review-url').focus();
+  if (!$('#review-url').val()) $('#review-url').focus();
 }
-
 
 /**
  * Click handler for activating the form for reviewing a subject by selecting
@@ -672,7 +654,7 @@ function activateReviewViaDatabase(this: HTMLElement, event: JQuery.Event): void
     const focusEvent = new FocusEvent('focus', {
       view: window,
       bubbles: false,
-      cancelable: true
+      cancelable: true,
     });
     $('#review-search-database')[0].dispatchEvent(focusEvent);
   }
@@ -680,7 +662,6 @@ function activateReviewViaDatabase(this: HTMLElement, event: JQuery.Event): void
   // which would unmount the autocomplete function
   event.stopPropagation();
 }
-
 
 /**
  * Handler for selecting a source from the "database sources" dropdown,
@@ -700,26 +681,28 @@ function selectSource(this: HTMLSelectElement): void {
     }
   }
 
-  if (lastAdapter && lastAdapter.removeAutocomplete)
-    lastAdapter.removeAutocomplete();
+  if (lastAdapter && lastAdapter.removeAutocomplete) lastAdapter.removeAutocomplete();
 
   if (adapter && adapter.setupAutocomplete) {
     adapter.setupAutocomplete();
     if (lastAdapter) {
       // Re-run search, unless this is the first one. Sets focus on input.
-      if (adapter.runAutocomplete)
-        adapter.runAutocomplete();
+      if (adapter.runAutocomplete) adapter.runAutocomplete();
 
       // Change help text
-      $('#review-search-database-help .help-heading')
-        .html(msg(`review via ${adapter.getSourceID()} help label`));
+      $('#review-search-database-help .help-heading').html(
+        msg(`review via ${adapter.getSourceID()} help label`)
+      );
 
-      $('#review-search-database-help .help-paragraph')
-        .html(msg(`review via ${adapter.getSourceID()} help text`));
+      $('#review-search-database-help .help-paragraph').html(
+        msg(`review via ${adapter.getSourceID()} help text`)
+      );
 
       // Change input placeholder
-      $('#review-search-database').attr('placeholder',
-        msg(`start typing to search ${adapter.getSourceID()}`));
+      $('#review-search-database').attr(
+        'placeholder',
+        msg(`start typing to search ${adapter.getSourceID()}`)
+      );
 
       repaintFocusedHelp();
     }

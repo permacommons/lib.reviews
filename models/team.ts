@@ -1,15 +1,15 @@
-import unescapeHTML from 'unescape-html';
-import isUUID from 'is-uuid';
 import { randomUUID } from 'crypto';
+import isUUID from 'is-uuid';
+import unescapeHTML from 'unescape-html';
 
 import dal from '../dal/index.ts';
 import { createModelModule } from '../dal/lib/model-handle.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
-import debug from '../util/debug.ts';
 import languages from '../locales/languages.ts';
-import User from './user.ts';
+import debug from '../util/debug.ts';
 import Review from './review.ts';
+import User from './user.ts';
 
 type PostgresModule = typeof import('../db-postgres.ts');
 
@@ -18,12 +18,19 @@ type TeamVirtual = JsonObject;
 type TeamInstance = ModelInstance<TeamRecord, TeamVirtual> & Record<string, any>;
 type TeamModel = ModelConstructor<TeamRecord, TeamVirtual, TeamInstance> & Record<string, any>;
 
-const { proxy: teamHandleProxy, register: registerTeamHandle } = createModelModule<TeamRecord, TeamVirtual, TeamInstance>({
-  tableName: 'teams'
+const { proxy: teamHandleProxy, register: registerTeamHandle } = createModelModule<
+  TeamRecord,
+  TeamVirtual,
+  TeamInstance
+>({
+  tableName: 'teams',
 });
 
 const TeamHandle = teamHandleProxy as TeamModel;
-const { types, mlString } = dal as unknown as { types: Record<string, any>; mlString: Record<string, any> };
+const { types, mlString } = dal as unknown as {
+  types: Record<string, any>;
+  mlString: Record<string, any>;
+};
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
 
 let postgresModulePromise: Promise<PostgresModule> | null = null;
@@ -32,8 +39,7 @@ let teamSlugHandlePromise: Promise<any> | null = null;
 let Team: TeamModel | null = null;
 
 async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.ts');
+  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
 
   return postgresModulePromise;
 }
@@ -52,8 +58,7 @@ async function loadTeamJoinRequestHandle(): Promise<any> {
 }
 
 async function loadTeamSlugHandle(): Promise<any> {
-  if (!teamSlugHandlePromise)
-    teamSlugHandlePromise = import('./team-slug.ts');
+  if (!teamSlugHandlePromise) teamSlugHandlePromise = import('./team-slug.ts');
 
   const module = await teamSlugHandlePromise;
   return module.default;
@@ -65,8 +70,10 @@ async function loadTeamSlugHandle(): Promise<any> {
  * @param dalInstance - Optional DAL instance for testing
  * @returns The initialized model or null if the DAL is unavailable
  */
-export async function initializeTeamModel(dalInstance: Record<string, any> | null = null): Promise<TeamModel | null> {
-  const activeDAL = dalInstance ?? await getPostgresDAL();
+export async function initializeTeamModel(
+  dalInstance: Record<string, any> | null = null
+): Promise<TeamModel | null> {
+  const activeDAL = dalInstance ?? (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping Team model initialization');
@@ -97,9 +104,12 @@ export async function initializeTeamModel(dalInstance: Record<string, any> | nul
       userCanEdit: types.virtual().default(false),
       userCanDelete: types.virtual().default(false),
       urlID: types.virtual().default(function (this: TeamInstance) {
-        const slugName = typeof this.getValue === 'function' ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
+        const slugName =
+          typeof this.getValue === 'function'
+            ? this.getValue('canonicalSlugName')
+            : this.canonicalSlugName;
         return slugName ? encodeURIComponent(String(slugName)) : this.id;
-      })
+      }),
     } as JsonObject;
 
     const { model, isNew } = initializeModel<TeamRecord, TeamVirtual, TeamInstance>({
@@ -113,23 +123,23 @@ export async function initializeTeamModel(dalInstance: Record<string, any> | nul
         createdOn: 'created_on',
         canonicalSlugName: 'canonical_slug_name',
         originalLanguage: 'original_language',
-        confersPermissions: 'confers_permissions'
+        confersPermissions: 'confers_permissions',
       },
       withRevision: {
         static: [
           'createFirstRevision',
           'getNotStaleOrDeleted',
           'filterNotStaleOrDeleted',
-          'getMultipleNotStaleOrDeleted'
+          'getMultipleNotStaleOrDeleted',
         ],
-        instance: ['newRevision', 'deleteAllRevisions']
+        instance: ['newRevision', 'deleteAllRevisions'],
       },
       staticMethods: {
-        getWithData
+        getWithData,
       },
       instanceMethods: {
         populateUserInfo,
-        updateSlug
+        updateSlug,
       },
       relations: [
         {
@@ -141,9 +151,9 @@ export async function initializeTeamModel(dalInstance: Record<string, any> | nul
           through: {
             table: 'team_members',
             sourceForeignKey: 'team_id',
-            targetForeignKey: 'user_id'
+            targetForeignKey: 'user_id',
           },
-          cardinality: 'many'
+          cardinality: 'many',
         },
         {
           name: 'moderators',
@@ -154,17 +164,16 @@ export async function initializeTeamModel(dalInstance: Record<string, any> | nul
           through: {
             table: 'team_moderators',
             sourceForeignKey: 'team_id',
-            targetForeignKey: 'user_id'
+            targetForeignKey: 'user_id',
           },
-          cardinality: 'many'
-        }
-      ] as any
+          cardinality: 'many',
+        },
+      ] as any,
     });
 
     Team = model as TeamModel;
 
-    if (!isNew)
-      return Team;
+    if (!isNew) return Team;
 
     debug.db('PostgreSQL Team model initialized with all methods');
     return Team;
@@ -186,8 +195,7 @@ export async function initializeTeamModel(dalInstance: Record<string, any> | nul
 async function getWithData(id: string, options: Record<string, any> = {}): Promise<TeamInstance> {
   const model = (Team ?? TeamHandle) as TeamModel;
   const team = await (model.getNotStaleOrDeleted ? model.getNotStaleOrDeleted(id) : model.get(id));
-  if (!team)
-    throw new Error(`Team ${id} not found`);
+  if (!team) throw new Error(`Team ${id} not found`);
 
   const {
     withMembers = true,
@@ -196,17 +204,14 @@ async function getWithData(id: string, options: Record<string, any> = {}): Promi
     withJoinRequestDetails = false,
     withReviews = false,
     reviewLimit = 1,
-    reviewOffsetDate = null
+    reviewOffsetDate = null,
   } = options;
 
-  if (withMembers)
-    team.members = await _getTeamMembers(id);
+  if (withMembers) team.members = await _getTeamMembers(id);
 
-  if (withModerators)
-    team.moderators = await _getTeamModerators(id);
+  if (withModerators) team.moderators = await _getTeamModerators(id);
 
-  if (withJoinRequests)
-    team.joinRequests = await _getTeamJoinRequests(id, withJoinRequestDetails);
+  if (withJoinRequests) team.joinRequests = await _getTeamJoinRequests(id, withJoinRequestDetails);
 
   if (withReviews) {
     const reviewData = await _getTeamReviews(id, reviewLimit, reviewOffsetDate);
@@ -233,33 +238,31 @@ async function getWithData(id: string, options: Record<string, any> = {}): Promi
  * @param user - Viewer whose relationship determines permissions
  */
 function populateUserInfo(this: TeamInstance, user: TeamInstance | null | undefined): void {
-  if (!user)
-    return;
+  if (!user) return;
 
-  if (this.members && this.members.some(member => member.id === user.id))
-    this.userIsMember = true;
+  if (this.members && this.members.some(member => member.id === user.id)) this.userIsMember = true;
 
   if (this.moderators && this.moderators.some(moderator => moderator.id === user.id))
     this.userIsModerator = true;
 
-  if (user.id === this.createdBy)
-    this.userIsFounder = true;
+  if (user.id === this.createdBy) this.userIsFounder = true;
 
-  if (this.userIsMember && (!this.onlyModsCanBlog || this.userIsModerator))
-    this.userCanBlog = true;
+  if (this.userIsMember && (!this.onlyModsCanBlog || this.userIsModerator)) this.userCanBlog = true;
 
-  if (!this.userIsMember && (!this.joinRequests || !this.joinRequests.some(request =>
-    request.userID === user.id && request.status === 'pending')))
+  if (
+    !this.userIsMember &&
+    (!this.joinRequests ||
+      !this.joinRequests.some(
+        request => request.userID === user.id && request.status === 'pending'
+      ))
+  )
     this.userCanJoin = true;
 
-  if (this.userIsFounder || this.userIsModerator || user.isSuperUser)
-    this.userCanEdit = true;
+  if (this.userIsFounder || this.userIsModerator || user.isSuperUser) this.userCanEdit = true;
 
-  if (user.isSuperUser || user.isSiteModerator)
-    this.userCanDelete = true;
+  if (user.isSuperUser || user.isSiteModerator) this.userCanDelete = true;
 
-  if (!this.userIsFounder && this.userIsMember)
-    this.userCanLeave = true;
+  if (!this.userIsFounder && this.userIsMember) this.userCanLeave = true;
 }
 
 /**
@@ -272,7 +275,9 @@ async function _getTeamMembers(teamId: string): Promise<Record<string, any>[]> {
   const model = (Team ?? TeamHandle) as TeamModel;
 
   try {
-    const memberTableName = model.dal.schemaNamespace ? `${model.dal.schemaNamespace}team_members` : 'team_members';
+    const memberTableName = model.dal.schemaNamespace
+      ? `${model.dal.schemaNamespace}team_members`
+      : 'team_members';
     const userTableName = model.dal.schemaNamespace ? `${model.dal.schemaNamespace}users` : 'users';
 
     const query = `
@@ -304,7 +309,9 @@ async function _getTeamModerators(teamId: string): Promise<Record<string, any>[]
   const model = (Team ?? TeamHandle) as TeamModel;
 
   try {
-    const moderatorTableName = model.dal.schemaNamespace ? `${model.dal.schemaNamespace}team_moderators` : 'team_moderators';
+    const moderatorTableName = model.dal.schemaNamespace
+      ? `${model.dal.schemaNamespace}team_moderators`
+      : 'team_moderators';
     const userTableName = model.dal.schemaNamespace ? `${model.dal.schemaNamespace}users` : 'users';
 
     const query = `
@@ -334,20 +341,26 @@ async function _getTeamModerators(teamId: string): Promise<Record<string, any>[]
  * @param withDetails - Whether to load user objects for each request
  * @returns Array of join request records
  */
-async function _getTeamJoinRequests(teamId: string, withDetails = false): Promise<Record<string, any>[]> {
+async function _getTeamJoinRequests(
+  teamId: string,
+  withDetails = false
+): Promise<Record<string, any>[]> {
   const model = (Team ?? TeamHandle) as TeamModel;
   const TeamJoinRequest = await loadTeamJoinRequestHandle();
   let query = '';
 
   try {
-    const joinRequestTableName = model.dal.schemaNamespace ?
-      `${model.dal.schemaNamespace}team_join_requests` : 'team_join_requests';
+    const joinRequestTableName = model.dal.schemaNamespace
+      ? `${model.dal.schemaNamespace}team_join_requests`
+      : 'team_join_requests';
 
     query = `SELECT * FROM ${joinRequestTableName} WHERE team_id = $1`;
     const result = await model.dal.query(query, [teamId]);
 
     const requests = result.rows.map((row: Record<string, any>) =>
-      TeamJoinRequest._createInstance ? TeamJoinRequest._createInstance(row) : new TeamJoinRequest(row)
+      TeamJoinRequest._createInstance
+        ? TeamJoinRequest._createInstance(row)
+        : new TeamJoinRequest(row)
     );
 
     if (withDetails) {
@@ -385,13 +398,20 @@ async function _getTeamJoinRequests(teamId: string, withDetails = false): Promis
  * @param offsetDate - Optional timestamp used for pagination
  * @returns Reviews, total count, and pagination metadata
  */
-async function _getTeamReviews(teamId: string, limit: number, offsetDate?: Date | null): Promise<{ reviews: any[]; totalCount: number; hasMore: boolean }>
-{
+async function _getTeamReviews(
+  teamId: string,
+  limit: number,
+  offsetDate?: Date | null
+): Promise<{ reviews: any[]; totalCount: number; hasMore: boolean }> {
   const model = (Team ?? TeamHandle) as TeamModel;
 
   try {
-    const reviewTeamTableName = model.dal.schemaNamespace ? `${model.dal.schemaNamespace}review_teams` : 'review_teams';
-    const reviewTableName = model.dal.schemaNamespace ? `${model.dal.schemaNamespace}reviews` : 'reviews';
+    const reviewTeamTableName = model.dal.schemaNamespace
+      ? `${model.dal.schemaNamespace}review_teams`
+      : 'review_teams';
+    const reviewTableName = model.dal.schemaNamespace
+      ? `${model.dal.schemaNamespace}reviews`
+      : 'reviews';
     let query = `
       SELECT r.id, r.created_on FROM ${reviewTableName} r
       JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id
@@ -420,16 +440,14 @@ async function _getTeamReviews(teamId: string, limit: number, offsetDate?: Date 
     for (const reviewId of reviewIDs) {
       try {
         const review = await (Review as any).getWithData(reviewId);
-        if (review)
-          reviews.push(review);
+        if (review) reviews.push(review);
       } catch (error) {
         debug.error('Error loading review for team');
         debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
       }
     }
 
-    if (hasMoreRows && reviews.length > limit)
-      reviews.length = limit;
+    if (hasMoreRows && reviews.length > limit) reviews.length = limit;
 
     const countQuery = `
       SELECT COUNT(*) as total FROM ${reviewTableName} r
@@ -444,7 +462,7 @@ async function _getTeamReviews(teamId: string, limit: number, offsetDate?: Date 
     return {
       reviews,
       totalCount: parseInt(countResult.rows[0]?.total ?? '0', 10),
-      hasMore: hasMoreRows && reviews.length === limit
+      hasMore: hasMoreRows && reviews.length === limit,
     };
   } catch (error) {
     debug.error('Error getting team reviews');
@@ -460,18 +478,15 @@ async function _getTeamReviews(teamId: string, limit: number, offsetDate?: Date 
  * @returns True if the value matches the expected structure
  */
 function _validateTextHtmlObject(value: unknown): boolean {
-  if (value === null || value === undefined)
-    return true;
+  if (value === null || value === undefined) return true;
 
   if (typeof value !== 'object' || Array.isArray(value))
     throw new Error('Description/rules must be an object with text and html properties');
 
   const record = value as Record<string, any>;
-  if (record.text !== undefined)
-    mlString.validate(record.text);
+  if (record.text !== undefined) mlString.validate(record.text);
 
-  if (record.html !== undefined)
-    mlString.validate(record.html);
+  if (record.html !== undefined) mlString.validate(record.html);
 
   return true;
 }
@@ -483,8 +498,7 @@ function _validateTextHtmlObject(value: unknown): boolean {
  * @returns True if the permissions object is valid
  */
 function _validateConfersPermissions(value: unknown): boolean {
-  if (value === null || value === undefined)
-    return true;
+  if (value === null || value === undefined) return true;
 
   if (typeof value !== 'object' || Array.isArray(value))
     throw new Error('Confers permissions must be an object');
@@ -505,20 +519,21 @@ function _validateConfersPermissions(value: unknown): boolean {
  * @param language - Preferred language for slug generation
  * @returns The updated team instance
  */
-async function updateSlug(this: TeamInstance, userID: string, language?: string | null): Promise<TeamInstance> {
+async function updateSlug(
+  this: TeamInstance,
+  userID: string,
+  language?: string | null
+): Promise<TeamInstance> {
   const TeamSlug = await loadTeamSlugHandle();
   const originalLanguage = this.originalLanguage || 'en';
   const slugLanguage = language || originalLanguage;
 
-  if (slugLanguage !== originalLanguage)
-    return this;
+  if (slugLanguage !== originalLanguage) return this;
 
-  if (!this.name)
-    return this;
+  if (!this.name) return this;
 
   const resolved = mlString.resolve(slugLanguage, this.name);
-  if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim())
-    return this;
+  if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) return this;
 
   let baseSlug: string;
   try {
@@ -529,11 +544,9 @@ async function updateSlug(this: TeamInstance, userID: string, language?: string 
     return this;
   }
 
-  if (!baseSlug || baseSlug === this.canonicalSlugName)
-    return this;
+  if (!baseSlug || baseSlug === this.canonicalSlugName) return this;
 
-  if (!this.id)
-    this.id = randomUUID();
+  if (!this.id) this.id = randomUUID();
 
   const slug = new TeamSlug({});
   slug.slug = baseSlug;
@@ -559,12 +572,10 @@ async function updateSlug(this: TeamInstance, userID: string, language?: string 
  * @returns Slugified name suitable for URLs
  */
 function _generateSlugName(str: string): string {
-  if (typeof str !== 'string')
-    throw new Error('Source string is undefined or not a string.');
+  if (typeof str !== 'string') throw new Error('Source string is undefined or not a string.');
 
   const trimmed = str.trim();
-  if (trimmed === '')
-    throw new Error('Source string cannot be empty.');
+  if (trimmed === '') throw new Error('Source string cannot be empty.');
 
   const slugName = unescapeHTML(trimmed)
     .trim()
@@ -573,11 +584,9 @@ function _generateSlugName(str: string): string {
     .replace(/[ _/]/g, '-')
     .replace(/-{2,}/g, '-');
 
-  if (!slugName)
-    throw new Error('Source string cannot be converted to a valid slug.');
+  if (!slugName) throw new Error('Source string cannot be converted to a valid slug.');
 
-  if (isUUID.v4(slugName))
-    throw new Error('Source string cannot be a UUID.');
+  if (isUUID.v4(slugName)) throw new Error('Source string cannot be a UUID.');
 
   return slugName;
 }
@@ -585,8 +594,8 @@ function _generateSlugName(str: string): string {
 registerTeamHandle({
   initializeModel: initializeTeamModel,
   additionalExports: {
-    initializeTeamModel
-  }
+    initializeTeamModel,
+  },
 });
 
 export default TeamHandle;

@@ -15,28 +15,24 @@
  */
 import test from 'ava';
 import isUUID from 'is-uuid';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
 import {
-  getTestModelDefinitionsAVA,
-  getTestTableDefinitionsAVA,
-  getTestUserDataAVA,
-  createTestDocumentWithRevisionsAVA,
   assertRevisionEqualityAVA,
   countAllRevisionsAVA,
   countCurrentRevisionsAVA,
-  verifyTestIsolation
+  createTestDocumentWithRevisionsAVA,
+  getTestModelDefinitionsAVA,
+  getTestTableDefinitionsAVA,
+  getTestUserDataAVA,
+  verifyTestIsolation,
 } from './helpers/dal-helpers-ava.ts';
-import type {
-  JsonObject,
-  ModelConstructor,
-  ModelInstance
-} from '../dal/lib/model-types.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture } = setupPostgresTest(test, {
   schemaNamespace: 'revision_system',
   modelDefs: getTestModelDefinitionsAVA,
   tableDefs: getTestTableDefinitionsAVA,
-  cleanupTables: ['revisions', 'users']
+  cleanupTables: ['revisions', 'users'],
 });
 const testUser = getTestUserDataAVA();
 
@@ -52,7 +48,10 @@ type RevisionInstance = ModelInstance<JsonObject, JsonObject> & {
   content?: string;
   save(): Promise<RevisionInstance>;
   newRevision(user: RevisionUser, options?: Record<string, unknown>): Promise<RevisionInstance>;
-  deleteAllRevisions(user: RevisionUser, options?: Record<string, unknown>): Promise<RevisionInstance>;
+  deleteAllRevisions(
+    user: RevisionUser,
+    options?: Record<string, unknown>
+  ): Promise<RevisionInstance>;
   _data: {
     _rev_id: string;
     _rev_user: string;
@@ -64,7 +63,10 @@ type RevisionInstance = ModelInstance<JsonObject, JsonObject> & {
 };
 
 type RevisionModel = ModelConstructor<JsonObject, JsonObject, RevisionInstance> & {
-  createFirstRevision(user: RevisionUser, options?: Record<string, unknown>): Promise<RevisionInstance>;
+  createFirstRevision(
+    user: RevisionUser,
+    options?: Record<string, unknown>
+  ): Promise<RevisionInstance>;
   filterNotStaleOrDeleted(): RevisionQuery;
   getNotStaleOrDeleted(id: string): Promise<RevisionInstance>;
 };
@@ -74,9 +76,11 @@ const isRevisionModel = (model: ModelConstructor | undefined): model is Revision
     return false;
   }
   const candidate = model as unknown as Record<string, unknown>;
-  return typeof candidate.createFirstRevision === 'function'
-    && typeof candidate.filterNotStaleOrDeleted === 'function'
-    && typeof (model.prototype as Record<string, unknown>).newRevision === 'function';
+  return (
+    typeof candidate.createFirstRevision === 'function' &&
+    typeof candidate.filterNotStaleOrDeleted === 'function' &&
+    typeof (model.prototype as Record<string, unknown>).newRevision === 'function'
+  );
 };
 
 const getRevisionModel = (): RevisionModel => {
@@ -87,28 +91,35 @@ const getRevisionModel = (): RevisionModel => {
   return model;
 };
 
-test.serial('DAL revision system: can create first revision with PostgreSQL partial indexes', async t => {
-  const TestModel = getRevisionModel();
+test.serial(
+  'DAL revision system: can create first revision with PostgreSQL partial indexes',
+  async t => {
+    const TestModel = getRevisionModel();
 
-  // Verify test isolation
-  await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
+    // Verify test isolation
+    await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
 
-  const firstRev = await TestModel.createFirstRevision(testUser, {
-    tags: ['create', 'test']
-  });
+    const firstRev = await TestModel.createFirstRevision(testUser, {
+      tags: ['create', 'test'],
+    });
 
-  firstRev.title = 'Test Document';
-  firstRev.content = 'This is test content';
-  await firstRev.save();
+    firstRev.title = 'Test Document';
+    firstRev.content = 'This is test content';
+    await firstRev.save();
 
-  t.true(isUUID.v4(firstRev.id), 'Document has valid UUID');
-  t.true(isUUID.v4(firstRev._data._rev_id), 'Revision has valid UUID');
-  t.is(firstRev._data._rev_user, testUser.id, 'Revision user is correct');
-  t.true(firstRev._data._rev_date instanceof Date, 'Revision date is set');
-  t.deepEqual(firstRev._data._rev_tags, ['create', 'test'], 'Revision tags are correct');
-  t.is(firstRev._data._old_rev_of, null, 'First revision has no old_rev_of (PostgreSQL returns null)');
-  t.is(firstRev._data._rev_deleted, false, 'First revision is not deleted');
-});
+    t.true(isUUID.v4(firstRev.id), 'Document has valid UUID');
+    t.true(isUUID.v4(firstRev._data._rev_id), 'Revision has valid UUID');
+    t.is(firstRev._data._rev_user, testUser.id, 'Revision user is correct');
+    t.true(firstRev._data._rev_date instanceof Date, 'Revision date is set');
+    t.deepEqual(firstRev._data._rev_tags, ['create', 'test'], 'Revision tags are correct');
+    t.is(
+      firstRev._data._old_rev_of,
+      null,
+      'First revision has no old_rev_of (PostgreSQL returns null)'
+    );
+    t.is(firstRev._data._rev_deleted, false, 'First revision is not deleted');
+  }
+);
 
 test.serial('DAL revision system: new revision preserves existing revision mechanics', async t => {
   const TestModel = getRevisionModel();
@@ -144,50 +155,55 @@ test.serial('DAL revision system: new revision preserves existing revision mecha
   t.is(oldRevCount, 2, 'Old revision was created (total 2 revisions)');
 });
 
-test.serial('DAL revision system: filterNotStaleOrDeleted performs efficiently with partial indexes', async t => {
-  const TestModel = getRevisionModel();
+test.serial(
+  'DAL revision system: filterNotStaleOrDeleted performs efficiently with partial indexes',
+  async t => {
+    const TestModel = getRevisionModel();
 
-  // Verify test isolation
-  await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
+    // Verify test isolation
+    await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
 
-  // Create multiple documents to test index performance
-  const docs: RevisionInstance[] = [];
-  for (let i = 0; i < 15; i++) { // Smaller number for faster tests
-    const doc = await TestModel.createFirstRevision(testUser, { tags: ['create'] });
-    doc.title = `Document ${i}`;
-    await doc.save();
-    docs.push(doc);
+    // Create multiple documents to test index performance
+    const docs: RevisionInstance[] = [];
+    for (let i = 0; i < 15; i++) {
+      // Smaller number for faster tests
+      const doc = await TestModel.createFirstRevision(testUser, { tags: ['create'] });
+      doc.title = `Document ${i}`;
+      await doc.save();
+      docs.push(doc);
 
-    // Create old revisions for half the documents
-    if (i % 2 === 0) {
-      const newRev = await doc.newRevision(testUser, { tags: ['edit'] });
-      newRev.title = `Document ${i} Updated`;
-      await newRev.save();
+      // Create old revisions for half the documents
+      if (i % 2 === 0) {
+        const newRev = await doc.newRevision(testUser, { tags: ['edit'] });
+        newRev.title = `Document ${i} Updated`;
+        await newRev.save();
+      }
     }
+
+    // Delete some documents
+    for (let i = 0; i < 3; i++) {
+      await docs[i].deleteAllRevisions(testUser, { tags: ['delete'] });
+    }
+
+    // Query current revisions - should use partial index
+    const start = Date.now();
+    const currentRevisions = await TestModel.filterNotStaleOrDeleted().run();
+    const queryTime = Date.now() - start;
+
+    t.true(currentRevisions.length > 0, 'Found current revisions');
+    t.true(
+      currentRevisions.every(rev => !rev._data._old_rev_of && !rev._data._rev_deleted),
+      'All results are current, non-deleted revisions'
+    );
+
+    // Performance should be good with partial indexes
+    t.true(queryTime < 200, 'Query completed efficiently with partial indexes');
+
+    // Verify count matches expected
+    const expectedCount = 12; // 15 docs - 3 deleted = 12 current
+    t.is(currentRevisions.length, expectedCount, 'Correct number of current revisions');
   }
-
-  // Delete some documents
-  for (let i = 0; i < 3; i++) {
-    await docs[i].deleteAllRevisions(testUser, { tags: ['delete'] });
-  }
-
-  // Query current revisions - should use partial index
-  const start = Date.now();
-  const currentRevisions = await TestModel.filterNotStaleOrDeleted().run();
-  const queryTime = Date.now() - start;
-
-  t.true(currentRevisions.length > 0, 'Found current revisions');
-  t.true(currentRevisions.every(rev =>
-    !rev._data._old_rev_of && !rev._data._rev_deleted
-  ), 'All results are current, non-deleted revisions');
-
-  // Performance should be good with partial indexes
-  t.true(queryTime < 200, 'Query completed efficiently with partial indexes');
-
-  // Verify count matches expected
-  const expectedCount = 12; // 15 docs - 3 deleted = 12 current
-  t.is(currentRevisions.length, expectedCount, 'Correct number of current revisions');
-});
+);
 
 test.serial('DAL revision system: revision querying patterns', async t => {
   const TestModel = getRevisionModel();
@@ -263,62 +279,69 @@ test.serial('DAL revision system: deleteAllRevisions maintains same table struct
     [docId]
   );
 
-  t.true(allRevisions.rows.every(row => row._rev_deleted), 'All revisions marked as deleted');
+  t.true(
+    allRevisions.rows.every(row => row._rev_deleted),
+    'All revisions marked as deleted'
+  );
 
   // Verify no current revisions found
   const currentCount = await countCurrentRevisionsAVA(dalFixture, tableName);
   t.is(currentCount, 0, 'No current revisions after deletion');
 });
 
-test.serial('DAL revision system: getNotStaleOrDeleted throws error for deleted revision', async t => {
-  const TestModel = getRevisionModel();
+test.serial(
+  'DAL revision system: getNotStaleOrDeleted throws error for deleted revision',
+  async t => {
+    const TestModel = getRevisionModel();
 
-  // Verify test isolation
-  await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
+    // Verify test isolation
+    await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
 
-  // Create and delete a document
-  const doc = await TestModel.createFirstRevision(testUser, { tags: ['create'] });
-  doc.title = 'To be deleted';
-  await doc.save();
-  const docId = doc.id;
+    // Create and delete a document
+    const doc = await TestModel.createFirstRevision(testUser, { tags: ['create'] });
+    doc.title = 'To be deleted';
+    await doc.save();
+    const docId = doc.id;
 
-  await doc.deleteAllRevisions(testUser, { tags: ['delete'] });
+    await doc.deleteAllRevisions(testUser, { tags: ['delete'] });
 
-  // Try to get the deleted document
-  const error = await t.throwsAsync(
-    () => TestModel.getNotStaleOrDeleted(docId),
-    { name: 'RevisionDeletedError' }
-  );
+    // Try to get the deleted document
+    const error = await t.throwsAsync(() => TestModel.getNotStaleOrDeleted(docId), {
+      name: 'RevisionDeletedError',
+    });
 
-  t.is(error.message, 'Revision has been deleted.');
-});
+    t.is(error.message, 'Revision has been deleted.');
+  }
+);
 
-test.serial('DAL revision system: getNotStaleOrDeleted throws error for stale revision', async t => {
-  const TestModel = getRevisionModel();
+test.serial(
+  'DAL revision system: getNotStaleOrDeleted throws error for stale revision',
+  async t => {
+    const TestModel = getRevisionModel();
 
-  // Verify test isolation
-  await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
+    // Verify test isolation
+    await verifyTestIsolation(t, dalFixture, dalFixture.getTableName('revisions'), 0);
 
-  // Create document with multiple revisions
-  const finalRev = await createTestDocumentWithRevisionsAVA(TestModel, testUser, 2);
-  const originalId = finalRev.id;
+    // Create document with multiple revisions
+    const finalRev = await createTestDocumentWithRevisionsAVA(TestModel, testUser, 2);
+    const originalId = finalRev.id;
 
-  // Get the old revision ID
-  const tableName = dalFixture.getTableName('revisions');
-  const oldRevisions = await dalFixture.query(
-    `SELECT id FROM ${tableName} WHERE _old_rev_of = $1 LIMIT 1`,
-    [originalId]
-  );
-  const staleRevisionId = String((oldRevisions.rows[0] as { id: string }).id);
+    // Get the old revision ID
+    const tableName = dalFixture.getTableName('revisions');
+    const oldRevisions = await dalFixture.query(
+      `SELECT id FROM ${tableName} WHERE _old_rev_of = $1 LIMIT 1`,
+      [originalId]
+    );
+    const staleRevisionId = String((oldRevisions.rows[0] as { id: string }).id);
 
-  // Try to get the stale revision
-  const error = await t.throwsAsync(
-    () => TestModel.getNotStaleOrDeleted(staleRevisionId),
-    { name: 'RevisionStaleError' }
-  );
+    // Try to get the stale revision
+    const error = await t.throwsAsync(() => TestModel.getNotStaleOrDeleted(staleRevisionId), {
+      name: 'RevisionStaleError',
+    });
 
-  t.is(error.message, 'Outdated revision.');
-});
+    t.is(error.message, 'Outdated revision.');
+  }
+);
 
 test.serial('DAL revision system: revision filtering by user works correctly', async t => {
   const TestModel = getRevisionModel();

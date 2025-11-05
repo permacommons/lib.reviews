@@ -12,12 +12,12 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 process.env.NODE_CONFIG_DIR = path.join(moduleDir, '../config');
 
 import bodyParser from 'body-parser';
-import config from 'config';
 import type { IRCConfig } from 'config';
-import express from 'express';
-import type { Request, Response } from 'express';
-import irc from 'irc-upd';
+import config from 'config';
 import { decodeHTML } from 'entities';
+import type { Request, Response } from 'express';
+import express from 'express';
+import irc from 'irc-upd';
 
 interface ReviewWebhookPayload {
   thingURLs?: string[];
@@ -79,12 +79,10 @@ app.listen(ircConfig.appPort, '127.0.0.1', () => {
 
 // Quickly resolve multilingual string to English or first non-English language
 function resolveLabel(label: MultilingualLabel | undefined): string | undefined {
-  if (!label)
-    return undefined;
+  if (!label) return undefined;
 
   const langs = Object.keys(label);
-  if (langs.length === 0)
-    return undefined;
+  if (langs.length === 0) return undefined;
 
   return label.en ?? label[langs[0]];
 }

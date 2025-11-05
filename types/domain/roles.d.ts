@@ -1,11 +1,6 @@
 declare global {
   namespace LibReviews {
-    type UserRole =
-      | 'anonymous'
-      | 'member'
-      | 'trusted'
-      | 'site-moderator'
-      | 'superuser';
+    type UserRole = 'anonymous' | 'member' | 'trusted' | 'site-moderator' | 'superuser';
   }
 }
 

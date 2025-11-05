@@ -1,16 +1,15 @@
+import config from 'config';
 import type {
   ConfigOptions,
   DeleteDocumentParams,
   IndexDocumentParams,
   SearchParams,
-  SearchResponse
+  SearchResponse,
 } from 'elasticsearch';
 import elasticsearch from 'elasticsearch';
-import config from 'config';
-
-import debug from './util/debug.ts';
 import mlString from './dal/lib/ml-string.ts';
 import languages from './locales/languages.ts';
+import debug from './util/debug.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 
@@ -21,14 +20,13 @@ let client: ElasticClient | null = null;
 function createClient(): ElasticClient {
   const options: ConfigOptions = {
     host: `${config.search.host}:${config.search.port}`,
-    log: config.search.log
+    log: config.search.log,
   };
   return new elasticsearch.Client(options);
 }
 
 function getClient(): ElasticClient {
-  if (!client)
-    client = createClient();
+  if (!client) client = createClient();
   return client;
 }
 
@@ -69,11 +67,10 @@ const analyzers: Record<string, string> = {
   es: 'spanish',
   sv: 'swedish',
   tr: 'turkish',
-  th: 'thai'
+  th: 'thai',
 };
 
 const search = {
-
   // For testing queries
   _raw<TResponse = unknown>(params: SearchParams): Promise<SearchResponse<TResponse>> {
     return getClient().search<TResponse>(params);
@@ -93,7 +90,8 @@ const search = {
       .concat(authorsOptions.fields);
 
     // Combine all highlight fields
-    Object.assign(options.highlight.fields,
+    Object.assign(
+      options.highlight.fields,
       descriptionOptions.highlight.fields,
       subtitleOptions.highlight.fields,
       authorsOptions.highlight.fields
@@ -107,23 +105,22 @@ const search = {
             must: [
               {
                 match: {
-                  type: 'thing'
-                }
+                  type: 'thing',
+                },
               },
               {
                 simple_query_string: {
                   fields: options.fields,
                   query,
-                  default_operator: 'and'
-                }
-              }
+                  default_operator: 'and',
+                },
+              },
             ],
           },
         },
-        highlight: options.highlight
-      }
+        highlight: options.highlight,
+      },
     });
-
   },
 
   // Find reviews by their text or title; performs language fallback and includes
@@ -147,15 +144,15 @@ const search = {
               simple_query_string: {
                 fields: options.fields,
                 query,
-                default_operator: 'and'
-              }
+                default_operator: 'and',
+              },
             },
             inner_hits: {
-              highlight: options.highlight
+              highlight: options.highlight,
             },
-          }
-        }
-      }
+          },
+        },
+      },
     });
   },
 
@@ -186,8 +183,7 @@ const search = {
   // Generate language fallback and highlight options.
   getSearchOptions(fieldPrefix: string, lang: LocaleCode) {
     const langs = languages.getFallbacks(lang);
-    if (lang !== 'en')
-      langs.unshift(lang);
+    if (lang !== 'en') langs.unshift(lang);
 
     // Searches both stemmed and non-stemmed version
     const fields = langs.map(currentLang => `${fieldPrefix}.${currentLang}*`);
@@ -196,16 +192,14 @@ const search = {
     const highlight = {
       pre_tags: ['<span class="search-highlight">'],
       post_tags: ['</span>'],
-      fields: {} as Record<string, Record<string, unknown>>
+      fields: {} as Record<string, Record<string, unknown>>,
     };
-    for (const currentLang of langs)
-      highlight.fields[`${fieldPrefix}.${currentLang}*`] = {};
+    for (const currentLang of langs) highlight.fields[`${fieldPrefix}.${currentLang}*`] = {};
 
     return {
       fields,
-      highlight
+      highlight,
     };
-
   },
 
   // Get search suggestions based on entered characters for review subjects
@@ -213,14 +207,13 @@ const search = {
   suggestThing(prefix = '', lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
     // We'll query all fallbacks back to English, and return all results
     const langs = languages.getFallbacks(lang);
-    if (lang !== 'en')
-      langs.unshift(lang);
+    if (lang !== 'en') langs.unshift(lang);
 
     const query: SearchParams = {
       index: 'libreviews',
       body: {
-        suggest: {}
-      }
+        suggest: {},
+      },
     };
 
     const suggest = (query.body?.suggest ?? {}) as Record<string, unknown>;
@@ -229,8 +222,8 @@ const search = {
       suggest[`labels-${currentLanguage}`] = {
         prefix,
         completion: {
-          field: `label.${currentLanguage}.completion`
-        }
+          field: `label.${currentLanguage}.completion`,
+        },
       };
     }
 
@@ -262,12 +255,13 @@ const search = {
         type: 'review',
         joined: {
           name: 'review',
-          parent: review.thingID
-        }
-      }
+          parent: review.thingID,
+        },
+      },
     } as unknown as IndexDocumentParams<Record<string, unknown>>;
 
-    return getClient().index(params)
+    return getClient()
+      .index(params)
       .catch(error => debug.error({ error }));
   },
 
@@ -301,11 +295,12 @@ const search = {
         joined: 'thing',
         type: 'thing',
         urls: thing.urls,
-        urlID: thing.urlID
-      }
+        urlID: thing.urlID,
+      },
     } as unknown as IndexDocumentParams<Record<string, unknown>>;
 
-    return getClient().index(params)
+    return getClient()
+      .index(params)
       .catch(error => debug.error({ error }));
   },
 
@@ -313,9 +308,10 @@ const search = {
     // Note: The @types/elasticsearch package requires 'type', but ES 7+ doesn't use it.
     const params = {
       index: 'libreviews',
-      id: thing.id
+      id: thing.id,
     } as DeleteDocumentParams;
-    return getClient().delete(params)
+    return getClient()
+      .delete(params)
       .catch(error => debug.error({ error }));
   },
 
@@ -323,65 +319,66 @@ const search = {
     // Note: The @types/elasticsearch package requires 'type', but ES 7+ doesn't use it.
     const params = {
       index: 'libreviews',
-      id: review.id
+      id: review.id,
     } as DeleteDocumentParams;
-    return getClient().delete(params)
+    return getClient()
+      .delete(params)
       .catch(error => debug.error({ error }));
   },
 
   // Create the initial index for holding reviews and review subjects (things).
   // If index already exists, does nothing. Logs all other errors.
   createIndices(): Promise<void> {
-    return getClient().indices.create({
-      index: 'libreviews',
-      body: {
-        settings: {
-          analysis: {
-            tokenizer: {
-              whitespace: {
-                type: 'whitespace'
-              }
+    return getClient()
+      .indices.create({
+        index: 'libreviews',
+        body: {
+          settings: {
+            analysis: {
+              tokenizer: {
+                whitespace: {
+                  type: 'whitespace',
+                },
+              },
+              analyzer: {
+                label: {
+                  type: 'custom',
+                  tokenizer: 'whitespace',
+                  filter: ['trim', 'lowercase'],
+                },
+              },
             },
-            analyzer: {
-              label: {
-                type: 'custom',
-                tokenizer: 'whitespace',
-                filter: ['trim', 'lowercase']
-              }
-            }
-          }
+          },
+          mappings: {
+            properties: {
+              createdOn: {
+                type: 'date',
+              },
+              joined: {
+                type: 'join',
+                relations: {
+                  thing: 'review',
+                },
+              },
+              text: search.getMultilingualTextProperties(),
+              title: search.getMultilingualTextProperties(),
+              urls: search.getURLProperties(),
+              label: search.getMultilingualTextProperties(true),
+              aliases: search.getMultilingualTextProperties(true),
+              description: search.getMultilingualTextProperties(),
+              subtitle: search.getMultilingualTextProperties(),
+              authors: search.getMultilingualTextProperties(),
+              type: {
+                type: 'keyword',
+              },
+            },
+          },
         },
-        mappings: {
-          properties: {
-            createdOn: {
-              type: 'date'
-            },
-            joined: {
-              type: 'join',
-              relations: {
-                thing: 'review'
-              }
-            },
-            text: search.getMultilingualTextProperties(),
-            title: search.getMultilingualTextProperties(),
-            urls: search.getURLProperties(),
-            label: search.getMultilingualTextProperties(true),
-            aliases: search.getMultilingualTextProperties(true),
-            description: search.getMultilingualTextProperties(),
-            subtitle: search.getMultilingualTextProperties(),
-            authors: search.getMultilingualTextProperties(),
-            type: {
-              type: 'keyword'
-            }
-          }
-        }
-      }
-    })
+      })
       .catch(error => {
-        if (/\[index_already_exists_exception\]/.test(String(error?.message ?? error)))
-          return;
+        if (/\[index_already_exists_exception\]/.test(String(error?.message ?? error))) return;
         debug.error({
-          error
+          error,
         });
       });
   },
@@ -394,13 +391,13 @@ const search = {
       type: 'text',
       fields: {
         raw: {
-          type: 'keyword' // https://www.wikidata.org/wiki/Q27940587 -> https://www.wikidata.org/wiki/Q27940587
+          type: 'keyword', // https://www.wikidata.org/wiki/Q27940587 -> https://www.wikidata.org/wiki/Q27940587
         },
         simple: {
           type: 'text',
-          analyzer: 'simple' // https,www,wikidata,org,wiki,q
-        }
-      }
+          analyzer: 'simple', // https,www,wikidata,org,wiki,q
+        },
+      },
     };
   },
 
@@ -408,7 +405,7 @@ const search = {
   // strings
   getMultilingualTextProperties(completionMapping = false) {
     const obj: { properties: Record<string, any> } = {
-      properties: {}
+      properties: {},
     };
 
     const validLangs = languages.getValidLanguagesAndUndetermined();
@@ -418,11 +415,9 @@ const search = {
     // we don't have to keep updating the index. Languages without analyzers
     // will be processed by the 'standard' analyzer (no stemming)
     for (const lang of Object.keys(analyzers)) {
-
       // Splice from language array so we can process remaining languages differently
       const langPos = validLangs.indexOf(lang as LocaleCode | 'und');
-      if (langPos !== -1)
-        validLangs.splice(langPos, 1);
+      if (langPos !== -1) validLangs.splice(langPos, 1);
 
       obj.properties[lang] = {
         type: 'text',
@@ -435,12 +430,11 @@ const search = {
           processed: {
             type: 'text',
             analyzer: analyzers[lang],
-            index_options: 'offsets' // for sentence-based highlighting
-          }
-        }
+            index_options: 'offsets', // for sentence-based highlighting
+          },
+        },
       };
-      if (completionMapping)
-        obj.properties[lang].fields.completion = search.getCompletionMapping();
+      if (completionMapping) obj.properties[lang].fields.completion = search.getCompletionMapping();
     }
 
     // Add remaining languages so we can do completion & offsets for those
@@ -452,7 +446,7 @@ const search = {
       };
       if (completionMapping)
         obj.properties[lang].fields = {
-          completion: search.getCompletionMapping()
+          completion: search.getCompletionMapping(),
         };
     }
 
@@ -464,17 +458,14 @@ const search = {
     return {
       type: 'completion',
       analyzer: 'label',
-      max_input_length: 256 // default is 50, our labels are 256
+      max_input_length: 256, // default is 50, our labels are 256
     };
-
   },
 
   close(): void {
-    if (client && typeof (client as { close?: () => void }).close === 'function')
-      client.close();
+    if (client && typeof (client as { close?: () => void }).close === 'function') client.close();
     client = null;
   },
-
 };
 
 export { search };

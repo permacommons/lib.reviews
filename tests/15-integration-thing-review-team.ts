@@ -1,8 +1,7 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
-
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const uuid = randomUUID;
 
@@ -15,11 +14,11 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
     'reviews',
     'teams',
     'things',
-    'users'
-  ]
+    'users',
+  ],
 });
 
-let User, Thing, Review, Team;
+let Thing, Review, Team;
 
 test.before(async () => {
   await bootstrapPromise;
@@ -27,13 +26,11 @@ test.before(async () => {
   mockSearch();
 
   const models = await dalFixture.initializeModels([
-    { key: 'users', alias: 'User' },
     { key: 'things', alias: 'Thing' },
     { key: 'reviews', alias: 'Review' },
-    { key: 'teams', alias: 'Team' }
+    { key: 'teams', alias: 'Team' },
   ]);
 
-  User = models.User;
   Thing = models.Thing;
   Review = models.Review;
   Team = models.Team;
@@ -46,7 +43,6 @@ test.after.always(unmockSearch);
 // ============================================================================
 
 test.serial('Thing-Review: lookupByURL attaches reviews for requesting user', async t => {
-
   const reviewerData = await dalFixture.createTestUser('Reviewer');
   const otherUserData = await dalFixture.createTestUser('Other User');
 
@@ -82,7 +78,6 @@ test.serial('Thing-Review: lookupByURL attaches reviews for requesting user', as
 });
 
 test.serial('Thing-Review: relationship and metrics', async t => {
-
   const thingCreatorData = await dalFixture.createTestUser('Thing Creator');
   const reviewer1Data = await dalFixture.createTestUser('Reviewer 1');
   const reviewer2Data = await dalFixture.createTestUser('Reviewer 2');
@@ -105,7 +100,7 @@ test.serial('Thing-Review: relationship and metrics', async t => {
     _rev_id: uuid(),
     _rev_user: reviewer1Data.id,
     _rev_date: new Date(),
-    _rev_tags: ['create']
+    _rev_tags: ['create'],
   });
   await review1.save();
 
@@ -120,7 +115,7 @@ test.serial('Thing-Review: relationship and metrics', async t => {
     _rev_id: uuid(),
     _rev_user: reviewer2Data.id,
     _rev_date: new Date(),
-    _rev_tags: ['create']
+    _rev_tags: ['create'],
   });
   await review2.save();
 
@@ -140,7 +135,6 @@ test.serial('Thing-Review: relationship and metrics', async t => {
 // ============================================================================
 
 test.serial('Team-Review: association', async t => {
-
   const teamFounderData = await dalFixture.createTestUser('Team Founder');
   const reviewerData = await dalFixture.createTestUser('Team Reviewer');
   const thingCreatorData = await dalFixture.createTestUser('Thing Creator');
@@ -169,12 +163,13 @@ test.serial('Team-Review: association', async t => {
     _rev_id: uuid(),
     _rev_user: reviewerData.id,
     _rev_date: new Date(),
-    _rev_tags: ['create']
+    _rev_tags: ['create'],
   });
   await review.save();
 
-  const reviewTeamTableName = dalFixture.schemaNamespace ?
-    `${dalFixture.schemaNamespace}review_teams` : 'review_teams';
+  const reviewTeamTableName = dalFixture.schemaNamespace
+    ? `${dalFixture.schemaNamespace}review_teams`
+    : 'review_teams';
 
   await dalFixture.query(
     `INSERT INTO ${reviewTeamTableName} (review_id, team_id) VALUES ($1, $2)`,
@@ -192,7 +187,6 @@ test.serial('Team-Review: association', async t => {
 });
 
 test.serial('Team-Review: Review.create with team associations', async t => {
-
   const teamFounderData = await dalFixture.createTestUser('Create Team Founder');
   const reviewerData = await dalFixture.createTestUser('Create Reviewer');
 
@@ -212,7 +206,7 @@ test.serial('Team-Review: Review.create with team associations', async t => {
     createdOn: new Date(),
     createdBy: reviewerData.id,
     originalLanguage: 'en',
-    teams: [team]
+    teams: [team],
   };
 
   const review = await Review.create(reviewObj, { tags: ['create'] });
@@ -220,8 +214,9 @@ test.serial('Team-Review: Review.create with team associations', async t => {
   t.truthy(review.id, 'Review created successfully');
   t.truthy(review.thingID, 'Thing created for review');
 
-  const reviewTeamTableName = dalFixture.schemaNamespace ?
-    `${dalFixture.schemaNamespace}review_teams` : 'review_teams';
+  const reviewTeamTableName = dalFixture.schemaNamespace
+    ? `${dalFixture.schemaNamespace}review_teams`
+    : 'review_teams';
 
   const associationResult = await dalFixture.query(
     `SELECT * FROM ${reviewTeamTableName} WHERE review_id = $1 AND team_id = $2`,
@@ -243,7 +238,6 @@ test.serial('Team-Review: Review.create with team associations', async t => {
 // ============================================================================
 
 test.serial('Revision system across Thing, Review, and Team models', async t => {
-
   const userData = await dalFixture.createTestUser('Revision User');
 
   const thingRev1 = await Thing.createFirstRevision(userData.actor, { tags: ['create'] });
@@ -278,7 +272,7 @@ test.serial('Revision system across Thing, Review, and Team models', async t => 
     _rev_id: uuid(),
     _rev_user: userData.id,
     _rev_date: new Date(),
-    _rev_tags: ['create']
+    _rev_tags: ['create'],
   });
   await reviewRev1.save();
 

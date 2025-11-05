@@ -1,5 +1,5 @@
-import render from '../helpers/render.ts';
 import type { HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
+import render from '../helpers/render.ts';
 
 // A simple middleware wrapper that handles aborting routes that require a user
 // to be logged in, and renders an appropriate error page with the given
@@ -18,7 +18,7 @@ export default function signinRequiredRoute<TArgs extends unknown[]>(
   return (req, res, ...args) => {
     if (!req.user)
       return render.signinRequired(req, res, {
-        titleKey
+        titleKey,
       });
     res.locals.titleKey = titleKey;
     routeFn(req, res, ...args);

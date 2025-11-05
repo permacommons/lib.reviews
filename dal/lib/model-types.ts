@@ -5,8 +5,8 @@ export interface JsonObject {
 }
 
 export interface ModelInstance<
-  TRecord extends JsonObject = JsonObject,
-  TVirtual extends JsonObject = JsonObject
+  _TRecord extends JsonObject = JsonObject,
+  _TVirtual extends JsonObject = JsonObject,
 > {
   [key: string]: unknown;
   save?(options?: JsonObject): Promise<this>;
@@ -17,7 +17,7 @@ export interface ModelInstance<
 export interface ModelConstructor<
   TRecord extends JsonObject = JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
 > {
   new (...args: unknown[]): TInstance;
   tableName?: string;

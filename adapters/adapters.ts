@@ -1,8 +1,8 @@
 import debug from '../util/debug.ts';
-import WikidataBackendAdapter from './wikidata-backend-adapter.ts';
+import AbstractBackendAdapter, { type AdapterLookupResult } from './abstract-backend-adapter.ts';
 import OpenLibraryBackendAdapter from './openlibrary-backend-adapter.ts';
 import OpenStreetMapBackendAdapter from './openstreetmap-backend-adapter.ts';
-import AbstractBackendAdapter, { type AdapterLookupResult } from './abstract-backend-adapter.ts';
+import WikidataBackendAdapter from './wikidata-backend-adapter.ts';
 
 type BackendAdapter = AbstractBackendAdapter;
 
@@ -12,8 +12,7 @@ const openStreetMap = new OpenStreetMapBackendAdapter();
 const adapters: BackendAdapter[] = [wikidata, openLibrary, openStreetMap];
 
 const sourceURLs: Record<string, string> = {};
-for (const adapter of adapters)
-  sourceURLs[adapter.getSourceID()] = adapter.getSourceURL();
+for (const adapter of adapters) sourceURLs[adapter.getSourceID()] = adapter.getSourceURL();
 
 /**
  * General helper functions for adapters that obtain metadata about specific URLs.
@@ -38,9 +37,7 @@ const adaptersAPI = {
    * Returns the adapter that handles a specific source (undefined if not found).
    */
   getAdapterForSource(sourceID: string): BackendAdapter | undefined {
-    for (const adapter of adapters)
-      if (adapter.getSourceID() === sourceID)
-        return adapter;
+    for (const adapter of adapters) if (adapter.getSourceID() === sourceID) return adapter;
     return undefined;
   },
 
@@ -48,14 +45,18 @@ const adaptersAPI = {
    * Return a lookup promise from every adapter that can support metadata
    * about this URL. Each promise is wrapped to never reject.
    */
-  getSupportedLookupsAsSafePromises(url: string): Array<Promise<AdapterLookupResult | { error: unknown }>> {
+  getSupportedLookupsAsSafePromises(
+    url: string
+  ): Array<Promise<AdapterLookupResult | { error: unknown }>> {
     const p: Array<Promise<AdapterLookupResult | { error: unknown }>> = [];
     for (const adapter of adapters) {
       if (adapter.ask(url))
-        p.push(adapter.lookup(url).catch(error => {
-          debug.error({ error });
-          return { error };
-        }));
+        p.push(
+          adapter.lookup(url).catch(error => {
+            debug.error({ error });
+            return { error };
+          })
+        );
     }
     return p;
   },
@@ -67,16 +68,20 @@ const adaptersAPI = {
   getFirstResultWithData(results: unknown[]): AdapterLookupResult | undefined {
     let firstResultWithData: AdapterLookupResult | undefined;
     for (const adapterResult of results as any[]) {
-      if (adapterResult && typeof adapterResult === 'object' &&
-          'data' in adapterResult && adapterResult.data &&
-          typeof adapterResult.data === 'object' &&
-          (adapterResult.data as any).label) {
+      if (
+        adapterResult &&
+        typeof adapterResult === 'object' &&
+        'data' in adapterResult &&
+        adapterResult.data &&
+        typeof adapterResult.data === 'object' &&
+        (adapterResult.data as any).label
+      ) {
         firstResultWithData = adapterResult as AdapterLookupResult;
         break;
       }
     }
     return firstResultWithData;
-  }
+  },
 } as const;
 
 export default adaptersAPI;

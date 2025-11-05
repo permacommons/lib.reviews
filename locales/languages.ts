@@ -1,10 +1,10 @@
 // NOTE: This module loads language metadata into memory synchronously and
 // should be imported on startup.
 
+import { createRequire } from 'node:module';
+import path from 'node:path';
 // External dependencies
 import jsonfile from 'jsonfile';
-import path from 'node:path';
-import { createRequire } from 'node:module';
 
 // Internal dependencies
 import ReportedError from '../util/reported-error.ts';
@@ -39,7 +39,7 @@ const VALID_LANGUAGES = [
   'tr',
   'uk',
   'zh',
-  'zh-Hant'
+  'zh-Hant',
 ] as const satisfies ReadonlyArray<LibReviews.LocaleCode>;
 
 type LocaleCode = LibReviews.LocaleCode;
@@ -56,16 +56,19 @@ const languageNameMap: Record<string, string> = {
   // directory for the version with the qualifier. We use the same minimal codes,
   // but the qualification matters for purposes of looking up the language names,
   // so we use this map to remember which specific locale name to look up.
-  'pt': 'pt-BR',
-  'zh': 'zh-Hans'
+  pt: 'pt-BR',
+  zh: 'zh-Hans',
 };
 
 interface CldrLanguageFile {
-  main: Record<string, {
-    localeDisplayNames: {
-      languages: LanguageDisplayMap;
-    };
-  }>;
+  main: Record<
+    string,
+    {
+      localeDisplayNames: {
+        languages: LanguageDisplayMap;
+      };
+    }
+  >;
 }
 
 const langData: LanguageNameData = Object.create(null);
@@ -74,12 +77,12 @@ const langData: LanguageNameData = Object.create(null);
 const cldrPkgPath = require.resolve('cldr-localenames-full/package.json');
 const cldrPath = path.join(path.dirname(cldrPkgPath), 'main');
 
-/* eslint no-sync: "off" */
 VALID_LANGUAGES.forEach(language => {
-  const contents = jsonfile.readFileSync<CldrLanguageFile>(path.join(cldrPath, language, 'languages.json'));
+  const contents = jsonfile.readFileSync<CldrLanguageFile>(
+    path.join(cldrPath, language, 'languages.json')
+  );
   const localeData = contents.main[language]?.localeDisplayNames.languages;
-  if (!localeData)
-    throw new Error(`Missing language metadata for ${language}`);
+  if (!localeData) throw new Error(`Missing language metadata for ${language}`);
   langData[language] = localeData;
 });
 
@@ -110,10 +113,8 @@ const languages = {
     sorted.sort((a, b) => {
       const upperA = a.toUpperCase();
       const upperB = b.toUpperCase();
-      if (upperA > upperB)
-        return 1;
-      if (upperA < upperB)
-        return -1;
+      if (upperA > upperB) return 1;
+      if (upperA < upperB) return -1;
       return 0;
     });
     return sorted;
@@ -131,7 +132,10 @@ const languages = {
   /**
    * Returns a translated name of a language, e.g. "German" instead of "Deutsch".
    */
-  getTranslatedName(langKey: LocaleCode | LocaleCodeWithUndetermined, translationLanguage: LocaleCode | LocaleCodeWithUndetermined): string {
+  getTranslatedName(
+    langKey: LocaleCode | LocaleCodeWithUndetermined,
+    translationLanguage: LocaleCode | LocaleCodeWithUndetermined
+  ): string {
     const lookupKey = (languageNameMap[langKey] ?? langKey) as string;
     const translationData = langData[translationLanguage] ?? langData.en;
     return translationData?.[lookupKey] ?? lookupKey;
@@ -140,11 +144,13 @@ const languages = {
   /**
    * Returns both the native name and a translation (if appropriate).
    */
-  getCompositeName(langKey: LocaleCode | LocaleCodeWithUndetermined, translationLanguage: LocaleCode | LocaleCodeWithUndetermined): string {
+  getCompositeName(
+    langKey: LocaleCode | LocaleCodeWithUndetermined,
+    translationLanguage: LocaleCode | LocaleCodeWithUndetermined
+  ): string {
     const nativeName = this.getNativeName(langKey);
     const translatedName = this.getTranslatedName(langKey, translationLanguage);
-    if (nativeName !== translatedName)
-      return `${translatedName} (${nativeName})`;
+    if (nativeName !== translatedName) return `${translatedName} (${nativeName})`;
     return nativeName;
   },
 
@@ -171,8 +177,7 @@ const languages = {
    * Throws InvalidLanguageError for unsupported language codes (excluding 'und').
    */
   validate(langKey: string): void {
-    if (!this.isValid(langKey) && langKey !== 'und')
-      throw new InvalidLanguageError(langKey);
+    if (!this.isValid(langKey) && langKey !== 'und') throw new InvalidLanguageError(langKey);
   },
 
   /**
@@ -191,14 +196,14 @@ const languages = {
       default:
     }
     return fallbacks;
-  }
+  },
 };
 
 class InvalidLanguageError extends ReportedError {
   constructor(langCode: string) {
     super({
       userMessage: 'invalid language code',
-      userMessageParams: [langCode]
+      userMessageParams: [langCode],
     });
     this.name = 'InvalidLanguageError';
   }

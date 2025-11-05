@@ -22,7 +22,9 @@ declare global {
     }): JQuery<TElement>;
     lockTab(): JQuery<TElement>;
     toggleSwitcher(): JQuery<TElement>;
-    conditionalSwitcherClick(handler: (this: HTMLElement, event: JQuery.Event) => void): JQuery<TElement>;
+    conditionalSwitcherClick(
+      handler: (this: HTMLElement, event: JQuery.Event) => void
+    ): JQuery<TElement>;
     powerTip(options?: {
       placement?: 'n' | 's' | 'e' | 'w';
       smartPlacement?: boolean;

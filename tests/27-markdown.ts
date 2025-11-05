@@ -1,6 +1,6 @@
-import test from 'ava';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import test from 'ava';
 import languages from '../locales/languages.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,7 +15,7 @@ i18n.configure({
   updateFiles: false,
   autoReload: false,
   syncFiles: false,
-  objectNotation: true
+  objectNotation: true,
 });
 
 import md from '../util/md.ts';

@@ -1,8 +1,4 @@
-import type {
-  JsonObject,
-  ModelConstructor,
-  ModelInstance
-} from './model-types.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from './model-types.ts';
 
 type BootstrapModule = {
   getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
@@ -41,7 +37,7 @@ function getBootstrapModule(): BootstrapModule {
 type ModelHandle<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual>,
 > = Partial<ModelConstructor<TRecord, TVirtual, TInstance>> & Record<string | symbol, unknown>;
 
 const CORE_METHODS = [
@@ -54,7 +50,7 @@ const CORE_METHODS = [
   'createFirstRevision',
   'getNotStaleOrDeleted',
   'filterNotStaleOrDeleted',
-  'getMultipleNotStaleOrDeleted'
+  'getMultipleNotStaleOrDeleted',
 ] as const;
 
 /**
@@ -69,7 +65,7 @@ const CORE_METHODS = [
 export function createModelHandle<
   TRecord extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
 >(
   tableName: string,
   staticMethods: Record<string, (...args: unknown[]) => unknown> = {},
@@ -121,7 +117,7 @@ export function createModelHandle<
         return value;
       },
       enumerable: true,
-      configurable: false
+      configurable: false,
     });
   }
 
@@ -135,10 +131,11 @@ export function createModelHandle<
         const model = getRegisteredModel();
         const value = model[prop as keyof typeof model];
         if (typeof value === 'function') {
-          return (...args: unknown[]) => (value as (...args: unknown[]) => unknown).apply(model, args);
+          return (...args: unknown[]) =>
+            (value as (...args: unknown[]) => unknown).apply(model, args);
         }
         return value;
-      } catch (error) {
+      } catch {
         return undefined;
       }
     },
@@ -154,10 +151,10 @@ export function createModelHandle<
       try {
         const model = getRegisteredModel();
         return prop in model;
-      } catch (error) {
+      } catch {
         return false;
       }
-    }
+    },
   }) as ModelHandle<TRecord, TVirtual, TInstance>;
 }
 
@@ -178,7 +175,7 @@ interface AutoModelHandleOptions {
 export function createAutoModelHandle<
   TRecord extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
 >(
   tableName: string,
   initializeModel: (...args: unknown[]) => unknown,
@@ -195,7 +192,9 @@ export function createAutoModelHandle<
     return model as ModelConstructor<TRecord, TVirtual, TInstance>;
   }
 
-  const ModelHandle = function (...args: unknown[]) {
+  // Named function expression prevents Biome from converting to arrow function.
+  // Arrow functions cannot be used as constructors with `new`.
+  const ModelHandle = function ModelHandle(...args: unknown[]) {
     const model = getRegisteredModel();
     return new (model as new (...constructorArgs: unknown[]) => TInstance)(...args);
   } as unknown as ModelConstructor<TRecord, TVirtual, TInstance>;
@@ -209,12 +208,12 @@ export function createAutoModelHandle<
             return model[propName as keyof typeof model];
           }
           return value;
-        } catch (error) {
+        } catch {
           return value;
         }
       },
       enumerable: true,
-      configurable: false
+      configurable: false,
     });
   }
 
@@ -247,10 +246,11 @@ export function createAutoModelHandle<
         const model = getRegisteredModel();
         const value = model[prop as keyof typeof model];
         if (typeof value === 'function') {
-          return (...args: unknown[]) => (value as (...args: unknown[]) => unknown).apply(model, args);
+          return (...args: unknown[]) =>
+            (value as (...args: unknown[]) => unknown).apply(model, args);
         }
         return value;
-      } catch (error) {
+      } catch {
         return undefined;
       }
     },
@@ -266,10 +266,10 @@ export function createAutoModelHandle<
       try {
         const model = getRegisteredModel();
         return prop in model;
-      } catch (error) {
+      } catch {
         return false;
       }
-    }
+    },
   });
 }
 
@@ -284,7 +284,9 @@ interface LazyHandleExport<THandle extends object> {
  * @param label Identifier used in error messages when access happens too early.
  * @returns Proxy along with a function that installs the resolved handle.
  */
-export function createLazyHandleExport<THandle extends object>(label: string): LazyHandleExport<THandle> {
+export function createLazyHandleExport<THandle extends object>(
+  label: string
+): LazyHandleExport<THandle> {
   let resolvedHandle: THandle | null = null;
 
   function ensureResolved(): THandle {
@@ -345,7 +347,7 @@ export function createLazyHandleExport<THandle extends object>(label: string): L
       }
       const keys = new Set([
         ...Reflect.ownKeys(currentTarget),
-        ...Reflect.ownKeys(resolvedHandle as object)
+        ...Reflect.ownKeys(resolvedHandle as object),
       ]);
       return Array.from(keys);
     },
@@ -371,7 +373,7 @@ export function createLazyHandleExport<THandle extends object>(label: string): L
     construct(currentTarget, args, newTarget) {
       const handle = ensureResolved() as unknown as new (...ctorArgs: unknown[]) => object;
       return Reflect.construct(handle, args, newTarget);
-    }
+    },
   });
 
   function assignHandle(handle: THandle): void {
@@ -405,23 +407,23 @@ export function registerLazyHandle<THandle extends object>(
   const descriptors: Record<string, PropertyDescriptor> = {};
   for (const [key, value] of Object.entries(additionalProperties)) {
     if (
-      value && typeof value === 'object' && (
-        Object.prototype.hasOwnProperty.call(value, 'get') ||
+      value &&
+      typeof value === 'object' &&
+      (Object.prototype.hasOwnProperty.call(value, 'get') ||
         Object.prototype.hasOwnProperty.call(value, 'set') ||
         Object.prototype.hasOwnProperty.call(value, 'value') ||
-        Object.prototype.hasOwnProperty.call(value, 'writable')
-      )
+        Object.prototype.hasOwnProperty.call(value, 'writable'))
     ) {
       descriptors[key] = {
         enumerable: true,
         configurable: true,
-        ...(value as PropertyDescriptor)
+        ...(value as PropertyDescriptor),
       };
     } else {
       descriptors[key] = {
         value,
         enumerable: true,
-        configurable: true
+        configurable: true,
       };
     }
   }
@@ -452,19 +454,24 @@ interface ModelModule<THandle extends object> {
 export function createModelModule<
   TRecord extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
->({ tableName }: { tableName: string }): ModelModule<ModelConstructor<TRecord, TVirtual, TInstance>> {
+  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
+>({
+  tableName,
+}: {
+  tableName: string;
+}): ModelModule<ModelConstructor<TRecord, TVirtual, TInstance>> {
   if (typeof tableName !== 'string' || tableName.length === 0) {
     throw new Error('createModelModule requires a tableName');
   }
 
-  const { proxy, assignHandle } = createLazyHandleExport<ModelConstructor<TRecord, TVirtual, TInstance>>(tableName);
+  const { proxy, assignHandle } =
+    createLazyHandleExport<ModelConstructor<TRecord, TVirtual, TInstance>>(tableName);
   let registered = false;
 
   function register({
     initializeModel,
     handleOptions = {},
-    additionalExports = {}
+    additionalExports = {},
   }: {
     initializeModel: (...args: unknown[]) => unknown;
     handleOptions?: AutoModelHandleOptions;
@@ -478,10 +485,14 @@ export function createModelModule<
       throw new Error(`createModelModule.register for ${tableName} requires initializeModel`);
     }
 
-    const handle = createAutoModelHandle<TRecord, TVirtual, TInstance>(tableName, initializeModel, handleOptions);
+    const handle = createAutoModelHandle<TRecord, TVirtual, TInstance>(
+      tableName,
+      initializeModel,
+      handleOptions
+    );
     registerLazyHandle(proxy, assignHandle, handle, {
       initializeModel,
-      ...additionalExports
+      ...additionalExports,
     });
     registered = true;
     return proxy;
@@ -489,7 +500,7 @@ export function createModelModule<
 
   return {
     proxy,
-    register
+    register,
   };
 }
 
@@ -499,7 +510,7 @@ const modelHandleModule = {
   createAutoModelHandle,
   createLazyHandleExport,
   registerLazyHandle,
-  createModelModule
+  createModelModule,
 };
 
 export default modelHandleModule;

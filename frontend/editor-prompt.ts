@@ -4,7 +4,7 @@ import { msg } from './libreviews.js';
 
 // Helper module for menu prompts. Derived from
 // https://github.com/ProseMirror/prosemirror-example-setup/blob/master/src/prompt.js
-const prefix = "ProseMirror-prompt";
+const prefix = 'ProseMirror-prompt';
 
 interface FieldOptions<TValue = unknown> {
   value?: TValue;
@@ -45,15 +45,13 @@ export function openPrompt(spec: PromptSpec): void {
   function maybeClose(event: JQuery.Event): void {
     const withTarget = event as JQuery.Event & { target: EventTarget | null };
     const targetNode = withTarget.target as Node | null;
-    if (!targetNode || !$wrapper[0].contains(targetNode))
-      close();
+    if (!targetNode || !$wrapper[0].contains(targetNode)) close();
   }
 
   setTimeout(() => $(window).on('mousedown', maybeClose), 50);
 
   const domFields: HTMLElement[] = [];
-  for (let name in spec.fields)
-    domFields.push(spec.fields[name]!.render());
+  for (let name in spec.fields) domFields.push(spec.fields[name]!.render());
 
   const $submitButton = $('<button>')
     .attr('type', 'submit')
@@ -68,24 +66,21 @@ export function openPrompt(spec: PromptSpec): void {
   $cancelButton.on('click', close);
 
   const $form = $('<form>').appendTo($wrapper);
-  if (spec.title)
-    $('<h5>').text(spec.title).appendTo($form);
+  if (spec.title) $('<h5>').text(spec.title).appendTo($form);
 
   domFields.forEach(field => $('<div>').append($(field)).appendTo($form));
 
-  const $buttons = $('<div>')
-    .addClass(`${prefix}-buttons`)
-    .appendTo($form);
+  const $buttons = $('<div>').addClass(`${prefix}-buttons`).appendTo($form);
   $buttons.append($submitButton, ' ', $cancelButton);
 
   const dialogBox = $wrapper[0].getBoundingClientRect();
   const editorBox = $rteContainer[0].getBoundingClientRect();
-  const centeredX = (editorBox.width / 2) - (dialogBox.width / 2);
-  const centeredY = (editorBox.height / 2) - (dialogBox.height / 2);
+  const centeredX = editorBox.width / 2 - dialogBox.width / 2;
+  const centeredY = editorBox.height / 2 - dialogBox.height / 2;
 
   $wrapper.css({
     top: `${centeredY}px`,
-    left: `${centeredX}px`
+    left: `${centeredX}px`,
   });
 
   const submit = (): void => {
@@ -116,7 +111,10 @@ export function openPrompt(spec: PromptSpec): void {
   $wrapper.lockTab();
 }
 
-function getValues(fields: Record<string, Field>, domFields: HTMLElement[]): Record<string, unknown> | null {
+function getValues(
+  fields: Record<string, Field>,
+  domFields: HTMLElement[]
+): Record<string, unknown> | null {
   let i = 0;
   const result: Record<string, unknown> = Object.create(null);
 
@@ -136,10 +134,10 @@ function getValues(fields: Record<string, Field>, domFields: HTMLElement[]): Rec
 
 function reportInvalid(dom: HTMLElement, message: string): void {
   const parent = dom.parentNode as HTMLElement;
-  const errorMsg = parent.appendChild(document.createElement("div"));
-  errorMsg.style.left = (dom.offsetLeft + dom.offsetWidth + 2) + "px";
-  errorMsg.style.top = (dom.offsetTop - 5) + "px";
-  errorMsg.className = "ProseMirror-invalid";
+  const errorMsg = parent.appendChild(document.createElement('div'));
+  errorMsg.style.left = dom.offsetLeft + dom.offsetWidth + 2 + 'px';
+  errorMsg.style.top = dom.offsetTop - 5 + 'px';
+  errorMsg.className = 'ProseMirror-invalid';
   errorMsg.textContent = message;
   setTimeout(() => parent.removeChild(errorMsg), 1500);
 }
@@ -169,8 +167,7 @@ export class Field<TValue extends PromptFieldValue = string> {
   }
 
   validate(value: TValue): string | undefined {
-    if (!value && this.options.required)
-      return msg('required field');
+    if (!value && this.options.required) return msg('required field');
     return this.validateType(value) || (this.options.validate && this.options.validate(value));
   }
 
@@ -182,11 +179,11 @@ export class Field<TValue extends PromptFieldValue = string> {
 // ::- A field class for single-line text fields.
 export class TextField extends Field<string> {
   override render(): HTMLInputElement {
-    const input = document.createElement("input");
-    input.type = "text";
+    const input = document.createElement('input');
+    input.type = 'text';
     input.placeholder = this.options.label ?? '';
-    input.value = this.options.value ?? "";
-    input.autocomplete = "off";
+    input.value = this.options.value ?? '';
+    input.autocomplete = 'off';
     return input;
   }
 }
@@ -211,9 +208,9 @@ export class SelectField extends Field<string> {
   }
 
   override render(): HTMLSelectElement {
-    const select = document.createElement("select");
+    const select = document.createElement('select');
     this.selectOptions.options.forEach(o => {
-      const opt = select.appendChild(document.createElement("option"));
+      const opt = select.appendChild(document.createElement('option'));
       opt.value = o.value;
       opt.selected = o.value === (this.options.value ?? '');
       opt.label = o.label;

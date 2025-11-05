@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Create sanitized database dumps for public distribution using SQL views
  *
@@ -6,16 +7,15 @@
  * filtering logic, dumps from those views, then drops them once complete.
  */
 
-import { spawn } from 'node:child_process';
 import type { SpawnOptions } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Writable } from 'node:stream';
-
-import config from 'config';
+import { fileURLToPath } from 'node:url';
 import type { PostgresConfig } from 'config';
+import config from 'config';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -60,7 +60,7 @@ const sanitizedUserOverrides: SelectOverrides = {
   is_site_moderator: 'FALSE',
   is_super_user: 'FALSE',
   suppressed_notices: 'ARRAY[]::TEXT[]',
-  prefers_rich_text_editor: 'FALSE'
+  prefers_rich_text_editor: 'FALSE',
 };
 
 const VIEW_CONFIGS: ViewConfig[] = [
@@ -68,25 +68,25 @@ const VIEW_CONFIGS: ViewConfig[] = [
     name: 'sanitized_users',
     baseTable: 'users',
     alias: 'u',
-    selectOverrides: sanitizedUserOverrides
+    selectOverrides: sanitizedUserOverrides,
   },
   {
     name: 'non_deleted_teams',
     baseTable: 'teams',
     alias: 't',
-    where: nonDeleted('t')
+    where: nonDeleted('t'),
   },
   {
     name: 'non_deleted_things',
     baseTable: 'things',
     alias: 'th',
-    where: nonDeleted('th')
+    where: nonDeleted('th'),
   },
   {
     name: 'non_deleted_files',
     baseTable: 'files',
     alias: 'f',
-    where: nonDeleted('f')
+    where: nonDeleted('f'),
   },
   {
     name: 'non_deleted_blog_posts',
@@ -97,10 +97,10 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'LEFT JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_teams`,
         alias: 'tm',
-        on: 'tm.id = bp.team_id'
-      }
+        on: 'tm.id = bp.team_id',
+      },
     ],
-    where: `${nonDeleted('bp')} AND (bp.team_id IS NULL OR tm.id IS NOT NULL)`
+    where: `${nonDeleted('bp')} AND (bp.team_id IS NULL OR tm.id IS NOT NULL)`,
   },
   {
     name: 'non_deleted_reviews',
@@ -111,22 +111,22 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_things`,
         alias: 'th',
-        on: 'th.id = r.thing_id'
+        on: 'th.id = r.thing_id',
       },
       {
         type: 'LEFT JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_files`,
         alias: 'fi',
-        on: 'fi.id = r.social_image_id'
-      }
+        on: 'fi.id = r.social_image_id',
+      },
     ],
-    where: `${nonDeleted('r')} AND (r.social_image_id IS NULL OR fi.id IS NOT NULL)`
+    where: `${nonDeleted('r')} AND (r.social_image_id IS NULL OR fi.id IS NOT NULL)`,
   },
   {
     name: 'non_deleted_user_metas',
     baseTable: 'user_metas',
     alias: 'um',
-    where: nonDeleted('um')
+    where: nonDeleted('um'),
   },
   {
     name: 'non_deleted_review_teams',
@@ -137,15 +137,15 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_reviews`,
         alias: 'r',
-        on: 'r.id = rt.review_id'
+        on: 'r.id = rt.review_id',
       },
       {
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_teams`,
         alias: 't',
-        on: 't.id = rt.team_id'
-      }
-    ]
+        on: 't.id = rt.team_id',
+      },
+    ],
   },
   {
     name: 'non_deleted_team_members',
@@ -156,9 +156,9 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_teams`,
         alias: 't',
-        on: 't.id = tm.team_id'
-      }
-    ]
+        on: 't.id = tm.team_id',
+      },
+    ],
   },
   {
     name: 'non_deleted_team_moderators',
@@ -169,9 +169,9 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_teams`,
         alias: 't',
-        on: 't.id = tm.team_id'
-      }
-    ]
+        on: 't.id = tm.team_id',
+      },
+    ],
   },
   {
     name: 'non_deleted_team_slugs',
@@ -182,9 +182,9 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_teams`,
         alias: 't',
-        on: 't.id = ts.team_id'
-      }
-    ]
+        on: 't.id = ts.team_id',
+      },
+    ],
   },
   {
     name: 'non_deleted_thing_files',
@@ -195,15 +195,15 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_things`,
         alias: 'th',
-        on: 'th.id = tf.thing_id'
+        on: 'th.id = tf.thing_id',
       },
       {
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_files`,
         alias: 'fi',
-        on: 'fi.id = tf.file_id'
-      }
-    ]
+        on: 'fi.id = tf.file_id',
+      },
+    ],
   },
   {
     name: 'non_deleted_thing_slugs',
@@ -214,10 +214,10 @@ const VIEW_CONFIGS: ViewConfig[] = [
         type: 'JOIN',
         target: `${TEMP_SCHEMA}.non_deleted_things`,
         alias: 'th',
-        on: 'th.id = ts.thing_id'
-      }
-    ]
-  }
+        on: 'th.id = ts.thing_id',
+      },
+    ],
+  },
 ];
 
 // Get PostgreSQL connection config
@@ -241,12 +241,16 @@ const tarPath = path.join(EXPORT_DIR, TAR_FILE);
 /**
  * Run a shell command and wait for completion.
  */
-function runCommand(command: string, args: string[], options: RunCommandOptions = {}): Promise<void> {
+function runCommand(
+  command: string,
+  args: string[],
+  options: RunCommandOptions = {}
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const { outputStream, stdio, ...spawnOverrides } = options;
     const spawnOptions: SpawnOptions = {
       ...spawnOverrides,
-      stdio: outputStream ? ['ignore', 'pipe', 'inherit'] : (stdio ?? 'inherit')
+      stdio: outputStream ? ['ignore', 'pipe', 'inherit'] : (stdio ?? 'inherit'),
     };
 
     const proc = spawn(command, args, spawnOptions);
@@ -276,7 +280,10 @@ async function getTableColumnNames(tableName: string, env: NodeJS.ProcessEnv): P
   `.trim();
 
   return new Promise((resolve, reject) => {
-    const psql = spawn('psql', ['-t', '-A', '-c', columnsQuery], { env, stdio: ['ignore', 'pipe', 'inherit'] });
+    const psql = spawn('psql', ['-t', '-A', '-c', columnsQuery], {
+      env,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    });
     let output = '';
 
     if (psql.stdout) {
@@ -305,10 +312,16 @@ async function getTableColumnsString(tableName: string, env: NodeJS.ProcessEnv):
   return columns.join(', ');
 }
 
-async function createViewFromConfig(configEntry: ViewConfig, env: NodeJS.ProcessEnv): Promise<void> {
+async function createViewFromConfig(
+  configEntry: ViewConfig,
+  env: NodeJS.ProcessEnv
+): Promise<void> {
   const columns = await getTableColumnNames(configEntry.baseTable, env);
   const selectExpressions = columns.map(column => {
-    if (configEntry.selectOverrides && Object.prototype.hasOwnProperty.call(configEntry.selectOverrides, column)) {
+    if (
+      configEntry.selectOverrides &&
+      Object.prototype.hasOwnProperty.call(configEntry.selectOverrides, column)
+    ) {
       return `${configEntry.selectOverrides[column]} AS ${column}`;
     }
     return `${configEntry.alias}.${column}`;
@@ -319,7 +332,7 @@ async function createViewFromConfig(configEntry: ViewConfig, env: NodeJS.Process
     `CREATE VIEW ${TEMP_SCHEMA}.${configEntry.name} AS`,
     'SELECT',
     selectSection,
-    `FROM public.${configEntry.baseTable} ${configEntry.alias}`
+    `FROM public.${configEntry.baseTable} ${configEntry.alias}`,
   ];
 
   if (configEntry.joins) {
@@ -346,7 +359,9 @@ async function copyFromView(
   { orderBy = null }: { orderBy?: string | null } = {}
 ): Promise<void> {
   const columns = await getTableColumnsString(targetTable, env);
-  outputStream.write(`\n--\n-- Data for Name: ${targetTable}; Type: TABLE DATA; Schema: public; Owner: -\n--\n\n`);
+  outputStream.write(
+    `\n--\n-- Data for Name: ${targetTable}; Type: TABLE DATA; Schema: public; Owner: -\n--\n\n`
+  );
   outputStream.write(`COPY public.${targetTable} (${columns}) FROM stdin;\n`);
 
   const orderClause = orderBy ? ` ORDER BY ${orderBy}` : '';
@@ -377,7 +392,7 @@ async function createDump(): Promise<void> {
     PGHOST: dbHost,
     PGPORT: dbPort.toString(),
     PGDATABASE: dbName,
-    PGUSER: dbUser
+    PGUSER: dbUser,
   };
 
   if (pgConfig.password) {
@@ -395,23 +410,29 @@ async function createDump(): Promise<void> {
     outputStream = fs.createWriteStream(outputPath);
 
     console.log('Step 1: Dumping schema...');
-    await runCommand('pg_dump', [
-      '--schema-only',
-      '--no-owner',
-      '--no-privileges',
-      '--no-tablespaces'
-    ], { outputStream, env });
+    await runCommand(
+      'pg_dump',
+      ['--schema-only', '--no-owner', '--no-privileges', '--no-tablespaces'],
+      {
+        outputStream,
+        env,
+      }
+    );
 
     console.log('Step 2: Dumping migrations table...');
-    await runCommand('pg_dump', [
-      '--data-only',
-      '--no-owner',
-      '--no-privileges',
-      '--table=migrations'
-    ], { outputStream, env });
+    await runCommand(
+      'pg_dump',
+      ['--data-only', '--no-owner', '--no-privileges', '--table=migrations'],
+      {
+        outputStream,
+        env,
+      }
+    );
 
     console.log('Step 3: Dumping sanitized users via view...');
-    await copyFromView('users', `${TEMP_SCHEMA}.sanitized_users`, outputStream, env, { orderBy: 'registration_date' });
+    await copyFromView('users', `${TEMP_SCHEMA}.sanitized_users`, outputStream, env, {
+      orderBy: 'registration_date',
+    });
 
     console.log('Step 4: Dumping revision tables via views...');
     await copyFromView('teams', `${TEMP_SCHEMA}.non_deleted_teams`, outputStream, env);
@@ -422,9 +443,24 @@ async function createDump(): Promise<void> {
     await copyFromView('user_metas', `${TEMP_SCHEMA}.non_deleted_user_metas`, outputStream, env);
 
     console.log('Step 5: Dumping junction tables via views...');
-    await copyFromView('review_teams', `${TEMP_SCHEMA}.non_deleted_review_teams`, outputStream, env);
-    await copyFromView('team_members', `${TEMP_SCHEMA}.non_deleted_team_members`, outputStream, env);
-    await copyFromView('team_moderators', `${TEMP_SCHEMA}.non_deleted_team_moderators`, outputStream, env);
+    await copyFromView(
+      'review_teams',
+      `${TEMP_SCHEMA}.non_deleted_review_teams`,
+      outputStream,
+      env
+    );
+    await copyFromView(
+      'team_members',
+      `${TEMP_SCHEMA}.non_deleted_team_members`,
+      outputStream,
+      env
+    );
+    await copyFromView(
+      'team_moderators',
+      `${TEMP_SCHEMA}.non_deleted_team_moderators`,
+      outputStream,
+      env
+    );
     await copyFromView('team_slugs', `${TEMP_SCHEMA}.non_deleted_team_slugs`, outputStream, env);
     await copyFromView('thing_files', `${TEMP_SCHEMA}.non_deleted_thing_files`, outputStream, env);
     await copyFromView('thing_slugs', `${TEMP_SCHEMA}.non_deleted_thing_slugs`, outputStream, env);
@@ -433,13 +469,7 @@ async function createDump(): Promise<void> {
     await once(outputStream, 'finish');
 
     console.log('Step 6: Compressing dump...');
-    await runCommand('tar', [
-      '-czf',
-      tarPath,
-      '-C',
-      EXPORT_DIR,
-      SQL_FILE
-    ], { stdio: 'inherit' });
+    await runCommand('tar', ['-czf', tarPath, '-C', EXPORT_DIR, SQL_FILE], { stdio: 'inherit' });
 
     fs.unlinkSync(outputPath);
 
@@ -471,9 +501,8 @@ async function createDump(): Promise<void> {
     try {
       await cleanupTempSchema(env);
     } catch (cleanupError) {
-      const serializedCleanupError = cleanupError instanceof Error
-        ? cleanupError
-        : new Error(String(cleanupError));
+      const serializedCleanupError =
+        cleanupError instanceof Error ? cleanupError : new Error(String(cleanupError));
       console.error('Failed to clean up temporary schema:', serializedCleanupError);
     }
     if (fs.existsSync(outputPath)) {

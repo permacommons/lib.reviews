@@ -16,7 +16,9 @@ const prepareRequest = (req: Request, res: Response, next: NextFunction) => {
   if (!isReadMethod && requestedWith !== 'XMLHttpRequest' && requestedWith !== 'app') {
     const response = {
       message: 'Access denied.',
-      errors: ['Missing X-Requested-With header. Must be set to "XMLHttpRequest" or "app" to avoid request forgery.']
+      errors: [
+        'Missing X-Requested-With header. Must be set to "XMLHttpRequest" or "app" to avoid request forgery.',
+      ],
     };
     res.status(400);
     res.type('json');
@@ -24,8 +26,7 @@ const prepareRequest = (req: Request, res: Response, next: NextFunction) => {
     return;
   }
 
-  if (isReadMethod)
-    res.set('Access-Control-Allow-Origin', '*');
+  if (isReadMethod) res.set('Access-Control-Allow-Origin', '*');
 
   next();
 };
@@ -33,7 +34,7 @@ const prepareRequest = (req: Request, res: Response, next: NextFunction) => {
 const signinRequired = (_req: Request, res: Response) => {
   const response = {
     message: 'Could not perform action.',
-    errors: ['Authentication required.']
+    errors: ['Authentication required.'],
   };
   res.type('json');
   res.status(401);
@@ -54,14 +55,14 @@ const error = (_req: Request, res: Response, errors: ErrorPayload, status = 400)
   res.status(status);
   res.send({
     message: 'Could not perform action.',
-    errors: formattedErrors
+    errors: formattedErrors,
   });
 };
 
 const api = {
   prepareRequest,
   signinRequired,
-  error
+  error,
 };
 
 export type ApiHelper = typeof api;

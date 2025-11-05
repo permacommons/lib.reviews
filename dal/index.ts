@@ -1,12 +1,12 @@
 import type { PostgresConfig } from 'config';
 
 import DataAccessLayer from './lib/data-access-layer.ts';
-import Model from './lib/model.ts';
-import QueryBuilder from './lib/query-builder.ts';
-import types from './lib/type.ts';
 import Errors from './lib/errors.ts';
 import mlString from './lib/ml-string.ts';
+import Model from './lib/model.ts';
+import QueryBuilder from './lib/query-builder.ts';
 import revision from './lib/revision.ts';
+import types from './lib/type.ts';
 
 /**
  * Data Access Layer (DAL) for PostgreSQL
@@ -43,7 +43,8 @@ type CreateDataAccessLayer = ((config?: Partial<PostgresConfig>) => DataAccessLa
  * @param config Optional PostgreSQL configuration overrides used to initialize the DAL instance.
  * @returns A ready-to-use DAL instance bound to the provided configuration.
  */
-const createDataAccessLayer = ((config?: Partial<PostgresConfig>) => new DataAccessLayerCtor(config)) as CreateDataAccessLayer;
+const createDataAccessLayer = ((config?: Partial<PostgresConfig>) =>
+  new DataAccessLayerCtor(config)) as CreateDataAccessLayer;
 
 createDataAccessLayer.DataAccessLayer = DataAccessLayerCtor;
 createDataAccessLayer.Model = Model;
@@ -61,7 +62,7 @@ export {
   Errors,
   mlString,
   revision,
-  createDataAccessLayer
+  createDataAccessLayer,
 };
 
 export default createDataAccessLayer;

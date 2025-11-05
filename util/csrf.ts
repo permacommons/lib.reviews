@@ -5,15 +5,13 @@
  * @namespace CSRF
  */
 
-import type { Request } from 'express';
-
 import { csrfSync } from 'csrf-sync';
+import type { Request } from 'express';
 
 type CsrfToken = string | undefined;
 
 const normalizeHeaderToken = (token: string | string[] | undefined): CsrfToken => {
-  if (Array.isArray(token))
-    return token[0];
+  if (Array.isArray(token)) return token[0];
   return token ?? undefined;
 };
 
@@ -24,18 +22,18 @@ const {
   generateToken,
   getTokenFromRequest,
   getTokenFromState,
-  invalidCsrfTokenError
+  invalidCsrfTokenError,
 } = csrfSync({
   getTokenFromRequest: (req: Request): CsrfToken => {
-    const bodyToken = typeof req.body === 'object' && req.body !== null
-      ? (req.body as Record<string, unknown>)._csrf
-      : undefined;
+    const bodyToken =
+      typeof req.body === 'object' && req.body !== null
+        ? (req.body as Record<string, unknown>)._csrf
+        : undefined;
 
-    if (typeof bodyToken === 'string')
-      return bodyToken;
+    if (typeof bodyToken === 'string') return bodyToken;
 
     return normalizeHeaderToken(req.headers['x-csrf-token']);
-  }
+  },
 });
 
 export {
@@ -43,5 +41,5 @@ export {
   generateToken,
   getTokenFromRequest,
   getTokenFromState,
-  invalidCsrfTokenError
+  invalidCsrfTokenError,
 };

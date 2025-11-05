@@ -140,19 +140,19 @@ Finalize the migration by bringing tests, scripts, and compiler settings in line
 Replace ESLint with Biome for linting and formatting.
 
 ### Setup
-- [ ] Install Biome (`@biomejs/biome`)
-- [ ] Initialize `biome.json` configuration
-- [ ] Migrate ESLint rules to Biome configuration
-- [ ] Configure Biome for TypeScript
+- [x] Install Biome (`@biomejs/biome`)
+- [x] Initialize `biome.json` configuration
+- [x] Migrate ESLint rules to Biome configuration
+- [x] Configure Biome for TypeScript
 
 ### Rule Migration
-- [ ] Review existing `.eslintrc.json` rules (150+)
-- [ ] Map ESLint rules to Biome equivalents
-- [ ] Configure formatting rules (replacing code style ESLint rules)
-- [ ] Set up import sorting
+- [x] Review existing `.eslintrc.json` rules (150+)
+- [x] Map ESLint rules to Biome equivalents
+- [x] Configure formatting rules (replacing code style ESLint rules)
+- [x] Set up import sorting
 
 ### Integration
-- [ ] Add Biome npm scripts (`biome check`, `biome format`)
+- [x] Add Biome npm scripts (`biome check`, `biome format`)
 
 ### Cleanup
 - [ ] Remove ESLint dependencies
@@ -161,7 +161,7 @@ Replace ESLint with Biome for linting and formatting.
 - [ ] Clean up package.json scripts
 
 ### Validation
-- [ ] Run Biome check on entire codebase
+- [~] Run Biome check on entire codebase (initial check done, some warnings expected)
 - [ ] Fix any new issues found
 - [ ] Verify formatting is consistent
 - [ ] Run full test suite

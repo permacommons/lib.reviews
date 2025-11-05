@@ -2,14 +2,14 @@ import isUUID from 'is-uuid';
 
 import debug from '../../util/debug.ts';
 import { convertPostgreSQLError } from './errors.ts';
+import type Model from './model.ts';
+import type { ModelRuntime } from './model.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
-  ModelInstance
+  ModelInstance,
 } from './model-types.ts';
-import type Model from './model.ts';
-import type { ModelRuntime } from './model.ts';
 
 type PredicateValue = unknown;
 
@@ -89,7 +89,8 @@ interface PredicateOptions extends JsonObject {
   valueTransform?: (placeholder: string) => string;
 }
 
-type QueryModel = ModelRuntime<JsonObject, JsonObject> & ModelConstructor<JsonObject, JsonObject, ModelInstance>;
+type QueryModel = ModelRuntime<JsonObject, JsonObject> &
+  ModelConstructor<JsonObject, JsonObject, ModelInstance>;
 type QueryInstance = Model<JsonObject, JsonObject> & ModelInstance;
 
 /**
@@ -119,7 +120,7 @@ class FieldExpression {
       value: true,
       enumerable: false,
       configurable: false,
-      writable: false
+      writable: false,
     });
   }
 
@@ -208,7 +209,10 @@ function normalizeArrayValues(args: unknown[]): unknown[] {
  * @returns {string|null} SQL cast suffix such as `uuid[]`, or null for default
  * @private
  */
-function inferArrayCast(values: unknown[], { preferText = false }: { preferText?: boolean } = {}): string | null {
+function inferArrayCast(
+  values: unknown[],
+  { preferText = false }: { preferText?: boolean } = {}
+): string | null {
   if (!Array.isArray(values) || values.length === 0) {
     return null;
   }
@@ -297,7 +301,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * Add WHERE conditions
    * @param criteria - Filter criteria
    * @returns {QueryBuilder} This instance for chaining
-  */
+   */
   filter(criteria: Record<string, unknown> | ((row: unknown) => unknown)): this {
     if (typeof criteria === 'function') {
       if (!this._applyFunctionFilter(criteria)) {
@@ -353,7 +357,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     const originalArrayIncludes = Array.prototype.includes;
     if (typeof originalArrayIncludes === 'function') {
-      Array.prototype.includes = function(searchElement, fromIndex) {
+      Array.prototype.includes = function (searchElement, fromIndex) {
         if (searchElement && searchElement.__isFieldExpression) {
           const values = Array.isArray(this) ? this.slice() : Array.from(this);
           if (!Array.isArray(values) || values.length === 0) {
@@ -362,12 +366,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
           const cast = inferArrayCast(values);
           const valueTransform = placeholder => `(${placeholder}${cast ? `::${cast}` : ''})`;
-          builder._addWhereCondition(
-            searchElement.dbFieldName,
-            '= ANY',
-            values,
-            { valueTransform }
-          );
+          builder._addWhereCondition(searchElement.dbFieldName, '= ANY', values, {
+            valueTransform,
+          });
           return true;
         }
 
@@ -409,9 +410,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return new FieldExpression(builder, String(fieldName));
     };
 
-    const rowTarget = function(fieldName: string | symbol) {
-      return getFieldExpression(fieldName);
-    };
+    const rowTarget = (fieldName: string | symbol) => getFieldExpression(fieldName);
 
     return new Proxy(rowTarget, {
       apply(target, thisArg, args) {
@@ -429,7 +428,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
           return () => 0;
         }
         return getFieldExpression(prop);
-      }
+      },
     });
   }
 
@@ -448,7 +447,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const funcStr = filterFunc.toString();
 
     // Patterns like row => row.field.eq('value') or row => row('field').eq('value')
-    const eqLiteralMatch = funcStr.match(/=>\s*(?:\w+\(['"](\w+)['"]\)|\w+\.(\w+))\.eq\(\s*['"]([^'"]+)['"]\s*\)/);
+    const eqLiteralMatch = funcStr.match(
+      /=>\s*(?:\w+\(['"](\w+)['"]\)|\w+\.(\w+))\.eq\(\s*['"]([^'"]+)['"]\s*\)/
+    );
     if (eqLiteralMatch) {
       const field = eqLiteralMatch[1] || eqLiteralMatch[2];
       const value = eqLiteralMatch[3];
@@ -457,7 +458,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return true;
     }
 
-    const neLiteralMatch = funcStr.match(/=>\s*(?:\w+\(['"](\w+)['"]\)|\w+\.(\w+))\.ne\(\s*['"]([^'"]+)['"]\s*\)/);
+    const neLiteralMatch = funcStr.match(
+      /=>\s*(?:\w+\(['"](\w+)['"]\)|\w+\.(\w+))\.ne\(\s*['"]([^'"]+)['"]\s*\)/
+    );
     if (neLiteralMatch) {
       const field = neLiteralMatch[1] || neLiteralMatch[2];
       const value = neLiteralMatch[3];
@@ -497,8 +500,14 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return fieldName;
     }
 
-    if (this.modelClass && typeof (this.modelClass as QueryModel & { _getDbFieldName?: (field: string) => string })._getDbFieldName === 'function') {
-      return (this.modelClass as QueryModel & { _getDbFieldName?: (field: string) => string })._getDbFieldName(fieldName);
+    if (
+      this.modelClass &&
+      typeof (this.modelClass as QueryModel & { _getDbFieldName?: (field: string) => string })
+        ._getDbFieldName === 'function'
+    ) {
+      return (
+        this.modelClass as QueryModel & { _getDbFieldName?: (field: string) => string }
+      )._getDbFieldName(fieldName);
     }
 
     return fieldName;
@@ -564,7 +573,11 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @param options - Options (leftBound, rightBound)
    * @returns {QueryBuilder} This instance for chaining
    */
-  between(startDate: Date | string | number, endDate: Date | string | number, options: BetweenOptions = {}): this {
+  between(
+    startDate: Date | string | number,
+    endDate: Date | string | number,
+    options: BetweenOptions = {}
+  ): this {
     const leftOp = options.leftBound === 'open' ? '>' : '>=';
     const rightOp = options.rightBound === 'open' ? '<' : '<=';
 
@@ -583,7 +596,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   contains(field: string, value: unknown): this {
     const values = Array.isArray(value) ? value : [value];
     this._addWhereCondition(field, '@>', values, {
-      cast: 'text[]'
+      cast: 'text[]',
     });
     return this;
   }
@@ -597,7 +610,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   containsJsonb(field: string, value: JsonObject): this {
     this._addWhereCondition(field, '@>', value, {
       cast: 'jsonb',
-      serializeValue: JSON.stringify
+      serializeValue: JSON.stringify,
     });
     return this;
   }
@@ -656,7 +669,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const groupPredicate: GroupPredicate = {
       type: 'group',
       conjunction: 'OR',
-      predicates: [idPredicate, oldRevPredicate]
+      predicates: [idPredicate, oldRevPredicate],
     };
     this._where.push(groupPredicate);
 
@@ -668,7 +681,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @param field - Field to order by
    * @param direction - Sort direction (ASC/DESC)
    * @returns {QueryBuilder} This instance for chaining
-  */
+   */
   orderBy(field, direction = 'ASC') {
     let expression = field;
     if (typeof field === 'string' && !field.includes('(')) {
@@ -808,7 +821,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     }
     this._complexJoins[relationName] = {
       ...(relationSpec as JsonObject),
-      joinInfo
+      joinInfo,
     } as ComplexJoinSpec;
   }
 
@@ -831,7 +844,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const baseTargetTable = relationConfig.targetTable || relationConfig.table;
     const targetTableName = this._resolveTableReference(baseTargetTable);
     if (!targetTableName) {
-      debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing a target table definition`);
+      debug.db(
+        `Warning: Relation '${relationName}' on '${this.tableName}' is missing a target table definition`
+      );
       return null;
     }
 
@@ -839,32 +854,43 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const sourceColumn = relationConfig.sourceColumn || relationConfig.sourceKey || 'id';
     const targetColumn = relationConfig.targetColumn || relationConfig.targetKey || 'id';
     const cardinality = relationConfig.cardinality || (relationConfig.isArray ? 'many' : 'one');
-    const targetModelKey = relationConfig.targetModelKey || relationConfig.targetModel || baseTargetTable;
+    const targetModelKey =
+      relationConfig.targetModelKey || relationConfig.targetModel || baseTargetTable;
 
     if (relationConfig.through && typeof relationConfig.through === 'object') {
-      const joinTableName = this._resolveTableReference(relationConfig.through.table || relationConfig.joinTable);
+      const joinTableName = this._resolveTableReference(
+        relationConfig.through.table || relationConfig.joinTable
+      );
       if (!joinTableName) {
-        debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing a join table definition`);
+        debug.db(
+          `Warning: Relation '${relationName}' on '${this.tableName}' is missing a join table definition`
+        );
         return null;
       }
 
-      const throughSourceKey = relationConfig.through.sourceColumn
-        || relationConfig.through.sourceForeignKey
-        || relationConfig.through.sourceKey;
-      const throughTargetKey = relationConfig.through.targetColumn
-        || relationConfig.through.targetForeignKey
-        || relationConfig.through.targetKey;
+      const throughSourceKey =
+        relationConfig.through.sourceColumn ||
+        relationConfig.through.sourceForeignKey ||
+        relationConfig.through.sourceKey;
+      const throughTargetKey =
+        relationConfig.through.targetColumn ||
+        relationConfig.through.targetForeignKey ||
+        relationConfig.through.targetKey;
 
       if (!throughSourceKey || !throughTargetKey) {
-        debug.db(`Warning: Relation '${relationName}' on '${this.tableName}' is missing join column metadata`);
+        debug.db(
+          `Warning: Relation '${relationName}' on '${this.tableName}' is missing join column metadata`
+        );
         return null;
       }
 
-      const joinTableOn = relationConfig.through.sourceCondition
-        || `${this.tableName}.${sourceColumn} = ${joinTableName}.${throughSourceKey}`;
-      const targetCondition = relationConfig.condition
-        || relationConfig.through.targetCondition
-        || `${joinTableName}.${throughTargetKey} = ${targetTableName}.${targetColumn}`;
+      const joinTableOn =
+        relationConfig.through.sourceCondition ||
+        `${this.tableName}.${sourceColumn} = ${joinTableName}.${throughSourceKey}`;
+      const targetCondition =
+        relationConfig.condition ||
+        relationConfig.through.targetCondition ||
+        `${joinTableName}.${throughTargetKey} = ${targetTableName}.${targetColumn}`;
 
       return {
         type: 'through',
@@ -880,12 +906,13 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
         joinTableTargetColumn: throughTargetKey,
         cardinality,
         isArray: cardinality !== 'one',
-        targetModelKey
+        targetModelKey,
       } as RelationJoinInfo;
     }
 
-    const directCondition = relationConfig.condition
-      || `${this.tableName}.${sourceColumn} = ${targetTableName}.${targetColumn}`;
+    const directCondition =
+      relationConfig.condition ||
+      `${this.tableName}.${sourceColumn} = ${targetTableName}.${targetColumn}`;
 
     return {
       type: 'direct',
@@ -897,7 +924,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       targetColumn,
       cardinality,
       isArray: cardinality !== 'one',
-      targetModelKey
+      targetModelKey,
     } as RelationJoinInfo;
   }
 
@@ -1015,7 +1042,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     const { joinInfo } = joinSpec;
     if (!joinInfo) {
-      debug.db(`Warning: Missing join metadata for relation '${relationName}' on '${this.tableName}'`);
+      debug.db(
+        `Warning: Missing join metadata for relation '${relationName}' on '${this.tableName}'`
+      );
       return;
     }
 
@@ -1044,7 +1073,10 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     this._assignJoinResults(mainRows, relationName, joinInfo, groupedRows);
   }
 
-  _extractJoinSourceValues(mainRows: Array<Record<string, unknown>>, sourceColumn: string | undefined) {
+  _extractJoinSourceValues(
+    mainRows: Array<Record<string, unknown>>,
+    sourceColumn: string | undefined
+  ) {
     if (!sourceColumn) {
       return [];
     }
@@ -1099,14 +1131,18 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     if (joinInfo.hasRevisions) {
       whereClauses.push(`${targetAlias}._old_rev_of IS NULL`);
-      whereClauses.push(`(${targetAlias}._rev_deleted IS NULL OR ${targetAlias}._rev_deleted = false)`);
+      whereClauses.push(
+        `(${targetAlias}._rev_deleted IS NULL OR ${targetAlias}._rev_deleted = false)`
+      );
     }
 
     if (analysis?.filters?.length) {
       for (const filter of analysis.filters) {
         const column = this._normalizeColumnName(filter.field);
         if (column === '_rev_deleted' && filter.value === false) {
-          whereClauses.push(`(${targetAlias}._rev_deleted IS NULL OR ${targetAlias}._rev_deleted = false)`);
+          whereClauses.push(
+            `(${targetAlias}._rev_deleted IS NULL OR ${targetAlias}._rev_deleted = false)`
+          );
           continue;
         }
 
@@ -1149,7 +1185,11 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     }
 
     for (const row of rows) {
-      if (!row || typeof row !== 'object' || !Object.prototype.hasOwnProperty.call(row, joinSourceAlias)) {
+      if (
+        !row ||
+        typeof row !== 'object' ||
+        !Object.prototype.hasOwnProperty.call(row, joinSourceAlias)
+      ) {
         continue;
       }
 
@@ -1181,14 +1221,11 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     for (const mainRow of mainRows) {
       const joinKey = this._getRowValue(mainRow, sourceColumn);
-      const related = joinKey === undefined || joinKey === null
-        ? []
-        : (groupedRows.get(joinKey) || []);
+      const related =
+        joinKey === undefined || joinKey === null ? [] : groupedRows.get(joinKey) || [];
 
       if (expectsArray) {
-        mainRow[relationName] = related.map(row => (
-          this._instantiateRelated(RelatedModel, row)
-        ));
+        mainRow[relationName] = related.map(row => this._instantiateRelated(RelatedModel, row));
       } else {
         const match = related[0] || null;
         mainRow[relationName] = match ? this._instantiateRelated(RelatedModel, match) : null;
@@ -1204,7 +1241,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return data;
     }
 
-    const runtime = RelatedModel as QueryModel & { _createInstance?: (row: JsonObject) => QueryInstance };
+    const runtime = RelatedModel as QueryModel & {
+      _createInstance?: (row: JsonObject) => QueryInstance;
+    };
     if (typeof runtime._createInstance === 'function') {
       return runtime._createInstance(data);
     }
@@ -1251,7 +1290,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const source = applyFn.toString();
     const analysis: JoinApplyAnalysis = {
       removeFields: [],
-      filters: []
+      filters: [],
     };
 
     const withoutRegex = /without\(([^)]+)\)/g;
@@ -1332,9 +1371,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return `_${this._normalizeColumnName(field.slice(1))}`;
     }
 
-    const withUnderscores = field
-      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-      .replace(/[\s-]+/g, '_');
+    const withUnderscores = field.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/[\s-]+/g, '_');
     return withUnderscores.toLowerCase();
   }
 
@@ -1353,17 +1390,13 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return null;
     }
 
-    const metadata: Partial<RelationJoinInfo> = joinInfo
-      ?? this._simpleJoins?.[relationName]
-      ?? this._complexJoins?.[relationName]?.joinInfo
-      ?? {};
+    const metadata: Partial<RelationJoinInfo> =
+      joinInfo ??
+      this._simpleJoins?.[relationName] ??
+      this._complexJoins?.[relationName]?.joinInfo ??
+      {};
 
-    const identifiers = [
-      metadata.targetModelKey,
-      metadata.baseTable,
-      metadata.table,
-      relationName
-    ];
+    const identifiers = [metadata.targetModelKey, metadata.baseTable, metadata.table, relationName];
 
     for (const identifier of identifiers) {
       if (!identifier) continue;
@@ -1406,9 +1439,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     if (!this._simpleJoins || Object.keys(this._simpleJoins).length === 0) {
       // No joins, just create model instances
-      return rows.map(row => (
-        this._instantiateRelated(BaseModel, row)
-      )) as QueryInstance[];
+      return rows.map(row => this._instantiateRelated(BaseModel, row)) as QueryInstance[];
     }
 
     // Process rows with joined data
@@ -1444,13 +1475,17 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       for (const [relationName, data] of Object.entries(joinedData)) {
         // When a LEFT JOIN finds no matching row, all joined columns are NULL
         // Only create a model instance if at least one field has a non-null value
-        const hasMatchingRow = data && typeof data === 'object' && Object.keys(data).some(key => data[key] !== null);
+        const hasMatchingRow =
+          data && typeof data === 'object' && Object.keys(data).some(key => data[key] !== null);
 
         if (hasMatchingRow) {
           // Create model instance for joined data
           const joinInfo = this._simpleJoins ? this._simpleJoins[relationName] : null;
           const RelatedModel = this._getRelatedModel(relationName, joinInfo);
-          (instance as Record<string, unknown>)[relationName] = this._instantiateRelated(RelatedModel, data);
+          (instance as Record<string, unknown>)[relationName] = this._instantiateRelated(
+            RelatedModel,
+            data
+          );
         } else {
           // No matching row found in join
           (instance as Record<string, unknown>)[relationName] = null;
@@ -1572,7 +1607,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const predicate: BasicPredicate = {
       type: 'basic',
       column: resolvedColumn,
-      operator
+      operator,
     };
 
     if (tableReference) {
@@ -1607,11 +1642,14 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     }
 
     const normalizedTable = tableReference || null;
-    const schemaNamespace = this.dal && typeof this.dal.schemaNamespace === 'string' ? this.dal.schemaNamespace : '';
-    const unprefixedTableName = schemaNamespace && this.tableName.startsWith(schemaNamespace)
-      ? this.tableName.slice(schemaNamespace.length)
-      : this.tableName;
-    const isBaseTable = normalizedTable === null ||
+    const schemaNamespace =
+      this.dal && typeof this.dal.schemaNamespace === 'string' ? this.dal.schemaNamespace : '';
+    const unprefixedTableName =
+      schemaNamespace && this.tableName.startsWith(schemaNamespace)
+        ? this.tableName.slice(schemaNamespace.length)
+        : this.tableName;
+    const isBaseTable =
+      normalizedTable === null ||
       normalizedTable === this.tableName ||
       normalizedTable === unprefixedTableName;
     if (isBaseTable) {
@@ -1650,7 +1688,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       qualifyColumns,
       defaultTable: this.tableName,
       getNextPlaceholder: () => `$${nextIndex++}`,
-      params
+      params,
     };
 
     const fragments = [];
@@ -1666,7 +1704,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     return {
       sql: fragments.join(' AND '),
-      params
+      params,
     };
   }
 
@@ -1718,9 +1756,8 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const placeholder = context.getNextPlaceholder();
     context.params.push(predicate.value);
 
-    const transform = typeof predicate.valueTransform === 'function'
-      ? predicate.valueTransform
-      : (value => value);
+    const transform =
+      typeof predicate.valueTransform === 'function' ? predicate.valueTransform : value => value;
     const valueSql = transform(placeholder);
 
     return `${columnSql} ${operator} ${valueSql}`;
@@ -1884,4 +1921,3 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
 export { QueryBuilder };
 export default QueryBuilder;
-

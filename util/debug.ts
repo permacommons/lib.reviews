@@ -9,17 +9,19 @@ const SENSITIVE_LOG_KEYS = new Set<string>([
   'currentPassword',
   'confirmPassword',
   'token',
-  'accessToken'
+  'accessToken',
 ]);
 
 type SerializableObject = Record<string, unknown>;
 
-type RequestLike = Pick<Request, 'method' | 'originalUrl' | 'body' | 'route'> | {
-  route?: { path?: string };
-  method?: string;
-  originalUrl?: string;
-  body?: unknown;
-};
+type RequestLike =
+  | Pick<Request, 'method' | 'originalUrl' | 'body' | 'route'>
+  | {
+      route?: { path?: string };
+      method?: string;
+      originalUrl?: string;
+      body?: unknown;
+    };
 
 /**
  * Shape for structured error logging that mirrors the legacy `debug` helper.
@@ -57,11 +59,9 @@ export interface DebugErrorFunction {
  * @returns Sanitized value with sensitive fields redacted
  */
 function sanitizeForLogging<T>(value: T): T {
-  if (value === null || typeof value !== 'object')
-    return value;
+  if (value === null || typeof value !== 'object') return value;
 
-  if (Array.isArray(value))
-    return value.map(item => sanitizeForLogging(item)) as unknown as T;
+  if (Array.isArray(value)) return value.map(item => sanitizeForLogging(item)) as unknown as T;
 
   const sanitized: SerializableObject = {};
 
@@ -103,7 +103,9 @@ const logDetail = (logger: Debugger, detail: DebugErrorDetail): void => {
       logger(`Error occurred in route <${request.route.path}>.`);
 
     if (request.method || request.originalUrl)
-      logger(`Request method: ${request.method ?? 'UNKNOWN'} - URL: ${request.originalUrl ?? 'UNKNOWN'}`);
+      logger(
+        `Request method: ${request.method ?? 'UNKNOWN'} - URL: ${request.originalUrl ?? 'UNKNOWN'}`
+      );
 
     if (request.method !== 'GET' && request.body !== undefined) {
       logger('Request body:');
@@ -131,7 +133,11 @@ const debug: DebugLoggerMap = {
   webhooks: debugModule('libreviews:webhooks'),
   errorLog: debugModule('libreviews:error'), // for property access, use debug.error for logging
 
-  error(this: DebugLoggerMap, first: string | DebugErrorDetail, maybeDetail?: DebugErrorDetail): void {
+  error(
+    this: DebugLoggerMap,
+    first: string | DebugErrorDetail,
+    maybeDetail?: DebugErrorDetail
+  ): void {
     const log = this.errorLog;
 
     if (typeof first === 'string') {
@@ -143,7 +149,7 @@ const debug: DebugLoggerMap = {
     }
 
     logDetail(log, first);
-  }
+  },
 };
 
 export default debug;

@@ -34,18 +34,21 @@ export default abstract class AbstractGenericError extends Error {
    */
   protected constructor(options: GenericErrorOptions) {
     if (new.target === AbstractGenericError)
-      throw new TypeError('AbstractGenericError is an abstract class, please instantiate a derived class.');
+      throw new TypeError(
+        'AbstractGenericError is an abstract class, please instantiate a derived class.'
+      );
 
     if (!options || typeof options !== 'object')
       throw new Error('Need an options object for a GenericError.');
 
     super();
 
-    const normalizedMessageParams = options.messageParams === undefined
-      ? []
-      : Array.isArray(options.messageParams)
-        ? options.messageParams
-        : [options.messageParams];
+    const normalizedMessageParams =
+      options.messageParams === undefined
+        ? []
+        : Array.isArray(options.messageParams)
+          ? options.messageParams
+          : [options.messageParams];
 
     this.nativeMessage = options.message;
     this.nativeMessageParams = normalizedMessageParams;
@@ -63,8 +66,7 @@ export default abstract class AbstractGenericError extends Error {
    * subclasses can build a composite error summary.
    */
   protected initializeMessages(): void {
-    if (this.nativeMessage)
-      this.addMessage(vsprintf(this.nativeMessage, this.nativeMessageParams));
+    if (this.nativeMessage) this.addMessage(vsprintf(this.nativeMessage, this.nativeMessageParams));
 
     if (this.parentError?.message)
       this.addMessage(`Original error message: ${this.parentError.message}`);

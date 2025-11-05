@@ -2,9 +2,8 @@
 // - flashHas, to look up whether we have data for a given key in the flash
 // - flashError, to store localized error messages in the flash
 import type { NextFunction, Request, Response } from 'express';
-
-import ReportedError from '../../util/reported-error.ts';
 import debug from '../../util/debug.ts';
+import ReportedError from '../../util/reported-error.ts';
 
 export default function flashMiddleware(req: Request, _res: Response, next: NextFunction): void {
   req.flashHas = (key: string) => {
@@ -27,7 +26,7 @@ export default function flashMiddleware(req: Request, _res: Response, next: Next
     req.flash('pageErrors', req.__('unknown error'));
     debug.error({
       req,
-      error: error instanceof Error ? error : undefined
+      error: error instanceof Error ? error : undefined,
     });
   };
   next();

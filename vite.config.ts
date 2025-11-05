@@ -26,17 +26,17 @@ export default defineConfig({
         assetFileNames: assetInfo =>
           extname(assetInfo.name ?? '') === '.css'
             ? 'css/[name]-[hash][extname]'
-            : '[name]-[hash][extname]'
-      }
-    }
+            : '[name]-[hash][extname]',
+      },
+    },
   },
   resolve: {
     alias: {
       // Mirror browserify's ability to resolve modules relative to project root.
-      '@frontend': fromRoot('frontend')
-    }
+      '@frontend': fromRoot('frontend'),
+    },
   },
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV)
-  }
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+  },
 });

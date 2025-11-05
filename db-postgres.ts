@@ -5,12 +5,11 @@
  * initialization idempotent across production code and tests.
  */
 
+import type { PostgresConfig } from 'config';
 import config from 'config';
-
-import debug from './util/debug.ts';
 import createDataAccessLayer from './dal/index.ts';
 import type { DataAccessLayer } from './dal/lib/model-types.ts';
-import type { PostgresConfig } from 'config';
+import debug from './util/debug.ts';
 
 type JsonObject = Record<string, unknown>;
 
@@ -47,7 +46,9 @@ export async function initializePostgreSQL(): Promise<DataAccessLayer> {
       debug.db('Initializing PostgreSQL DAL...');
 
       const dalConfig = getPostgresConfig();
-      postgresDAL = PostgresDALFactory(dalConfig as Partial<PostgresConfig> & JsonObject) as unknown as DataAccessLayer;
+      postgresDAL = PostgresDALFactory(
+        dalConfig as Partial<PostgresConfig> & JsonObject
+      ) as unknown as DataAccessLayer;
       await postgresDAL.connect();
 
       debug.db('PostgreSQL DAL connected successfully');
@@ -56,7 +57,8 @@ export async function initializePostgreSQL(): Promise<DataAccessLayer> {
         await postgresDAL.migrate();
         debug.db('PostgreSQL migrations completed');
       } catch (migrationError) {
-        const message = migrationError instanceof Error ? migrationError.message : String(migrationError);
+        const message =
+          migrationError instanceof Error ? migrationError.message : String(migrationError);
         debug.db(`PostgreSQL migration error (may be expected if DB already exists): ${message}`);
       }
 
@@ -121,14 +123,14 @@ const dbPostgres = {
   getPostgresDAL,
   getDB,
   closeConnection,
-  getDAL
+  getDAL,
 };
 
 Object.defineProperty(dbPostgres, 'dal', {
   enumerable: true,
   get() {
     return postgresDAL;
-  }
+  },
 });
 
 export default dbPostgres;

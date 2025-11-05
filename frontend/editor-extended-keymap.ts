@@ -1,15 +1,15 @@
-import { undo, redo } from 'prosemirror-history';
-import { undoInputRule } from 'prosemirror-inputrules';
 import {
-  wrapIn,
-  setBlockType,
   chainCommands,
-  toggleMark,
   exitCode,
-  selectParentNode
+  selectParentNode,
+  setBlockType,
+  toggleMark,
+  wrapIn,
 } from 'prosemirror-commands';
-import { wrapInList, splitListItem, liftListItem, sinkListItem } from 'prosemirror-schema-list';
-import type { Schema, MarkType, NodeType } from 'prosemirror-model';
+import { redo, undo } from 'prosemirror-history';
+import { undoInputRule } from 'prosemirror-inputrules';
+import type { MarkType, NodeType, Schema } from 'prosemirror-model';
+import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
 import type { Command, EditorState, Transaction } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { EditorMenuItems } from './editor-menu.ts';
@@ -24,21 +24,20 @@ export function getExtendedKeymap(schema: Schema, menuItems: EditorMenuItems): K
   keymap['Mod-z'] = undo;
   keymap['Shift-Mod-z'] = redo;
   keymap['Backspace'] = undoInputRule;
-  if (!mac)
-    keymap['Mod-y'] = redo;
+  if (!mac) keymap['Mod-y'] = redo;
 
-mapMarkIfSupported(keymap, 'Mod-b', schema.marks.strong, toggleMark);
-mapMarkIfSupported(keymap, 'Mod-i', schema.marks.em, toggleMark);
-mapMarkIfSupported(keymap, 'Mod-`', schema.marks.code, toggleMark);
+  mapMarkIfSupported(keymap, 'Mod-b', schema.marks.strong, toggleMark);
+  mapMarkIfSupported(keymap, 'Mod-i', schema.marks.em, toggleMark);
+  mapMarkIfSupported(keymap, 'Mod-`', schema.marks.code, toggleMark);
 
-mapNodeIfSupported(keymap, 'Shift-Ctrl-7', schema.nodes.ordered_list, wrapInList);
-mapNodeIfSupported(keymap, 'Shift-Ctrl-8', schema.nodes.bullet_list, wrapInList);
-mapNodeIfSupported(keymap, 'Ctrl->', schema.nodes.blockquote, wrapIn);
-mapNodeIfSupported(keymap, 'Enter', schema.nodes.list_item, splitListItem);
-mapNodeIfSupported(keymap, 'Mod-[', schema.nodes.list_item, liftListItem);
-mapNodeIfSupported(keymap, 'Mod-]', schema.nodes.list_item, sinkListItem);
-mapNodeIfSupported(keymap, 'Shift-Ctrl-0', schema.nodes.paragraph, setBlockType);
-mapNodeIfSupported(keymap, 'Shift-Ctrl-\\', schema.nodes.code_block, setBlockType);
+  mapNodeIfSupported(keymap, 'Shift-Ctrl-7', schema.nodes.ordered_list, wrapInList);
+  mapNodeIfSupported(keymap, 'Shift-Ctrl-8', schema.nodes.bullet_list, wrapInList);
+  mapNodeIfSupported(keymap, 'Ctrl->', schema.nodes.blockquote, wrapIn);
+  mapNodeIfSupported(keymap, 'Enter', schema.nodes.list_item, splitListItem);
+  mapNodeIfSupported(keymap, 'Mod-[', schema.nodes.list_item, liftListItem);
+  mapNodeIfSupported(keymap, 'Mod-]', schema.nodes.list_item, sinkListItem);
+  mapNodeIfSupported(keymap, 'Shift-Ctrl-0', schema.nodes.paragraph, setBlockType);
+  mapNodeIfSupported(keymap, 'Shift-Ctrl-\\', schema.nodes.code_block, setBlockType);
 
   // Special cases
   if (schema.nodes.hard_break) {
@@ -46,20 +45,14 @@ mapNodeIfSupported(keymap, 'Shift-Ctrl-\\', schema.nodes.code_block, setBlockTyp
     const cmd = chainCommands(
       exitCode,
       (state: EditorState, dispatch?: (tr: Transaction) => void) => {
-        if (!dispatch || !hardBreak)
-          return false;
-        dispatch(
-          state.tr
-            .replaceSelectionWith(hardBreak.create())
-            .scrollIntoView()
-        );
+        if (!dispatch || !hardBreak) return false;
+        dispatch(state.tr.replaceSelectionWith(hardBreak.create()).scrollIntoView());
         return true;
       }
     );
     keymap['Mod-Enter'] = cmd;
     keymap['Shift-Enter'] = cmd;
-    if (mac)
-      keymap['Ctrl-Enter'] = cmd;
+    if (mac) keymap['Ctrl-Enter'] = cmd;
   }
 
   if (schema.nodes.heading) {
@@ -70,13 +63,8 @@ mapNodeIfSupported(keymap, 'Shift-Ctrl-\\', schema.nodes.code_block, setBlockTyp
   if (schema.nodes.horizontal_rule) {
     const horizontalRule = schema.nodes.horizontal_rule;
     keymap['Mod-_'] = (state, dispatch) => {
-      if (!dispatch || !horizontalRule)
-        return false;
-      dispatch(
-        state.tr
-          .replaceSelectionWith(horizontalRule.create())
-          .scrollIntoView()
-      );
+      if (!dispatch || !horizontalRule) return false;
+      dispatch(state.tr.replaceSelectionWith(horizontalRule.create()).scrollIntoView());
       return true;
     };
   }
@@ -118,7 +106,7 @@ mapNodeIfSupported(keymap, 'Shift-Ctrl-\\', schema.nodes.code_block, setBlockTyp
         dispatch?: (tr: Transaction) => void,
         view?: EditorView | null
       ) => boolean | void;
-      runFullScreen(state, (dispatch ?? view?.dispatch) ?? undefined, view ?? undefined);
+      runFullScreen(state, dispatch ?? view?.dispatch ?? undefined, view ?? undefined);
     }
     return true;
   };
@@ -132,8 +120,7 @@ function mapNodeIfSupported(
   type: NodeType | null | undefined,
   factory: (type: NodeType) => Command
 ): void {
-  if (type)
-    keymap[key] = factory(type);
+  if (type) keymap[key] = factory(type);
 }
 
 function mapMarkIfSupported(
@@ -142,6 +129,5 @@ function mapMarkIfSupported(
   type: MarkType | null | undefined,
   factory: (type: MarkType) => Command
 ): void {
-  if (type)
-    keymap[key] = factory(type);
+  if (type) keymap[key] = factory(type);
 }

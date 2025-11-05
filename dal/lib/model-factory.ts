@@ -2,7 +2,7 @@ import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
-  ModelInstance
+  ModelInstance,
 } from './model-types.ts';
 
 export interface GetOrCreateModelOptions extends JsonObject {
@@ -12,7 +12,7 @@ export interface GetOrCreateModelOptions extends JsonObject {
 export interface GetOrCreateModelResult<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual>,
 > {
   model: ModelConstructor<TRecord, TVirtual, TInstance>;
   isNew: boolean;
@@ -28,17 +28,18 @@ export interface GetOrCreateModelResult<
 function safeGetModel<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>
->(
-  dal: DataAccessLayer,
-  key: string
-): ModelConstructor<TRecord, TVirtual, TInstance> | null {
+  TInstance extends ModelInstance<TRecord, TVirtual>,
+>(dal: DataAccessLayer, key: string): ModelConstructor<TRecord, TVirtual, TInstance> | null {
   if (!key) {
     return null;
   }
 
   try {
-    const model = dal.getModel<TRecord, TVirtual>(key) as ModelConstructor<TRecord, TVirtual, TInstance> | null;
+    const model = dal.getModel<TRecord, TVirtual>(key) as ModelConstructor<
+      TRecord,
+      TVirtual,
+      TInstance
+    > | null;
     return model ?? null;
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
@@ -62,7 +63,7 @@ function safeGetModel<
 export function getOrCreateModel<
   TRecord extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
 >(
   dal: DataAccessLayer,
   tableName: string,
@@ -89,7 +90,7 @@ export function getOrCreateModel<
 
   const model = dal.createModel<TRecord, TVirtual>(tableName, schema, {
     ...modelOptions,
-    registryKey
+    registryKey,
   }) as ModelConstructor<TRecord, TVirtual, TInstance>;
 
   return { model, isNew: true };

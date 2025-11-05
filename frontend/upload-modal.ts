@@ -48,7 +48,7 @@ export function uploadModal(
   // generic error message.
   //
   // Once the operation succeeds or fails, the respective callbacks are run.
-  $('#upload-modal-start-upload').click(function(event) {
+  $('#upload-modal-start-upload').click(event => {
     event.preventDefault();
     startUpload(successCallback, errorCallback);
   });
@@ -58,7 +58,7 @@ export function uploadModal(
   // in the form on page 1.
   $('#upload-modal-confirm-metadata').attachRequiredFieldHandler({
     formSelector: '#upload-metadata-form',
-    callback: confirmMetadata
+    callback: confirmMetadata,
   });
 
   // Open the modal dialog
@@ -68,15 +68,14 @@ export function uploadModal(
   $modal.lockTab();
 
   // Clean up on each close
-  $('#upload-modal').on($.modal.BEFORE_CLOSE, function() {
+  $('#upload-modal').on($.modal.BEFORE_CLOSE, () => {
     $modal.remove();
   });
 }
 
 /* Window.config is declared in frontend/register.ts to avoid duplicate global merges */
 
-const
-  __ = msg,
+const __ = msg,
   messages = {
     head: __('upload and insert media'),
     select: __('select file'),
@@ -85,31 +84,31 @@ const
       description: __('enter description'),
       creator: __('enter creator name'),
       source: __('enter source'),
-      license: __('select license')
+      license: __('select license'),
     },
     creator: __('creator'),
     ownwork: __('my own work'),
-    other: __('someone else\'s work'),
-    specified: __('someone else\'s work specified'),
+    other: __("someone else's work"),
+    specified: __("someone else's work specified"),
     source: __('source'),
     license: __('license'),
     licenses: {
       'fair-use': __('fair use short'),
       'cc-0': __('cc-0 short'),
       'cc-by': __('cc-by short'),
-      'cc-by-sa': __('cc-by-sa short')
+      'cc-by-sa': __('cc-by-sa short'),
     },
     required: {
       rights: __('please specify rights'),
-      description: __('please enter description')
+      description: __('please enter description'),
     },
     ok: __('ok'),
     cancel: __('cancel'),
-    error: __('could not complete action')
+    error: __('could not complete action'),
   },
-
-  getTemplate = () => $(
-    `<div id="upload-modal" class="hidden-regular">
+  getTemplate = () =>
+    $(
+      `<div id="upload-modal" class="hidden-regular">
 <form class="pure-form" id="upload-modal-form">
 <div id="upload-modal-page-1">
 <div class="upload-modal-buttondiv">
@@ -174,8 +173,7 @@ ${messages.ok}
 </form>
 </div>
 </div>`
-  ),
-
+    ),
   enableSpinner = () => $('#upload-modal-spinner').removeClass('hidden-regular'),
   disableSpinner = () => $('#upload-modal-spinner').addClass('hidden-regular'),
   enableUpload = () => $('#upload-modal-start-upload').prop('disabled', false),
@@ -207,8 +205,11 @@ function cancelPage2(): void {
   $('#upload-modal-page-1').show(200);
 
   // Reset radio selection in case we don't have all the required data
-  if (!$('#upload-modal-license').val() || !$('#upload-modal-creator').val() ||
-    !$('#upload-modal-source').val())
+  if (
+    !$('#upload-modal-license').val() ||
+    !$('#upload-modal-creator').val() ||
+    !$('#upload-modal-source').val()
+  )
     $('#upload-modal-other').prop('checked', false);
 }
 
@@ -217,14 +218,13 @@ function startUpload(
   errorCallback?: (errors: unknown[]) => void
 ): void {
   const hasDescription = Boolean($('#upload-modal-description').val());
-  const hasRights = $('#upload-modal-ownwork').prop('checked') ||
-    $('#upload-modal-other').prop('checked');
+  const hasRights =
+    $('#upload-modal-ownwork').prop('checked') || $('#upload-modal-other').prop('checked');
 
   $('#upload-modal-need-description').toggle(!hasDescription);
   $('#upload-modal-need-rights').toggle(!hasRights);
 
-  if (!hasDescription || !hasRights)
-    return;
+  if (!hasDescription || !hasRights) return;
 
   const form = $('#upload-modal-form')[0] as HTMLFormElement;
   const data = new FormData(form);
@@ -232,18 +232,17 @@ function startUpload(
   disableUpload();
   $('#upload-errors').empty();
   $.ajax({
-      url: '/api/actions/upload',
-      data,
-      cache: false,
-      contentType: false,
-      processData: false,
-      type: 'POST',
-    })
+    url: '/api/actions/upload',
+    data,
+    cache: false,
+    contentType: false,
+    processData: false,
+    type: 'POST',
+  })
     .done((res: any) => {
       disableSpinner();
       $.modal.close();
-      if (successCallback)
-        successCallback(res.uploads);
+      if (successCallback) successCallback(res.uploads);
     })
     .fail((res: any) => {
       const errorArray: unknown[] = [];
@@ -260,16 +259,13 @@ function startUpload(
             showGenericError = false;
           }
         }
-        if (allErrors)
-          $('#upload-errors').html(allErrors);
+        if (allErrors) $('#upload-errors').html(allErrors);
       } else {
         errorArray.push('Unknown error');
       }
-      if (showGenericError)
-        $('#upload-errors').html(messages.error);
+      if (showGenericError) $('#upload-errors').html(messages.error);
 
-      if (errorCallback)
-        errorCallback(errorArray);
+      if (errorCallback) errorCallback(errorArray);
     });
 }
 

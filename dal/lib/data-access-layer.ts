@@ -1,19 +1,18 @@
+import type { PostgresConfig } from 'config';
 import { promises as fs } from 'fs';
 import path from 'path';
-
-import { Pool } from 'pg';
 import type { PoolClient, PoolConfig, QueryResult } from 'pg';
-import type { PostgresConfig } from 'config';
+import { Pool } from 'pg';
 
 import debug from '../../util/debug.ts';
+import type { ModelSchema } from './model.ts';
 import Model from './model.ts';
 import ModelRegistry from './model-registry.ts';
 import type {
   DataAccessLayer as DataAccessLayerContract,
   JsonObject,
-  ModelConstructor
+  ModelConstructor,
 } from './model-types.ts';
-import type { ModelSchema } from './model.ts';
 
 type PoolLike = Pool | PoolClient;
 
@@ -46,12 +45,12 @@ class DataAccessLayer implements DataAccessLayerContract {
       password: '',
       max: 20,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000
+      connectionTimeoutMillis: 2000,
     };
 
     this.config = {
       ...defaultConfig,
-      ...config
+      ...config,
     } as DataAccessLayerConfig;
 
     this.pool = null;
@@ -194,10 +193,7 @@ class DataAccessLayer implements DataAccessLayerContract {
    * @param options - Model options
    * @returns Model constructor
    */
-  createModel<
-    TRecord extends JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
+  createModel<TRecord extends JsonObject, TVirtual extends JsonObject = JsonObject>(
     name: string,
     schema: ModelSchema<TRecord, TVirtual>,
     options: JsonObject = {}
@@ -205,21 +201,15 @@ class DataAccessLayer implements DataAccessLayerContract {
     const { registryKey, ...modelOptions } = options || {};
     const canonicalKey = typeof registryKey === 'string' ? registryKey : name;
 
-    const existing = this.modelRegistry.get<TRecord, TVirtual>(name)
-      || (canonicalKey !== name
-        ? this.modelRegistry.get<TRecord, TVirtual>(canonicalKey)
-        : null);
+    const existing =
+      this.modelRegistry.get<TRecord, TVirtual>(name) ||
+      (canonicalKey !== name ? this.modelRegistry.get<TRecord, TVirtual>(canonicalKey) : null);
 
     if (existing) {
       throw new Error(`Model '${canonicalKey}' already exists`);
     }
 
-    const ModelClass = Model.createModel<TRecord, TVirtual>(
-      name,
-      schema,
-      modelOptions,
-      this
-    );
+    const ModelClass = Model.createModel<TRecord, TVirtual>(name, schema, modelOptions, this);
     this.modelRegistry.register(name, ModelClass, { key: canonicalKey });
 
     debug.db(`Model '${name}' created`);
@@ -231,10 +221,9 @@ class DataAccessLayer implements DataAccessLayerContract {
    * @param name - Model name
    * @returns Model constructor
    */
-  getModel<
-    TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(name: string): ModelConstructor<TRecord, TVirtual> {
+  getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    name: string
+  ): ModelConstructor<TRecord, TVirtual> {
     const model = this.modelRegistry.get<TRecord, TVirtual>(name);
     if (!model) {
       throw new Error(`Model '${name}' not found`);
@@ -275,9 +264,7 @@ class DataAccessLayer implements DataAccessLayerContract {
 
       // Get list of migration files
       const migrationFiles = await fs.readdir(migrationsPath);
-      const sqlFiles = migrationFiles
-        .filter(file => file.endsWith('.sql'))
-        .sort();
+      const sqlFiles = migrationFiles.filter(file => file.endsWith('.sql')).sort();
 
       // Get already executed migrations
       const executedResult = await this.query<MigrationRow>('SELECT filename FROM migrations');
@@ -291,15 +278,12 @@ class DataAccessLayer implements DataAccessLayerContract {
           const migrationPath = path.join(migrationsPath, filename);
           const migrationSQL = await fs.readFile(migrationPath, 'utf8');
 
-          await this.transaction(async (client) => {
+          await this.transaction(async client => {
             // Execute the migration
             await client.query(migrationSQL);
 
             // Record the migration as executed
-            await client.query(
-              'INSERT INTO migrations (filename) VALUES ($1)',
-              [filename]
-            );
+            await client.query('INSERT INTO migrations (filename) VALUES ($1)', [filename]);
           });
 
           debug.db(`Migration completed: ${filename}`);
@@ -342,7 +326,7 @@ class DataAccessLayer implements DataAccessLayerContract {
     return {
       totalCount: this.pool.totalCount,
       idleCount: this.pool.idleCount,
-      waitingCount: this.pool.waitingCount
+      waitingCount: this.pool.waitingCount,
     };
   }
 }

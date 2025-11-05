@@ -1,7 +1,6 @@
 import type { Express, NextFunction, Request, Response } from 'express';
-
-import render from './helpers/render.ts';
 import debug from '../util/debug.ts';
+import render from './helpers/render.ts';
 
 type ErrorWithStatus = Error & { status?: number; type?: string };
 
@@ -17,11 +16,10 @@ class ErrorProvider {
   }
 
   maintenanceMode(req: Request, res: Response) {
-    if (req.path !== '/')
-      return res.redirect('/');
+    if (req.path !== '/') return res.redirect('/');
 
     render.template(req, res, 'maintenance', {
-      titleKey: 'maintenance mode'
+      titleKey: 'maintenance mode',
     });
   }
 
@@ -32,7 +30,7 @@ class ErrorProvider {
 
     res.status(404);
     render.template(req, res, '404', {
-      titleKey: 'page not found title'
+      titleKey: 'page not found title',
     });
   }
 
@@ -45,7 +43,8 @@ class ErrorProvider {
     if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError')
       return this.notFound(req, res);
 
-    const showDetails = this.app.get('env') === 'development' || Boolean(req.user?.showErrorDetails);
+    const showDetails =
+      this.app.get('env') === 'development' || Boolean(req.user?.showErrorDetails);
 
     res.status(error.status || 500);
 
@@ -56,13 +55,15 @@ class ErrorProvider {
         case 'invalid json':
           response = {
             message: 'Could not process your request.',
-            errors: ['Received invalid JSON data. Make sure your payload is in JSON format.']
+            errors: ['Received invalid JSON data. Make sure your payload is in JSON format.'],
           };
           break;
         default:
           response = {
             message: 'An error occurred processing your request.',
-            errors: showDetails ? [error.message, `Stack: ${error.stack}`] : ['Unknown error. This has been logged.']
+            errors: showDetails
+              ? [error.message, `Stack: ${error.stack}`]
+              : ['Unknown error. This has been logged.'],
           };
           debug.error({ req, error });
       }
@@ -73,7 +74,7 @@ class ErrorProvider {
       render.template(req, res, 'error', {
         titleKey: 'something went wrong',
         showDetails,
-        error
+        error,
       });
     }
   }

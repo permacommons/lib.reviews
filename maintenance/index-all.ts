@@ -1,11 +1,11 @@
 // Set up indices and update all reviews and review subjects (things)
 
+import promiseLimit from 'promise-limit';
 import { initializeDAL } from '../bootstrap/dal.ts';
+import Review from '../models/review.js';
+import Thing from '../models/thing.js';
 import search from '../search.ts';
 import debug from '../util/debug.ts';
-import promiseLimit from 'promise-limit';
-import Thing from '../models/thing.js';
-import Review from '../models/review.js';
 
 type IndexableThing = Parameters<typeof search.indexThing>[0];
 type IndexableReview = Parameters<typeof search.indexReview>[0];
@@ -25,7 +25,7 @@ async function updateIndices(): Promise<void> {
   const createIndicesPromise = search.createIndices();
   const [things, reviews] = await Promise.all([
     Thing.filterNotStaleOrDeleted().run() as Promise<IndexableThing[]>,
-    Review.filterNotStaleOrDeleted().run() as Promise<IndexableReview[]>
+    Review.filterNotStaleOrDeleted().run() as Promise<IndexableReview[]>,
   ]);
   await createIndicesPromise;
 
@@ -33,7 +33,7 @@ async function updateIndices(): Promise<void> {
 
   const indexUpdates: Array<Promise<unknown>> = [
     ...things.map(thing => limit(() => search.indexThing(thing))),
-    ...reviews.map(review => limit(() => search.indexReview(review)))
+    ...reviews.map(review => limit(() => search.indexReview(review))),
   ];
 
   await Promise.all(indexUpdates);

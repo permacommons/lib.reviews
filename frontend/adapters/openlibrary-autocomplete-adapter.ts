@@ -1,8 +1,9 @@
 /* global $, AC */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
-import { msg, repaintFocusedHelp } from '../libreviews.js';
+
 import type { LookupResult, UpdateCallback } from '../../types/frontend/adapters.js';
 import type Autocomplete from '../lib/ac.js';
+import { msg, repaintFocusedHelp } from '../libreviews.js';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
 
 interface OpenLibraryEdition {
   title?: string;
@@ -50,7 +51,8 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
     // Standard adapter settings
     this.sourceID = 'openlibrary';
-    this.supportedPattern = new RegExp('^https*://openlibrary.org/(works|books)/(OL[^/.]+)(?:/(?:.*))*$', 'i');
+    this.supportedPattern =
+      /^https*:\/\/openlibrary.org\/(works|books)\/(OL[^\/.]+)(?:\/(?:.*))*$/i;
 
     /**
      * How many results to get per query. This is pretty low since a result
@@ -70,7 +72,9 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
     return new Promise((resolve, reject) => {
       const m = url.match(this.supportedPattern!);
       if (m === null)
-        return reject(new Error('URL does not appear to reference an Open Library work or edition.'));
+        return reject(
+          new Error('URL does not appear to reference an Open Library work or edition.')
+        );
 
       // Open Library distinguishes works and editions. Editions contain
       // significantly more metadata and are generally preferred. We cannot
@@ -80,23 +84,26 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
       // The string at the end of the original URL must be stripped off for
       // obtaining the JSON representation.
-      const jsonURL = isEdition ? `https://openlibrary.org/books/${m[2]}.json` :
-        `https://openlibrary.org/works/${m[2]}.json`;
+      const jsonURL = isEdition
+        ? `https://openlibrary.org/books/${m[2]}.json`
+        : `https://openlibrary.org/works/${m[2]}.json`;
 
       $.get(jsonURL)
         .done((data: OpenLibraryEdition) => {
           // We need at least a label to work with
           if (typeof data !== 'object' || !data.title)
-            return reject(new Error('Result from Open Library did not include a work or edition title.'));
+            return reject(
+              new Error('Result from Open Library did not include a work or edition title.')
+            );
 
           const label = data.title;
           const subtitle = data.subtitle;
           resolve({
             data: {
               label,
-              subtitle
+              subtitle,
             },
-            sourceID: this.sourceID!
+            sourceID: this.sourceID!,
           });
         })
         .fail(reject);
@@ -112,7 +119,7 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
    */
   mergeResults(results: OpenLibrarySearchResult[]): OpenLibrarySearchResult {
     const data: OpenLibrarySearchResult = {
-      docs: []
+      docs: [],
     };
     const knownKeys: string[] = [];
 
@@ -139,16 +146,17 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
   sortMatches(docs: OpenLibrarySearchDoc[], query: string): void {
     const hasExact = (str: string) => str.toUpperCase().indexOf(query.toUpperCase()) != -1;
     docs.sort((a, b) => {
-      if (typeof a != 'object' || typeof b != 'object' ||
-        a.title === undefined || b.title === undefined)
+      if (
+        typeof a != 'object' ||
+        typeof b != 'object' ||
+        a.title === undefined ||
+        b.title === undefined
+      )
         return 0;
 
-      if (hasExact(a.title) && !hasExact(b.title))
-        return -1;
-      else if (!hasExact(a.title) && hasExact(b.title))
-        return 1;
-      else
-        return 0;
+      if (hasExact(a.title) && !hasExact(b.title)) return -1;
+      else if (!hasExact(a.title) && hasExact(b.title)) return 1;
+      else return 0;
     });
   }
 
@@ -161,14 +169,23 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
    *  {@link OpenLibraryAutocompleteAdapter#_requestHandler}
    * @returns the element to insert into the DOM for this row
    */
-  protected _renderRowHandler(this: Autocomplete<AutocompleteRow>, row: AutocompleteRow): HTMLElement {
+  protected _renderRowHandler(
+    this: Autocomplete<AutocompleteRow>,
+    row: AutocompleteRow
+  ): HTMLElement {
     // Row-level CSS gets added by library
     const $el = $('<div>');
     const AC = (window as any).AC;
     $('<span>')
       .addClass(this.getCSS('PRIMARY_SPAN'))
-      .append($(AC.createMatchTextEls(this.value,
-        row[this.primaryTextKey as keyof AutocompleteRow] as string)))
+      .append(
+        $(
+          AC.createMatchTextEls(
+            this.value,
+            row[this.primaryTextKey as keyof AutocompleteRow] as string
+          )
+        )
+      )
       .appendTo($el);
 
     let description = '';
@@ -181,8 +198,7 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
     const edNum = row.publishers ? row.publishers.length : 0;
 
     if (edNum) {
-      if (hasAuthor)
-        description += '<br>';
+      if (hasAuthor) description += '<br>';
 
       let yearStr: string;
       if (row.years && row.years.length) {
@@ -191,24 +207,19 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
         // Different languages may express ranges differently, use different
         // whitespace, etc., so the message is substituted into the main
         // message.
-        yearStr = minYear == maxYear ?
-          msg('single year', { stringParam: minYear }) :
-          msg('year range', { numberParams: [minYear, maxYear] });
-      } else
-        yearStr = msg('single year', { stringParam: msg('unknown year') });
+        yearStr =
+          minYear == maxYear
+            ? msg('single year', { stringParam: minYear })
+            : msg('year range', { numberParams: [minYear, maxYear] });
+      } else yearStr = msg('single year', { stringParam: msg('unknown year') });
 
-      if (edNum == 1)
-        description += msg('one edition', { stringParam: yearStr });
-      else
-        // Pass along number of editions
-        description += msg('multiple editions', { numberParam: edNum, stringParam: yearStr });
+      if (edNum == 1) description += msg('one edition', { stringParam: yearStr });
+      // Pass along number of editions
+      else description += msg('multiple editions', { numberParam: edNum, stringParam: yearStr });
     }
 
     if (description) {
-      $('<span>')
-        .addClass(this.getCSS('SECONDARY_SPAN'))
-        .html(description)
-        .appendTo($el);
+      $('<span>').addClass(this.getCSS('SECONDARY_SPAN')).html(description).appendTo($el);
     }
     return $el[0];
   }
@@ -268,11 +279,16 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
     }
 
     if (titleComponent)
-      titleQuery = titleComponent.split(' ').map(word => `title:${word}`).join(' AND ');
+      titleQuery = titleComponent
+        .split(' ')
+        .map(word => `title:${word}`)
+        .join(' AND ');
     if (authorComponent) {
-      authorQuery = authorComponent.split(' ').map(word => `author:${word}`).join(' AND ');
-      if (titleQuery)
-        authorQuery = ' ' + authorQuery;
+      authorQuery = authorComponent
+        .split(' ')
+        .map(word => `author:${word}`)
+        .join(' AND ');
+      if (titleQuery) authorQuery = ' ' + authorQuery;
 
       // All author searches get wildcarded. Since the author field does not
       // appear to be stemmed, this matches both partial and complete names.
@@ -282,7 +298,7 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
     const queryObj = {
       q,
       limit: (this.adapter as OpenLibraryAutocompleteAdapter).limit,
-      mode: 'everything'
+      mode: 'everything',
     };
 
     let queryObj2: typeof queryObj | undefined;
@@ -291,8 +307,7 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
     // other query, as well.
     if (titleComponent.length >= 3 || authorComponent.length >= 3) {
       let q2 = titleQuery;
-      if (titleComponent.length >= 3)
-        q2 += '*';
+      if (titleComponent.length >= 3) q2 += '*';
 
       q2 += authorQuery;
 
@@ -300,25 +315,23 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
       queryObj2.q = q2;
     }
 
-    const getQuery = (qObj: { q: string; limit: number; mode: string }) => new Promise<OpenLibrarySearchResult>((resolve, reject) => {
-      $.ajax({
+    const getQuery = (qObj: { q: string; limit: number; mode: string }) =>
+      new Promise<OpenLibrarySearchResult>((resolve, reject) => {
+        $.ajax({
           url: 'https://openlibrary.org/search.json',
           dataType: 'json',
-          data: qObj
+          data: qObj,
         })
-        .done(resolve)
-        .fail(reject);
-    });
+          .done(resolve)
+          .fail(reject);
+      });
 
     const queries: Promise<OpenLibrarySearchResult>[] = [getQuery(queryObj)];
 
-    if (queryObj2)
-      queries.push(getQuery(queryObj2));
+    if (queryObj2) queries.push(getQuery(queryObj2));
 
-    Promise
-      .all(queries)
+    Promise.all(queries)
       .then(results => {
-
         // Eliminate duplicate keys and merge results into a single array
         const data = (this.adapter as OpenLibraryAutocompleteAdapter).mergeResults(results);
 
@@ -326,20 +339,18 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
         (this.adapter as OpenLibraryAutocompleteAdapter).sortMatches(data.docs!, query);
 
         // Don't update if a more recent query has superseded this one
-        if (time < (this as any).latestQuery)
-          return;
+        if (time < (this as any).latestQuery) return;
 
         this.results = [];
 
         if (typeof data === 'object' && data.docs && data.docs.length) {
-          this.results = data.docs.map(item =>
-            ({
-              url: `https://openlibrary.org${item.key}`,
-              label: item.title!,
-              authors: item.author_name,
-              publishers: item.publisher || [],
-              years: item.publish_year || []
-            }));
+          this.results = data.docs.map(item => ({
+            url: `https://openlibrary.org${item.key}`,
+            label: item.title!,
+            authors: item.author_name,
+            publishers: item.publisher || [],
+            years: item.publish_year || [],
+          }));
           this.render();
         } else {
           this.render();

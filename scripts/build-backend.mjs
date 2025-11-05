@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Backend/CLI production build using esbuild.
  * - Bundles server entry and CLI tools into ESM output under build/server/
@@ -8,11 +9,11 @@
  * Usage: npm run build:backend
  */
 
-import { build } from 'esbuild';
-import fg from 'fast-glob';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
+import fg from 'fast-glob';
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptsDir, '..');
@@ -27,14 +28,14 @@ const entryPatterns = [
   'bin/**/*.ts',
   'maintenance/**/*.ts',
   'tools/**/*.ts',
-  'adapters/sync/**/*.ts'
+  'adapters/sync/**/*.ts',
 ];
 const ignore = ['**/*.d.ts'];
 
 const entryPoints = await fg(entryPatterns, {
   cwd: projectRoot,
   ignore,
-  onlyFiles: true
+  onlyFiles: true,
 });
 
 if (entryPoints.length === 0) {
@@ -64,11 +65,11 @@ try {
     define: {
       'process.env.NODE_ENV': '"production"',
       'process.env.LIBREVIEWS_VITE_DEV_SERVER': '"off"',
-      'process.env.VITE_USE_POLLING': '"0"'
+      'process.env.VITE_USE_POLLING': '"0"',
     },
     // Treat all node builtins and npm packages as external; app code is bundled.
     external: ['node:*', ...externalPkgs, ...devExternalPkgs, 'vite', 'lightningcss'],
-    logLevel: 'info'
+    logLevel: 'info',
   });
 
   console.log('[build-backend] Build completed. Output in build/server/');

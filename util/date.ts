@@ -15,8 +15,7 @@ export type DateInput = Date | string | number | null | undefined;
  */
 function coerceDate(input: DateInput): Date | null {
   if (input instanceof Date) {
-    if (Number.isNaN(input.getTime()))
-      return null;
+    if (Number.isNaN(input.getTime())) return null;
     return input;
   }
 
@@ -34,9 +33,12 @@ function coerceDate(input: DateInput): Date | null {
 }
 
 /** Calls a `Date` formatter with optional locale handling. */
-function formatWithLocale(date: Date, locale: string | undefined, formatter: (this: Date, ...args: unknown[]) => string): string | undefined {
-  if (!date)
-    return undefined;
+function formatWithLocale(
+  date: Date,
+  locale: string | undefined,
+  formatter: (this: Date, ...args: unknown[]) => string
+): string | undefined {
+  if (!date) return undefined;
 
   try {
     return locale ? formatter.call(date, locale) : formatter.call(date);
@@ -54,8 +56,7 @@ function formatWithLocale(date: Date, locale: string | undefined, formatter: (th
  */
 function formatShortDate(value: DateInput, locale?: string): string | undefined {
   const date = coerceDate(value);
-  if (!date)
-    return undefined;
+  if (!date) return undefined;
   return formatWithLocale(date, locale, Date.prototype.toLocaleDateString);
 }
 
@@ -68,8 +69,7 @@ function formatShortDate(value: DateInput, locale?: string): string | undefined 
  */
 function formatLongDate(value: DateInput, locale?: string): string | undefined {
   const date = coerceDate(value);
-  if (!date)
-    return undefined;
+  if (!date) return undefined;
   return formatWithLocale(date, locale, Date.prototype.toLocaleString);
 }
 
@@ -94,10 +94,4 @@ function isValidDateValue(value: DateInput): boolean {
   return coerceDate(value) !== null;
 }
 
-export {
-  coerceDate,
-  formatISODate,
-  formatLongDate,
-  formatShortDate,
-  isValidDateValue
-};
+export { coerceDate, formatISODate, formatLongDate, formatShortDate, isValidDateValue };

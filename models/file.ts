@@ -1,14 +1,13 @@
 import dal from '../dal/index.ts';
-import debug from '../util/debug.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
+import debug from '../util/debug.ts';
 
 type PostgresModule = typeof import('../db-postgres.ts');
 
 let postgresModulePromise: Promise<PostgresModule> | null = null;
 async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.ts');
+  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
   return postgresModulePromise;
 }
 
@@ -28,7 +27,7 @@ let File = null;
  * @param dal - Optional DAL instance for testing
  */
 async function initializeFileModel(dal = null) {
-  const activeDAL = dal || await getPostgresDAL();
+  const activeDAL = dal || (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping File model initialization');
@@ -57,7 +56,7 @@ async function initializeFileModel(dal = null) {
 
       // Virtual permission fields
       userCanDelete: types.virtual().default(false),
-      userIsCreator: types.virtual().default(false)
+      userIsCreator: types.virtual().default(false),
     };
 
     const { model, isNew } = initializeModel({
@@ -67,24 +66,24 @@ async function initializeFileModel(dal = null) {
       camelToSnake: {
         uploadedBy: 'uploaded_by',
         uploadedOn: 'uploaded_on',
-        mimeType: 'mime_type'
+        mimeType: 'mime_type',
       },
       withRevision: {
         static: [
           'createFirstRevision',
           'getNotStaleOrDeleted',
           'filterNotStaleOrDeleted',
-          'getMultipleNotStaleOrDeleted'
+          'getMultipleNotStaleOrDeleted',
         ],
-        instance: ['deleteAllRevisions']
+        instance: ['deleteAllRevisions'],
       },
       staticMethods: {
         getStashedUpload,
         getValidLicenses,
-        getFileFeed
+        getFileFeed,
       },
       instanceMethods: {
-        populateUserInfo
+        populateUserInfo,
       },
       relations: [
         {
@@ -93,7 +92,7 @@ async function initializeFileModel(dal = null) {
           sourceKey: 'uploaded_by',
           targetKey: 'id',
           hasRevisions: false,
-          cardinality: 'one'
+          cardinality: 'one',
         },
         {
           name: 'things',
@@ -104,11 +103,11 @@ async function initializeFileModel(dal = null) {
           through: {
             table: 'thing_files',
             sourceForeignKey: 'file_id',
-            targetForeignKey: 'thing_id'
+            targetForeignKey: 'thing_id',
           },
-          cardinality: 'many'
-        }
-      ]
+          cardinality: 'many',
+        },
+      ],
     });
     File = model;
 
@@ -177,7 +176,10 @@ interface FileFeedResult<TItem> {
   offsetDate?: Date;
 }
 
-async function getFileFeed({ offsetDate, limit = 10 }: FileFeedOptions = {}): Promise<FileFeedResult<unknown>> {
+async function getFileFeed({
+  offsetDate,
+  limit = 10,
+}: FileFeedOptions = {}): Promise<FileFeedResult<unknown>> {
   let query = File.filter({ completed: true })
     .filterNotStaleOrDeleted()
     .getJoin({ uploader: true })
@@ -192,7 +194,7 @@ async function getFileFeed({ offsetDate, limit = 10 }: FileFeedOptions = {}): Pr
   const slicedItems = items.slice(0, limit);
 
   const feed: FileFeedResult<unknown> = {
-    items: slicedItems
+    items: slicedItems,
   };
 
   // At least one additional document available, set offset for pagination
@@ -226,7 +228,7 @@ function populateUserInfo(user) {
 /**
  * Get the PostgreSQL File model (initialize if needed)
  * @param dal - Optional DAL instance for testing
-*/
+ */
 async function getPostgresFileModel(dal = null) {
   if (!File || dal) {
     File = await initializeFileModel(dal);
@@ -237,8 +239,4 @@ async function getPostgresFileModel(dal = null) {
 const FileHandle = createAutoModelHandle('files', initializeFileModel);
 
 export default FileHandle;
-export {
-  initializeFileModel as initializeModel,
-  initializeFileModel,
-  getPostgresFileModel
-};
+export { initializeFileModel as initializeModel, initializeFileModel, getPostgresFileModel };

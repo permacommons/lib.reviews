@@ -1,6 +1,6 @@
+import type { ExecutionContext } from 'ava';
 import type { Express } from 'express';
 import type { SuperAgentTest } from 'supertest';
-import type { ExecutionContext } from 'ava';
 
 /**
  * Agent union compatible with current @types/supertest output from supertest.agent(app),
@@ -23,7 +23,6 @@ export interface IntegrationTestContext {
  */
 export const requireIntegrationContext = (t: ExecutionContext<IntegrationTestContext>) => {
   const { app, agent } = t.context;
-  if (!app || !agent)
-    throw new Error('Integration context not initialized');
+  if (!app || !agent) throw new Error('Integration context not initialized');
   return { app, agent };
 };

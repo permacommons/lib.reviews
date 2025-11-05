@@ -48,7 +48,9 @@ export default abstract class AbstractBackendAdapter {
 
   constructor() {
     if (new.target === AbstractBackendAdapter)
-      throw new TypeError('AbstractBackendAdapter is an abstract class, please instantiate a derived class.');
+      throw new TypeError(
+        'AbstractBackendAdapter is an abstract class, please instantiate a derived class.'
+      );
   }
 
   /**

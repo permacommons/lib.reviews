@@ -29,7 +29,9 @@ export default abstract class AbstractLookupAdapter {
   constructor(updateCallback?: UpdateCallback | Function | null) {
     // Replace w/ new.target after upgrading to Babel 7.0
     if (this.constructor.name === AbstractLookupAdapter.name)
-      throw new TypeError('AbstractAdapter is an abstract class, please instantiate a derived class.');
+      throw new TypeError(
+        'AbstractAdapter is an abstract class, please instantiate a derived class.'
+      );
 
     this.updateCallback = updateCallback || null;
   }

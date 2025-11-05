@@ -38,7 +38,7 @@ export const registerTestUser = async (
     username,
     password = 'testing123',
     expectedLocation = '/',
-    followRedirect = true
+    followRedirect = true,
   } = options;
   if (!username) throw new Error('Username is required to register a test user.');
 
@@ -52,7 +52,7 @@ export const registerTestUser = async (
     .send({
       _csrf: csrf,
       username,
-      password
+      password,
     })
     .expect(302);
 

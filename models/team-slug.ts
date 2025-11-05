@@ -9,7 +9,8 @@ import debug from '../util/debug.ts';
 type TeamSlugRecord = JsonObject;
 type TeamSlugVirtual = JsonObject;
 type TeamSlugInstance = ModelInstance<TeamSlugRecord, TeamSlugVirtual> & Record<string, any>;
-type TeamSlugModel = ModelConstructor<TeamSlugRecord, TeamSlugVirtual, TeamSlugInstance> & Record<string, any>;
+type TeamSlugModel = ModelConstructor<TeamSlugRecord, TeamSlugVirtual, TeamSlugInstance> &
+  Record<string, any>;
 
 const { types } = dal as unknown as { types: Record<string, any> };
 let TeamSlug: TeamSlugModel | null = null;
@@ -20,8 +21,10 @@ let TeamSlug: TeamSlugModel | null = null;
  * @param dalInstance - Optional DAL instance for testing
  * @returns The initialized model or null if the DAL is unavailable
  */
-export async function initializeTeamSlugModel(dalInstance: Record<string, any> | null = null): Promise<TeamSlugModel | null> {
-  const activeDAL = dalInstance ?? await getPostgresDAL();
+export async function initializeTeamSlugModel(
+  dalInstance: Record<string, any> | null = null
+): Promise<TeamSlugModel | null> {
+  const activeDAL = dalInstance ?? (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping TeamSlug model initialization');
@@ -35,7 +38,7 @@ export async function initializeTeamSlugModel(dalInstance: Record<string, any> |
       slug: types.string().max(255).required(true),
       createdOn: types.date().default(() => new Date()),
       createdBy: types.string().uuid(4),
-      name: types.string().max(255)
+      name: types.string().max(255),
     } as JsonObject;
 
     const { model, isNew } = initializeModel<TeamSlugRecord, TeamSlugVirtual, TeamSlugInstance>({
@@ -45,20 +48,19 @@ export async function initializeTeamSlugModel(dalInstance: Record<string, any> |
       camelToSnake: {
         teamID: 'team_id',
         createdOn: 'created_on',
-        createdBy: 'created_by'
+        createdBy: 'created_by',
       },
       staticMethods: {
-        getByName
+        getByName,
       },
       instanceMethods: {
-        qualifiedSave
-      }
+        qualifiedSave,
+      },
     });
 
     TeamSlug = model as TeamSlugModel;
 
-    if (!isNew)
-      return TeamSlug;
+    if (!isNew) return TeamSlug;
 
     debug.db('PostgreSQL TeamSlug model initialized');
     return TeamSlug;
@@ -82,7 +84,7 @@ const TeamSlugHandle = createAutoModelHandle<TeamSlugRecord, TeamSlugVirtual, Te
  */
 async function getByName(this: TeamSlugModel, name: string): Promise<TeamSlugInstance | null> {
   try {
-    return await this.filter({ name }).first() as TeamSlugInstance | null;
+    return (await this.filter({ name }).first()) as TeamSlugInstance | null;
   } catch (error) {
     debug.error(`Error getting team slug by name '${name}'`);
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
@@ -98,8 +100,7 @@ async function getByName(this: TeamSlugModel, name: string): Promise<TeamSlugIns
  * @throws DuplicateSlugNameError when the slug name already exists
  */
 async function qualifiedSave(this: TeamSlugInstance): Promise<TeamSlugInstance> {
-  if (!this.createdOn)
-    this.createdOn = new Date();
+  if (!this.createdOn) this.createdOn = new Date();
 
   try {
     return await this.save();

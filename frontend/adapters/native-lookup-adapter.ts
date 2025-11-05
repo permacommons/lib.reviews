@@ -1,7 +1,8 @@
 /* global $ */
-import AbstractLookupAdapter from './abstract-lookup-adapter.js';
-import { resolveString, validateURL } from '../libreviews.js';
+
 import type { LookupResult, Thing } from '../../types/frontend/adapters.js';
+import { resolveString, validateURL } from '../libreviews.js';
+import AbstractLookupAdapter from './abstract-lookup-adapter.js';
 
 class NativeLookupAdapter extends AbstractLookupAdapter {
   ask(url: string): boolean {
@@ -21,9 +22,9 @@ class NativeLookupAdapter extends AbstractLookupAdapter {
             data: {
               label,
               description,
-              thing
+              thing,
             },
-            sourceID: 'native'
+            sourceID: 'native',
           });
         })
         .catch(reject);

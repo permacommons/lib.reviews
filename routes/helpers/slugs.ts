@@ -27,15 +27,17 @@ interface ModelConfig {
   slugLabel: string;
   getDocumentModel?: () => DocumentModel | Promise<DocumentModel>;
   DocumentModel?: DocumentModel;
-  loadSlug?: (slugName: string, model: DocumentModel) => Promise<{ name: string; [key: string]: unknown } | null>;
+  loadSlug?: (
+    slugName: string,
+    model: DocumentModel
+  ) => Promise<{ name: string; [key: string]: unknown } | null>;
   slugModel?: SlugModel;
   SlugModel?: SlugModel;
 }
 
 let teamSlugModulePromise: Promise<typeof import('../../models/team-slug.ts')> | null = null;
 async function getTeamSlugModel() {
-  if (!teamSlugModulePromise)
-    teamSlugModulePromise = import('../../models/team-slug.ts');
+  if (!teamSlugModulePromise) teamSlugModulePromise = import('../../models/team-slug.ts');
   const module = await teamSlugModulePromise;
   return module.default;
 }
@@ -57,14 +59,13 @@ const resolveAndLoadTeam = (req: Request, res: Response, id: string, loadOptions
   resolveAndLoad(req, res, id, loadOptions, {
     basePath: '/team/',
     slugForeignKey: 'teamID',
-    getDocumentModel: async() => Team as unknown as DocumentModel,
+    getDocumentModel: async () => Team as unknown as DocumentModel,
     loadSlug: async slugName => {
       const TeamSlugModel = await getTeamSlugModel();
-      if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function')
-        return null;
+      if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function') return null;
       return await TeamSlugModel.getByName(slugName);
     },
-    slugLabel: 'team'
+    slugLabel: 'team',
   });
 
 /**
@@ -83,14 +84,13 @@ const resolveAndLoadThing = (req: Request, res: Response, id: string, loadOption
   resolveAndLoad(req, res, id, loadOptions, {
     basePath: '/',
     slugForeignKey: 'thingID',
-    getDocumentModel: async() => Thing as unknown as DocumentModel,
+    getDocumentModel: async () => Thing as unknown as DocumentModel,
     loadSlug: async slugName => {
       const ThingSlugModel = ThingSlug;
-      if (!ThingSlugModel || typeof ThingSlugModel.getByName !== 'function')
-        return null;
+      if (!ThingSlugModel || typeof ThingSlugModel.getByName !== 'function') return null;
       return await ThingSlugModel.getByName(slugName);
     },
-    slugLabel: 'thing'
+    slugLabel: 'thing',
   });
 
 /**
@@ -108,7 +108,7 @@ const resolveAndLoadThing = (req: Request, res: Response, id: string, loadOption
  * @param modelConfig
  *  Configuration describing how to resolve the slug and load the document
  */
-const resolveAndLoad = async(
+const resolveAndLoad = async (
   req: Request,
   res: Response,
   id: string,
@@ -123,8 +123,7 @@ const resolveAndLoad = async(
     throw new Error('Document model not available for slug resolution');
 
   const loadDocument = async (documentId: string | null | undefined) => {
-    if (!documentId)
-      throw new DocumentNotFound('Slug record does not reference a document');
+    if (!documentId) throw new DocumentNotFound('Slug record does not reference a document');
     return DocumentModel.getWithData(documentId, loadOptions);
   };
 
@@ -162,8 +161,7 @@ const resolveAndLoad = async(
 
   const document = await loadDocument(slug[modelConfig.slugForeignKey] as string | undefined);
 
-  if (document.canonicalSlugName === slug.name)
-    return document;
+  if (document.canonicalSlugName === slug.name) return document;
 
   redirectToCanonical(req, res, id, modelConfig.basePath, document.canonicalSlugName);
   throw createRedirectedError();
@@ -185,15 +183,14 @@ const redirectToCanonical = (
 
   const regex = new RegExp(`^${basePath}(.*?)([?/].*)*$`);
   const match = req.originalUrl.match(regex) || [];
-  if (match[2])
-    newPath += match[2];
+  if (match[2]) newPath += match[2];
 
   res.redirect(newPath);
 };
 
 const slugs = {
   resolveAndLoadTeam,
-  resolveAndLoadThing
+  resolveAndLoadThing,
 };
 
 export type SlugHelper = typeof slugs;

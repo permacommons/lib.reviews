@@ -1,5 +1,5 @@
 import $ from './lib/jquery.js';
-import { msg, validateURL, urlHasSupportedProtocol } from './libreviews';
+import { msg, urlHasSupportedProtocol, validateURL } from './libreviews';
 
 // Front-end code for the /some-thing/manage/urls interface
 
@@ -16,12 +16,14 @@ $('input[name^=url-]').change(handleURLValidation);
 $('button#add-more').click(addNewURLRow);
 
 function initializeValidationTemplate(this: HTMLElement): void {
-  const input = ($(this).parent().find('input[data-url-input]')[0] as HTMLInputElement | undefined);
+  const input = $(this).parent().find('input[data-url-input]')[0] as HTMLInputElement | undefined;
   const inputName = input?.name ?? '';
-  $(this).append(`<div class="validation-error">${msg('not a url')}</div>` +
-    `<div class="helper-links"><a href="#" data-add-protocol="https://" data-add-protocol-for="${inputName}">` +
-    `${msg('add https')}</a> &ndash; <a href="#" data-add-protocol="http://"` +
-    `data-add-protocol-for="${inputName}">${msg('add http')}</div>`);
+  $(this).append(
+    `<div class="validation-error">${msg('not a url')}</div>` +
+      `<div class="helper-links"><a href="#" data-add-protocol="https://" data-add-protocol-for="${inputName}">` +
+      `${msg('add https')}</a> &ndash; <a href="#" data-add-protocol="http://"` +
+      `data-add-protocol-for="${inputName}">${msg('add http')}</div>`
+  );
 }
 
 function handleURLValidation(this: HTMLInputElement): void {
@@ -44,7 +46,6 @@ function addProtocol(this: HTMLElement, event: JQuery.Event): void {
 }
 
 function addNewURLRow(event: JQuery.Event): void {
-
   const lastName = $('input[name^=url-]').last().attr('name') ?? '';
   const match = lastName.match(/[0-9]+/);
   let count = match ? Number(match[0]) : NaN;
@@ -53,26 +54,20 @@ function addNewURLRow(event: JQuery.Event): void {
   count++;
 
   if (!Number.isNaN(count)) {
-    const $newRow = $(`<tr valign="top"><td class="max-width">` +
+    const $newRow = $(
+      `<tr valign="top"><td class="max-width">` +
         `<input name="url-${count}" data-url-input type="text" class="max-width" ` +
         `placeholder="${msg('enter web address short')}">` +
         `<div id="url-validation-${count}"></div></td>` +
-        `<td><input type="radio" name="primary" value="${count}"></td></tr>`)
-      .insertBefore('#add-more-row');
+        `<td><input type="radio" name="primary" value="${count}"></td></tr>`
+    ).insertBefore('#add-more-row');
 
     // Wire new row up as above
-    $newRow
-      .find('[id^=url-validation-]')
-      .each(initializeValidationTemplate);
+    $newRow.find('[id^=url-validation-]').each(initializeValidationTemplate);
 
-    $newRow
-      .find('[data-add-protocol]')
-      .click(addProtocol);
+    $newRow.find('[data-add-protocol]').click(addProtocol);
 
-    $newRow
-      .find('input[name^=url-]')
-      .change(handleURLValidation);
-
+    $newRow.find('input[name^=url-]').change(handleURLValidation);
   }
 
   event.preventDefault();
