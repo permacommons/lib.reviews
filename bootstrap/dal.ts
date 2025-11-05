@@ -71,7 +71,8 @@ maybeAddInitializer('users', userModule.initializeModel);
 maybeAddInitializer('user_metas', userMetaModule.initializeModel);
 maybeAddInitializer('teams', teamModule.initializeModel);
 maybeAddInitializer('team_join_requests', teamJoinRequestModule.initializeModel);
-maybeAddInitializer('team_slugs', teamSlugModule.initializeModel);
+// team_slugs now uses manifest-based initialization (force import side effect)
+void teamSlugModule;
 maybeAddInitializer('things', thingModule.initializeModel);
 maybeAddInitializer('thing_slugs', thingSlugModule.initializeModel);
 maybeAddInitializer('reviews', reviewModule.initializeModel);
@@ -291,6 +292,18 @@ export async function registerAllModels(
       if (error instanceof Error) {
         debug.error({ error });
       }
+    }
+  }
+
+  // Initialize manifest-based models
+  try {
+    const { initializeManifestModels } = await import('../dal/lib/create-model.ts');
+    initializeManifestModels(dal);
+    debug.db('Initialized manifest-based models');
+  } catch (error) {
+    debug.error('Failed to initialize manifest-based models');
+    if (error instanceof Error) {
+      debug.error({ error });
     }
   }
 

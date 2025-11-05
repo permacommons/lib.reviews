@@ -111,7 +111,7 @@ export default User;
 - [x] Update `ModelInstance` to use `TRecord` and `TVirtual` (kept compatibility layer)
 
 **Model migrations (each independent and deployable):**
-- [ ] Migrate `team-slug.ts` to manifest format (proof of concept)
+- [x] Migrate `team-slug.ts` to manifest format (proof of concept)
 - [ ] Migrate `team-join-request.ts` to manifest format
 - [ ] Migrate `invite-link.ts` to manifest format
 - [ ] Migrate `thing-slug.ts` to manifest format
@@ -129,6 +129,7 @@ export default User;
 - [ ] Remove duplicate `ModelInstance` interface from revision.ts
 - [ ] Remove TODO comments added in Phase 3.5
 - [ ] Verify all `& Record<string, any>` workarounds removed
+- [ ] Properly type manifest schema field (currently uses structural typing workaround)
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)
 

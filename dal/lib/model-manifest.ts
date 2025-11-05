@@ -14,7 +14,9 @@ import type { ModelSchemaField } from './model.ts';
 export interface ModelManifest {
   tableName: string;
   hasRevisions: boolean;
-  schema: Record<string, ModelSchemaField>;
+  // TODO: Make this more strictly typed - type library fields (StringType, DateType, etc.)
+  // don't exactly match ModelSchemaField interface but are compatible at runtime
+  schema: Record<string, { validate(value: unknown, fieldName?: string): unknown }>;
   camelToSnake?: Record<string, string>;
   relations?: Array<{
     name: string;

@@ -1,25 +1,14 @@
 import type { InferConstructor, ModelManifest } from './model-manifest.ts';
-import { getManifest, registerManifest } from './model-registry.ts';
+import { getAllManifests, getManifest, registerManifest } from './model-registry.ts';
 import { initializeModel } from './model-initializer.ts';
 import type { DataAccessLayer } from './model-types.ts';
 
-// Cache for initialized models (lazy initialization)
+// Cache for initialized models (populated by bootstrap)
 const initializedModels = new Map<string, unknown>();
 
 /**
- * Get the active DAL instance
- * TODO: This currently relies on a global DAL - will need to be enhanced for test fixtures
- */
-function getActiveDAL(): DataAccessLayer {
-  // For now, import the singleton DAL
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const dal = require('../index.ts').default;
-  return dal;
-}
-
-/**
  * Initialize a model from its manifest
- * Delegates to existing initializeModel under the hood for now
+ * Called by bootstrap after DAL is ready
  *
  * @param manifest - Model manifest definition
  * @param dal - DAL instance to use
@@ -30,7 +19,19 @@ function initializeFromManifest<Manifest extends ModelManifest>(
   dal: DataAccessLayer
 ): InferConstructor<Manifest> {
   // Convert manifest to initializeModel options format
-  const options = {
+  const options: {
+    dal: DataAccessLayer;
+    baseTable: string;
+    schema: Record<string, any>;
+    camelToSnake?: Record<string, string>;
+    staticMethods?: Record<string, any>;
+    instanceMethods?: Record<string, any>;
+    relations?: any[];
+    withRevision?: {
+      static?: ('createFirstRevision' | 'getNotStaleOrDeleted' | 'filterNotStaleOrDeleted')[];
+      instance?: ('deleteAllRevisions')[];
+    };
+  } = {
     dal,
     baseTable: manifest.tableName,
     schema: manifest.schema,
@@ -40,13 +41,13 @@ function initializeFromManifest<Manifest extends ModelManifest>(
     relations: manifest.relations || [],
     withRevision: manifest.hasRevisions
       ? {
-          static: ['createFirstRevision', 'getNotStaleOrDeleted', 'filterNotStaleOrDeleted'] as const,
-          instance: ['deleteAllRevisions'] as const,
+          static: ['createFirstRevision', 'getNotStaleOrDeleted', 'filterNotStaleOrDeleted'],
+          instance: ['deleteAllRevisions'],
         }
       : undefined,
   };
 
-  const { model } = initializeModel(options);
+  const { model } = initializeModel(options as any);
   return model as InferConstructor<Manifest>;
 }
 
@@ -81,22 +82,26 @@ export function createModel<Manifest extends ModelManifest>(
   // Register the manifest in the global registry
   registerManifest(manifest);
 
-  // Return a lazy proxy that initializes on first access
-  return new Proxy({} as InferConstructor<Manifest>, {
+  // Create a function target so the proxy can be used as a constructor
+  const target = function () {} as unknown as InferConstructor<Manifest>;
+
+  // Return a proxy that forwards to the initialized model
+  // Model will be initialized by bootstrap before any app code runs
+  return new Proxy(target, {
     get(_target, prop: string | symbol) {
-      // Get or initialize the model
-      let model = initializedModels.get(manifest.tableName) as
+      const model = initializedModels.get(manifest.tableName) as
         | InferConstructor<Manifest>
         | undefined;
 
       if (!model) {
-        const dal = getActiveDAL();
-        model = initializeFromManifest(manifest, dal);
-        initializedModels.set(manifest.tableName, model);
+        throw new Error(
+          `Model "${manifest.tableName}" has not been initialized yet. ` +
+            'Ensure bootstrap has completed before accessing models.'
+        );
       }
 
       // Access the property on the model
-      const value = (model as Record<string | symbol, unknown>)[prop];
+      const value = (model as unknown as Record<string | symbol, unknown>)[prop];
 
       // Bind methods to the model instance
       if (typeof value === 'function') {
@@ -107,20 +112,38 @@ export function createModel<Manifest extends ModelManifest>(
     },
 
     // Support for 'new' operator
-    construct(_target, args) {
-      let model = initializedModels.get(manifest.tableName) as
+    construct(_target, args): object {
+      const model = initializedModels.get(manifest.tableName) as
         | InferConstructor<Manifest>
         | undefined;
 
       if (!model) {
-        const dal = getActiveDAL();
-        model = initializeFromManifest(manifest, dal);
-        initializedModels.set(manifest.tableName, model);
+        throw new Error(
+          `Model "${manifest.tableName}" has not been initialized yet. ` +
+            'Ensure bootstrap has completed before accessing models.'
+        );
       }
 
-      return new (model as new (...args: unknown[]) => unknown)(...args);
+      return new (model as new (...args: unknown[]) => unknown)(...args) as object;
     },
   });
+}
+
+/**
+ * Initialize all registered manifest-based models
+ * Called by bootstrap after DAL is connected
+ *
+ * @param dal - Connected DAL instance
+ */
+export function initializeManifestModels(dal: DataAccessLayer): void {
+  const manifests = getAllManifests();
+
+  for (const [tableName, manifest] of manifests) {
+    if (!initializedModels.has(tableName)) {
+      const model = initializeFromManifest(manifest, dal);
+      initializedModels.set(tableName, model);
+    }
+  }
 }
 
 /**
