@@ -5,6 +5,13 @@ import QueryBuilder from './query-builder.ts';
 import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.ts';
 import types from './type.ts';
 
+/**
+ * Revision system handlers for PostgreSQL DAL
+ *
+ * Provides revision management functionality leveraging PostgreSQL
+ * features like partial indexes for performance.
+ */
+
 export interface ModelInstance {
   id: string;
   _data: Record<string, any>;
@@ -58,6 +65,21 @@ deletedError.name = 'RevisionDeletedError';
 const staleError = new Error('Outdated revision.');
 staleError.name = 'RevisionStaleError';
 
+/**
+ * Apply revision metadata to a model instance
+ *
+ * Ensures revision fields (_rev_id, _rev_user, _rev_date, _rev_tags) are
+ * populated and tracked via the model's change set.
+ *
+ * @param instance - Model instance to stamp
+ * @param options - Metadata options
+ * @param [options.user] - User object providing the ID
+ * @param [options.userId] - Explicit user ID (if user object omitted)
+ * @param [options.date] - Revision timestamp (defaults to now)
+ * @param [options.tags] - Revision tags
+ * @param [options.revId] - Explicit revision ID (generated if absent)
+ * @returns The same model instance for chaining
+ */
 const applyRevisionMetadata = (
   instance: ModelInstance,
   {
@@ -99,10 +121,28 @@ const applyRevisionMetadata = (
   return instance;
 };
 
+/**
+ * Revision system handlers
+ */
 const revision: RevisionHelpers = {
   applyRevisionMetadata,
 
+  /**
+   * Get a function that creates a new revision handler for PostgreSQL
+   *
+   * @param ModelClass - The model class
+   * @returns New revision handler function
+   */
   getNewRevisionHandler(ModelClass) {
+    /**
+     * Create a new revision by archiving the current revision and preparing
+     * a new one with updated revision metadata
+     *
+     * @param user - User creating the revision
+     * @param options - Revision options
+     * @param options.tags - Tags to associate with revision
+     * @returns New revision instance
+     */
     const newRevision = async function(this: ModelInstance, user: { id?: string } | null, { tags }: { tags?: string[] } = {}) {
       const currentRev = this;
 
@@ -135,7 +175,22 @@ const revision: RevisionHelpers = {
     return newRevision;
   },
 
+  /**
+   * Get a function that handles deletion of all revisions
+   *
+   * @param ModelClass - The model class
+   * @returns Delete all revisions handler
+   */
   getDeleteAllRevisionsHandler(ModelClass) {
+    /**
+     * Mark all revisions as deleted by creating a deletion revision
+     * and updating all related revisions
+     *
+     * @param user - User performing the deletion
+     * @param options - Deletion options
+     * @param options.tags - Tags for the deletion (will prepend 'delete')
+     * @returns Deletion revision
+     */
     const deleteAllRevisions = async function(this: ModelInstance, user: { id?: string } | null, { tags = [] }: { tags?: string[] } = {}) {
       const id = this.id;
       const deletionTags = ['delete', ...tags];
@@ -160,8 +215,23 @@ const revision: RevisionHelpers = {
     return deleteAllRevisions;
   },
 
+  /**
+   * Get a function that retrieves non-stale, non-deleted records
+   *
+   * @param ModelClass - The model class
+   * @returns Get handler for current revisions
+   */
   getNotStaleOrDeletedGetHandler(ModelClass) {
+    /**
+     * Get a record by ID, ensuring it's not stale or deleted
+     *
+     * @param id - Record ID
+     * @param joinOptions - Join options for related data
+     * @returns Model instance
+     * @throws If revision is deleted or stale
+     */
     const getNotStaleOrDeleted = async function(this: ModelInstance, id: string, joinOptions: Record<string, unknown> = {}) {
+      // Validate UUID format before querying database to avoid PostgreSQL syntax errors
       if (!isUUID.v4(id)) {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);
       }
@@ -201,7 +271,21 @@ const revision: RevisionHelpers = {
     return getNotStaleOrDeleted;
   },
 
+  /**
+   * Get a function that creates the first revision of a model
+   *
+   * @param ModelClass - The model class
+   * @returns First revision creator
+   */
   getFirstRevisionHandler(ModelClass) {
+    /**
+     * Create the first revision of a model instance
+     *
+     * @param user - User creating the first revision
+     * @param options - Revision options
+     * @param options.tags - Tags to associate with revision
+     * @returns First revision instance
+     */
     const createFirstRevision = async function(this: ModelInstance, user: { id?: string } | null, { tags, date = new Date() }: { tags?: string[]; date?: Date } = {}) {
       const firstRev = new ModelClass({});
       applyRevisionMetadata(firstRev, {
@@ -217,7 +301,18 @@ const revision: RevisionHelpers = {
     return createFirstRevision;
   },
 
+  /**
+   * Get a function that filters records to exclude stale and deleted revisions
+   *
+   * @param ModelClass - The model class
+   * @returns Filter function for current revisions
+   */
   getNotStaleOrDeletedFilterHandler(ModelClass) {
+    /**
+     * Filter records to exclude stale and deleted revisions
+     *
+     * @returns Query builder with revision filters applied
+     */
     const filterNotStaleOrDeleted = function() {
       const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
       return query.filterNotStaleOrDeleted();
@@ -226,7 +321,19 @@ const revision: RevisionHelpers = {
     return filterNotStaleOrDeleted;
   },
 
+  /**
+   * Get a function that retrieves multiple records by IDs, excluding stale and deleted revisions
+   *
+   * @param ModelClass - The model class
+   * @returns Multiple get handler for current revisions
+   */
   getMultipleNotStaleOrDeletedHandler(ModelClass) {
+    /**
+     * Get multiple records by IDs, excluding stale and deleted revisions
+     *
+     * @param idArray - Array of record IDs
+     * @returns Query builder for chaining
+     */
     const getMultipleNotStaleOrDeleted = function(idArray: string[]) {
       const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
 
@@ -240,6 +347,11 @@ const revision: RevisionHelpers = {
     return getMultipleNotStaleOrDeleted;
   },
 
+  /**
+   * Get revision schema fields for PostgreSQL
+   *
+   * @returns Schema fields for revision system
+   */
   getSchema() {
     return {
       _revUser: types.string().uuid(4).required(true),
@@ -251,6 +363,12 @@ const revision: RevisionHelpers = {
     };
   },
 
+  /**
+   * Register standard revision field aliases on a model so QueryBuilder
+   * can keep using camelCase field names transparently in PostgreSQL.
+   *
+   * @param ModelClass - Model constructor returned by initializeModel
+   */
   registerFieldMappings(ModelClass) {
     if (!ModelClass || typeof ModelClass._registerFieldMapping !== 'function') {
       return;

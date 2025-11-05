@@ -35,10 +35,8 @@ const userOptions = {
 
 const BCRYPT_ROUNDS = 10; // matches legacy bcrypt-nodejs default cost
 
-/* eslint-disable no-useless-escape */
 // Erm, if we add [, ] or \ to forbidden chars, we'll have to fix this :)
 userOptions.illegalCharsReadable = userOptions.illegalChars.source.replace(/[\[\]\\]/g, '');
-/* eslint-enable no-useless-escape */
 
 let User: UserModel | null = null;
 let postgresModulePromise: Promise<PostgresModule> | null = null;

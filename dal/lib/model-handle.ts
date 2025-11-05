@@ -197,7 +197,6 @@ export function createAutoModelHandle<
 
   const ModelHandle = function (...args: unknown[]) {
     const model = getRegisteredModel();
-    // eslint-disable-next-line new-cap
     return new (model as new (...constructorArgs: unknown[]) => TInstance)(...args);
   } as unknown as ModelConstructor<TRecord, TVirtual, TInstance>;
 

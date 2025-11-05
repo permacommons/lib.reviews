@@ -163,7 +163,6 @@ export class Field<TValue extends PromptFieldValue = string> {
   }
 
   // A field-type-specific validation function.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected validateType(_value: TValue): string | undefined {
     // Implement me if you need me
     return undefined;

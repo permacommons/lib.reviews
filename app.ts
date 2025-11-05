@@ -58,6 +58,8 @@ async function getApp(): Promise<express.Express> {
   if (initializedApp)
     return initializedApp;
 
+  // Push promises into this array that need to resolve before the app itself
+  // is ready for use
   const asyncJobs: Array<Promise<unknown>> = [];
 
     // Resolve runtime paths for static assets and deleted files (environment-agnostic).
@@ -125,8 +127,8 @@ async function getApp(): Promise<express.Express> {
     }));
 
   app.use(cookieParser());
-  app.use(i18n.init);
-  app.use(expressUserAgentMiddleware());
+  app.use(i18n.init); // requires cookie parser above
+  app.use(expressUserAgentMiddleware()); // expose UA object to req.useragent
 
   const dal = await dalPromise;
   app.locals.dal = dal;
@@ -187,6 +189,7 @@ async function getApp(): Promise<express.Express> {
   app.use('/static', express.static(app.locals.paths.staticDir));
 
   if (process.env.NODE_ENV !== 'production') {
+    // Convenience endpoint: expose manifest for inspection during development
     app.get('/assets/manifest.json', (req, res, next) => {
       try {
         res.set('Cache-Control', 'no-store');
@@ -228,9 +231,13 @@ async function getApp(): Promise<express.Express> {
     res.send('User-agent: *\nDisallow: /api/\n');
   });
 
+  // Initialize Passport and restore authentication state, if any, from the session.
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // API requests do not require CSRF tokens (hence declared before CSRF middleware),
+  // but session-authenticated POST requests do require the X-Requested-With header to be set,
+  // which ensures they're subject to CORS rules. This middleware also sets req.isAPI to true.
   app.use('/api', apiHelper.prepareRequest);
 
   app.use(bodyParser.json());
@@ -243,6 +250,7 @@ async function getApp(): Promise<express.Express> {
   if (config.maintenanceMode)
     app.use('/', errorProvider.maintenanceMode);
 
+  // ?uselang=xx changes language temporarily if xx is a valid, different code
   app.use('/', (req, _res, next) => {
     const rawLocale = req.query.uselang ?? req.query.useLang;
     const localeCandidate = Array.isArray(rawLocale) ? rawLocale[0] : rawLocale;
@@ -259,6 +267,7 @@ async function getApp(): Promise<express.Express> {
   });
 
   app.use('/api', api);
+  // Upload processing has to be done before CSRF middleware kicks in
   app.use('/', stage1Router);
   app.use(csrfSynchronisedProtection);
   app.use('/', pages);
@@ -269,11 +278,16 @@ async function getApp(): Promise<express.Express> {
   app.use('/', blogPosts);
   app.use('/', stage2Router);
   app.use('/user', users);
+  // Goes last to avoid accidental overlap w/ reserved routes
   app.use('/', things);
 
+  // Catches 404s and serves "not found" page
   app.use(errorProvider.notFound);
+  // Catches bad JSON, explicit next(error) calls, and other unhandled errors
   app.use(errorProvider.generic);
 
+  // Webhooks let us notify other applications and services (local or remote) when something happens.
+  // See configuration for the webHooks block to adjust behaviour.
   app.locals.webHooks = new WebHookDispatcher(config.webHooks);
 
   await Promise.all(asyncJobs);

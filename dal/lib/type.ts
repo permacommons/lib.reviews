@@ -75,7 +75,6 @@ export class Type {
    * @returns Validated value
    * @throws ValidationError If validation fails
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   validate(value: unknown, fieldName = 'field'): unknown {
     // Check required
     if (this._required && (value === null || value === undefined)) {
@@ -167,7 +166,6 @@ export class StringType extends Type {
     return this;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   uuid(_version = 4): this {
     this.validator((value) => {
       if (typeof value !== 'string') {
@@ -373,7 +371,7 @@ export class VirtualType extends Type {
     this.isVirtual = true;
   }
 
-  override validate(value: unknown, fieldName = 'field'): unknown { // eslint-disable-line @typescript-eslint/no-unused-vars
+  override validate(value: unknown, fieldName = 'field'): unknown {
     // Virtual fields are not validated during save
     return value;
   }

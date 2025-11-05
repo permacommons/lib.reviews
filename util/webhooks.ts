@@ -68,6 +68,10 @@ class WebHookDispatcher {
 
   /**
    * Trigger a webhook event and POST the payload to all configured URLs.
+   *
+   * @param eventName - The webhook event identifier.
+   * @param payload - Payload to serialise as JSON.
+   * @param headers - Additional HTTP headers for the request.
    */
   async trigger(eventName: string, payload: unknown, headers: HeadersRecord = {}): Promise<WebHookDispatchResult> {
     const endpoints = this._endpoints.get(eventName) || [];
@@ -88,7 +92,6 @@ class WebHookDispatcher {
 
     try {
       // Validate URL before attempting request to catch obvious misconfiguration.
-      // eslint-disable-next-line no-new
       new URL(url);
 
       const response = await this._fetch(url, {
