@@ -114,7 +114,7 @@ export default User;
 - [x] Migrate `team-slug.ts` to manifest format (proof of concept)
 - [x] Migrate `team-join-request.ts` to manifest format
 - [x] Migrate `invite-link.ts` to manifest format
-- [ ] Migrate `thing-slug.ts` to manifest format
+- [x] Migrate `thing-slug.ts` to manifest format
 - [ ] Migrate `user-meta.ts` to manifest format
 - [ ] Migrate `team.ts` to manifest format
 - [ ] Migrate `user.ts` to manifest format
