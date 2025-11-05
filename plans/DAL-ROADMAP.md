@@ -112,7 +112,7 @@ export default User;
 
 **Model migrations (each independent and deployable):**
 - [x] Migrate `team-slug.ts` to manifest format (proof of concept)
-- [ ] Migrate `team-join-request.ts` to manifest format
+- [x] Migrate `team-join-request.ts` to manifest format
 - [ ] Migrate `invite-link.ts` to manifest format
 - [ ] Migrate `thing-slug.ts` to manifest format
 - [ ] Migrate `user-meta.ts` to manifest format

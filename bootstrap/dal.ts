@@ -70,7 +70,8 @@ const maybeAddInitializer = (key: string, initializer: unknown) => {
 maybeAddInitializer('users', userModule.initializeModel);
 maybeAddInitializer('user_metas', userMetaModule.initializeModel);
 maybeAddInitializer('teams', teamModule.initializeModel);
-maybeAddInitializer('team_join_requests', teamJoinRequestModule.initializeModel);
+// team_join_requests now uses manifest-based initialization (force import side effect)
+void teamJoinRequestModule;
 // team_slugs now uses manifest-based initialization (force import side effect)
 void teamSlugModule;
 maybeAddInitializer('things', thingModule.initializeModel);
