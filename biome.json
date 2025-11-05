@@ -18,6 +18,7 @@
     "lineEnding": "lf"
   },
   "javascript": {
+    "globals": ["$", "config"],
     "formatter": {
       "quoteStyle": "single",
       "quoteProperties": "asNeeded",
