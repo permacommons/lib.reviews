@@ -18,7 +18,7 @@ export default function signinRequiredRoute<TArgs extends unknown[]>(
   return (req, res, ...args) => {
     if (!req.user)
       return render.signinRequired(req, res, {
-        titleKey
+        titleKey,
       });
     res.locals.titleKey = titleKey;
     routeFn(req, res, ...args);

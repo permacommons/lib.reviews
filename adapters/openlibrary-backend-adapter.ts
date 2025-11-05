@@ -10,7 +10,10 @@ import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
 
 /* Internal deps */
-import AbstractBackendAdapter, { type AdapterLookupResult, type AdapterMultilingualString } from './abstract-backend-adapter.ts';
+import AbstractBackendAdapter, {
+  type AdapterLookupResult,
+  type AdapterMultilingualString,
+} from './abstract-backend-adapter.ts';
 
 /**
  * OL uses ISO639-3 codes; map to lib.reviews native codes.
@@ -29,7 +32,7 @@ const openLibraryToNative: Record<string, string> = {
   dut: 'nl',
   por: 'pt', // OL code does not disambiguate; assume Brazilian Portuguese
   swe: 'sv',
-  chi: 'zh'  // OL code does not disambiguate; assume Simplified Chinese
+  chi: 'zh', // OL code does not disambiguate; assume Simplified Chinese
 };
 
 /**
@@ -56,7 +59,6 @@ interface OpenLibraryAuthor {
 }
 
 export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
-
   constructor() {
     super();
 
@@ -67,8 +69,10 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
     // - maybe followed by a slash, and maybe some more stuff after that
     // - which we don't care about hence the non-capturing groups (?:)
     // - case doesn't matter
-    this.supportedPattern =
-      new RegExp('^https*://openlibrary.org/(works|books)/(OL[^/.]+)(?:/(?:.*))*$', 'i');
+    this.supportedPattern = new RegExp(
+      '^https*://openlibrary.org/(works|books)/(OL[^/.]+)(?:/(?:.*))*$',
+      'i'
+    );
     this.supportedFields = ['label', 'authors', 'subtitle'];
     this.sourceID = 'openlibrary';
     this.sourceURL = 'https://openlibrary.org/';
@@ -95,11 +99,13 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
       timeout: config.adapterTimeout,
       label: 'Open Library',
       headers: {
-        'User-Agent': config.adapterUserAgent
-      }
+        'User-Agent': config.adapterUserAgent,
+      },
     });
-    debug.adapters('Received data from Open Library adapter (book/edition lookup):\\n' +
-      JSON.stringify(data, null, 2));
+    debug.adapters(
+      'Received data from Open Library adapter (book/edition lookup):\\n' +
+        JSON.stringify(data, null, 2)
+    );
 
     if (typeof data !== 'object' || !data.title)
       throw new Error('Result from Open Library did not include a work or edition title.');
@@ -114,14 +120,14 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
 
     const result: AdapterLookupResult = {
       data: {
-        label: { [language]: escapeHTML(data.title) }
+        label: { [language]: escapeHTML(data.title) },
       },
-      sourceID: this.sourceID
+      sourceID: this.sourceID,
     };
 
     if (data.subtitle) {
       result.data.subtitle = {
-        [language]: escapeHTML(data.subtitle)
+        [language]: escapeHTML(data.subtitle),
       };
     }
 
@@ -142,11 +148,12 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
    * Requires the object array from the work or edition record.
    * Does not catch lookup failures.
    */
-  async getAuthors(authorObjArr: OpenLibraryAuthorRef[] | undefined): Promise<{ authors?: Array<AdapterMultilingualString> }> {
+  async getAuthors(
+    authorObjArr: OpenLibraryAuthorRef[] | undefined
+  ): Promise<{ authors?: Array<AdapterMultilingualString> }> {
     const result: { authors?: Array<AdapterMultilingualString> } = {};
 
-    if (!Array.isArray(authorObjArr) || !authorObjArr.length)
-      return result;
+    if (!Array.isArray(authorObjArr) || !authorObjArr.length) return result;
 
     // To avoid excessive requests triggered by a single URL, cap number of authors
     const maxAuthors = 10;
@@ -163,29 +170,28 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
         authorKeys.push(authorObj.key);
         c++;
       }
-      if (c === maxAuthors)
-        break;
+      if (c === maxAuthors) break;
     }
-    if (!c)
-      return result;
+    if (!c) return result;
 
     const authorLookups = authorKeys.map(authorKey =>
       fetchJSON<OpenLibraryAuthor>(`https://openlibrary.org${authorKey}.json`, {
         timeout: config.adapterTimeout,
         label: 'Open Library author lookup',
         headers: {
-          'User-Agent': config.adapterUserAgent
-        }
+          'User-Agent': config.adapterUserAgent,
+        },
       })
     );
 
     const authors = await Promise.all(authorLookups);
-    debug.adapters('Received data from Open Library adapter (author lookup):\\n' +
-      JSON.stringify(authors, null, 2));
+    debug.adapters(
+      'Received data from Open Library adapter (author lookup):\\n' +
+        JSON.stringify(authors, null, 2)
+    );
 
     const authorArray: Array<AdapterMultilingualString> = [];
     for (const author of authors) {
-
       // These don't seem to differ in practice, even for
       // alternative names, pseudonyms, etc. Our storage
       // of authors is naive for now: we store a single name per author
@@ -200,8 +206,7 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
       }
     }
 
-    if (authorArray.length)
-      result.authors = authorArray;
+    if (authorArray.length) result.authors = authorArray;
 
     return result;
   }

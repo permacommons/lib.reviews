@@ -5,7 +5,7 @@ import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
-  ModelInstance
+  ModelInstance,
 } from './model-types.ts';
 import type { ModelConstructorLike } from './revision.ts';
 
@@ -22,10 +22,10 @@ type GetOptions = JsonObject & {
   includeSensitive?: string[];
 };
 
-export type ModelSchema<
-  TRecord extends JsonObject,
-  TVirtual extends JsonObject
-> = Record<string, ModelSchemaField<TRecord[keyof TRecord] | TVirtual[keyof TVirtual] | unknown>>;
+export type ModelSchema<TRecord extends JsonObject, TVirtual extends JsonObject> = Record<
+  string,
+  ModelSchemaField<TRecord[keyof TRecord] | TVirtual[keyof TVirtual] | unknown>
+>;
 
 export interface ThroughRelationConfig extends JsonObject {
   table: string;
@@ -50,8 +50,9 @@ export interface NormalizedRelationConfig extends JsonObject {
 
 type RevisionHandlerName = 'newRevision' | 'deleteAllRevisions';
 
-type RevisionHandlerMap<TInstance extends ModelInstance> = Partial<Record<RevisionHandlerName, (this: TInstance, ...args: unknown[]) => unknown>>;
-
+type RevisionHandlerMap<TInstance extends ModelInstance> = Partial<
+  Record<RevisionHandlerName, (this: TInstance, ...args: unknown[]) => unknown>
+>;
 
 /**
  * Base Model class for PostgreSQL DAL
@@ -131,10 +132,9 @@ function deepClone<T>(value: T): T {
 /**
  * Base Model class
  */
-class Model<
-  TRecord extends JsonObject = JsonObject,
-  TVirtual extends JsonObject = JsonObject
-> implements ModelInstance<TRecord, TVirtual> {
+class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>
+  implements ModelInstance<TRecord, TVirtual>
+{
   [key: string]: unknown;
   protected static _fieldMappings: Map<string, string> = new Map();
   protected static _relations: Map<string, NormalizedRelationConfig> = new Map();
@@ -173,7 +173,7 @@ class Model<
     // Set up property accessors before applying data so setters map correctly
     this._setupPropertyAccessors();
 
-    const initialData = (data && typeof data === 'object') ? data : {};
+    const initialData = data && typeof data === 'object' ? data : {};
 
     // Apply schema defaults for missing values
     this._applyDefaults(initialData);
@@ -237,10 +237,14 @@ class Model<
 
     const targetModelKey = baseConfig.targetModelKey || baseConfig.targetModel || targetTable;
 
-    const rawSource = baseConfig.sourceColumn || baseConfig.sourceKey || baseConfig.sourceField || 'id';
-    const sourceColumn = this._getDbFieldName(typeof rawSource === 'string' ? rawSource : String(rawSource));
+    const rawSource =
+      baseConfig.sourceColumn || baseConfig.sourceKey || baseConfig.sourceField || 'id';
+    const sourceColumn = this._getDbFieldName(
+      typeof rawSource === 'string' ? rawSource : String(rawSource)
+    );
 
-    const rawTarget = baseConfig.targetColumn || baseConfig.targetKey || baseConfig.targetField || 'id';
+    const rawTarget =
+      baseConfig.targetColumn || baseConfig.targetKey || baseConfig.targetField || 'id';
     const targetColumn = typeof rawTarget === 'string' ? rawTarget : String(rawTarget);
 
     const hasRevisions = Boolean(baseConfig.hasRevisions);
@@ -250,14 +254,20 @@ class Model<
       const rawThrough = baseConfig.through as JsonObject;
       const throughTable = rawThrough.table || rawThrough.name || baseConfig.joinTable;
       if (!throughTable) {
-        throw new Error(`Relation '${name}' requires a through.table definition for many-to-many joins.`);
+        throw new Error(
+          `Relation '${name}' requires a through.table definition for many-to-many joins.`
+        );
       }
 
-      const throughSourceColumn = rawThrough.sourceColumn || rawThrough.sourceForeignKey || rawThrough.sourceKey;
-      const throughTargetColumn = rawThrough.targetColumn || rawThrough.targetForeignKey || rawThrough.targetKey;
+      const throughSourceColumn =
+        rawThrough.sourceColumn || rawThrough.sourceForeignKey || rawThrough.sourceKey;
+      const throughTargetColumn =
+        rawThrough.targetColumn || rawThrough.targetForeignKey || rawThrough.targetKey;
 
       if (!throughSourceColumn || !throughTargetColumn) {
-        throw new Error(`Relation '${name}' through definition must include sourceForeignKey and targetForeignKey.`);
+        throw new Error(
+          `Relation '${name}' through definition must include sourceForeignKey and targetForeignKey.`
+        );
       }
 
       throughConfig = Object.freeze({
@@ -265,12 +275,12 @@ class Model<
         sourceColumn: String(throughSourceColumn),
         targetColumn: String(throughTargetColumn),
         sourceCondition: rawThrough.sourceCondition || null,
-        targetCondition: rawThrough.targetCondition || null
+        targetCondition: rawThrough.targetCondition || null,
       });
     }
 
-    const inferredCardinality = baseConfig.cardinality
-      || (throughConfig ? 'many' : (sourceColumn === 'id' ? 'many' : 'one'));
+    const inferredCardinality =
+      baseConfig.cardinality || (throughConfig ? 'many' : sourceColumn === 'id' ? 'many' : 'one');
 
     return Object.freeze({
       ...baseConfig,
@@ -283,7 +293,7 @@ class Model<
       isArray: inferredCardinality !== 'one',
       through: throughConfig,
       joinType: throughConfig ? 'through' : 'direct',
-      condition: baseConfig.condition || null
+      condition: baseConfig.condition || null,
     }) as NormalizedRelationConfig;
   }
 
@@ -313,7 +323,7 @@ class Model<
 
     return Array.from(runtime._relations.entries()).map(([name, config]) => ({
       name,
-      config
+      config,
     }));
   }
 
@@ -332,7 +342,9 @@ class Model<
    * @returns Array of database column names
    * @private
    */
-  static _getFilteredColumnNames(filterFn: ([fieldName, fieldDef]: [string, ModelSchemaField]) => boolean): string[] {
+  static _getFilteredColumnNames(
+    filterFn: ([fieldName, fieldDef]: [string, ModelSchemaField]) => boolean
+  ): string[] {
     const schema = this.schema;
     if (!schema) return [];
 
@@ -358,13 +370,11 @@ class Model<
    * @returns Array of database column names
    */
   static getColumnNames(includeSensitive: string[] = []): string[] {
-    return this._getFilteredColumnNames(
-      ([fieldName, fieldDef]) => {
-        if (!fieldDef || fieldDef.isVirtual) return false;
-        if (fieldDef.isSensitive && !includeSensitive.includes(fieldName)) return false;
-        return true;
-      }
-    );
+    return this._getFilteredColumnNames(([fieldName, fieldDef]) => {
+      if (!fieldDef || fieldDef.isVirtual) return false;
+      if (fieldDef.isSensitive && !includeSensitive.includes(fieldName)) return false;
+      return true;
+    });
   }
 
   /**
@@ -391,7 +401,7 @@ class Model<
   static createModel<
     TRecord extends JsonObject,
     TVirtual extends JsonObject = JsonObject,
-    TInstance extends Model<TRecord, TVirtual> = Model<TRecord, TVirtual>
+    TInstance extends Model<TRecord, TVirtual> = Model<TRecord, TVirtual>,
   >(
     tableName: string,
     schema: ModelSchema<TRecord, TVirtual>,
@@ -402,10 +412,18 @@ class Model<
     class DynamicModel extends Model<TRecord, TVirtual> {
       static override _fieldMappings = new Map<string, string>();
       static override _relations = new Map<string, NormalizedRelationConfig>();
-      static get tableName() { return tableName; }
-      static get schema() { return schema; }
-      static get options() { return options; }
-      static get dal() { return dal; }
+      static get tableName() {
+        return tableName;
+      }
+      static get schema() {
+        return schema;
+      }
+      static get options() {
+        return options;
+      }
+      static get dal() {
+        return dal;
+      }
     }
 
     return DynamicModel as unknown as ModelConstructor<TRecord, TVirtual, TInstance>;
@@ -422,7 +440,7 @@ class Model<
    */
   static async get<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
+    TVirtual extends JsonObject = JsonObject,
   >(
     this: ModelRuntime<TRecord, TVirtual>,
     id: string,
@@ -437,10 +455,7 @@ class Model<
       query.includeSensitive(includeSensitive);
     }
 
-    const result = await query
-      .filter({ id })
-      .getJoin(joinOptions)
-      .first();
+    const result = await query.filter({ id }).getJoin(joinOptions).first();
 
     if (!result) {
       throw new DocumentNotFound(`${this.tableName} with id ${id} not found`);
@@ -456,7 +471,7 @@ class Model<
    */
   static async getAll<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
+    TVirtual extends JsonObject = JsonObject,
   >(
     this: ModelRuntime<TRecord, TVirtual>,
     ...ids: string[]
@@ -481,10 +496,7 @@ class Model<
    * @param criteria - Filter criteria
    * @returns Query builder for chaining
    */
-  static filter<
-    TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
+  static filter<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     this: ModelRuntime<TRecord, TVirtual>,
     criteria: unknown
   ) {
@@ -500,7 +512,7 @@ class Model<
    */
   static async create<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
+    TVirtual extends JsonObject = JsonObject,
   >(
     this: ModelRuntime<TRecord, TVirtual>,
     data: Partial<TRecord>,
@@ -512,7 +524,7 @@ class Model<
   }
 
   /*
-*
+   *
    * Update a record by ID
    * @param id - Record ID
    * @param data - Update data
@@ -520,7 +532,7 @@ class Model<
    */
   static async update<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
+    TVirtual extends JsonObject = JsonObject,
   >(
     this: ModelRuntime<TRecord, TVirtual>,
     id: string,
@@ -541,11 +553,8 @@ class Model<
    */
   static async delete<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
-    this: ModelRuntime<TRecord, TVirtual>,
-    id: string
-  ): Promise<boolean> {
+    TVirtual extends JsonObject = JsonObject,
+  >(this: ModelRuntime<TRecord, TVirtual>, id: string): Promise<boolean> {
     const query = new QueryBuilder(this, this.dal);
     const result = await query.deleteById(id);
     return result > 0;
@@ -557,10 +566,7 @@ class Model<
    * @param direction - Sort direction (ASC/DESC)
    * @returns Query builder
    */
-  static orderBy<
-    TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
+  static orderBy<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     this: ModelRuntime<TRecord, TVirtual>,
     field: string,
     direction = 'ASC'
@@ -574,10 +580,7 @@ class Model<
    * @param count - Limit count
    * @returns Query builder
    */
-  static limit<
-    TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
+  static limit<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     this: ModelRuntime<TRecord, TVirtual>,
     count: number
   ) {
@@ -590,10 +593,7 @@ class Model<
    * @param joinSpec - Join specification
    * @returns Query builder
    */
-  static getJoin<
-    TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
+  static getJoin<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     this: ModelRuntime<TRecord, TVirtual>,
     joinSpec: JsonObject
   ) {
@@ -608,10 +608,7 @@ class Model<
    * @param options - Options for the range
    * @returns Query builder
    */
-  static between<
-    TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
+  static between<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     this: ModelRuntime<TRecord, TVirtual>,
     startDate: Date,
     endDate: Date,
@@ -629,12 +626,8 @@ class Model<
    */
   static contains<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
-    this: ModelRuntime<TRecord, TVirtual>,
-    field: string,
-    value: unknown
-  ) {
+    TVirtual extends JsonObject = JsonObject,
+  >(this: ModelRuntime<TRecord, TVirtual>, field: string, value: unknown) {
     const query = new QueryBuilder(this, this.dal);
     return query.contains(field, value);
   }
@@ -645,10 +638,8 @@ class Model<
    */
   static filterNotStaleOrDeleted<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
-    this: ModelRuntime<TRecord, TVirtual>
-  ) {
+    TVirtual extends JsonObject = JsonObject,
+  >(this: ModelRuntime<TRecord, TVirtual>) {
     const query = new QueryBuilder(this, this.dal);
     return query.filterNotStaleOrDeleted();
   }
@@ -660,11 +651,8 @@ class Model<
    */
   static getMultipleNotStaleOrDeleted<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
-    this: ModelRuntime<TRecord, TVirtual>,
-    ...ids: string[]
-  ) {
+    TVirtual extends JsonObject = JsonObject,
+  >(this: ModelRuntime<TRecord, TVirtual>, ...ids: string[]) {
     const query = new QueryBuilder(this, this.dal);
     return query
       .filter(row => {
@@ -682,7 +670,7 @@ class Model<
    */
   static _createInstance<
     TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
+    TVirtual extends JsonObject = JsonObject,
   >(
     this: ModelRuntime<TRecord, TVirtual>,
     data: JsonObject | Model<TRecord, TVirtual>
@@ -704,10 +692,7 @@ class Model<
    * @param name - Method name
    * @param method - Method function
    */
-  static define<
-    TRecord extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject
-  >(
+  static define<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     this: ModelRuntime<TRecord, TVirtual>,
     name: string,
     method: (...args: unknown[]) => unknown
@@ -817,10 +802,9 @@ class Model<
 
     try {
       // First, remove existing associations for this record
-          await this.runtime.dal.query(
-        `DELETE FROM ${joinTableName} WHERE ${sourceColumn} = $1`,
-        [this.id]
-      );
+      await this.runtime.dal.query(`DELETE FROM ${joinTableName} WHERE ${sourceColumn} = $1`, [
+        this.id,
+      ]);
 
       // Then add new associations
       if (relatedData.length > 0) {
@@ -850,8 +834,8 @@ class Model<
     } catch (error) {
       throw new Error(`Failed to save ${relationName} relation: ${error.message}`);
     }
-  }  /*
-*
+  } /*
+   *
    * Delete this model instance
    * @returns Success status
    */
@@ -883,7 +867,8 @@ class Model<
       return this._revisionHandlers[handlerName];
     }
 
-    const hasRevisionFields = this.schema && Object.prototype.hasOwnProperty.call(this.schema, '_revID');
+    const hasRevisionFields =
+      this.schema && Object.prototype.hasOwnProperty.call(this.schema, '_revID');
     if (!hasRevisionFields) {
       const modelName = this.tableName || this.name || 'Model';
       throw new Error(`Revision support is not enabled for ${modelName}`);
@@ -965,7 +950,7 @@ class Model<
           this.setValue(fieldName, value);
         },
         enumerable: true,
-        configurable: true
+        configurable: true,
       });
     }
   }
@@ -1178,8 +1163,10 @@ class Model<
       }
 
       const dbFieldName = this.runtime._getDbFieldName(fieldName);
-      const hasInitialValue = Object.prototype.hasOwnProperty.call(initialData, fieldName) ||
-        (dbFieldName !== fieldName && Object.prototype.hasOwnProperty.call(initialData, dbFieldName));
+      const hasInitialValue =
+        Object.prototype.hasOwnProperty.call(initialData, fieldName) ||
+        (dbFieldName !== fieldName &&
+          Object.prototype.hasOwnProperty.call(initialData, dbFieldName));
 
       if (hasInitialValue) {
         continue;
@@ -1228,23 +1215,24 @@ class Model<
 type RuntimeModel<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends Model<TRecord, TVirtual>
-> = ModelConstructor<TRecord, TVirtual, TInstance> & typeof Model & {
-  schema: ModelSchema<TRecord, TVirtual>;
-  tableName: string;
-  options?: JsonObject;
-  dal: DataAccessLayer;
-  _fieldMappings: Map<string, string>;
-  _relations: Map<string, NormalizedRelationConfig>;
-  _revisionHandlers?: RevisionHandlerMap<TInstance>;
-};
+  TInstance extends Model<TRecord, TVirtual>,
+> = ModelConstructor<TRecord, TVirtual, TInstance> &
+  typeof Model & {
+    schema: ModelSchema<TRecord, TVirtual>;
+    tableName: string;
+    options?: JsonObject;
+    dal: DataAccessLayer;
+    _fieldMappings: Map<string, string>;
+    _relations: Map<string, NormalizedRelationConfig>;
+    _revisionHandlers?: RevisionHandlerMap<TInstance>;
+  };
 
-type ModelRuntime<
-  TRecord extends JsonObject,
-  TVirtual extends JsonObject
-> = RuntimeModel<TRecord, TVirtual, Model<TRecord, TVirtual>>;
+type ModelRuntime<TRecord extends JsonObject, TVirtual extends JsonObject> = RuntimeModel<
+  TRecord,
+  TVirtual,
+  Model<TRecord, TVirtual>
+>;
 
 export type { ModelRuntime };
 export { Model };
 export default Model;
-

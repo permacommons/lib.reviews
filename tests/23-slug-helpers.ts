@@ -4,7 +4,7 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'slug_helpers',
-  cleanupTables: ['thing_slugs', 'reviews', 'things', 'users']
+  cleanupTables: ['thing_slugs', 'reviews', 'things', 'users'],
 });
 
 import slugs from '../routes/helpers/slugs.ts';
@@ -17,14 +17,13 @@ test.before(async () => {
 
   const models = await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
-    { key: 'thing_slugs', alias: 'ThingSlug' }
+    { key: 'thing_slugs', alias: 'ThingSlug' },
   ]);
 
   Thing = models.Thing;
 });
 
 test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
-
   const { actor: creator } = await dalFixture.createTestUser('Slug Creator');
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
@@ -40,14 +39,22 @@ test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
   await dal.query(
     `INSERT INTO ${slugTable} (slug, name, base_name, qualifier_part, thing_id, created_on, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    ['slug-test-thing', 'slug-test-thing', 'slug-test-thing', null, thing.id, new Date(), creator.id]
+    [
+      'slug-test-thing',
+      'slug-test-thing',
+      'slug-test-thing',
+      null,
+      thing.id,
+      new Date(),
+      creator.id,
+    ]
   );
 
   const req = createMockRequest({ originalUrl: '/slug-test-thing' });
   const res = createMockResponse({
     onRedirect: () => {
       throw new Error('Redirect not expected');
-    }
+    },
   });
 
   const loadedThing = await slugs.resolveAndLoadThing(req, res, 'slug-test-thing');
@@ -56,7 +63,6 @@ test.serial('resolveAndLoadThing loads thing by canonical slug', async t => {
 });
 
 test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', async t => {
-
   const { actor: creator } = await dalFixture.createTestUser('Redirect Creator');
 
   const thingRev = await Thing.createFirstRevision(creator, { tags: ['create'] });
@@ -80,23 +86,26 @@ test.serial('resolveAndLoadThing redirects to canonical slug when mismatched', a
   const res = createMockResponse({
     onRedirect: url => {
       redirectedTo = url;
-    }
+    },
   });
 
   await t.throwsAsync(() => slugs.resolveAndLoadThing(req, res, 'legacy-slug'), {
-    name: 'RedirectedError'
+    name: 'RedirectedError',
   });
 
-  t.is(redirectedTo, '/canonical-slug?ref=1', 'Redirected to canonical slug with query string preserved');
+  t.is(
+    redirectedTo,
+    '/canonical-slug?ref=1',
+    'Redirected to canonical slug with query string preserved'
+  );
 });
 
 test.serial('resolveAndLoadThing throws DocumentNotFound for unknown slug', async t => {
-
   const req = createMockRequest({ originalUrl: '/missing-slug' });
   const res = createMockResponse();
 
   await t.throwsAsync(() => slugs.resolveAndLoadThing(req, res, 'missing-slug'), {
-    name: 'DocumentNotFound'
+    name: 'DocumentNotFound',
   });
 });
 

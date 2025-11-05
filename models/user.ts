@@ -17,10 +17,17 @@ type UserRecord = JsonObject;
 type UserVirtual = JsonObject;
 type UserInstance = ModelInstance<UserRecord, UserVirtual> & Record<string, any>;
 type UserModel = ModelConstructor<UserRecord, UserVirtual, UserInstance> & Record<string, any>;
-type NewUserErrorOptions = ReportedErrorOptions & { payload?: Record<string, any>; parentError?: Error };
+type NewUserErrorOptions = ReportedErrorOptions & {
+  payload?: Record<string, any>;
+  parentError?: Error;
+};
 
-const { proxy: userHandleProxy, register: registerUserHandle } = createModelModule<UserRecord, UserVirtual, UserInstance>({
-  tableName: 'users'
+const { proxy: userHandleProxy, register: registerUserHandle } = createModelModule<
+  UserRecord,
+  UserVirtual,
+  UserInstance
+>({
+  tableName: 'users',
 });
 
 const UserHandle = userHandleProxy as UserModel;
@@ -30,7 +37,7 @@ const userOptions = {
   maxChars: 128,
   illegalChars: /[<>;"&?!./_]/,
   minPasswordLength: 6,
-  illegalCharsReadable: ''
+  illegalCharsReadable: '',
 };
 
 const BCRYPT_ROUNDS = 10; // matches legacy bcrypt-nodejs default cost
@@ -42,8 +49,7 @@ let User: UserModel | null = null;
 let postgresModulePromise: Promise<PostgresModule> | null = null;
 
 async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.ts');
+  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
 
   return postgresModulePromise;
 }
@@ -59,10 +65,12 @@ async function getPostgresDAL(): Promise<Record<string, any>> {
  * @param dalInstance - Optional DAL instance for testing
  * @returns The initialized model or null if the DAL is unavailable
  */
-export async function initializeUserModel(dalInstance: Record<string, any> | null = null): Promise<UserModel | null> {
+export async function initializeUserModel(
+  dalInstance: Record<string, any> | null = null
+): Promise<UserModel | null> {
   try {
     debug.db('Starting User model initialization...');
-    const activeDAL = dalInstance ?? await getPostgresDAL();
+    const activeDAL = dalInstance ?? (await getPostgresDAL());
 
     if (!activeDAL) {
       debug.db('PostgreSQL DAL not available, skipping User model initialization');
@@ -72,8 +80,16 @@ export async function initializeUserModel(dalInstance: Record<string, any> | nul
     debug.db('DAL available, creating User model...');
     const userSchema = {
       id: types.string().uuid(4),
-      displayName: types.string().max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
-      canonicalName: types.string().max(userOptions.maxChars).validator(_containsOnlyLegalCharacters).required(),
+      displayName: types
+        .string()
+        .max(userOptions.maxChars)
+        .validator(_containsOnlyLegalCharacters)
+        .required(),
+      canonicalName: types
+        .string()
+        .max(userOptions.maxChars)
+        .validator(_containsOnlyLegalCharacters)
+        .required(),
       email: types.string().max(userOptions.maxChars).email().sensitive(),
       password: types.string().sensitive(),
       userMetaID: types.string().uuid(4),
@@ -86,15 +102,18 @@ export async function initializeUserModel(dalInstance: Record<string, any> | nul
       suppressedNotices: types.array(types.string()),
       prefersRichTextEditor: types.boolean().default(false),
       urlName: types.virtual().default(function (this: UserInstance) {
-        const displayName = typeof this.getValue === 'function' ? this.getValue('displayName') : this.displayName;
+        const displayName =
+          typeof this.getValue === 'function' ? this.getValue('displayName') : this.displayName;
         return displayName ? encodeURIComponent(String(displayName).replace(/ /g, '_')) : undefined;
       }),
       userCanEditMetadata: types.virtual().default(false),
       userCanUploadTempFiles: types.virtual().default(function (this: UserInstance) {
-        const isTrusted = typeof this.getValue === 'function' ? this.getValue('isTrusted') : this.isTrusted;
-        const isSuperUser = typeof this.getValue === 'function' ? this.getValue('isSuperUser') : this.isSuperUser;
+        const isTrusted =
+          typeof this.getValue === 'function' ? this.getValue('isTrusted') : this.isTrusted;
+        const isSuperUser =
+          typeof this.getValue === 'function' ? this.getValue('isSuperUser') : this.isSuperUser;
         return Boolean(isTrusted || isSuperUser);
-      })
+      }),
     } as JsonObject;
 
     const { model, isNew } = initializeModel<UserRecord, UserVirtual, UserInstance>({
@@ -112,7 +131,7 @@ export async function initializeUserModel(dalInstance: Record<string, any> | nul
         isSiteModerator: 'is_site_moderator',
         isSuperUser: 'is_super_user',
         suppressedNotices: 'suppressed_notices',
-        prefersRichTextEditor: 'prefers_rich_text_editor'
+        prefersRichTextEditor: 'prefers_rich_text_editor',
       },
       staticMethods: {
         increaseInviteLinkCount,
@@ -121,14 +140,14 @@ export async function initializeUserModel(dalInstance: Record<string, any> | nul
         getWithTeams,
         findByURLName,
         canonicalize,
-        createBio
+        createBio,
       },
       instanceMethods: {
         populateUserInfo,
         setName,
         setPassword,
         checkPassword,
-        getValidPreferences
+        getValidPreferences,
       },
       relations: [
         {
@@ -140,9 +159,9 @@ export async function initializeUserModel(dalInstance: Record<string, any> | nul
           through: {
             table: 'team_members',
             sourceForeignKey: 'user_id',
-            targetForeignKey: 'team_id'
+            targetForeignKey: 'team_id',
           },
-          cardinality: 'many'
+          cardinality: 'many',
         },
         {
           name: 'moderatorOf',
@@ -153,9 +172,9 @@ export async function initializeUserModel(dalInstance: Record<string, any> | nul
           through: {
             table: 'team_moderators',
             sourceForeignKey: 'user_id',
-            targetForeignKey: 'team_id'
+            targetForeignKey: 'team_id',
           },
-          cardinality: 'many'
+          cardinality: 'many',
         },
         {
           name: 'meta',
@@ -163,24 +182,27 @@ export async function initializeUserModel(dalInstance: Record<string, any> | nul
           sourceKey: 'user_meta_id',
           targetKey: 'id',
           hasRevisions: true,
-          cardinality: 'one'
-        }
-      ] as any
+          cardinality: 'one',
+        },
+      ] as any,
     });
 
     User = model as UserModel;
 
-    if (!isNew)
-      return User;
+    if (!isNew) return User;
 
     Object.defineProperty(User, 'options', {
       value: userOptions,
       writable: false,
       enumerable: true,
-      configurable: false
+      configurable: false,
     });
 
-    const prototype = User.prototype as UserInstance & { _validate(): unknown; _originalValidate?: () => unknown; _isNew: boolean };
+    const prototype = User.prototype as UserInstance & {
+      _validate(): unknown;
+      _originalValidate?: () => unknown;
+      _isNew: boolean;
+    };
     prototype._originalValidate = prototype._validate;
     prototype._validate = function (this: typeof prototype) {
       if (this._isNew && (!this.password || typeof this.password !== 'string'))
@@ -214,8 +236,7 @@ async function increaseInviteLinkCount(id: string): Promise<number> {
   `;
 
   const result = await model.dal.query(query, [id]);
-  if (!result.rows.length)
-    throw new Error(`User with id ${id} not found`);
+  if (!result.rows.length) throw new Error(`User with id ${id} not found`);
 
   return result.rows[0].invite_link_count;
 }
@@ -234,24 +255,25 @@ async function createUser(userObj: Record<string, any>): Promise<UserInstance> {
 
   if (!userObj || typeof userObj !== 'object') {
     throw new NewUserError({
-      message: 'We need a user object containing the user data to create a new user.'
+      message: 'We need a user object containing the user data to create a new user.',
     });
   }
 
   try {
     user.setName(userObj.name);
-    if (userObj.email)
-      user.email = userObj.email;
+    if (userObj.email) user.email = userObj.email;
 
     await model.ensureUnique(userObj.name);
     await user.setPassword(userObj.password);
     await user.save();
     updateUploadPermission(user);
   } catch (error) {
-    if (error instanceof NewUserError)
-      throw error;
+    if (error instanceof NewUserError) throw error;
 
-    throw new NewUserError({ payload: { user }, parentError: error instanceof Error ? error : undefined });
+    throw new NewUserError({
+      payload: { user },
+      parentError: error instanceof Error ? error : undefined,
+    });
   }
 
   return user;
@@ -265,8 +287,7 @@ async function createUser(userObj: Record<string, any>): Promise<UserInstance> {
  * @throws NewUserError if a conflicting user already exists
  */
 async function ensureUnique(name: string): Promise<boolean> {
-  if (typeof name !== 'string')
-    throw new Error('Username to check must be a string.');
+  if (typeof name !== 'string') throw new Error('Username to check must be a string.');
 
   const trimmed = name.trim();
   const users = await UserHandle.filter({ canonicalName: canonicalize(trimmed) }).run();
@@ -274,7 +295,7 @@ async function ensureUnique(name: string): Promise<boolean> {
     throw new NewUserError({
       message: 'A user named %s already exists.',
       userMessage: 'username exists',
-      messageParams: [trimmed]
+      messageParams: [trimmed],
     });
   }
   return true;
@@ -287,10 +308,13 @@ async function ensureUnique(name: string): Promise<boolean> {
  * @param options - Query options forwarded to the DAL
  * @returns The hydrated user instance or null if not found
  */
-async function getWithTeams(id: string, options: Record<string, any> = {}): Promise<UserInstance | null> {
+async function getWithTeams(
+  id: string,
+  options: Record<string, any> = {}
+): Promise<UserInstance | null> {
   return UserHandle.get(id, {
     teams: true,
-    ...options
+    ...options,
   }) as Promise<UserInstance | null>;
 }
 
@@ -303,13 +327,20 @@ async function getWithTeams(id: string, options: Record<string, any> = {}): Prom
  * @returns The matching user instance
  * @throws DocumentNotFound if the user cannot be located
  */
-async function findByURLName(name: string, options: Record<string, any> = {}): Promise<UserInstance> {
+async function findByURLName(
+  name: string,
+  options: Record<string, any> = {}
+): Promise<UserInstance> {
   const model = (User ?? UserHandle) as UserModel;
   const trimmed = name.trim().replace(/_/g, ' ');
 
   let query = model.filter({ canonicalName: canonicalize(trimmed) });
 
-  if (options.includeSensitive && Array.isArray(options.includeSensitive) && typeof query.includeSensitive === 'function')
+  if (
+    options.includeSensitive &&
+    Array.isArray(options.includeSensitive) &&
+    typeof query.includeSensitive === 'function'
+  )
     query = query.includeSensitive(options.includeSensitive);
 
   if (options.withData && typeof query.getJoin === 'function')
@@ -319,8 +350,7 @@ async function findByURLName(name: string, options: Record<string, any> = {}): P
   if (users.length) {
     const user = users[0] as UserInstance;
 
-    if (options.withTeams)
-      await attachUserTeams(user);
+    if (options.withTeams) await attachUserTeams(user);
 
     updateUploadPermission(user);
     return user;
@@ -352,7 +382,7 @@ function canonicalize(name: string): string {
  */
 async function createBio(user: UserInstance, bioObj: Record<string, any>): Promise<UserInstance> {
   const metaRev = await (UserMeta as any).createFirstRevision(user, {
-    tags: ['create-bio-via-user']
+    tags: ['create-bio-via-user'],
   });
 
   metaRev.bio = bioObj.bio;
@@ -387,7 +417,10 @@ async function attachUserTeams(user: UserInstance): Promise<void> {
     AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
   `;
 
-  const mapRowsToTeams = (rows: any[]) => rows.map(row => teamModel._createInstance ? teamModel._createInstance(row) : new (Team as any)(row));
+  const mapRowsToTeams = (rows: any[]) =>
+    rows.map(row =>
+      teamModel._createInstance ? teamModel._createInstance(row) : new (Team as any)(row)
+    );
 
   try {
     const memberResult = await dalInstance.query(
@@ -431,11 +464,9 @@ async function attachUserTeams(user: UserInstance): Promise<void> {
  * @param user - Viewer whose rights should be reflected on the instance
  */
 function populateUserInfo(this: UserInstance, user: UserInstance | null | undefined): void {
-  if (!user)
-    return;
+  if (!user) return;
 
-  if (user.id === this.id)
-    this.userCanEditMetadata = true;
+  if (user.id === this.id) this.userCanEditMetadata = true;
 }
 
 /**
@@ -445,8 +476,7 @@ function populateUserInfo(this: UserInstance, user: UserInstance | null | undefi
  * @param displayName - New display name to assign
  */
 function setName(this: UserInstance, displayName: string): void {
-  if (typeof displayName !== 'string')
-    throw new Error('Username to set must be a string.');
+  if (typeof displayName !== 'string') throw new Error('Username to set must be a string.');
 
   const trimmed = displayName.trim();
   this.displayName = trimmed;
@@ -468,11 +498,13 @@ function setPassword(this: UserInstance, password: string): Promise<string> {
     }
 
     if (password.length < userOptions.minPasswordLength) {
-      reject(new NewUserError({
-        message: 'Password for new user is too short, must be at least %s characters.',
-        userMessage: 'password too short',
-        messageParams: [String(userOptions.minPasswordLength)]
-      }));
+      reject(
+        new NewUserError({
+          message: 'Password for new user is too short, must be at least %s characters.',
+          userMessage: 'password too short',
+          messageParams: [String(userOptions.minPasswordLength)],
+        })
+      );
       return;
     }
 
@@ -496,10 +528,8 @@ function setPassword(this: UserInstance, password: string): Promise<string> {
 function checkPassword(this: UserInstance, password: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     bcrypt.compare(password, this.password, (error, result) => {
-      if (error)
-        reject(error);
-      else
-        resolve(result);
+      if (error) reject(error);
+      else resolve(result);
     });
   });
 }
@@ -527,7 +557,7 @@ function _containsOnlyLegalCharacters(name: string): true {
       message: 'Username %s contains invalid characters.',
       messageParams: [name],
       userMessage: 'invalid username characters',
-      userMessageParams: [userOptions.illegalCharsReadable]
+      userMessageParams: [userOptions.illegalCharsReadable],
     });
   }
   return true;
@@ -571,13 +601,13 @@ registerUserHandle({
   initializeModel: initializeUserModel,
   handleOptions: {
     staticProperties: {
-      options: userOptions
-    }
+      options: userOptions,
+    },
   },
   additionalExports: {
     initializeUserModel,
-    NewUserError
-  }
+    NewUserError,
+  },
 });
 
 export default UserHandle;

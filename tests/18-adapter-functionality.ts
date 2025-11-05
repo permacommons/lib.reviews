@@ -11,7 +11,7 @@ const { setupPostgresTest } = await import('./helpers/setup-postgres-test.ts');
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'adapter_functionality',
-  cleanupTables: ['things', 'users']
+  cleanupTables: ['things', 'users'],
 });
 
 let Thing;
@@ -22,9 +22,7 @@ test.before(async () => {
 
   mockSearch();
 
-  const models = await dalFixture.initializeModels([
-    { key: 'things', alias: 'Thing' }
-  ]);
+  const models = await dalFixture.initializeModels([{ key: 'things', alias: 'Thing' }]);
   Thing = models.Thing;
 
   adapters = (await import('../adapters/adapters.ts')).default;
@@ -36,7 +34,6 @@ test.after.always(unmockSearch);
 
 // Test adapter functionality with PostgreSQL Thing model
 test.serial('adapter initialization and basic functionality', async t => {
-
   // Test that adapters are properly initialized
   const allAdapters = adapters.getAll();
   t.true(allAdapters.length > 0, 'Should have adapters available');
@@ -52,7 +49,6 @@ test.serial('adapter initialization and basic functionality', async t => {
 });
 
 test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', async t => {
-
   // Create a new thing
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -68,9 +64,9 @@ test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', as
   const adapterResult: AdapterLookupResult = {
     data: {
       label: { en: 'Updated Label' },
-      description: { en: 'Test description from adapter' }
+      description: { en: 'Test description from adapter' },
     },
-    sourceID: 'wikidata'
+    sourceID: 'wikidata',
   };
 
   // Initialize fields from adapter
@@ -81,7 +77,11 @@ test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', as
 
   // Verify description is in metadata
   t.truthy(thing.metadata, 'Metadata should be created');
-  t.deepEqual(thing.metadata.description, { en: 'Test description from adapter' }, 'Description should be in metadata');
+  t.deepEqual(
+    thing.metadata.description,
+    { en: 'Test description from adapter' },
+    'Description should be in metadata'
+  );
 
   // Verify sync settings are created
   t.truthy(thing.sync, 'Sync should be created');
@@ -92,7 +92,6 @@ test.serial('Thing model initializeFieldsFromAdapter with metadata grouping', as
 });
 
 test.serial('Thing model setURLs functionality', async t => {
-
   // Create a new thing
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -105,10 +104,7 @@ test.serial('Thing model setURLs functionality', async t => {
   thing.createdBy = testUserId;
 
   // Set new URLs including Wikidata URL
-  const newURLs = [
-    'https://www.wikidata.org/wiki/Q42',
-    'https://openlibrary.org/works/OL123456W'
-  ];
+  const newURLs = ['https://www.wikidata.org/wiki/Q42', 'https://openlibrary.org/works/OL123456W'];
 
   thing.setURLs(newURLs);
 
@@ -128,7 +124,6 @@ test.serial('Thing model setURLs functionality', async t => {
 });
 
 test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
-
   // Create a thing with Wikidata URL and sync settings
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -140,21 +135,21 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
   thing.sync = {
     description: {
       active: true,
-      source: 'wikidata'
-    }
+      source: 'wikidata',
+    },
   };
   thing.createdOn = new Date();
   thing.createdBy = testUserId;
 
   // Mock the Wikidata adapter lookup to avoid external API calls
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
-  WikidataBackendAdapter.prototype.lookup = async function(url): Promise<AdapterLookupResult> {
+  WikidataBackendAdapter.prototype.lookup = async function (url): Promise<AdapterLookupResult> {
     return {
       data: {
         label: { en: 'Test Item' },
-        description: { en: 'Mocked description from Wikidata' }
+        description: { en: 'Mocked description from Wikidata' },
       },
-      sourceID: 'wikidata'
+      sourceID: 'wikidata',
     };
   };
 
@@ -164,11 +159,14 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
 
     // Verify description was updated in metadata
     t.truthy(updatedThing.metadata, 'Metadata should be created');
-    t.deepEqual(updatedThing.metadata.description, { en: 'Mocked description from Wikidata' }, 'Description should be updated in metadata');
+    t.deepEqual(
+      updatedThing.metadata.description,
+      { en: 'Mocked description from Wikidata' },
+      'Description should be updated in metadata'
+    );
 
     // Verify sync timestamp was updated
     t.truthy(updatedThing.sync.description.updated, 'Sync timestamp should be updated');
-
   } finally {
     // Restore original lookup method
     WikidataBackendAdapter.prototype.lookup = originalLookup;
@@ -176,7 +174,6 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
 });
 
 test.serial('search indexing with PostgreSQL metadata structure', async t => {
-
   // Create a thing with metadata
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -188,17 +185,19 @@ test.serial('search indexing with PostgreSQL metadata structure', async t => {
   thing.canonicalSlugName = 'test-item';
   thing.metadata = {
     description: { en: 'Test description in metadata' },
-    subtitle: { en: 'Test subtitle' }
+    subtitle: { en: 'Test subtitle' },
   };
   thing.createdOn = new Date();
   thing.createdBy = testUserId;
 
-
-
   // Test that the thing has the correct structure for indexing
   t.truthy(thing.metadata, 'Thing should have metadata');
   t.truthy(thing.metadata.description, 'Thing should have description in metadata');
-  t.deepEqual(thing.metadata.description, { en: 'Test description in metadata' }, 'Description should match');
+  t.deepEqual(
+    thing.metadata.description,
+    { en: 'Test description in metadata' },
+    'Description should match'
+  );
 
   // Test field name compatibility
   t.truthy(thing.createdOn, 'Thing should have created_on field');

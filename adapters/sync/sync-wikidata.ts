@@ -37,29 +37,33 @@ const wikidataURLPattern = new RegExp('^http(s)*://(www.)*wikidata.org/(entity|w
 
 async function syncWikidata(): Promise<void> {
   await initializeDAL();
-  const allThings = await Thing.filterNotStaleOrDeleted().run() as WikidataThing[];
+  const allThings = (await Thing.filterNotStaleOrDeleted().run()) as WikidataThing[];
 
-  const wikidataThings = allThings.filter(thing =>
-    Array.isArray(thing.urls) && thing.urls.some(url => wikidataURLPattern.test(url))
+  const wikidataThings = allThings.filter(
+    thing => Array.isArray(thing.urls) && thing.urls.some(url => wikidataURLPattern.test(url))
   );
 
-  const lookupTasks: Array<Promise<AdapterLookupResult | null>> = wikidataThings.map(async thing => {
-    const wikidataURL = getWikidataURL(thing.urls);
-    if (!wikidataURL) {
-      return null;
-    }
+  const lookupTasks: Array<Promise<AdapterLookupResult | null>> = wikidataThings.map(
+    async thing => {
+      const wikidataURL = getWikidataURL(thing.urls);
+      if (!wikidataURL) {
+        return null;
+      }
 
-    if (!thing.sync) {
-      thing.sync = {};
-    }
-    const descriptionSync = thing.sync.description ?? (thing.sync.description = {
-      active: true,
-      source: 'wikidata'
-    });
-    descriptionSync.active = descriptionSync.active !== false;
+      if (!thing.sync) {
+        thing.sync = {};
+      }
+      const descriptionSync =
+        thing.sync.description ??
+        (thing.sync.description = {
+          active: true,
+          source: 'wikidata',
+        });
+      descriptionSync.active = descriptionSync.active !== false;
 
-    return limit(() => wikidata.lookup(wikidataURL));
-  });
+      return limit(() => wikidata.lookup(wikidataURL));
+    }
+  );
 
   const wikidataResults = await Promise.all(lookupTasks);
 

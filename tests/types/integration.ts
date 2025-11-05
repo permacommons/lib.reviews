@@ -23,7 +23,6 @@ export interface IntegrationTestContext {
  */
 export const requireIntegrationContext = (t: ExecutionContext<IntegrationTestContext>) => {
   const { app, agent } = t.context;
-  if (!app || !agent)
-    throw new Error('Integration context not initialized');
+  if (!app || !agent) throw new Error('Integration context not initialized');
   return { app, agent };
 };

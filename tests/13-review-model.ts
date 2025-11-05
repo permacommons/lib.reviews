@@ -7,7 +7,7 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'review_model',
-  cleanupTables: ['reviews', 'things', 'users']
+  cleanupTables: ['reviews', 'things', 'users'],
 });
 
 let User, Thing, Review;
@@ -19,7 +19,7 @@ test.before(async () => {
   const models = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
     { key: 'things', alias: 'Thing' },
-    { key: 'reviews', alias: 'Review' }
+    { key: 'reviews', alias: 'Review' },
   ]);
 
   User = models.User;
@@ -34,7 +34,6 @@ test.after.always(unmockSearch);
 // ============================================================================
 
 test.serial('Review model: create review with JSONB multilingual content', async t => {
-
   const { actor: author } = await dalFixture.createTestUser('Review Author');
   const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
@@ -50,17 +49,17 @@ test.serial('Review model: create review with JSONB multilingual content', async
   review.title = {
     en: 'Great Product',
     de: 'Tolles Produkt',
-    fr: 'Excellent Produit'
+    fr: 'Excellent Produit',
   };
   review.text = {
     en: 'This is an excellent product that I highly recommend.',
     de: 'Dies ist ein ausgezeichnetes Produkt, das ich sehr empfehle.',
-    fr: 'C\'est un excellent produit que je recommande vivement.'
+    fr: "C'est un excellent produit que je recommande vivement.",
   };
   review.html = {
     en: '<p>This is an <strong>excellent</strong> product that I highly recommend.</p>',
     de: '<p>Dies ist ein <strong>ausgezeichnetes</strong> Produkt, das ich sehr empfehle.</p>',
-    fr: '<p>C\'est un <strong>excellent</strong> produit que je recommande vivement.</p>'
+    fr: "<p>C'est un <strong>excellent</strong> produit que je recommande vivement.</p>",
   };
   review.starRating = 5;
   review.createdOn = new Date();
@@ -78,7 +77,6 @@ test.serial('Review model: create review with JSONB multilingual content', async
 });
 
 test.serial('Review model: star rating validation works', async t => {
-
   const { actor: author } = await dalFixture.createTestUser('Rating Author');
   const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
@@ -103,7 +101,7 @@ test.serial('Review model: star rating validation works', async t => {
       _rev_id: randomUUID(),
       _rev_user: author.id,
       _rev_date: new Date(),
-      _rev_tags: ['create']
+      _rev_tags: ['create'],
     });
 
     await t.throwsAsync(() => review.save(), undefined, `Rating ${rating} should be invalid`);
@@ -123,7 +121,7 @@ test.serial('Review model: star rating validation works', async t => {
       _rev_id: randomUUID(),
       _rev_user: author.id,
       _rev_date: new Date(),
-      _rev_tags: ['create']
+      _rev_tags: ['create'],
     });
 
     const saved = await review.save();
@@ -132,7 +130,6 @@ test.serial('Review model: star rating validation works', async t => {
 });
 
 test.serial('Review model: populateUserInfo sets permission flags correctly', async t => {
-
   const { actor: author } = await dalFixture.createTestUser('Review Author');
   const { actor: moderatorActor } = await dalFixture.createTestUser('Review Moderator');
   const { actor: otherUser } = await dalFixture.createTestUser('Other User');
@@ -161,7 +158,7 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
     _rev_id: randomUUID(),
     _rev_user: author.id,
     _rev_date: new Date(),
-    _rev_tags: ['create']
+    _rev_tags: ['create'],
   });
   await review.save();
 
@@ -187,66 +184,67 @@ test.serial('Review model: populateUserInfo sets permission flags correctly', as
   t.false(otherView.userCanDelete, 'Other user cannot delete');
 });
 
-test.serial('Review model: deleteAllRevisionsWithThing deletes review and associated thing', async t => {
+test.serial(
+  'Review model: deleteAllRevisionsWithThing deletes review and associated thing',
+  async t => {
+    const { actor: author } = await dalFixture.createTestUser('Delete Author');
+    const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
-  const { actor: author } = await dalFixture.createTestUser('Delete Author');
-  const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
+    const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
+    thingRev.urls = [`https://example.com/delete-test-${randomUUID()}`];
+    thingRev.label = { en: 'Thing to Delete' };
+    thingRev.createdOn = new Date();
+    thingRev.createdBy = thingCreator.id;
+    const thing = await thingRev.save();
 
-  const thingRev = await Thing.createFirstRevision(thingCreator, { tags: ['create'] });
-  thingRev.urls = [`https://example.com/delete-test-${randomUUID()}`];
-  thingRev.label = { en: 'Thing to Delete' };
-  thingRev.createdOn = new Date();
-  thingRev.createdBy = thingCreator.id;
-  const thing = await thingRev.save();
+    const reviewRev = await Review.createFirstRevision(author, { tags: ['create'] });
+    reviewRev.thingID = thing.id;
+    reviewRev.title = { en: 'Review to Delete' };
+    reviewRev.text = { en: 'This review will be deleted.' };
+    reviewRev.starRating = 3;
+    reviewRev.createdOn = new Date();
+    reviewRev.createdBy = author.id;
+    reviewRev.originalLanguage = 'en';
+    const review = await reviewRev.save();
 
-  const reviewRev = await Review.createFirstRevision(author, { tags: ['create'] });
-  reviewRev.thingID = thing.id;
-  reviewRev.title = { en: 'Review to Delete' };
-  reviewRev.text = { en: 'This review will be deleted.' };
-  reviewRev.starRating = 3;
-  reviewRev.createdOn = new Date();
-  reviewRev.createdBy = author.id;
-  reviewRev.originalLanguage = 'en';
-  const review = await reviewRev.save();
+    const reviewRevId1 = review._data._rev_id;
+    const thingID = review.thingID;
 
-  const reviewRevId1 = review._data._rev_id;
-  const thingID = review.thingID;
+    const newRev = await review.newRevision(author, { tags: ['edit'] });
+    newRev.title = { en: 'Updated Review to Delete' };
+    const savedRev = await newRev.save();
+    const reviewRevId2 = savedRev._data._rev_id;
 
-  const newRev = await review.newRevision(author, { tags: ['edit'] });
-  newRev.title = { en: 'Updated Review to Delete' };
-  const savedRev = await newRev.save();
-  const reviewRevId2 = savedRev._data._rev_id;
+    savedRev.thing = await Thing.get(savedRev.thingID);
+    await savedRev.deleteAllRevisionsWithThing(author);
 
-  savedRev.thing = await Thing.get(savedRev.thingID);
-  await savedRev.deleteAllRevisionsWithThing(author);
+    const deletedReview1 = await Review.filter({ _revID: reviewRevId1 }).run();
+    const deletedReview2 = await Review.filter({ _revID: reviewRevId2 }).run();
+    const deletedThing = await Thing.get(thingID);
 
-  const deletedReview1 = await Review.filter({ _revID: reviewRevId1 }).run();
-  const deletedReview2 = await Review.filter({ _revID: reviewRevId2 }).run();
-  const deletedThing = await Thing.get(thingID);
+    t.true(deletedReview1[0]._data._rev_deleted, 'Original review revision marked as deleted');
+    t.true(deletedReview2[0]._data._rev_deleted, 'Updated review revision marked as deleted');
+    t.true(deletedThing._data._rev_deleted, 'Associated thing marked as deleted');
 
-  t.true(deletedReview1[0]._data._rev_deleted, 'Original review revision marked as deleted');
-  t.true(deletedReview2[0]._data._rev_deleted, 'Updated review revision marked as deleted');
-  t.true(deletedThing._data._rev_deleted, 'Associated thing marked as deleted');
+    await t.throwsAsync(
+      () => Review.getNotStaleOrDeleted(review.id),
+      { name: 'RevisionDeletedError' },
+      'Getting deleted review throws error'
+    );
 
-  await t.throwsAsync(
-    () => Review.getNotStaleOrDeleted(review.id),
-    { name: 'RevisionDeletedError' },
-    'Getting deleted review throws error'
-  );
-
-  await t.throwsAsync(
-    () => Thing.getNotStaleOrDeleted(thingID),
-    { name: 'RevisionDeletedError' },
-    'Getting deleted thing throws error'
-  );
-});
+    await t.throwsAsync(
+      () => Thing.getNotStaleOrDeleted(thingID),
+      { name: 'RevisionDeletedError' },
+      'Getting deleted thing throws error'
+    );
+  }
+);
 
 // ============================================================================
 // REVIEW FEED AND PAGINATION TESTS
 // ============================================================================
 
 test.serial('Review model: getFeed returns reviews with pagination', async t => {
-
   const { actor: author } = await dalFixture.createTestUser('Feed Author');
   const { actor: thingCreator } = await dalFixture.createTestUser('Thing Creator');
 
@@ -292,7 +290,6 @@ test.serial('Review model: getFeed returns reviews with pagination', async t => 
 });
 
 test.serial('Review model: getFeed joins thing data', async t => {
-
   const { actor: author } = await dalFixture.createTestUser('Join Author');
   const { actor: thingCreator } = await dalFixture.createTestUser('Join Thing Creator');
 

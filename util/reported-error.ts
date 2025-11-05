@@ -9,8 +9,7 @@ import AbstractReportedError, { type ReportedErrorOptions } from './abstract-rep
  */
 export default class ReportedError extends AbstractReportedError {
   constructor(options: ReportedErrorOptions) {
-    if (options && typeof options === 'object')
-      options.translateFn = _translate;
+    if (options && typeof options === 'object') options.translateFn = _translate;
 
     super(options);
   }

@@ -11,13 +11,13 @@ type PostgresModule = typeof import('../db-postgres.ts');
 type UserMetaRecord = JsonObject;
 type UserMetaVirtual = JsonObject;
 type UserMetaInstance = ModelInstance<UserMetaRecord, UserMetaVirtual> & Record<string, any>;
-type UserMetaModel = ModelConstructor<UserMetaRecord, UserMetaVirtual, UserMetaInstance> & Record<string, any>;
+type UserMetaModel = ModelConstructor<UserMetaRecord, UserMetaVirtual, UserMetaInstance> &
+  Record<string, any>;
 
 let postgresModulePromise: Promise<PostgresModule> | null = null;
 
 async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.ts');
+  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
 
   return postgresModulePromise;
 }
@@ -27,7 +27,10 @@ async function getPostgresDAL(): Promise<Record<string, any>> {
   return module.getPostgresDAL();
 }
 
-const { types, mlString } = dal as unknown as { types: Record<string, any>; mlString: Record<string, any> };
+const { types, mlString } = dal as unknown as {
+  types: Record<string, any>;
+  mlString: Record<string, any>;
+};
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
 
 let UserMeta: UserMetaModel | null = null;
@@ -38,8 +41,10 @@ let UserMeta: UserMetaModel | null = null;
  * @param dalInstance - Optional DAL instance for testing
  * @returns The initialized model or null if the DAL is unavailable
  */
-export async function initializeUserMetaModel(dalInstance: Record<string, any> | null = null): Promise<UserMetaModel | null> {
-  const activeDAL = dalInstance ?? await getPostgresDAL();
+export async function initializeUserMetaModel(
+  dalInstance: Record<string, any> | null = null
+): Promise<UserMetaModel | null> {
+  const activeDAL = dalInstance ?? (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping UserMeta model initialization');
@@ -49,11 +54,11 @@ export async function initializeUserMetaModel(dalInstance: Record<string, any> |
   try {
     const multilingualStringSchema = mlString.getSchema({ maxLength: 1000 });
 
-    const bioType = types.object()
+    const bioType = types
+      .object()
       .default(() => ({ text: {}, html: {} }))
       .validator((value: unknown) => {
-        if (value === null || value === undefined)
-          return true;
+        if (value === null || value === undefined) return true;
 
         const record = value as Record<string, any>;
         multilingualStringSchema.validate(record.text, 'bio.text');
@@ -64,16 +69,16 @@ export async function initializeUserMetaModel(dalInstance: Record<string, any> |
     const schema = {
       id: types.string().uuid(4),
       bio: bioType,
-      originalLanguage: types.string()
+      originalLanguage: types
+        .string()
         .max(4)
         .required(true)
         .validator((lang: string | null | undefined) => {
-          if (lang === null || lang === undefined)
-            return true;
+          if (lang === null || lang === undefined) return true;
           if (!isValidLanguage(lang))
             throw new ValidationError(`Invalid language code: ${lang}`, 'originalLanguage');
           return true;
-        })
+        }),
     } as JsonObject;
 
     const { model, isNew } = initializeModel<UserMetaRecord, UserMetaVirtual, UserMetaInstance>({
@@ -81,23 +86,22 @@ export async function initializeUserMetaModel(dalInstance: Record<string, any> |
       baseTable: 'user_metas',
       schema,
       camelToSnake: {
-        originalLanguage: 'original_language'
+        originalLanguage: 'original_language',
       },
       withRevision: {
         static: [
           'createFirstRevision',
           'getNotStaleOrDeleted',
           'filterNotStaleOrDeleted',
-          'getMultipleNotStaleOrDeleted'
+          'getMultipleNotStaleOrDeleted',
         ],
-        instance: ['deleteAllRevisions']
-      }
+        instance: ['deleteAllRevisions'],
+      },
     });
 
     UserMeta = model as UserMetaModel;
 
-    if (!isNew)
-      return UserMeta;
+    if (!isNew) return UserMeta;
 
     return UserMeta;
   } catch (error) {
@@ -113,7 +117,9 @@ export async function initializeUserMetaModel(dalInstance: Record<string, any> |
  * @param dalInstance - Optional DAL instance for testing
  * @returns The initialized model or null if unavailable
  */
-export async function getPostgresUserMetaModel(dalInstance: Record<string, any> | null = null): Promise<UserMetaModel | null> {
+export async function getPostgresUserMetaModel(
+  dalInstance: Record<string, any> | null = null
+): Promise<UserMetaModel | null> {
   UserMeta = await initializeUserMetaModel(dalInstance);
   return UserMeta;
 }

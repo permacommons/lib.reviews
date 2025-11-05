@@ -20,7 +20,7 @@ function createServer(handler) {
     },
     close() {
       return new Promise(resolve => server.close(resolve));
-    }
+    },
   };
 }
 
@@ -34,7 +34,7 @@ test('dispatch posts payload to configured endpoints', async t => {
         method: req.method,
         url: req.url,
         headers: req.headers,
-        body: chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : null
+        body: chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : null,
       });
       res.statusCode = 204;
       res.end();
@@ -45,7 +45,7 @@ test('dispatch posts payload to configured endpoints', async t => {
   t.teardown(() => close());
 
   const dispatcher = new WebHookDispatcher({
-    newReview: [`http://127.0.0.1:${port}/reviews`]
+    newReview: [`http://127.0.0.1:${port}/reviews`],
   });
 
   const payload = { event: 'new-review', data: { author: 'Tester' } };
@@ -72,7 +72,7 @@ test('failed dispatch reports status code', async t => {
   t.teardown(() => close());
 
   const dispatcher = new WebHookDispatcher({
-    newReview: [`http://127.0.0.1:${port}/reviews`]
+    newReview: [`http://127.0.0.1:${port}/reviews`],
   });
 
   const result = await dispatcher.trigger('newReview', { foo: 'bar' });

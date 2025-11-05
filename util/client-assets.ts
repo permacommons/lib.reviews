@@ -40,16 +40,12 @@ function setManifestDir(dir: string): void {
   resetManifestCache();
 }
 
-
 const PUBLIC_ASSET_PREFIX = '/assets/';
 const DEV_CLIENT_ENTRY = path.posix.join(PUBLIC_ASSET_PREFIX, '@vite/client');
 const DEV_ENTRY_STYLES = new Map<string, string[]>([
   // Ensure core styles are linked eagerly during development to avoid a flash of
   // unstyled content while Vite injects CSS via JS.
-  ['lib', [
-    'frontend/styles/vendor.css',
-    'frontend/styles/style.less'
-  ]]
+  ['lib', ['frontend/styles/vendor.css', 'frontend/styles/style.less']],
 ]);
 
 /** Map between canonical entry names and their manifest source paths. */
@@ -64,8 +60,7 @@ function shouldUseProdBuild(): boolean {
 
 /** Normalizes various entry references into canonical manifest keys. */
 function normalizeEntryName(value: unknown): string | null {
-  if (!value || typeof value !== 'string')
-    return null;
+  if (!value || typeof value !== 'string') return null;
 
   let normalized = value.trim();
 
@@ -78,10 +73,11 @@ function normalizeEntryName(value: unknown): string | null {
 /** Validates that a requested entry exists in the known manifest map. */
 function ensureValidEntry(value: unknown): string | null {
   const normalized = normalizeEntryName(value);
-  if (!normalized)
-    return null;
+  if (!normalized) return null;
   if (!ENTRY_MAP.has(normalized))
-    throw new Error(`Unknown frontend entry "${value}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`);
+    throw new Error(
+      `Unknown frontend entry "${value}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`
+    );
   return normalized;
 }
 
@@ -102,7 +98,9 @@ function loadProductionManifest(): Manifest {
     cachedManifest = JSON.parse(data) as Manifest;
     return cachedManifest;
   } catch {
-    throw new Error(`Unable to load Vite manifest at ${manifestPath}. Run "npm run build:frontend" or "npm run build:deploy" before starting the server.`);
+    throw new Error(
+      `Unable to load Vite manifest at ${manifestPath}. Run "npm run build:frontend" or "npm run build:deploy" before starting the server.`
+    );
   }
 }
 
@@ -110,14 +108,17 @@ function loadProductionManifest(): Manifest {
  * Walks manifest dependencies to gather CSS assets for the given entry while
  * avoiding cycles.
  */
-function collectImportedCss(manifest: Manifest, manifestKey: string, collectedCss: Set<string>, seen: Set<string> = new Set()): void {
-  if (seen.has(manifestKey))
-    return;
+function collectImportedCss(
+  manifest: Manifest,
+  manifestKey: string,
+  collectedCss: Set<string>,
+  seen: Set<string> = new Set()
+): void {
+  if (seen.has(manifestKey)) return;
   seen.add(manifestKey);
 
   const record = manifest[manifestKey];
-  if (!record)
-    return;
+  if (!record) return;
 
   if (Array.isArray(record.css))
     record.css.forEach(cssPath => collectedCss.add(toPublicPath(cssPath)));
@@ -134,7 +135,7 @@ function getDevManifest(): Manifest {
       file: toPublicPath(sourcePath),
       isEntry: true,
       name: entryName,
-      src: sourcePath
+      src: sourcePath,
     };
   });
   return manifest;
@@ -175,11 +176,15 @@ function getClientAssets(requestedEntries?: unknown[]): ClientAssetsResult {
     orderedEntries.forEach(entryName => {
       const manifestKey = ENTRY_MAP.get(entryName);
       if (!manifestKey)
-        throw new Error(`Unknown frontend entry "${entryName}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`);
+        throw new Error(
+          `Unknown frontend entry "${entryName}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`
+        );
       const record = manifest[manifestKey];
 
       if (!record)
-        throw new Error(`Missing Vite manifest entry for "${manifestKey}". Run "npm run build:frontend" to refresh assets.`);
+        throw new Error(
+          `Missing Vite manifest entry for "${manifestKey}". Run "npm run build:frontend" to refresh assets.`
+        );
 
       scripts.add(toPublicPath(record.file));
 
@@ -195,7 +200,9 @@ function getClientAssets(requestedEntries?: unknown[]): ClientAssetsResult {
       const sourcePath = ENTRY_MAP.get(entryName);
 
       if (!sourcePath)
-        throw new Error(`Unknown frontend entry "${entryName}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`);
+        throw new Error(
+          `Unknown frontend entry "${entryName}". Known entries: ${Array.from(ENTRY_MAP.keys()).join(', ')}.`
+        );
 
       scripts.add(toPublicPath(sourcePath));
 
@@ -207,7 +214,7 @@ function getClientAssets(requestedEntries?: unknown[]): ClientAssetsResult {
 
   return {
     scripts: Array.from(scripts),
-    styles: Array.from(styles)
+    styles: Array.from(styles),
   };
 }
 
@@ -222,15 +229,9 @@ const clientAssets = {
   getClientAssets,
   getManifest,
   resetManifestCache,
-  setManifestDir
+  setManifestDir,
 };
 
-export {
-  ENTRY_MAP,
-  getClientAssets,
-  getManifest,
-  resetManifestCache,
-  setManifestDir
-};
+export { ENTRY_MAP, getClientAssets, getManifest, resetManifestCache, setManifestDir };
 
 export default clientAssets;

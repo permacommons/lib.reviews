@@ -7,7 +7,11 @@ import typesLib from '../dal/lib/type.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject } from '../dal/lib/model-types.ts';
 
-import { createMockDAL, createQueryBuilderHarness, createQueryResult } from './helpers/dal-mocks.ts';
+import {
+  createMockDAL,
+  createQueryBuilderHarness,
+  createQueryResult,
+} from './helpers/dal-mocks.ts';
 import type { RuntimeModel } from './helpers/dal-mocks.ts';
 
 type QueryBuilderArgs = ConstructorParameters<typeof QueryBuilder>;
@@ -124,9 +128,9 @@ test('QueryBuilder supports simple joins', t => {
         name: 'thing',
         targetTable: 'things',
         sourceColumn: 'thing_id',
-        hasRevisions: true
-      }
-    ]
+        hasRevisions: true,
+      },
+    ],
   });
   const result = qb.getJoin({ thing: true });
 
@@ -144,15 +148,15 @@ test('QueryBuilder supports complex joins with _apply', t => {
         name: 'creator',
         targetTable: 'users',
         sourceColumn: 'created_by',
-        hasRevisions: false
-      }
-    ]
+        hasRevisions: false,
+      },
+    ],
   });
 
   const result = qb.getJoin({
     creator: {
-      _apply: seq => seq.without('password')
-    }
+      _apply: seq => seq.without('password'),
+    },
   });
 
   t.is(result, qb); // Should return self for chaining
@@ -219,15 +223,15 @@ test('QueryBuilder handles join information lookup', t => {
         name: 'thing',
         targetTable: 'things',
         sourceColumn: 'thing_id',
-        hasRevisions: true
+        hasRevisions: true,
       },
       {
         name: 'creator',
         targetTable: 'users',
         sourceColumn: 'created_by',
-        hasRevisions: false
-      }
-    ]
+        hasRevisions: false,
+      },
+    ],
   });
 
   // Test known join mappings coming from model metadata
@@ -257,7 +261,7 @@ test('QueryBuilder handles join information lookup', t => {
 
 test('QueryBuilder handles schema namespace prefixing', t => {
   const { qb } = createQueryBuilderHarness({
-    dalOverrides: { schemaNamespace: 'test_schema.' }
+    dalOverrides: { schemaNamespace: 'test_schema.' },
   });
 
   const tableName = qb._getTableName('users');
@@ -301,7 +305,7 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
       capturedQueries.push({ sql, params });
       const row = { id: 'generated-id', camel_case_field: params[0] } as unknown as TRecord;
       return createQueryResult<TRecord>([row]);
-    }
+    },
   });
 
   const { model: TestModel } = initializeModel({
@@ -309,11 +313,11 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
     baseTable: 'tmp_models',
     schema: {
       id: dalTypes.string(),
-      camelCaseField: dalTypes.string().default('fallback')
+      camelCaseField: dalTypes.string().default('fallback'),
     },
     camelToSnake: {
-      camelCaseField: 'camel_case_field'
-    }
+      camelCaseField: 'camel_case_field',
+    },
   });
 
   const instance = new TestModel({ camelCaseField: 'value' });
@@ -338,7 +342,7 @@ test('Model.getSafeColumnNames excludes sensitive fields', t => {
     id: types.string(),
     name: types.string(),
     password: types.string().sensitive(),
-    email: types.string()
+    email: types.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
   const TestModel = Model.createModel('test_table', schema, {}, mockDAL) as unknown as typeof Model;
@@ -363,7 +367,7 @@ test('Model.getColumnNames includes sensitive fields when requested', t => {
     name: types.string(),
     password: types.string().sensitive(),
     token: types.string().sensitive(),
-    email: types.string()
+    email: types.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
   const TestModel = Model.createModel('test_table', schema, {}, mockDAL) as unknown as typeof Model;
@@ -391,7 +395,7 @@ test('Model.getSensitiveFieldNames returns all sensitive fields', t => {
     password: types.string().sensitive(),
     token: types.string().sensitive(),
     apiKey: types.string().sensitive(),
-    email: types.string()
+    email: types.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
   const TestModel = Model.createModel('test_table', schema, {}, mockDAL) as unknown as typeof Model;
@@ -415,7 +419,7 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
     id: types.string(),
     name: types.string(),
     password: types.string().sensitive(),
-    email: types.string()
+    email: types.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
   const TestModel = Model.createModel('users', schema, {}, mockDAL) as RuntimeModel;
@@ -442,7 +446,7 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
     id: types.string(),
     name: types.string(),
     password: types.string().sensitive(),
-    email: types.string()
+    email: types.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
   const TestModel = Model.createModel('users', schema, {}, mockDAL) as RuntimeModel;

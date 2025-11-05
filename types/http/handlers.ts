@@ -9,12 +9,12 @@ export type HandlerRequest<
   ResBody = unknown,
   ReqBody = Record<string, unknown>,
   ReqQuery extends ParsedQs = ParsedQs,
-  Locals extends AppLocals = TemplateContext
+  Locals extends AppLocals = TemplateContext,
 > = Request<Params, ResBody, ReqBody, ReqQuery, Locals>;
 
 export type HandlerResponse<
   ResBody = unknown,
-  Locals extends AppLocals = TemplateContext
+  Locals extends AppLocals = TemplateContext,
 > = Response<ResBody, Locals>;
 
 export type HandlerNext = NextFunction;
@@ -25,6 +25,4 @@ export type BoundTemplateRenderer = (
   jsConfig?: Record<string, unknown>
 ) => void;
 
-export type BoundRenderFunction = (
-  context?: Partial<TemplateContext>
-) => void;
+export type BoundRenderFunction = (context?: Partial<TemplateContext>) => void;

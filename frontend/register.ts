@@ -34,7 +34,7 @@ function checkExistence(this: HTMLInputElement) {
 
   $.ajax({
     type: 'HEAD',
-    url: `/api/user/${name}`
+    url: `/api/user/${name}`,
   })
     .done(() => {
       $('#username-exists-error').show();
@@ -51,8 +51,6 @@ function checkExistence(this: HTMLInputElement) {
  */
 function checkIllegalCharacters(this: HTMLInputElement) {
   const regex = new RegExp(window.config.illegalUsernameCharacters);
-  if (regex.test(this.value))
-    $('#username-characters-error').show();
-  else
-    $('#username-characters-error').hide();
+  if (regex.test(this.value)) $('#username-characters-error').show();
+  else $('#username-characters-error').hide();
 }

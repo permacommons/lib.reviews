@@ -1,11 +1,20 @@
 import QueryBuilder from '../../dal/lib/query-builder.ts';
 import Model, { type ModelSchema } from '../../dal/lib/model.ts';
 import typesLib from '../../dal/lib/type.ts';
-import { initializeModel, type InitializeModelResult, type RelationConfig } from '../../dal/lib/model-initializer.ts';
+import {
+  initializeModel,
+  type InitializeModelResult,
+  type RelationConfig,
+} from '../../dal/lib/model-initializer.ts';
 import type { DataAccessLayer, JsonObject, ModelConstructor } from '../../dal/lib/model-types.ts';
 import type { QueryResult, Pool, PoolClient } from 'pg';
 
-export type RuntimeModel = InitializeModelResult<JsonObject, JsonObject, Model<JsonObject, JsonObject>>['model'] & typeof Model;
+export type RuntimeModel = InitializeModelResult<
+  JsonObject,
+  JsonObject,
+  Model<JsonObject, JsonObject>
+>['model'] &
+  typeof Model;
 
 type RelationDefinition = RelationConfig & { name: string };
 
@@ -27,7 +36,7 @@ export const defaultSchema = (): ModelSchema<JsonObject, JsonObject> => {
   return {
     id: typesLib.string(),
     name: typesLib.string(),
-    created_on: typesLib.string()
+    created_on: typesLib.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 };
 
@@ -37,7 +46,7 @@ export const createQueryResult = <TRow extends JsonObject>(rows: TRow[] = []) =>
     rowCount: rows.length,
     oid: 0,
     rows,
-    fields: []
+    fields: [],
   }) satisfies QueryResult<TRow>;
 
 export const createMockDAL = (overrides: Partial<DataAccessLayer> = {}): DataAccessLayer => {
@@ -54,17 +63,27 @@ export const createMockDAL = (overrides: Partial<DataAccessLayer> = {}): DataAcc
     async migrate() {
       // No-op for test doubles
     },
-    async query<T extends JsonObject = JsonObject>(_sql?: string, _params: unknown[] = [], _client?: Pool | PoolClient | null) {
+    async query<T extends JsonObject = JsonObject>(
+      _sql?: string,
+      _params: unknown[] = [],
+      _client?: Pool | PoolClient | null
+    ) {
       return createQueryResult<T>();
     },
-    getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(name: string) {
+    getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+      name: string
+    ) {
       const model = registeredModels.get(name);
       if (!model) {
         throw new Error(`Model '${name}' not found in mock DAL`);
       }
       return model as ModelConstructor<TRecord, TVirtual>;
     },
-    createModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(name: string, schema, options = {}) {
+    createModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+      name: string,
+      schema,
+      options = {}
+    ) {
       const runtimeSchema = schema as unknown as ModelSchema<JsonObject, JsonObject>;
       const model = Model.createModel<JsonObject, JsonObject>(name, runtimeSchema, options, dal);
       registeredModels.set(name, model);
@@ -75,7 +94,7 @@ export const createMockDAL = (overrides: Partial<DataAccessLayer> = {}): DataAcc
     },
     getModelRegistry() {
       return registeredModels;
-    }
+    },
   };
 
   Object.assign(dal, overrides);
@@ -84,13 +103,16 @@ export const createMockDAL = (overrides: Partial<DataAccessLayer> = {}): DataAcc
   return dal;
 };
 
-export const createMockModel = (dal: DataAccessLayer, options: MockModelOptions = {}): RuntimeModel => {
+export const createMockModel = (
+  dal: DataAccessLayer,
+  options: MockModelOptions = {}
+): RuntimeModel => {
   const {
     tableName = 'test_table',
     schema = defaultSchema(),
     camelToSnake = { createdOn: 'created_on' },
     relations = [],
-    configure
+    configure,
   } = options;
 
   const { model } = initializeModel<JsonObject, JsonObject, Model<JsonObject, JsonObject>>({
@@ -98,7 +120,7 @@ export const createMockModel = (dal: DataAccessLayer, options: MockModelOptions 
     baseTable: tableName,
     schema,
     camelToSnake,
-    relations
+    relations,
   });
 
   const runtimeModel = model as RuntimeModel;

@@ -31,9 +31,8 @@ async function runWebsite(): Promise<void> {
     app.set('port', listenPort);
     const server = https.createServer(credentials, app);
 
-    const httpsServer = typeof listenPort === 'number'
-      ? server.listen(listenPort, host)
-      : server.listen(listenPort);
+    const httpsServer =
+      typeof listenPort === 'number' ? server.listen(listenPort, host) : server.listen(listenPort);
 
     httpsServer.on('error', error => onError(error as NodeJS.ErrnoException, listenPort));
     setupHttpsReload(server);
@@ -42,9 +41,8 @@ async function runWebsite(): Promise<void> {
     const listenPort = ensureValidPort(port);
 
     app.set('port', listenPort);
-    const httpServer = typeof listenPort === 'number'
-      ? app.listen(listenPort, '127.0.0.1')
-      : app.listen(listenPort);
+    const httpServer =
+      typeof listenPort === 'number' ? app.listen(listenPort, '127.0.0.1') : app.listen(listenPort);
 
     httpServer.on('error', error => onError(error as NodeJS.ErrnoException, listenPort));
   }
@@ -74,11 +72,9 @@ function normalizePort(value: string | number | undefined): NormalizedPort {
 
   const port = Number.parseInt(value, 10);
 
-  if (Number.isNaN(port))
-    return value; // named pipe
+  if (Number.isNaN(port)) return value; // named pipe
 
-  if (port >= 0)
-    return port; // port number
+  if (port >= 0) return port; // port number
 
   return false;
 }
@@ -119,7 +115,7 @@ function loadHttpsCredentials(httpsConfig: HTTPSConfig): HttpsServerOptions {
   try {
     const credentials: HttpsServerOptions = {
       key: fs.readFileSync(httpsConfig.keyPath),
-      cert: fs.readFileSync(httpsConfig.certPath)
+      cert: fs.readFileSync(httpsConfig.certPath),
     };
 
     if (httpsConfig.caPath) {

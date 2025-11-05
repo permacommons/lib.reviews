@@ -24,7 +24,6 @@ type UploadRequest = ActionRequest & { files: UploadFile[] };
 type UploadMiddleware = (req: UploadRequest, res: ActionResponse, next: HandlerNext) => void;
 
 const actionHandler = {
-
   // Handler for enabling, disabling or toggling a Boolean preference. Currently
   // accepts one preference at a time, but should be easy to modify to handle
   // bulk operations if needed.
@@ -33,8 +32,7 @@ const actionHandler = {
     const preferenceName = String(req.body?.preferenceName ?? '').trim();
     const modifyAction = String(req.params?.modify ?? '');
 
-    if (!user)
-      return api.signinRequired(req, res);
+    if (!user) return api.signinRequired(req, res);
 
     if (!user.getValidPreferences().includes(preferenceName))
       return api.error(req, res, `Unknown preference: ${preferenceName}`);
@@ -62,29 +60,32 @@ const actionHandler = {
       .then(() => {
         res.status(200);
         res.type('json');
-        res.send(JSON.stringify({
-          message,
-          oldValue,
-          newValue,
-          errors: []
-        }, null, 2));
+        res.send(
+          JSON.stringify(
+            {
+              message,
+              oldValue,
+              newValue,
+              errors: [],
+            },
+            null,
+            2
+          )
+        );
       })
       .catch(next);
   },
   // Handler for hiding interface messages, announcements, etc., permanently for a given user
   suppressNotice(req: ActionRequest, res: ActionResponse, next: HandlerNext): void {
-
     const noticeType = String(req.body?.noticeType ?? '').trim();
     const user = req.user;
     const output = req.isAPI ? api : render;
-    if (!user)
-      return output.signinRequired(req, res);
+    if (!user) return output.signinRequired(req, res);
 
     switch (noticeType) {
       case 'language-notice-review':
       case 'language-notice-thing':
-        if (!user.suppressedNotices)
-          user.suppressedNotices = [noticeType];
+        if (!user.suppressedNotices) user.suppressedNotices = [noticeType];
         else if (user.suppressedNotices.indexOf(noticeType) === -1)
           user.suppressedNotices.push(noticeType);
 
@@ -101,7 +102,7 @@ const actionHandler = {
             } else {
               render.template(req, res, 'notice-suppressed', {
                 titleKey: 'notice suppressed',
-                noticeMessage: req.__(`notice type ${noticeType}`)
+                noticeMessage: req.__(`notice type ${noticeType}`),
               });
             }
           })
@@ -119,12 +120,11 @@ const actionHandler = {
         } else {
           render.template(req, res, 'unsupported-notice', {
             titleKey: 'unsupported notice',
-            noticeType
+            noticeType,
           });
         }
     }
   },
-
 
   /**
    * Handle a multipart API upload. API parameters
@@ -158,29 +158,27 @@ const actionHandler = {
     }
 
     if (!req.user.userCanUploadTempFiles && !req.user.isTrusted && !req.user.isSuperUser) {
-      api.error(req, res,
-        `User '${req.user.displayName}' is not permitted to upload files.`);
+      api.error(req, res, `User '${req.user.displayName}' is not permitted to upload files.`);
       return;
     }
 
     const performUpload: UploadMiddleware = multer({
       limits: {
-        fileSize: config.uploadMaxSize
+        fileSize: config.uploadMaxSize,
       },
       storage: multer.diskStorage({
         destination: config.uploadTempDir,
-        filename: assignFilename
+        filename: assignFilename,
       }),
       fileFilter: (_req, file, done) => {
         const { fileTypeError, isPermitted } = checkMIMEType(file);
         done(fileTypeError, isPermitted);
-      }
+      },
     }).array('files') as UploadMiddleware;
 
     // Execute the actual upload middleware
     performUpload(req, res, apiUploadHandler(req, res));
-  }
-
+  },
 };
 
 export default actionHandler;

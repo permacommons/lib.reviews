@@ -21,9 +21,9 @@ class NativeLookupAdapter extends AbstractLookupAdapter {
             data: {
               label,
               description,
-              thing
+              thing,
             },
-            sourceID: 'native'
+            sourceID: 'native',
           });
         })
         .catch(reject);

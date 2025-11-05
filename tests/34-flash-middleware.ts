@@ -3,7 +3,7 @@ import supertest from 'supertest';
 import express from 'express';
 import session from 'express-session';
 
- // Import the typed middleware implementations.
+// Import the typed middleware implementations.
 import flashStore from '../util/flash-store.ts';
 import flashMiddleware from '../routes/helpers/flash.ts';
 import ReportedError from '../util/reported-error.ts';
@@ -26,7 +26,7 @@ function makeApp() {
       resave: false,
       saveUninitialized: true,
       cookie: { maxAge: 60 * 1000 },
-    }),
+    })
   );
 
   // Minimal i18n stub: provide req.__ to satisfy flashError usage.
@@ -78,26 +78,26 @@ function makeApp() {
     });
   });
 
-    // Trigger flashError with a generic Error (non-ReportedError).
-    app.get('/error', (req, res) => {
-      req.flashError ? req.flashError(new Error('Boom')) : req.flash('pageErrors', 'unknown error');
-      res.json({ pageErrors: req.flash('pageErrors') });
-    });
+  // Trigger flashError with a generic Error (non-ReportedError).
+  app.get('/error', (req, res) => {
+    req.flashError ? req.flashError(new Error('Boom')) : req.flash('pageErrors', 'unknown error');
+    res.json({ pageErrors: req.flash('pageErrors') });
+  });
 
-    // Trigger flashError with a ReportedError, ensuring params are escaped and localized.
-    app.get('/reported-error', (req, res) => {
-      const err = new ReportedError({
-        userMessage: 'custom: %s',
-        userMessageParams: ['<tag>'],
-      });
-      if (req.flashError) {
-        req.flashError(err);
-      } else {
-        // Fallback: emulate what flashError would do (escaped param expected)
-        req.flash('pageErrors', req.__('custom: %s', '<tag>'));
-      }
-      res.json({ pageErrors: req.flash('pageErrors') });
+  // Trigger flashError with a ReportedError, ensuring params are escaped and localized.
+  app.get('/reported-error', (req, res) => {
+    const err = new ReportedError({
+      userMessage: 'custom: %s',
+      userMessageParams: ['<tag>'],
     });
+    if (req.flashError) {
+      req.flashError(err);
+    } else {
+      // Fallback: emulate what flashError would do (escaped param expected)
+      req.flash('pageErrors', req.__('custom: %s', '<tag>'));
+    }
+    res.json({ pageErrors: req.flash('pageErrors') });
+  });
 
   // Reading unknown key should return an empty array.
   app.get('/unknownKey', (req, res) => {
@@ -107,7 +107,7 @@ function makeApp() {
   return app;
 }
 
-test('flash: sets and retrieves messages, then consumes bucket', async (t) => {
+test('flash: sets and retrieves messages, then consumes bucket', async t => {
   const app = makeApp();
   const agent = supertest.agent(app);
 
@@ -128,7 +128,7 @@ test('flash: sets and retrieves messages, then consumes bucket', async (t) => {
   t.false(res.body.hasPageMessages);
 });
 
-test('flash: accumulates multiple messages for a key', async (t) => {
+test('flash: accumulates multiple messages for a key', async t => {
   const app = makeApp();
   const agent = supertest.agent(app);
 
@@ -138,7 +138,7 @@ test('flash: accumulates multiple messages for a key', async (t) => {
   t.deepEqual(res.body.pageMessages, ['one', 'two']);
 });
 
-test('flash: unknown key returns empty array', async (t) => {
+test('flash: unknown key returns empty array', async t => {
   const app = makeApp();
   const agent = supertest.agent(app);
 
@@ -146,7 +146,7 @@ test('flash: unknown key returns empty array', async (t) => {
   t.deepEqual(res.body.data, []);
 });
 
-test('flash: flashError stores localized unknown error for non-ReportedError', async (t) => {
+test('flash: flashError stores localized unknown error for non-ReportedError', async t => {
   const app = makeApp();
   const agent = supertest.agent(app);
 
@@ -155,7 +155,7 @@ test('flash: flashError stores localized unknown error for non-ReportedError', a
   t.deepEqual(res.body.pageErrors, ['unknown error']);
 });
 
-test('flash: flashError uses ReportedError and escapes params', async (t) => {
+test('flash: flashError uses ReportedError and escapes params', async t => {
   const app = makeApp();
   const agent = supertest.agent(app);
 

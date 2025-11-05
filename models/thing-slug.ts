@@ -10,12 +10,12 @@ type PostgresModule = typeof import('../db-postgres.ts');
 type ThingSlugRecord = JsonObject;
 type ThingSlugVirtual = JsonObject;
 type ThingSlugInstance = ModelInstance<ThingSlugRecord, ThingSlugVirtual> & Record<string, any>;
-type ThingSlugModel = ModelConstructor<ThingSlugRecord, ThingSlugVirtual, ThingSlugInstance> & Record<string, any>;
+type ThingSlugModel = ModelConstructor<ThingSlugRecord, ThingSlugVirtual, ThingSlugInstance> &
+  Record<string, any>;
 
 let postgresModulePromise: Promise<PostgresModule> | null = null;
 async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.ts');
+  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
   return postgresModulePromise;
 }
 
@@ -30,8 +30,19 @@ let ThingSlug: ThingSlugModel | null = null;
 
 // Reserved slugs that must never be used without qualification
 const reservedSlugs = [
-  'register', 'actions', 'signin', 'login', 'teams', 'user', 'new',
-  'signout', 'logout', 'api', 'faq', 'static', 'terms'
+  'register',
+  'actions',
+  'signin',
+  'login',
+  'teams',
+  'user',
+  'new',
+  'signout',
+  'logout',
+  'api',
+  'faq',
+  'static',
+  'terms',
 ] as const;
 
 /**
@@ -39,8 +50,10 @@ const reservedSlugs = [
  *
  * @param dalInstance - Optional DAL instance for testing
  */
-async function initializeThingSlugModel(dalInstance: Record<string, any> | null = null): Promise<ThingSlugModel | null> {
-  const activeDAL = dalInstance ?? await getPostgresDAL();
+async function initializeThingSlugModel(
+  dalInstance: Record<string, any> | null = null
+): Promise<ThingSlugModel | null> {
+  const activeDAL = dalInstance ?? (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping ThingSlug model initialization');
@@ -56,7 +69,7 @@ async function initializeThingSlugModel(dalInstance: Record<string, any> | null 
       createdBy: types.string().uuid(4),
       baseName: types.string().max(255),
       name: types.string().max(255),
-      qualifierPart: types.string().max(255)
+      qualifierPart: types.string().max(255),
     };
 
     const { model } = initializeModel<ThingSlugRecord, ThingSlugVirtual, ThingSlugInstance>({
@@ -68,14 +81,14 @@ async function initializeThingSlugModel(dalInstance: Record<string, any> | null 
         createdOn: 'created_on',
         createdBy: 'created_by',
         baseName: 'base_name',
-        qualifierPart: 'qualifier_part'
+        qualifierPart: 'qualifier_part',
       },
       staticMethods: {
-        getByName
+        getByName,
       },
       instanceMethods: {
-        qualifiedSave
-      }
+        qualifiedSave,
+      },
     });
 
     ThingSlug = model as ThingSlugModel;
@@ -147,11 +160,12 @@ async function qualifiedSave(this: ThingSlugInstance): Promise<ThingSlugInstance
   const forceQualifier = reservedSlugs.includes((this.name || '').toLowerCase());
 
   const findByName = async (name: string): Promise<ThingSlugInstance | null> => {
-    const existing = await dal.query(
-      `SELECT * FROM ${Model.tableName} WHERE name = $1 LIMIT 1`,
-      [name]
-    );
-    return existing.rows.length ? (Model._createInstance(existing.rows[0]) as ThingSlugInstance) : null;
+    const existing = await dal.query(`SELECT * FROM ${Model.tableName} WHERE name = $1 LIMIT 1`, [
+      name,
+    ]);
+    return existing.rows.length
+      ? (Model._createInstance(existing.rows[0]) as ThingSlugInstance)
+      : null;
   };
 
   const attemptSave = async (): Promise<ThingSlugInstance | null> => {
@@ -233,5 +247,5 @@ export {
   initializeThingSlugModel as initializeModel,
   initializeThingSlugModel,
   getPostgresThingSlugModel,
-  reservedSlugs
+  reservedSlugs,
 };

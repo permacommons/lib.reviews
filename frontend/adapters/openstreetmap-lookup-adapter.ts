@@ -19,7 +19,10 @@ class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
   constructor(updateCallback?: Function | null) {
     super(updateCallback);
     this.sourceID = 'openstreetmap';
-    this.supportedPattern = new RegExp('^https://www.openstreetmap.org/(node|way)/(\\d+)(?:#.*)?$', 'i');
+    this.supportedPattern = new RegExp(
+      '^https://www.openstreetmap.org/(node|way)/(\\d+)(?:#.*)?$',
+      'i'
+    );
   }
 
   lookup(url: string): Promise<LookupResult> {
@@ -31,14 +34,11 @@ class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
       const type = m[1];
       const id = m[2];
 
-      const query =
-        '[out:json];\n' +
-        `${type}(${id});\n` +
-        'out;\n';
+      const query = '[out:json];\n' + `${type}(${id});\n` + 'out;\n';
 
       $.post('https://overpass-api.de/api/interpreter', {
-          data: query
-        })
+        data: query,
+      })
         .then((data: OverpassResponse) => {
           if (typeof data != 'object' || !data.elements || !data.elements.length)
             return reject(new Error(`No OpenStreetMap data received for ${type} ID: ${id}`));
@@ -50,7 +50,7 @@ class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
             data: {
               label: data.elements[0].tags.name,
             },
-            sourceID: this.sourceID!
+            sourceID: this.sourceID!,
           });
         })
         .catch(reject);

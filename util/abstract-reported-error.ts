@@ -33,7 +33,9 @@ export default abstract class AbstractReportedError extends AbstractGenericError
    */
   protected constructor(options: ReportedErrorOptions) {
     if (new.target === AbstractReportedError)
-      throw new TypeError('AbstractReportedError is an abstract class, please instantiate a derived class.');
+      throw new TypeError(
+        'AbstractReportedError is an abstract class, please instantiate a derived class.'
+      );
 
     if (!options || typeof options !== 'object')
       throw new Error('Need an options object for a ReportedError.');
@@ -42,11 +44,12 @@ export default abstract class AbstractReportedError extends AbstractGenericError
 
     this.userMessage = options.userMessage;
 
-    const normalized = options.userMessageParams === undefined
-      ? this.nativeMessageParams
-      : Array.isArray(options.userMessageParams)
-        ? options.userMessageParams
-        : [options.userMessageParams];
+    const normalized =
+      options.userMessageParams === undefined
+        ? this.nativeMessageParams
+        : Array.isArray(options.userMessageParams)
+          ? options.userMessageParams
+          : [options.userMessageParams];
 
     this.userMessageParams = normalized;
     this.translateFn = options.translateFn || sprintf;
@@ -61,7 +64,9 @@ export default abstract class AbstractReportedError extends AbstractGenericError
   protected initializeUserMessage(): void {
     if (this.userMessage) {
       const args: unknown[] = [this.userMessage, ...this.userMessageParams];
-      this.addMessage('Message displayed to the user: ' + Reflect.apply(this.translateFn, this, args));
+      this.addMessage(
+        'Message displayed to the user: ' + Reflect.apply(this.translateFn, this, args)
+      );
     }
   }
 

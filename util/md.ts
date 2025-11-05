@@ -26,11 +26,10 @@ const markdownMessages = ['nsfw warning', 'spoiler warning'] as const;
 const md = new MarkdownIt({
   linkify: true,
   breaks: true,
-  typographer: true
+  typographer: true,
 });
 
 md.use(container, 'warning', {
-
   // Can take the form of specific built-in notices ("::: spoiler", "::: nsfw")
   // which are mapped against internationalized messages (that are treated
   // as content, i.e. they'll be saved into the rendered output), or a custom
@@ -39,31 +38,39 @@ md.use(container, 'warning', {
     return /^(spoiler|nsfw)$/.test(params.trim()) || /^warning\s+\S{1}.*$/.test(params.trim());
   },
 
-  render(tokens: Array<{ nesting: number; info: string }>, idx: number, _options: unknown, env: { language?: string }) {
-    if (tokens[idx].nesting === 1) { // Opening tag
+  render(
+    tokens: Array<{ nesting: number; info: string }>,
+    idx: number,
+    _options: unknown,
+    env: { language?: string }
+  ) {
+    if (tokens[idx].nesting === 1) {
+      // Opening tag
       let match: RegExpMatchArray | null;
       let notice: string;
       const trimmed = tokens[idx].info.trim();
       if ((match = trimmed.match(/^(spoiler|nsfw)$/))) {
         notice = i18n.__({
           phrase: `${match[1]} warning`,
-          locale: env.language || 'en'
+          locale: env.language || 'en',
         });
       } else if ((match = trimmed.match(/^warning\s+(\S{1}.*)$/))) {
         notice = md.utils.escapeHtml(match[1]);
-      } else { // Should not occur given validate function above
+      } else {
+        // Should not occur given validate function above
         notice = '';
       }
       return `<details class="content-warning"><summary tabindex="0" class="content-warning-notice">${notice}</summary><div class="dangerous-content nojs-visible">\n`;
-    } else { // Closing tag
+    } else {
+      // Closing tag
       return '</div></details>\n';
     }
-  }
+  },
 });
 
 md.use(html5Media, {
   translateFn: (locale: string | undefined = 'en', messageKey: string, messageParams: any[] = []) =>
-    i18n.__({ locale, phrase: messageKey }, ...messageParams)
+    i18n.__({ locale, phrase: messageKey }, ...messageParams),
 });
 
 export { getMarkdownMessageKeys };

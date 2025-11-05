@@ -93,6 +93,17 @@ declare module 'config' {
   }
 
   const config: ConfigModule;
-  export type { AppConfig, HTTPSConfig, IRCConfig, IRCConnectionOptions, LoggerFormat, PostgresConfig, QuestionCaptchaConfig, SearchConfig, WebHookTargets, ConfigModule };
+  export type {
+    AppConfig,
+    HTTPSConfig,
+    IRCConfig,
+    IRCConnectionOptions,
+    LoggerFormat,
+    PostgresConfig,
+    QuestionCaptchaConfig,
+    SearchConfig,
+    WebHookTargets,
+    ConfigModule,
+  };
   export default config;
 }

@@ -23,8 +23,7 @@ let restoreSelection: RestoreSelectionFn;
 if (typeof window !== 'undefined' && window.getSelection && document.createRange) {
   saveSelection = (containerEl: HTMLElement): SavedSelectionRange => {
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0)
-      return { start: 0, end: 0 };
+    if (!selection || selection.rangeCount === 0) return { start: 0, end: 0 };
 
     const range = selection.getRangeAt(0).cloneRange();
     const preSelectionRange = range.cloneRange();
@@ -34,7 +33,7 @@ if (typeof window !== 'undefined' && window.getSelection && document.createRange
 
     return {
       start,
-      end: start + range.toString().length
+      end: start + range.toString().length,
     };
   };
 
@@ -66,14 +65,12 @@ if (typeof window !== 'undefined' && window.getSelection && document.createRange
         charIndex = nextCharIndex;
       } else if (node.hasChildNodes()) {
         let i = node.childNodes.length;
-        while (i--)
-          nodeStack.push(node.childNodes[i]);
+        while (i--) nodeStack.push(node.childNodes[i]);
       }
     }
 
     const selection = window.getSelection();
-    if (!selection)
-      return;
+    if (!selection) return;
 
     selection.removeAllRanges();
     selection.addRange(range);
@@ -93,12 +90,12 @@ if (typeof window !== 'undefined' && window.getSelection && document.createRange
       const selectedTextRange = legacyDocument.selection!.createRange();
       const preSelectionTextRange = legacyDocument.body.createTextRange();
       preSelectionTextRange.moveToElementText(containerEl);
-      preSelectionTextRange.setEndPoint("EndToStart", selectedTextRange);
+      preSelectionTextRange.setEndPoint('EndToStart', selectedTextRange);
       const start = preSelectionTextRange.text.length;
 
       return {
         start,
-        end: start + selectedTextRange.text.length
+        end: start + selectedTextRange.text.length,
       };
     };
 
@@ -106,8 +103,8 @@ if (typeof window !== 'undefined' && window.getSelection && document.createRange
       const textRange = legacyDocument.body.createTextRange();
       textRange.moveToElementText(containerEl);
       textRange.collapse(true);
-      textRange.moveEnd("character", savedSel.end);
-      textRange.moveStart("character", savedSel.start);
+      textRange.moveEnd('character', savedSel.end);
+      textRange.moveStart('character', savedSel.start);
       textRange.select();
     };
   }

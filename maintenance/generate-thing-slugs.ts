@@ -12,10 +12,9 @@ type SluggableThing = {
 
 async function generateSlugs(): Promise<void> {
   await initializeDAL();
-  const things = await Thing
-    .filter({ _oldRevOf: false }, { default: true })
+  const things = (await Thing.filter({ _oldRevOf: false }, { default: true })
     .filter({ _revDeleted: false }, { default: true })
-    .run() as SluggableThing[];
+    .run()) as SluggableThing[];
 
   const updates: Array<Promise<SluggableThing>> = [];
   for (const thing of things) {

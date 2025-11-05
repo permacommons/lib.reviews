@@ -27,7 +27,7 @@ export default function flashMiddleware(req: Request, _res: Response, next: Next
     req.flash('pageErrors', req.__('unknown error'));
     debug.error({
       req,
-      error: error instanceof Error ? error : undefined
+      error: error instanceof Error ? error : undefined,
     });
   };
   next();

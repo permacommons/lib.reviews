@@ -5,7 +5,7 @@ import {
   MarkdownParser,
   schema,
   defaultMarkdownParser,
-  defaultMarkdownSerializer
+  defaultMarkdownSerializer,
 } from 'prosemirror-markdown';
 import type { MarkdownSerializerState } from 'prosemirror-markdown';
 import type { DOMOutputSpec, Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
@@ -17,42 +17,47 @@ const md = new MarkdownIt('commonmark', { html: false });
 
 // Container module with our custom fenced blocks
 md.use(markdownItContainer, 'warning', {
-  validate: params => /^(spoiler|nsfw)$/.test(params.trim()) || /^warning\s+\S{1}.*$/.test(params.trim())
+  validate: params =>
+    /^(spoiler|nsfw)$/.test(params.trim()) || /^warning\s+\S{1}.*$/.test(params.trim()),
 });
 
 md.use(html5Media);
 
 // <video> and <audio> schema are largely identical
-const getMediaSchema = (type: 'video' | 'audio'): NodeSpec =>
-  ({
-    inline: true,
-    attrs: {
-      src: {},
-      title: { default: null },
-      description: { default: null }
-    },
-    group: "inline",
-    draggable: true,
-    parseDOM: [{
+const getMediaSchema = (type: 'video' | 'audio'): NodeSpec => ({
+  inline: true,
+  attrs: {
+    src: {},
+    title: { default: null },
+    description: { default: null },
+  },
+  group: 'inline',
+  draggable: true,
+  parseDOM: [
+    {
       tag: `${type}[src]`,
       getAttrs(dom) {
         return {
-          src: (dom as HTMLElement).getAttribute("src"),
-          title: (dom as HTMLElement).getAttribute("title")
+          src: (dom as HTMLElement).getAttribute('src'),
+          title: (dom as HTMLElement).getAttribute('title'),
         };
-      }
-    }],
-    toDOM(node): DOMOutputSpec {
-      // Fallback description is omitted in RTE view, no point since user
-      // must be able to play HTML5 media in order to insert them
-      return [type, {
+      },
+    },
+  ],
+  toDOM(node): DOMOutputSpec {
+    // Fallback description is omitted in RTE view, no point since user
+    // must be able to play HTML5 media in order to insert them
+    return [
+      type,
+      {
         src: node.attrs.src,
         title: node.attrs.title,
         class: `html5-${type}-player-in-editor`,
-        controls: true
-      }];
-    }
-  });
+        controls: true,
+      },
+    ];
+  },
+});
 
 // Customize the schema to add a new node type that ProseMirror can understand.
 // We treat 'warning' as a top-level group to prevent warnings from being
@@ -60,44 +65,44 @@ const getMediaSchema = (type: 'video' | 'audio'): NodeSpec =>
 const markdownSchema = new Schema({
   nodes: schema.spec.nodes
     .update('doc', {
-      content: '(paragraph | block | warning)+'
+      content: '(paragraph | block | warning)+',
     })
     .append({
       video: getMediaSchema('video'),
       audio: getMediaSchema('audio'),
       container_warning: {
-        content: "block+",
-        group: "warning",
-        attrs: { message: { default: "" }, markup: { default: "" } },
-        parseDOM: [{ tag: "details" }],
+        content: 'block+',
+        group: 'warning',
+        attrs: { message: { default: '' }, markup: { default: '' } },
+        parseDOM: [{ tag: 'details' }],
         toDOM(node): DOMOutputSpec {
           return [
-            "details",
+            'details',
             {
-              open: "true",
-              class: "content-warning"
+              open: 'true',
+              class: 'content-warning',
             },
             [
-              "summary",
+              'summary',
               {
-                class: "content-warning-notice",
-                style: "pointer-events:none;user-select:none;-moz-user-select:none;",
-                contenteditable: "false"
+                class: 'content-warning-notice',
+                style: 'pointer-events:none;user-select:none;-moz-user-select:none;',
+                contenteditable: 'false',
               },
-              node.attrs.message
+              node.attrs.message,
             ],
             [
-              "div",
+              'div',
               {
-                class: "dangerous-content-in-editor"
+                class: 'dangerous-content-in-editor',
               },
-              0 // Placeholder for actual content
-            ]
+              0, // Placeholder for actual content
+            ],
           ];
-        }
-      } satisfies NodeSpec
+        },
+      } satisfies NodeSpec,
     }),
-  marks: schema.spec.marks
+  marks: schema.spec.marks,
 });
 
 export { markdownSchema };
@@ -133,24 +138,27 @@ type MarkdownParseSpec = {
   ignore?: boolean;
 };
 
-const defaultMarkdownParserTokens = defaultMarkdownParser.tokens as Record<string, MarkdownParseSpec>;
+const defaultMarkdownParserTokens = defaultMarkdownParser.tokens as Record<
+  string,
+  MarkdownParseSpec
+>;
 
 // Translate tokens from markdown parser into metadata for the ProseMirror node
 
 const getMediaParserTokens = (type: 'video' | 'audio'): MarkdownParseSpec => ({
   node: type,
   getAttrs: (tok: Token) => ({
-    src: tok.attrGet("src"),
-    title: tok.attrGet("title") || null,
-    description: tok.children && tok.children[0] ? tok.children[0].content : null
-  })
+    src: tok.attrGet('src'),
+    title: tok.attrGet('title') || null,
+    description: tok.children && tok.children[0] ? tok.children[0].content : null,
+  }),
 });
 
 defaultMarkdownParserTokens.video = getMediaParserTokens('video');
 defaultMarkdownParserTokens.audio = getMediaParserTokens('audio');
 
 defaultMarkdownParserTokens.container_warning = {
-  block: "container_warning",
+  block: 'container_warning',
   getAttrs: (tok: Token) => {
     const info = tok.info.trim();
     const rv: { markup: string; message?: string } = { markup: info };
@@ -160,7 +168,7 @@ defaultMarkdownParserTokens.container_warning = {
       rv.message = (info.match(/^warning\s+(\S{1}.*)$/) || [])[1];
     }
     return rv;
-  }
+  },
 };
 
 const markdownParser = new MarkdownParser(markdownSchema, md, defaultMarkdownParserTokens);

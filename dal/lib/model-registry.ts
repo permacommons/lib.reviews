@@ -2,7 +2,7 @@ import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
-  ModelInstance
+  ModelInstance,
 } from './model-types.ts';
 
 export interface RegisterModelOptions extends JsonObject {
@@ -37,7 +37,7 @@ export class ModelRegistry {
   register<
     TRecord extends JsonObject,
     TVirtual extends JsonObject = JsonObject,
-    TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
+    TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
   >(
     tableName: string,
     model: ModelConstructor<TRecord, TVirtual, TInstance>,
@@ -59,7 +59,9 @@ export class ModelRegistry {
 
     const existingByKey = this.modelsByKey.get(canonicalKey);
     if (existingByKey && existingByKey !== model) {
-      throw new Error(`Model registry key '${canonicalKey}' already registered on this DAL instance.`);
+      throw new Error(
+        `Model registry key '${canonicalKey}' already registered on this DAL instance.`
+      );
     }
 
     this.modelsByTable.set(tableName, model as AnyModelConstructor);
@@ -76,7 +78,7 @@ export class ModelRegistry {
   get<
     TRecord extends JsonObject,
     TVirtual extends JsonObject = JsonObject,
-    TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
+    TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
   >(identifier: string): ModelConstructor<TRecord, TVirtual, TInstance> | null {
     if (!identifier) {
       return null;

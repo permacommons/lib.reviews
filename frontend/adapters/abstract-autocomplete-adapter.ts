@@ -84,7 +84,9 @@ export default abstract class AbstractAutocompleteAdapter extends AbstractLookup
     super(updateCallback);
 
     if (this.constructor.name === AbstractAutocompleteAdapter.name)
-      throw new TypeError('AbstractAutocompleteAdapter is an abstract class, please instantiate a derived class.');
+      throw new TypeError(
+        'AbstractAutocompleteAdapter is an abstract class, please instantiate a derived class.'
+      );
 
     this.searchBoxSelector = searchBoxSelector;
   }
@@ -104,14 +106,11 @@ export default abstract class AbstractAutocompleteAdapter extends AbstractLookup
     ac.adapter = this;
 
     // Register standard callbacks
-    if (this._requestHandler)
-      ac.requestFn = (this._requestHandler as any).bind(ac);
+    if (this._requestHandler) ac.requestFn = (this._requestHandler as any).bind(ac);
 
-    if (this._selectRowHandler)
-      ac.triggerFn = (this._selectRowHandler as any).bind(ac);
+    if (this._selectRowHandler) ac.triggerFn = (this._selectRowHandler as any).bind(ac);
 
-    if (this._renderRowHandler)
-      ac.rowFn = (this._renderRowHandler as any).bind(ac);
+    if (this._renderRowHandler) ac.rowFn = (this._renderRowHandler as any).bind(ac);
 
     // Custom function for showing "No results" text
     ac.renderNoResults = this._renderNoResultsHandler.bind(ac);
@@ -165,17 +164,18 @@ export default abstract class AbstractAutocompleteAdapter extends AbstractLookup
    *  for display purposes, since the server performs its own lookup on the URL.
    * @param event - the click or keyboard event which triggered this row selection.
    */
-  protected _selectRowHandler(row: { url?: string; label?: string; subtitle?: string; description?: string }, event: Event): void {
+  protected _selectRowHandler(
+    row: { url?: string; label?: string; subtitle?: string; description?: string },
+    event: Event
+  ): void {
     event.preventDefault();
     if (row.url && row.label) {
       const data: UpdateCallbackData = {
         label: row.label,
-        url: row.url
+        url: row.url,
       };
-      if (row.subtitle)
-        data.subtitle = row.subtitle;
-      if (row.description)
-        data.description = row.description;
+      if (row.subtitle) data.subtitle = row.subtitle;
+      if (row.description) data.description = row.description;
 
       // Let the application perform appropriate updates based on this data
       (this as any).adapter.updateCallback(data);
@@ -200,9 +200,9 @@ export default abstract class AbstractAutocompleteAdapter extends AbstractLookup
    */
   protected _renderNoResultsHandler(this: Autocomplete<any>): void {
     const $wrapper = $((this as any).rowWrapperEl);
-    const $noResults = $('<div class="ac-adapter-no-results">' + msg('no search results') + '</div>');
-    $wrapper
-      .append($noResults)
-      .show();
+    const $noResults = $(
+      '<div class="ac-adapter-no-results">' + msg('no search results') + '</div>'
+    );
+    $wrapper.append($noResults).show();
   }
 }

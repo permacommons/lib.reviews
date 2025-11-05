@@ -2,11 +2,16 @@
  * Based on the MIT-licensed remote-ac project (https://github.com/danqing/autocomplete).
  * We maintain an in-repo fork to support accessibility improvements and Node 22 tooling.
  */
-const globalRoot = typeof globalThis !== 'undefined' ? globalThis :
-  typeof self !== 'undefined' ? self :
-    typeof window !== 'undefined' ? window : undefined;
+const globalRoot =
+  typeof globalThis !== 'undefined'
+    ? globalThis
+    : typeof self !== 'undefined'
+      ? self
+      : typeof window !== 'undefined'
+        ? window
+        : undefined;
 
-'use strict';
+('use strict');
 
 const DEFAULT_DELAY_MS = 300;
 const DEFAULT_MIN_LENGTH = 1;
@@ -75,8 +80,7 @@ class Autocomplete {
   }
 
   mount() {
-    if (this.isMounted)
-      return;
+    if (this.isMounted) return;
 
     if (!this.el) {
       this.el = Autocomplete.createEl('div', this.getCSS('WRAPPER'));
@@ -97,10 +101,8 @@ class Autocomplete {
       win.addEventListener('keydown', this.keydownHandler);
       win.addEventListener('input', this.inputHandler, true);
       win.addEventListener('resize', this.resizeHandler);
-      if (Autocomplete.isMobileSafari())
-        win.addEventListener('touchend', this.clickHandler);
-      else
-        win.addEventListener('click', this.clickHandler);
+      if (Autocomplete.isMobileSafari()) win.addEventListener('touchend', this.clickHandler);
+      else win.addEventListener('click', this.clickHandler);
     }
 
     this.inputEl.setAttribute('aria-expanded', 'true');
@@ -112,31 +114,30 @@ class Autocomplete {
 
     const viewportWidth = Autocomplete._getViewportWidth();
     if (viewportWidth !== null && viewportWidth < 500) {
-      Autocomplete._withFallback(() => {
-        this.inputEl.scrollIntoView({ block: 'nearest' });
-      }, () => {
-        this.inputEl.scrollIntoView();
-      });
+      Autocomplete._withFallback(
+        () => {
+          this.inputEl.scrollIntoView({ block: 'nearest' });
+        },
+        () => {
+          this.inputEl.scrollIntoView();
+        }
+      );
     }
   }
 
   unmount() {
-    if (!this.isMounted)
-      return;
+    if (!this.isMounted) return;
 
     const win = Autocomplete._getWindow();
     if (win) {
       win.removeEventListener('keydown', this.keydownHandler);
       win.removeEventListener('input', this.inputHandler, true);
       win.removeEventListener('resize', this.resizeHandler);
-      if (Autocomplete.isMobileSafari())
-        win.removeEventListener('touchend', this.clickHandler);
-      else
-        win.removeEventListener('click', this.clickHandler);
+      if (Autocomplete.isMobileSafari()) win.removeEventListener('touchend', this.clickHandler);
+      else win.removeEventListener('click', this.clickHandler);
     }
 
-    if (this.el)
-      this.el.style.display = 'none';
+    if (this.el) this.el.style.display = 'none';
 
     this.abortPendingRequest();
 
@@ -146,8 +147,7 @@ class Autocomplete {
   }
 
   position() {
-    if (!this.el)
-      return;
+    if (!this.el) return;
 
     const rect = this.anchorEl.getBoundingClientRect();
     const offset = Autocomplete.findPosition(this.anchorEl);
@@ -190,22 +190,17 @@ class Autocomplete {
   handleInput() {
     this.value = this.inputEl.value;
     this.isRightArrowComplete = false;
-    if (this.timeoutID)
-      clearTimeout(this.timeoutID);
+    if (this.timeoutID) clearTimeout(this.timeoutID);
     this.timeoutID = setTimeout(() => this.requestMatch(), this.delay);
   }
 
   setSelectedIndex(index) {
-    if (!this.rows.length)
-      return;
+    if (!this.rows.length) return;
 
     let nextIndex = index;
-    if (nextIndex === this.selectedIndex)
-      return;
-    if (nextIndex >= this.rows.length)
-      nextIndex = nextIndex - this.rows.length;
-    if (nextIndex < 0)
-      nextIndex = this.rows.length + nextIndex;
+    if (nextIndex === this.selectedIndex) return;
+    if (nextIndex >= this.rows.length) nextIndex = nextIndex - this.rows.length;
+    if (nextIndex < 0) nextIndex = this.rows.length + nextIndex;
 
     if (this.selectedIndex >= 0 && this.rows[this.selectedIndex]) {
       const previousRow = this.rows[this.selectedIndex];
@@ -228,20 +223,16 @@ class Autocomplete {
 
   handleClick(event) {
     const target = event.target;
-    if (!target)
-      return;
+    if (!target) return;
 
-    if (target === this.inputEl)
-      return;
+    if (target === this.inputEl) return;
 
     if (this.el && this.el.contains(target)) {
       const row = target.closest('[data-rid]');
-      if (!row)
-        return;
+      if (!row) return;
 
       const rowId = parseInt(row.getAttribute('data-rid'), 10);
-      if (Number.isNaN(rowId))
-        return;
+      if (Number.isNaN(rowId)) return;
 
       this.selectedIndex = rowId;
       this.trigger(event);
@@ -252,16 +243,14 @@ class Autocomplete {
   }
 
   trigger(event) {
-    if (this.selectedIndex < 0 || !this.results[this.selectedIndex])
-      return;
+    if (this.selectedIndex < 0 || !this.results[this.selectedIndex]) return;
 
     const result = this.results[this.selectedIndex];
     this.value = result[this.primaryTextKey];
     this.inputEl.value = this.value;
     this.inputEl.blur();
 
-    if (typeof this.triggerFn === 'function')
-      this.triggerFn(result, event);
+    if (typeof this.triggerFn === 'function') this.triggerFn(result, event);
 
     this.unmount();
   }
@@ -272,8 +261,7 @@ class Autocomplete {
       return;
     }
 
-    if (!this.urlBuilderFn)
-      return;
+    if (!this.urlBuilderFn) return;
 
     this.abortPendingRequest();
 
@@ -293,8 +281,7 @@ class Autocomplete {
 
     fetch(this.urlBuilderFn(this.value), { signal })
       .then(response => {
-        if (!response.ok)
-          throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
       })
       .then(results => {
@@ -302,8 +289,7 @@ class Autocomplete {
         this.render();
       })
       .catch(error => {
-        if (error && error.name === 'AbortError')
-          return;
+        if (error && error.name === 'AbortError') return;
         this.results = [];
         this.render();
       });
@@ -320,8 +306,7 @@ class Autocomplete {
     this.selectedIndex = -1;
     this.rows = [];
 
-    if (!this.rowWrapperEl)
-      return;
+    if (!this.rowWrapperEl) return;
 
     this.rowWrapperEl.innerHTML = '';
 
@@ -335,8 +320,7 @@ class Autocomplete {
           row = this.createRow(index);
         }
 
-        if (!row)
-          return;
+        if (!row) return;
 
         this._addClasses(row, 'ROW');
         row.setAttribute('data-rid', index);
@@ -376,32 +360,27 @@ class Autocomplete {
   }
 
   _addClasses(element, key) {
-    if (!element)
-      return;
+    if (!element) return;
 
     const classes = this.getCSS(key).split(/\s+/);
     classes.forEach(cls => {
-      if (cls)
-        element.classList.add(cls);
+      if (cls) element.classList.add(cls);
     });
   }
 
   _removeClasses(element, key) {
-    if (!element)
-      return;
+    if (!element) return;
 
     const classes = this.getCSS(key).split(/\s+/);
     classes.forEach(cls => {
-      if (cls)
-        element.classList.remove(cls);
+      if (cls) element.classList.remove(cls);
     });
   }
 
   static isMobileSafari() {
     /* istanbul ignore next */
     const nav = Autocomplete._getNavigator();
-    if (!nav || !nav.userAgent)
-      return false;
+    if (!nav || !nav.userAgent) return false;
     const ua = nav.userAgent;
     const iOS = /iPad|iPhone/.test(ua);
     return iOS && /WebKit/.test(ua) && !/CriOS/.test(ua);
@@ -409,8 +388,7 @@ class Autocomplete {
 
   static createMatchTextEls(input, complete) {
     const fragment = document.createDocumentFragment();
-    if (!complete)
-      return fragment;
+    if (!complete) return fragment;
 
     const trimmedInput = input ? input.trim() : '';
     const len = trimmedInput.length;
@@ -423,7 +401,9 @@ class Autocomplete {
       fragment.appendChild(Autocomplete.createEl('span', null, complete.substring(len)));
     } else if (index > 0) {
       fragment.appendChild(Autocomplete.createEl('span', null, complete.substring(0, index)));
-      fragment.appendChild(Autocomplete.createEl('b', null, complete.substring(index, index + len)));
+      fragment.appendChild(
+        Autocomplete.createEl('b', null, complete.substring(index, index + len))
+      );
       fragment.appendChild(Autocomplete.createEl('span', null, complete.substring(index + len)));
     } else {
       fragment.appendChild(Autocomplete.createEl('span', null, complete));
@@ -435,9 +415,11 @@ class Autocomplete {
   static createEl(tag, className, textContent) {
     const element = document.createElement(tag);
     if (className)
-      className.split(/\s+/).filter(Boolean).forEach(cls => element.classList.add(cls));
-    if (textContent)
-      element.appendChild(document.createTextNode(textContent));
+      className
+        .split(/\s+/)
+        .filter(Boolean)
+        .forEach(cls => element.classList.add(cls));
+    if (textContent) element.appendChild(document.createTextNode(textContent));
     return element;
   }
 
@@ -445,44 +427,46 @@ class Autocomplete {
     const rect = el.getBoundingClientRect();
     const win = Autocomplete._getWindow();
     const doc = el.ownerDocument || (win && win.document);
-    const pageYOffset = win && typeof win.pageYOffset === 'number' ? win.pageYOffset :
-      doc && doc.documentElement ? doc.documentElement.scrollTop : 0;
-    const pageXOffset = win && typeof win.pageXOffset === 'number' ? win.pageXOffset :
-      doc && doc.documentElement ? doc.documentElement.scrollLeft : 0;
+    const pageYOffset =
+      win && typeof win.pageYOffset === 'number'
+        ? win.pageYOffset
+        : doc && doc.documentElement
+          ? doc.documentElement.scrollTop
+          : 0;
+    const pageXOffset =
+      win && typeof win.pageXOffset === 'number'
+        ? win.pageXOffset
+        : doc && doc.documentElement
+          ? doc.documentElement.scrollLeft
+          : 0;
     const top = rect.top + pageYOffset;
     const left = rect.left + pageXOffset;
     return { left, top };
   }
 
   static encodeQuery(obj) {
-    if (!obj || typeof obj !== 'object')
-      return '';
+    if (!obj || typeof obj !== 'object') return '';
     return Object.keys(obj)
       .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(obj[key])}`)
       .join('&');
   }
 
   static _getWindow() {
-    if (typeof window !== 'undefined')
-      return window;
-    if (globalRoot && globalRoot.window)
-      return globalRoot.window;
+    if (typeof window !== 'undefined') return window;
+    if (globalRoot && globalRoot.window) return globalRoot.window;
     return null;
   }
 
   static _getNavigator() {
-    if (typeof navigator !== 'undefined')
-      return navigator;
+    if (typeof navigator !== 'undefined') return navigator;
     const win = Autocomplete._getWindow();
-    if (win && win.navigator)
-      return win.navigator;
+    if (win && win.navigator) return win.navigator;
     return null;
   }
 
   static _getViewportWidth() {
     const win = Autocomplete._getWindow();
-    if (!win)
-      return null;
+    if (!win) return null;
     return Math.max(
       win.document && win.document.documentElement ? win.document.documentElement.clientWidth : 0,
       win.innerWidth || 0
@@ -504,7 +488,7 @@ Autocomplete.KEYCODE = {
   LEFT: 37,
   UP: 38,
   RIGHT: 39,
-  DOWN: 40
+  DOWN: 40,
 };
 
 Autocomplete.CLASS = {
@@ -515,10 +499,9 @@ Autocomplete.CLASS = {
   PRIMARY_SPAN: 'pr',
   SECONDARY_SPAN: 'sc',
   MOBILE_INPUT: 'minput',
-  CANCEL: 'cancel'
+  CANCEL: 'cancel',
 };
 
-if (globalRoot && !globalRoot.AC)
-  globalRoot.AC = Autocomplete;
+if (globalRoot && !globalRoot.AC) globalRoot.AC = Autocomplete;
 
 export default Autocomplete;

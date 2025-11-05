@@ -15,7 +15,7 @@ i18n.configure({
   updateFiles: false,
   autoReload: false,
   syncFiles: false,
-  objectNotation: true
+  objectNotation: true,
 });
 
 import md from '../util/md.ts';

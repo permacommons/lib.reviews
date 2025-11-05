@@ -41,14 +41,17 @@ export type MockIndexedItem =
   | { type: 'thing'; data: ThingIndexShape }
   | { type: 'review'; data: ReviewIndexShape };
 
-export function isThingItem(item: MockIndexedItem): item is { type: 'thing'; data: ThingIndexShape } {
+export function isThingItem(
+  item: MockIndexedItem
+): item is { type: 'thing'; data: ThingIndexShape } {
   return item.type === 'thing';
 }
 
-export function isReviewItem(item: MockIndexedItem): item is { type: 'review'; data: ReviewIndexShape } {
+export function isReviewItem(
+  item: MockIndexedItem
+): item is { type: 'review'; data: ReviewIndexShape } {
   return item.type === 'review';
 }
-
 
 export type MockSearchQuery =
   | { type: 'searchThings'; query: string; lang: LocaleCode }
@@ -85,7 +88,6 @@ const originalSearchEntries = Object.entries(searchModule) as Array<
   [keyof SearchModule, SearchModule[keyof SearchModule]]
 >;
 
-
 export function mockSearch<TDocument = Record<string, unknown>>(
   initialIndexedItems: MockIndexedItem[] = []
 ): MockSearchCapture<TDocument> {
@@ -96,20 +98,20 @@ export function mockSearch<TDocument = Record<string, unknown>>(
       total: 0,
       successful: 0,
       failed: 0,
-      skipped: 0
+      skipped: 0,
     },
     hits: {
       hits: [],
       total: { value: 0, relation: 'eq' as const },
-      max_score: null
+      max_score: null,
     },
-    suggest: {}
+    suggest: {},
   } as MockSearchResponse<TDocument>;
 
   const captured: MockSearchCapture<TDocument> = {
     searchQueries: [],
     mockSearchResponse,
-    indexedItems: [...initialIndexedItems]
+    indexedItems: [...initialIndexedItems],
   };
 
   const mock: Partial<SearchModule> = {
@@ -119,8 +121,10 @@ export function mockSearch<TDocument = Record<string, unknown>>(
     },
     indexThing: async (thing: RevisionAwareRecord) => {
       if (
-        thing._oldRevOf || thing._revDeleted ||
-        thing._old_rev_of || thing._rev_deleted ||
+        thing._oldRevOf ||
+        thing._revDeleted ||
+        thing._old_rev_of ||
+        thing._rev_deleted ||
         (thing._data && (thing._data._old_rev_of || thing._data._rev_deleted))
       ) {
         return;
@@ -129,8 +133,10 @@ export function mockSearch<TDocument = Record<string, unknown>>(
     },
     indexReview: async (review: RevisionAwareRecord) => {
       if (
-        review._oldRevOf || review._revDeleted ||
-        review._old_rev_of || review._rev_deleted ||
+        review._oldRevOf ||
+        review._revDeleted ||
+        review._old_rev_of ||
+        review._rev_deleted ||
         (review._data && (review._data._old_rev_of || review._data._rev_deleted))
       ) {
         return;
@@ -152,7 +158,7 @@ export function mockSearch<TDocument = Record<string, unknown>>(
     createIndices: async () => {},
     deleteThing: async () => {},
     deleteReview: async () => {},
-    close: () => {}
+    close: () => {},
   };
 
   Object.assign(searchModule as Record<string, unknown>, mock as Record<string, unknown>);

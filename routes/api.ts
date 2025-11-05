@@ -23,9 +23,14 @@ router.post('/actions/upload', actionHandler.upload);
 // Query existence/properties of a thing (review subject)
 // look up by canonical URL name via /thing/:label or use URL query parameter
 // e.g., ?url=http://yahoo.com
-router.get('/thing', function(req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
+router.get('/thing', function (req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
   const urlQuery = req.query.url;
-  const urlParam = typeof urlQuery === 'string' ? urlQuery : Array.isArray(urlQuery) ? String(urlQuery[0] ?? '') : undefined;
+  const urlParam =
+    typeof urlQuery === 'string'
+      ? urlQuery
+      : Array.isArray(urlQuery)
+        ? String(urlQuery[0] ?? '')
+        : undefined;
   if (urlParam) {
     const rv: Record<string, unknown> = {};
     const failureMsg = 'Could not retrieve review subject.';
@@ -40,8 +45,7 @@ router.get('/thing', function(req: ApiRouteRequest, res: ApiRouteResponse, next:
       return;
     }
 
-    Thing
-      .lookupByURL(urlUtils.normalize(urlParam), userID)
+    Thing.lookupByURL(urlUtils.normalize(urlParam), userID)
       .then(result => {
         if (!result.length) {
           res.status(404);
@@ -68,7 +72,7 @@ router.get('/thing', function(req: ApiRouteRequest, res: ApiRouteResponse, next:
                 numberOfReviews: result.numberOfReviews,
                 averageStarRating: result.averageStarRating,
                 urls: result.urls,
-                reviews: result.reviews
+                reviews: result.reviews,
               };
               res.type('json');
               res.send(JSON.stringify(rv, null, 2));
@@ -81,42 +85,47 @@ router.get('/thing', function(req: ApiRouteRequest, res: ApiRouteResponse, next:
 });
 
 // Search suggestions
-router.get('/suggest/thing/:prefix', function(req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
-  const prefix = req.params.prefix.trim();
-  const localeCode: LibReviews.LocaleCode = languages.isValid(req.locale) ? (req.locale as LibReviews.LocaleCode) : 'en';
-  search
-    .suggestThing(prefix, localeCode)
-    .then(results => {
-    const rv: Record<string, unknown> = {};
+router.get(
+  '/suggest/thing/:prefix',
+  function (req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
+    const prefix = req.params.prefix.trim();
+    const localeCode: LibReviews.LocaleCode = languages.isValid(req.locale)
+      ? (req.locale as LibReviews.LocaleCode)
+      : 'en';
+    search
+      .suggestThing(prefix, localeCode)
+      .then(results => {
+        const rv: Record<string, unknown> = {};
 
-    // Simplify ElasticSearch result structure for API use (flatten, strip
-    // metadata; strip unneeded source data)
-    const suggestions = (results as Record<string, any>).suggest as Record<string, any[]>;
-    rv.results = suggestions;
-    for (const key of Object.keys(suggestions)) {
-      const entries = suggestions[key][0].options;
-      for (const option of entries) {
-        option.urlID = option._source.urlID;
-        option.urls = option._source.urls;
-        option.description = option._source.description;
-        Reflect.deleteProperty(option, '_source');
-        Reflect.deleteProperty(option, '_index');
-      }
-      suggestions[key] = entries;
-    }
+        // Simplify ElasticSearch result structure for API use (flatten, strip
+        // metadata; strip unneeded source data)
+        const suggestions = (results as Record<string, any>).suggest as Record<string, any[]>;
+        rv.results = suggestions;
+        for (const key of Object.keys(suggestions)) {
+          const entries = suggestions[key][0].options;
+          for (const option of entries) {
+            option.urlID = option._source.urlID;
+            option.urls = option._source.urls;
+            option.description = option._source.description;
+            Reflect.deleteProperty(option, '_source');
+            Reflect.deleteProperty(option, '_index');
+          }
+          suggestions[key] = entries;
+        }
 
-      res.type('json');
-      res.status(200);
-      res.send(JSON.stringify(rv, null, 2));
-    })
-    .catch(next);
-});
+        res.type('json');
+        res.status(200);
+        res.send(JSON.stringify(rv, null, 2));
+      })
+      .catch(next);
+  }
+);
 
-router.get('/user/:name', function(req: ApiRouteRequest, res: ApiRouteResponse) {
+router.get('/user/:name', function (req: ApiRouteRequest, res: ApiRouteResponse) {
   const { name } = req.params;
   const rv: Record<string, unknown> = {};
   User.filter({
-    canonicalName: User.canonicalize(name)
+    canonicalName: User.canonicalize(name),
   }).then(result => {
     if (result.length) {
       let user = result[0];

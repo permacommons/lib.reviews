@@ -13,7 +13,12 @@ type ReviewsRouteRequest = HandlerRequest;
 type ReviewsRouteResponse = HandlerResponse;
 type ReviewModelType = { getFeed(options?: Record<string, unknown>): Promise<Record<string, any>> };
 type TeamModelType = { filterNotStaleOrDeleted(): { sample: (count: number) => Promise<any> } };
-type BlogPostModelType = { getMostRecentBlogPostsBySlug(slug: string, options?: Record<string, unknown>): Promise<Record<string, any>> };
+type BlogPostModelType = {
+  getMostRecentBlogPostsBySlug(
+    slug: string,
+    options?: Record<string, unknown>
+  ): Promise<Record<string, any>>;
+};
 
 const routes = ReviewProvider.getDefaultRoutes('review');
 const ReviewModel = Review as unknown as ReviewModelType;
@@ -22,12 +27,12 @@ const BlogPostModel = BlogPost as unknown as BlogPostModelType;
 
 routes.addFromThing = {
   path: '/new/review/:id',
-  methods: ['GET', 'POST']
+  methods: ['GET', 'POST'],
 };
 
 routes.addFromTeam = {
   path: '/team/:id/new/review',
-  methods: ['GET', 'POST']
+  methods: ['GET', 'POST'],
 };
 
 const router = ReviewProvider.bakeRoutes(null, routes);
@@ -39,13 +44,13 @@ const router = ReviewProvider.bakeRoutes(null, routes);
 router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next: HandlerNext) => {
   const queries = [
     ReviewModel.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
-    TeamModel.filterNotStaleOrDeleted().sample(3) // Random example teams
+    TeamModel.filterNotStaleOrDeleted().sample(3), // Random example teams
   ];
 
   if (config.frontPageTeamBlog) {
-    queries.push(BlogPostModel.getMostRecentBlogPostsBySlug(
-      config.frontPageTeamBlog, { limit: 3 }
-    ));
+    queries.push(
+      BlogPostModel.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
+    );
   }
 
   try {
@@ -61,13 +66,11 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
     // Set review permissions
     feedItems.forEach(item => {
       item.populateUserInfo(req.user);
-      if (item.thing)
-        item.thing.populateUserInfo(req.user);
+      if (item.thing) item.thing.populateUserInfo(req.user);
     });
 
     // Set post permissions
-    if (blogPosts)
-      blogPosts.forEach(post => post.populateUserInfo(req.user));
+    if (blogPosts) blogPosts.forEach(post => post.populateUserInfo(req.user));
 
     let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
       atomURLPrefix: `/feed/atom`,
@@ -75,14 +78,15 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
     });
 
     if (config.frontPageTeamBlog)
-      embeddedFeeds = embeddedFeeds.concat(feeds.getEmbeddedFeeds(req, {
-        atomURLPrefix: `/team/${config.frontPageTeamBlog}/blog/atom`,
-        atomURLTitleKey: config.frontPageTeamBlogKey
-      }));
+      embeddedFeeds = embeddedFeeds.concat(
+        feeds.getEmbeddedFeeds(req, {
+          atomURLPrefix: `/team/${config.frontPageTeamBlog}/blog/atom`,
+          atomURLTitleKey: config.frontPageTeamBlogKey,
+        })
+      );
 
     let paginationURL;
-    if (offsetDate)
-      paginationURL = `/feed/before/${offsetDate.toISOString()}`;
+    if (offsetDate) paginationURL = `/feed/before/${offsetDate.toISOString()}`;
 
     render.template(req, res, 'index', {
       titleKey: 'welcome',
@@ -91,34 +95,38 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
       blogPosts,
       blogKey: config.frontPageTeamBlogKey,
       showBlog: config.frontPageTeamBlog ? true : false,
-      team: config.frontPageTeamBlog ? {
-        id: config.frontPageTeamBlog
-      } : undefined,
+      team: config.frontPageTeamBlog
+        ? {
+            id: config.frontPageTeamBlog,
+          }
+        : undefined,
       paginationURL,
       sampleTeams,
       blogPostsUTCISODate: blogPostsOffsetDate ? blogPostsOffsetDate.toISOString() : undefined,
-      embeddedFeeds
+      embeddedFeeds,
     });
   } catch (error) {
     next(error);
   }
-
 });
-
 
 router.get('/feed', reviewHandlers.getFeedHandler({ deferPageHeader: true }));
 
-router.get('/feed/atom', (req: ReviewsRouteRequest, res: ReviewsRouteResponse) => res.redirect(`/feed/atom/${req.locale}`));
+router.get('/feed/atom', (req: ReviewsRouteRequest, res: ReviewsRouteResponse) =>
+  res.redirect(`/feed/atom/${req.locale}`)
+);
 
 router.get(
   '/feed/atom/:language',
   reviewHandlers.getFeedHandler({
-    format: 'atom'
+    format: 'atom',
   })
 );
 
 router.get('/feed/before/:utcisodate', reviewHandlers.getFeedHandler({ deferPageHeader: true }));
 
-router.get('/new', (req: ReviewsRouteRequest, res: ReviewsRouteResponse) => res.redirect('/new/review'));
+router.get('/new', (req: ReviewsRouteRequest, res: ReviewsRouteResponse) =>
+  res.redirect('/new/review')
+);
 
 export default router;

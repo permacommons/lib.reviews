@@ -25,8 +25,7 @@ type ThingModel = ModelConstructor<ThingRecord, ThingVirtual, ThingInstance> & R
 
 let postgresModulePromise: Promise<PostgresModule> | null = null;
 async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise)
-    postgresModulePromise = import('../db-postgres.ts');
+  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
   return postgresModulePromise;
 }
 
@@ -40,12 +39,15 @@ const { proxy: thingHandleProxy, register: registerThingHandle } = createModelMo
   ThingVirtual,
   ThingInstance
 >({
-  tableName: 'things'
+  tableName: 'things',
 });
 
 const ThingHandle = thingHandleProxy as ThingModel;
 
-const { types, mlString } = dal as unknown as { types: Record<string, any>; mlString: Record<string, any> };
+const { types, mlString } = dal as unknown as {
+  types: Record<string, any>;
+  mlString: Record<string, any>;
+};
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
 /**
  * Resolve the Review model at call time to avoid circular import initialization.
@@ -75,8 +77,10 @@ let Thing: ThingModel | null = null;
  *
  * @param dalInstance - Optional DAL instance for testing
  */
-async function initializeThingModel(dalInstance: Record<string, any> | null = null): Promise<ThingModel | null> {
-  const activeDAL = dalInstance ?? await getPostgresDAL();
+async function initializeThingModel(
+  dalInstance: Record<string, any> | null = null
+): Promise<ThingModel | null> {
+  const activeDAL = dalInstance ?? (await getPostgresDAL());
 
   if (!activeDAL) {
     debug.db('PostgreSQL DAL not available, skipping Thing model initialization');
@@ -109,7 +113,10 @@ async function initializeThingModel(dalInstance: Record<string, any> | null = nu
 
       // Virtual fields for compatibility
       urlID: types.virtual().default(function (this: ThingInstance) {
-        const slugName = typeof this.getValue === 'function' ? this.getValue('canonicalSlugName') : this.canonicalSlugName;
+        const slugName =
+          typeof this.getValue === 'function'
+            ? this.getValue('canonicalSlugName')
+            : this.canonicalSlugName;
         return slugName ? encodeURIComponent(String(slugName)) : this.id;
       }),
 
@@ -125,17 +132,20 @@ async function initializeThingModel(dalInstance: Record<string, any> | null = nu
 
       // Virtual accessors for nested metadata JSONB fields
       description: types.virtual().default(function (this: ThingInstance) {
-        const metadata = typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
         return metadata?.description;
       }),
       subtitle: types.virtual().default(function (this: ThingInstance) {
-        const metadata = typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
         return metadata?.subtitle;
       }),
       authors: types.virtual().default(function (this: ThingInstance) {
-        const metadata = typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
         return metadata?.authors;
-      })
+      }),
     };
 
     const { model } = initializeModel<ThingRecord, ThingVirtual, ThingInstance>({
@@ -146,21 +156,21 @@ async function initializeThingModel(dalInstance: Record<string, any> | null = nu
         originalLanguage: 'original_language',
         canonicalSlugName: 'canonical_slug_name',
         createdOn: 'created_on',
-        createdBy: 'created_by'
+        createdBy: 'created_by',
       },
       withRevision: {
         static: [
           'createFirstRevision',
           'getNotStaleOrDeleted',
           'filterNotStaleOrDeleted',
-          'getMultipleNotStaleOrDeleted'
+          'getMultipleNotStaleOrDeleted',
         ],
-        instance: ['deleteAllRevisions']
+        instance: ['deleteAllRevisions'],
       },
       staticMethods: {
         lookupByURL,
         getWithData,
-        getLabel
+        getLabel,
       },
       instanceMethods: {
         initializeFieldsFromAdapter,
@@ -174,7 +184,7 @@ async function initializeThingModel(dalInstance: Record<string, any> | null = nu
         getAverageStarRating,
         getReviewCount,
         addFile,
-        addFilesByIDsAndSave
+        addFilesByIDsAndSave,
       },
       relations: [
         {
@@ -183,7 +193,7 @@ async function initializeThingModel(dalInstance: Record<string, any> | null = nu
           sourceKey: 'id',
           targetKey: 'thing_id',
           hasRevisions: true,
-          cardinality: 'many'
+          cardinality: 'many',
         },
         {
           name: 'files',
@@ -194,11 +204,11 @@ async function initializeThingModel(dalInstance: Record<string, any> | null = nu
           through: {
             table: 'thing_files',
             sourceForeignKey: 'thing_id',
-            targetForeignKey: 'file_id'
+            targetForeignKey: 'file_id',
           },
-          cardinality: 'many'
-        }
-      ] as any
+          cardinality: 'many',
+        },
+      ] as any,
     });
     Thing = model as ThingModel;
 
@@ -233,7 +243,9 @@ async function lookupByURL(url: string, userID?: string | null): Promise<ThingIn
       AND (_rev_deleted IS NULL OR _rev_deleted = false)
   `;
 
-  const dalInstance = model.dal as { query: (text: string, params?: unknown[]) => Promise<{ rows: JsonObject[] }> } | undefined;
+  const dalInstance = model.dal as
+    | { query: (text: string, params?: unknown[]) => Promise<{ rows: JsonObject[] }> }
+    | undefined;
   if (!dalInstance) {
     throw new Error('Thing DAL not initialized');
   }
@@ -307,7 +319,7 @@ async function getWithData(
   id: string,
   {
     withFiles = true,
-    withReviewMetrics = true
+    withReviewMetrics = true,
   }: { withFiles?: boolean; withReviewMetrics?: boolean } = {}
 ): Promise<ThingInstance> {
   const model = (Thing ?? ThingHandle) as ThingModel;
@@ -315,7 +327,7 @@ async function getWithData(
   const joinOptions: Record<string, any> = {};
   if (withFiles) {
     joinOptions.files = {
-      _apply: seq => seq.filter({ completed: true })
+      _apply: seq => seq.filter({ completed: true }),
     };
   }
 
@@ -343,7 +355,10 @@ async function getWithData(
  * @param language - the language code of the preferred language
  * @returns the best available label
  */
-function getLabel(thing: ThingInstance | JsonObject | null | undefined, language: string): string | undefined {
+function getLabel(
+  thing: ThingInstance | JsonObject | null | undefined,
+  language: string
+): string | undefined {
   if (!thing || !thing.id) {
     return undefined;
   }
@@ -375,12 +390,18 @@ function getLabel(thing: ThingInstance | JsonObject | null | undefined, language
  * @param adapterResult.data - data for this result
  * @param adapterResult.sourceID - canonical source identifier
  */
-function initializeFieldsFromAdapter(this: ThingInstance, adapterResult: Record<string, any>): void {
+function initializeFieldsFromAdapter(
+  this: ThingInstance,
+  adapterResult: Record<string, any>
+): void {
   if (typeof adapterResult !== 'object' || !adapterResult) {
     return;
   }
 
-  const responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID) as Record<string, any>;
+  const responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID) as Record<
+    string,
+    any
+  >;
   const supportedFields = Array.isArray(responsibleAdapter?.getSupportedFields?.())
     ? responsibleAdapter.getSupportedFields()
     : [];
@@ -404,7 +425,7 @@ function initializeFieldsFromAdapter(this: ThingInstance, adapterResult: Record<
       (this.sync as Record<string, any>)[field] = {
         active: true,
         source: adapterResult.sourceID,
-        updated: new Date()
+        updated: new Date(),
       };
     }
   }
@@ -435,7 +456,7 @@ function populateUserInfo(this: ThingInstance, user: Record<string, any> | null 
 async function populateReviewMetrics(this: ThingInstance): Promise<ThingInstance> {
   const [averageStarRating, numberOfReviews] = await Promise.all([
     this.getAverageStarRating(),
-    this.getReviewCount()
+    this.getReviewCount(),
   ]);
   this.averageStarRating = averageStarRating;
   this.numberOfReviews = numberOfReviews;
@@ -477,7 +498,7 @@ function setURLs(this: ThingInstance, urls: string[]): void {
 
           (this.sync as Record<string, any>)[field] = {
             active: true,
-            source: adapter.getSourceID()
+            source: adapter.getSourceID(),
           };
         });
       }
@@ -521,21 +542,22 @@ async function updateActiveSyncs(this: ThingInstance, userID: string): Promise<T
     const relevantURLs = thing.urls.filter(url => adapter.ask(url));
     allURLs.push(...relevantURLs);
 
-    promises.push(...relevantURLs.map(url =>
-      (adapter
-        .lookup(url)
-        .catch(error => {
+    promises.push(
+      ...relevantURLs.map(url =>
+        adapter.lookup(url).catch(error => {
           const serializedError = error instanceof Error ? error : new Error(String(error));
           debug.error(`Problem contacting adapter "${adapter.getSourceID()}" for URL ${url}.`);
           debug.error({ error: serializedError });
           return undefined;
-        }))
-    ));
+        })
+      )
+    );
   });
 
   if (allURLs.length) {
-    debug.app(`Retrieving item metadata for ${thing.id} from the following URL(s):\n` +
-      allURLs.join(', '));
+    debug.app(
+      `Retrieving item metadata for ${thing.id} from the following URL(s):\n` + allURLs.join(', ')
+    );
   }
 
   const results = await Promise.all(promises);
@@ -544,11 +566,10 @@ async function updateActiveSyncs(this: ThingInstance, userID: string): Promise<T
   // Organize data by source and update fields
   const dataBySource = _organizeDataBySource(results);
 
-  sources.forEach((source) => {
+  sources.forEach(source => {
     for (const field in thing.sync as Record<string, any>) {
       const syncEntry = (thing.sync as Record<string, any>)[field];
       if (syncEntry?.active && syncEntry.source === source && Array.isArray(dataBySource[source])) {
-
         for (const data of dataBySource[source]) {
           if (data[field] !== undefined) {
             // Create a new sync object to ensure change detection works
@@ -598,7 +619,9 @@ async function updateActiveSyncs(this: ThingInstance, userID: string): Promise<T
    * @param results - results from multiple adapters
    * @returns key = source, value = array of data objects
    */
-  function _organizeDataBySource(results: Array<Record<string, any> | undefined>): Record<string, any[]> {
+  function _organizeDataBySource(
+    results: Array<Record<string, any> | undefined>
+  ): Record<string, any[]> {
     const rv: Record<string, any[]> = {};
     results.forEach(result => {
       if (
@@ -607,7 +630,6 @@ async function updateActiveSyncs(this: ThingInstance, userID: string): Promise<T
         typeof result.sourceID === 'string' &&
         typeof result.data === 'object'
       ) {
-
         if (!Array.isArray(rv[result.sourceID])) {
           rv[result.sourceID] = [];
         }
@@ -648,7 +670,10 @@ function getSourceIDsOfActiveSyncs(this: ThingInstance): string[] {
  * @param user - Current user performing the lookup
  * @returns Reviews authored by the user (empty array if none)
  */
-async function getReviewsByUser(this: ThingInstance, user: Record<string, any> | null | undefined): Promise<any[]> {
+async function getReviewsByUser(
+  this: ThingInstance,
+  user: Record<string, any> | null | undefined
+): Promise<any[]> {
   if (!user || !user.id) {
     return [];
   }
@@ -659,7 +684,7 @@ async function getReviewsByUser(this: ThingInstance, user: Record<string, any> |
       createdBy: user.id,
       withThing: false,
       withTeams: true,
-      limit: 50
+      limit: 50,
     });
 
     const reviews = Array.isArray(feed.feedItems) ? feed.feedItems : [];
@@ -690,7 +715,9 @@ async function getAverageStarRating(this: ThingInstance): Promise<number> {
     if (!dalInstance?.query) {
       return 0;
     }
-    const reviewTableName = dalInstance.schemaNamespace ? `${dalInstance.schemaNamespace}reviews` : 'reviews';
+    const reviewTableName = dalInstance.schemaNamespace
+      ? `${dalInstance.schemaNamespace}reviews`
+      : 'reviews';
     const query = `
       SELECT AVG(star_rating) as avg_rating
       FROM ${reviewTableName}
@@ -721,7 +748,9 @@ async function getReviewCount(this: ThingInstance): Promise<number> {
     if (!dalInstance?.query) {
       return 0;
     }
-    const reviewTableName = dalInstance.schemaNamespace ? `${dalInstance.schemaNamespace}reviews` : 'reviews';
+    const reviewTableName = dalInstance.schemaNamespace
+      ? `${dalInstance.schemaNamespace}reviews`
+      : 'reviews';
     const query = `
       SELECT COUNT(*) as review_count
       FROM ${reviewTableName}
@@ -759,7 +788,11 @@ function addFile(this: ThingInstance, file: Record<string, any>): void {
  * @param language - Preferred language for slug generation
  * @returns the updated Thing instance
  */
-async function updateSlug(this: ThingInstance, userID: string, language?: string): Promise<ThingInstance> {
+async function updateSlug(
+  this: ThingInstance,
+  userID: string,
+  language?: string
+): Promise<ThingInstance> {
   const originalLanguage = this.originalLanguage || 'en';
   const slugLanguage = language || originalLanguage;
 
@@ -805,7 +838,9 @@ async function updateSlug(this: ThingInstance, userID: string, language?: string
       this.canonicalSlugName = savedSlug.name;
       const model = (Thing ?? ThingHandle) as ThingModel;
       const changedSet = this._changed as Set<string> | undefined;
-      const dbFieldName = model._getDbFieldName ? model._getDbFieldName('canonicalSlugName') : 'canonical_slug_name';
+      const dbFieldName = model._getDbFieldName
+        ? model._getDbFieldName('canonicalSlugName')
+        : 'canonical_slug_name';
       changedSet?.add(dbFieldName);
     }
   } catch (error) {
@@ -823,7 +858,11 @@ async function updateSlug(this: ThingInstance, userID: string, language?: string
  * @param fileIDs - IDs of the files to add
  * @param userID - if given, uploader must match this user ID
  */
-async function addFilesByIDsAndSave(this: ThingInstance, fileIDs: string[], userID?: string): Promise<ThingInstance> {
+async function addFilesByIDsAndSave(
+  this: ThingInstance,
+  fileIDs: string[],
+  userID?: string
+): Promise<ThingInstance> {
   const thingModel = (Thing ?? ThingHandle) as ThingModel;
 
   if (!Array.isArray(fileIDs) || fileIDs.length === 0) {
@@ -857,7 +896,9 @@ async function addFilesByIDsAndSave(this: ThingInstance, fileIDs: string[], user
     }
 
     const dalInstance = thingModel.dal as Record<string, any>;
-    const junctionTable = dalInstance.schemaNamespace ? `${dalInstance.schemaNamespace}thing_files` : 'thing_files';
+    const junctionTable = dalInstance.schemaNamespace
+      ? `${dalInstance.schemaNamespace}thing_files`
+      : 'thing_files';
     const insertValues = [];
     const valueClauses = [];
     let paramIndex = 1;
@@ -961,7 +1002,7 @@ function _isValidURL(url: string): boolean {
       message: 'Thing URL %s is not a valid URL.',
       messageParams: [url],
       userMessage: 'invalid url',
-      userMessageParams: []
+      userMessageParams: [],
     });
   }
 }
@@ -975,7 +1016,10 @@ function _generateSlugName(str: string): string {
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  slug = slug.replace(/[^a-z0-9-]/g, '-').replace(/-{2,}/g, '-').replace(/^-+|-+$/g, '');
+  slug = slug
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
 
   if (!slug) {
     throw new Error('Source string cannot be converted to a valid slug.');
@@ -1030,8 +1074,8 @@ function _validateMetadata(metadata: unknown): boolean {
 registerThingHandle({
   initializeModel: initializeThingModel,
   additionalExports: {
-    initializeThingModel
-  }
+    initializeThingModel,
+  },
 });
 
 export default ThingHandle;

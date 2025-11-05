@@ -6,10 +6,10 @@ const createCatalog = () => ({
     'fallback message': 'Hello from default locale',
     'fallback plural': {
       one: '%s item in default locale',
-      other: '%s items in default locale'
-    }
+      other: '%s items in default locale',
+    },
   },
-  fr: {}
+  fr: {},
 });
 
 const configureI18n = () =>
@@ -20,7 +20,7 @@ const configureI18n = () =>
     autoReload: false,
     updateFiles: false,
     syncFiles: false,
-    staticCatalog: createCatalog()
+    staticCatalog: createCatalog(),
   });
 
 test.beforeEach(() => {
@@ -35,7 +35,7 @@ test('falls back to default locale for missing translation', t => {
   t.is(
     i18n.__({
       phrase: 'fallback message',
-      locale: 'fr'
+      locale: 'fr',
     }),
     'Hello from default locale'
   );

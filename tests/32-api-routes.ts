@@ -19,12 +19,7 @@ mockSearch();
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'api_routes',
-  cleanupTables: [
-    'reviews',
-    'things',
-    'files',
-    'users'
-  ]
+  cleanupTables: ['reviews', 'things', 'files', 'users'],
 });
 
 let User, Thing, Review, File;
@@ -37,7 +32,7 @@ test.before(async () => {
     { key: 'users', alias: 'User' },
     { key: 'things', alias: 'Thing' },
     { key: 'reviews', alias: 'Review' },
-    { key: 'files', alias: 'File' }
+    { key: 'files', alias: 'File' },
   ]);
 
   User = models.User;
@@ -48,8 +43,7 @@ test.before(async () => {
   await fs.mkdir(config.uploadTempDir, { recursive: true });
 
   const { default: getApp, resetAppForTesting } = await loadAppModule();
-  if (typeof resetAppForTesting === 'function')
-    await resetAppForTesting();
+  if (typeof resetAppForTesting === 'function') await resetAppForTesting();
   app = await getApp();
 });
 
@@ -58,12 +52,11 @@ test.before(async () => {
 // ============================================================================
 
 test.serial('GET /api/user/:name returns user information for existing user', async t => {
-
   const agent = supertest.agent(app);
   const username = `APITestUser-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const urlName = username.replace(/ /g, '_');
@@ -83,7 +76,6 @@ test.serial('GET /api/user/:name returns user information for existing user', as
 });
 
 test.serial('GET /api/user/:name returns 404 for non-existent user', async t => {
-
   const response = await supertest(app)
     .get('/api/user/NonExistentUser12345')
     .expect(404)
@@ -101,12 +93,11 @@ test.serial('GET /api/user/:name returns 404 for non-existent user', async t => 
 // ============================================================================
 
 test.serial('GET /api/thing?url=<url> returns thing data with review metrics', async t => {
-
   const agent = supertest.agent(app);
   const username = `ThingCreator-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const urlName = username.replace(/ /g, '_');
@@ -149,7 +140,6 @@ test.serial('GET /api/thing?url=<url> returns thing data with review metrics', a
 });
 
 test.serial('GET /api/thing?url=<url> returns 404 for non-existent URL', async t => {
-
   const response = await supertest(app)
     .get('/api/thing?url=https://example.com/does-not-exist-12345')
     .expect(404)
@@ -163,7 +153,6 @@ test.serial('GET /api/thing?url=<url> returns 404 for non-existent URL', async t
 });
 
 test.serial('GET /api/thing?url=<url> returns 400 for invalid URL', async t => {
-
   const response = await supertest(app)
     .get('/api/thing?url=not-a-valid-url')
     .expect(400)
@@ -181,7 +170,6 @@ test.serial('GET /api/thing?url=<url> returns 400 for invalid URL', async t => {
 // ============================================================================
 
 test.serial('GET /api/suggest/thing/:prefix returns search suggestions', async t => {
-
   // The mock search will return results for any prefix
   const response = await supertest(app)
     .get('/api/suggest/thing/test')
@@ -195,7 +183,6 @@ test.serial('GET /api/suggest/thing/:prefix returns search suggestions', async t
 });
 
 test.serial('GET /api/suggest/thing/:prefix handles whitespace prefix', async t => {
-
   const response = await supertest(app)
     .get('/api/suggest/thing/%20')
     .expect(200)
@@ -211,12 +198,11 @@ test.serial('GET /api/suggest/thing/:prefix handles whitespace prefix', async t 
 // ============================================================================
 
 test.serial('POST /api/actions/enable-preference enables a user preference', async t => {
-
   const agent = supertest.agent(app);
   const username = `PrefUser-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const response = await agent
@@ -236,12 +222,11 @@ test.serial('POST /api/actions/enable-preference enables a user preference', asy
 });
 
 test.serial('POST /api/actions/toggle-preference toggles a user preference', async t => {
-
   const agent = supertest.agent(app);
   const username = `ToggleUser-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   // First toggle
@@ -273,7 +258,6 @@ test.serial('POST /api/actions/toggle-preference toggles a user preference', asy
 });
 
 test.serial('POST /api/actions/modify-preference requires authentication', async t => {
-
   const response = await supertest(app)
     .post('/api/actions/enable-preference')
     .set('X-Requested-With', 'XMLHttpRequest')
@@ -284,12 +268,11 @@ test.serial('POST /api/actions/modify-preference requires authentication', async
 });
 
 test.serial('POST /api/actions/modify-preference rejects invalid preference names', async t => {
-
   const agent = supertest.agent(app);
   const username = `InvalidPrefUser-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const response = await agent
@@ -311,12 +294,11 @@ test.serial('POST /api/actions/modify-preference rejects invalid preference name
 // ============================================================================
 
 test.serial('POST /api/actions/suppress-notice suppresses a valid notice type', async t => {
-
   const agent = supertest.agent(app);
   const username = `NoticeUser-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const urlName = username.replace(/ /g, '_');
@@ -342,12 +324,11 @@ test.serial('POST /api/actions/suppress-notice suppresses a valid notice type', 
 });
 
 test.serial('POST /api/actions/suppress-notice handles duplicate suppression', async t => {
-
   const agent = supertest.agent(app);
   const username = `DuplicateNoticeUser-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const urlName = username.replace(/ /g, '_');
@@ -374,12 +355,11 @@ test.serial('POST /api/actions/suppress-notice handles duplicate suppression', a
 });
 
 test.serial('POST /api/actions/suppress-notice rejects invalid notice types', async t => {
-
   const agent = supertest.agent(app);
   const username = `InvalidNoticeUser-${Date.now()}`;
   await registerTestUser(agent, {
     username,
-    password: 'password123'
+    password: 'password123',
   });
 
   const response = await agent
@@ -397,7 +377,6 @@ test.serial('POST /api/actions/suppress-notice rejects invalid notice types', as
 });
 
 test.serial('POST /api/actions/suppress-notice requires authentication', async t => {
-
   const response = await supertest(app)
     .post('/api/actions/suppress-notice')
     .set('X-Requested-With', 'XMLHttpRequest')
@@ -412,7 +391,6 @@ test.serial('POST /api/actions/suppress-notice requires authentication', async t
 // ============================================================================
 
 test.serial('POST /api/actions/upload successfully uploads a valid file', async t => {
-
   const pngBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
     'base64'
@@ -422,7 +400,7 @@ test.serial('POST /api/actions/upload successfully uploads a valid file', async 
   const username = `Uploader ${Date.now()}`;
   await registerTestUser(uploadAgent, {
     username,
-    password: 'uploadRocks!'
+    password: 'uploadRocks!',
   });
 
   const urlName = username.replace(/ /g, '_');
@@ -443,13 +421,15 @@ test.serial('POST /api/actions/upload successfully uploads a valid file', async 
       .field('language', 'en')
       .attach('files', pngBuffer, {
         filename: 'tiny.png',
-        contentType: 'image/png'
+        contentType: 'image/png',
       });
 
     t.is(response.status, 200, `Upload failed: ${response.status} ${response.text}`);
     t.true(/json/.test(response.headers['content-type']), 'Response should be JSON');
 
-    const body = Object.keys(response.body || {}).length ? response.body : JSON.parse(response.text);
+    const body = Object.keys(response.body || {}).length
+      ? response.body
+      : JSON.parse(response.text);
 
     t.is(body.message, 'Upload successful.');
     t.deepEqual(body.errors, []);
@@ -483,12 +463,11 @@ test.serial('POST /api/actions/upload successfully uploads a valid file', async 
 });
 
 test.serial('POST /api/actions/upload rejects files with unrecognized signature', async t => {
-
   const uploadAgent = supertest.agent(app);
   const username = `Uploader ${Date.now()} invalid`;
   await registerTestUser(uploadAgent, {
     username,
-    password: 'uploadFails!'
+    password: 'uploadFails!',
   });
 
   const urlName = username.replace(/ /g, '_');
@@ -507,14 +486,17 @@ test.serial('POST /api/actions/upload rejects files with unrecognized signature'
     .field('language', 'en')
     .attach('files', bogusBuffer, {
       filename: 'fake.png',
-      contentType: 'image/png'
+      contentType: 'image/png',
     });
 
   t.is(response.status, 400, `Expected upload to be rejected, got ${response.status}`);
 
   const body = Object.keys(response.body || {}).length ? response.body : JSON.parse(response.text);
   t.is(body.message, 'Could not perform action.');
-  t.true(Array.isArray(body.errors) && body.errors.length > 0, 'Expected error details in response');
+  t.true(
+    Array.isArray(body.errors) && body.errors.length > 0,
+    'Expected error details in response'
+  );
 
   const [errorDetail] = body.errors;
   t.truthy(errorDetail.internalMessage);
@@ -528,7 +510,6 @@ test.serial('POST /api/actions/upload rejects files with unrecognized signature'
 });
 
 test.serial('POST /api/actions/upload requires authentication', async t => {
-
   const pngBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
     'base64'
@@ -543,7 +524,7 @@ test.serial('POST /api/actions/upload requires authentication', async t => {
     .field('language', 'en')
     .attach('files', pngBuffer, {
       filename: 'tiny.png',
-      contentType: 'image/png'
+      contentType: 'image/png',
     })
     .expect(401);
 
@@ -551,7 +532,6 @@ test.serial('POST /api/actions/upload requires authentication', async t => {
 });
 
 test.serial('POST /api/actions/upload requires trusted user permission', async t => {
-
   const pngBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
     'base64'
@@ -561,7 +541,7 @@ test.serial('POST /api/actions/upload requires trusted user permission', async t
   const username = `UntrustedUploader ${Date.now()}`;
   await registerTestUser(uploadAgent, {
     username,
-    password: 'uploadFails!'
+    password: 'uploadFails!',
   });
 
   // Don't set isTrusted - user should not have upload permission
@@ -574,7 +554,7 @@ test.serial('POST /api/actions/upload requires trusted user permission', async t
     .field('language', 'en')
     .attach('files', pngBuffer, {
       filename: 'tiny.png',
-      contentType: 'image/png'
+      contentType: 'image/png',
     })
     .expect(400);
 
@@ -588,7 +568,6 @@ test.serial('POST /api/actions/upload requires trusted user permission', async t
 test.after.always(async () => {
   unmockSearch();
   const { resetAppForTesting } = await loadAppModule();
-  if (typeof resetAppForTesting === 'function')
-    await resetAppForTesting();
+  if (typeof resetAppForTesting === 'function') await resetAppForTesting();
   await dalFixture.cleanup();
 });

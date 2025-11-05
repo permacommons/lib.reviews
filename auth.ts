@@ -9,13 +9,17 @@ type SerializedId = string | number;
 
 type DeserializeCallback = (err: unknown, user?: Express.User | false | null) => void;
 
-type VerifyCallback = (error: unknown, user?: Express.User | false, options?: passportLocal.IVerifyOptions) => void;
+type VerifyCallback = (
+  error: unknown,
+  user?: Express.User | false,
+  options?: passportLocal.IVerifyOptions
+) => void;
 
 passport.serializeUser((user: Express.User, done: (err: unknown, id?: SerializedId) => void) => {
   done(null, user.id as SerializedId);
 });
 
-passport.deserializeUser(async function(id: unknown, done: DeserializeCallback) {
+passport.deserializeUser(async function (id: unknown, done: DeserializeCallback) {
   const userId = id as SerializedId;
   try {
     const user = await User.getWithTeams(userId);
@@ -25,19 +29,18 @@ passport.deserializeUser(async function(id: unknown, done: DeserializeCallback) 
   }
 });
 
-const verify: passportLocal.VerifyFunction = async(username, password, done: VerifyCallback) => {
+const verify: passportLocal.VerifyFunction = async (username, password, done: VerifyCallback) => {
   try {
-    const users = await User
-      .filter({
-        canonicalName: User.canonicalize(username)
-      })
+    const users = await User.filter({
+      canonicalName: User.canonicalize(username),
+    })
       .includeSensitive(['password'])
       .limit(1)
       .run();
 
     if (!users.length) {
       return done(null, false, {
-        message: 'bad username'
+        message: 'bad username',
       });
     }
 
@@ -45,7 +48,7 @@ const verify: passportLocal.VerifyFunction = async(username, password, done: Ver
 
     if (!user.password) {
       return done(null, false, {
-        message: 'account locked'
+        message: 'account locked',
       });
     }
 
@@ -53,7 +56,7 @@ const verify: passportLocal.VerifyFunction = async(username, password, done: Ver
 
     if (!passwordMatches) {
       return done(null, false, {
-        message: 'bad password'
+        message: 'bad password',
       });
     }
 

@@ -25,7 +25,7 @@ async function updateIndices(): Promise<void> {
   const createIndicesPromise = search.createIndices();
   const [things, reviews] = await Promise.all([
     Thing.filterNotStaleOrDeleted().run() as Promise<IndexableThing[]>,
-    Review.filterNotStaleOrDeleted().run() as Promise<IndexableReview[]>
+    Review.filterNotStaleOrDeleted().run() as Promise<IndexableReview[]>,
   ]);
   await createIndicesPromise;
 
@@ -33,7 +33,7 @@ async function updateIndices(): Promise<void> {
 
   const indexUpdates: Array<Promise<unknown>> = [
     ...things.map(thing => limit(() => search.indexThing(thing))),
-    ...reviews.map(review => limit(() => search.indexReview(review)))
+    ...reviews.map(review => limit(() => search.indexReview(review))),
   ];
 
   await Promise.all(indexUpdates);

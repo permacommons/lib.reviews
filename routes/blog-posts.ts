@@ -3,36 +3,36 @@ import BlogPostProvider from './handlers/blog-post-provider.ts';
 const router = BlogPostProvider.bakeRoutes(null, {
   browse: {
     path: '/team/:id/blog',
-    methods: ['GET']
+    methods: ['GET'],
   },
   browseBefore: {
     path: '/team/:id/blog/before/:utcISODate',
-    methods: ['GET']
+    methods: ['GET'],
   },
   browseAtom: {
     path: '/team/:id/blog/atom/:language',
-    methods: ['GET']
+    methods: ['GET'],
   },
   browseAtomDetectLanguage: {
     path: '/team/:id/blog/atom',
-    methods: ['GET']
+    methods: ['GET'],
   },
   read: {
     path: '/team/:id/post/:postID',
-    methods: ['GET']
+    methods: ['GET'],
   },
   add: {
     path: '/team/:id/new/post',
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST'],
   },
   edit: {
     path: '/team/:id/post/:postID/edit',
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST'],
   },
   delete: {
     path: '/team/:id/post/:postID/delete',
-    methods: ['GET', 'POST']
-  }
+    methods: ['GET', 'POST'],
+  },
 });
 
 export default router;

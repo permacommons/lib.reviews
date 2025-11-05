@@ -54,12 +54,15 @@ export interface SearchSuggestion {
  * API response from the thing suggestion endpoint.
  */
 export interface SuggestResponse {
-  results?: Record<string, Array<{
-    _id: string;
-    text: string;
-    urlID: string;
-    description?: MLString;
-  }>>;
+  results?: Record<
+    string,
+    Array<{
+      _id: string;
+      text: string;
+      urlID: string;
+      description?: MLString;
+    }>
+  >;
 }
 
 /**
@@ -113,22 +116,17 @@ export function msg(messageKey: string, options?: MessageOptions): string {
 
   let rv = window.config.messages[messageKey];
 
-  if (typeof options !== 'object')
-    return rv;
+  if (typeof options !== 'object') return rv;
 
   const { accessKey, stringParam, stringParams, numberParam, numberParams } = options;
 
-  if (stringParam !== undefined)
-    rv = processSingleParam(rv, 's', String(stringParam));
+  if (stringParam !== undefined) rv = processSingleParam(rv, 's', String(stringParam));
 
-  if (Array.isArray(stringParams))
-    rv = processOrderedParams(rv, 's', stringParams);
+  if (Array.isArray(stringParams)) rv = processOrderedParams(rv, 's', stringParams);
 
-  if (numberParam !== undefined)
-    rv = processSingleParam(rv, 'd', Number(numberParam));
+  if (numberParam !== undefined) rv = processSingleParam(rv, 'd', Number(numberParam));
 
-  if (Array.isArray(numberParams))
-    rv = processOrderedParams(rv, 'd', numberParams);
+  if (Array.isArray(numberParams)) rv = processOrderedParams(rv, 'd', numberParams);
 
   if (accessKey && window.config.messages && window.config.messages['accesskey'])
     rv += '\n' + window.config.messages['accesskey'].replace('%s', accessKey);
@@ -139,7 +137,11 @@ export function msg(messageKey: string, options?: MessageOptions): string {
     return str.replace(`%${typeStr}`, String(param));
   }
 
-  function processOrderedParams(str: string, typeStr: string, paramArr: Array<string | number>): string {
+  function processOrderedParams(
+    str: string,
+    typeStr: string,
+    paramArr: Array<string | number>
+  ): string {
     paramArr.forEach((orderedParam, index) => {
       index++;
       str = str.replace(new RegExp(`%${index}\\$${typeStr}`, 'g'), String(orderedParam));
@@ -157,15 +159,12 @@ export function msg(messageKey: string, options?: MessageOptions): string {
  * @returns Resolved string or undefined if object is empty
  */
 export function resolveString(lang: string, strObj?: MLString): string | undefined {
-  if (strObj === undefined)
-    return undefined;
+  if (strObj === undefined) return undefined;
 
-  if (typeof strObj[lang] === 'string' && strObj[lang] !== '')
-    return strObj[lang];
+  if (typeof strObj[lang] === 'string' && strObj[lang] !== '') return strObj[lang];
 
   for (let k in strObj) {
-    if (typeof strObj[k] === 'string' && strObj[k] !== '')
-      return strObj[k];
+    if (typeof strObj[k] === 'string' && strObj[k] !== '') return strObj[k];
   }
 
   return undefined;
@@ -178,13 +177,14 @@ export function resolveString(lang: string, strObj?: MLString): string | undefin
  * @returns jQuery element containing the language badge
  */
 export function getLanguageIDSpan(lang: string): JQuery<HTMLSpanElement> {
-  if (typeof lang !== 'string')
-    throw new Error('Need valid language identifier.');
+  if (typeof lang !== 'string') throw new Error('Need valid language identifier.');
 
   let title = msg(`language ${lang} composite name`);
   return $(`<span class="language-identifier" title="${title}">`)
     .text(lang.toUpperCase())
-    .prepend('<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>') as JQuery<HTMLSpanElement>;
+    .prepend(
+      '<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>'
+    ) as JQuery<HTMLSpanElement>;
 }
 
 /**
@@ -201,11 +201,8 @@ export function trimInput(this: HTMLInputElement | HTMLTextAreaElement): void {
  * @param groupID - Data attribute value identifying the required group
  */
 export function enableRequiredGroup(groupID: string): void {
-  $(`span[data-required-indicator-group="${groupID}"]`)
-    .addClass('required')
-    .removeClass('hidden');
-  $(`[data-required-input-group="${groupID}"]`)
-    .attr('data-required', '');
+  $(`span[data-required-indicator-group="${groupID}"]`).addClass('required').removeClass('hidden');
+  $(`[data-required-input-group="${groupID}"]`).attr('data-required', '');
 }
 
 /**
@@ -214,11 +211,8 @@ export function enableRequiredGroup(groupID: string): void {
  * @param groupID - Data attribute value identifying the required group
  */
 export function disableRequiredGroup(groupID: string): void {
-  $(`span[data-required-indicator-group="${groupID}"]`)
-    .addClass('hidden')
-    .removeClass('required');
-  $(`[data-required-input-group="${groupID}"]`)
-    .removeAttr('data-required');
+  $(`span[data-required-indicator-group="${groupID}"]`).addClass('hidden').removeClass('required');
+  $(`[data-required-input-group="${groupID}"]`).removeAttr('data-required');
 }
 
 /**
@@ -227,12 +221,10 @@ export function disableRequiredGroup(groupID: string): void {
  */
 export const repaintFocusedHelp = (): void => {
   let $focused = $(':focus');
-  if (!$focused.length)
-    return;
+  if (!$focused.length) return;
 
   let id = $focused.attr('data-acts-as') || $focused[0].id;
-  if (id && $(`[data-help-for=${id}]`).length)
-    showInputHelp.apply($focused[0]);
+  if (id && $(`[data-help-for=${id}]`).length) showInputHelp.apply($focused[0]);
 };
 
 /**
@@ -247,7 +239,7 @@ export function addHelpListeners($input: JQuery<HTMLElement>): void {
   if (typeof MutationObserver !== 'undefined') {
     new MutationObserver(repaintFocusedHelp).observe($input[0], {
       attributes: true,
-      attributeFilter: ['style']
+      attributeFilter: ['style'],
     });
   }
 }
@@ -266,7 +258,8 @@ export const updateContentClickHandlers = (): void => {
  * @returns True if the URL is valid
  */
 export function validateURL(url: string): boolean {
-  const urlRegex = /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|\/|\?)*)*$/i;
+  const urlRegex =
+    /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|\/|\?)*)*$/i;
   return urlRegex.test(url);
 }
 
@@ -287,9 +280,11 @@ export function urlHasSupportedProtocol(url: string): boolean {
  */
 function toggleDangerousContent(this: HTMLElement, event: JQuery.Event): void {
   if ($(this).parent().is('[open]')) {
-    $(this).next('.dangerous-content').slideUp(200, () => {
-      $(this).parent().removeAttr('open');
-    });
+    $(this)
+      .next('.dangerous-content')
+      .slideUp(200, () => {
+        $(this).parent().removeAttr('open');
+      });
   } else {
     $(this).parent().attr('open', '');
     $(this).next('.dangerous-content').slideDown(200);
@@ -305,11 +300,9 @@ function setupSearch(): void {
   ac.delay = 0;
 
   function triggerFn(result: SearchSuggestion | null, event?: Event): void {
-    if (!result || !result.urlID)
-      return;
+    if (!result || !result.urlID) return;
 
-    if (event && typeof (event as Event).preventDefault === 'function')
-      event.preventDefault();
+    if (event && typeof (event as Event).preventDefault === 'function') event.preventDefault();
 
     window.location.href = `/${result.urlID}`;
   }
@@ -319,19 +312,21 @@ function setupSearch(): void {
 
     const $primary = $('<span>')
       .addClass(this.getCSS('PRIMARY_SPAN'))
-      .append($(Autocomplete.createMatchTextEls(this.value, row[this.primaryTextKey as keyof SearchSuggestion] as string)))
+      .append(
+        $(
+          Autocomplete.createMatchTextEls(
+            this.value,
+            row[this.primaryTextKey as keyof SearchSuggestion] as string
+          )
+        )
+      )
       .appendTo($row);
 
     if (row.language)
-      $primary.append(
-        getLanguageIDSpan(row.language).addClass('language-identifier-search-row')
-      );
+      $primary.append(getLanguageIDSpan(row.language).addClass('language-identifier-search-row'));
 
     if (row.description) {
-      $('<span>')
-        .addClass(this.getCSS('SECONDARY_SPAN'))
-        .text(row.description)
-        .appendTo($row);
+      $('<span>').addClass(this.getCSS('SECONDARY_SPAN')).text(row.description).appendTo($row);
     }
 
     return $row[0] as HTMLDivElement;
@@ -343,48 +338,42 @@ function setupSearch(): void {
     this.results = [];
     query = query.trim();
     if (query) {
-      $
-        .get(`/api/suggest/thing/${encodeURIComponent(query)}`)
-        .done((res: SuggestResponse) => {
-          if (time < this.latestQuery)
-            return;
+      $.get(`/api/suggest/thing/${encodeURIComponent(query)}`).done((res: SuggestResponse) => {
+        if (time < this.latestQuery) return;
 
-          this.results = [];
-          if (res.results) {
-            let seenIDs: string[] = [];
+        this.results = [];
+        if (res.results) {
+          let seenIDs: string[] = [];
 
-            let processLabelKey = (labelKey: string, labelLanguage: string) => {
-              for (let label of res.results![labelKey]) {
-                if (seenIDs.indexOf(label._id) !== -1)
-                  continue;
-                seenIDs.push(label._id);
+          let processLabelKey = (labelKey: string, labelLanguage: string) => {
+            for (let label of res.results![labelKey]) {
+              if (seenIDs.indexOf(label._id) !== -1) continue;
+              seenIDs.push(label._id);
 
-                let suggestion: SearchSuggestion = {
-                  title: label.text,
-                  urlID: label.urlID,
-                  description: resolveString(window.config?.language || 'en', label.description)
-                };
-                if (labelLanguage !== window.config?.language)
-                  suggestion.language = labelLanguage;
+              let suggestion: SearchSuggestion = {
+                title: label.text,
+                urlID: label.urlID,
+                description: resolveString(window.config?.language || 'en', label.description),
+              };
+              if (labelLanguage !== window.config?.language) suggestion.language = labelLanguage;
 
-                this.results.push(suggestion);
-              }
-              Reflect.deleteProperty(res.results!, labelKey);
-            };
-
-            let myLabelKey = `labels-${window.config?.language || 'en'}`;
-            if (Array.isArray(res.results[myLabelKey]) && res.results[myLabelKey].length)
-              processLabelKey(myLabelKey, window.config?.language || 'en');
-
-            for (let labelKey in res.results) {
-              let labelLanguage = (labelKey.match(/labels-(.*)/) || [])[1];
-              if (!labelLanguage)
-                continue;
-              processLabelKey(labelKey, labelLanguage);
+              this.results.push(suggestion);
             }
+            Reflect.deleteProperty(res.results!, labelKey);
+          };
+
+          let myLabelKey = `labels-${window.config?.language || 'en'}`;
+          if (Array.isArray(res.results[myLabelKey]) && res.results[myLabelKey].length)
+            processLabelKey(myLabelKey, window.config?.language || 'en');
+
+          for (let labelKey in res.results) {
+            let labelLanguage = (labelKey.match(/labels-(.*)/) || [])[1];
+            if (!labelLanguage) continue;
+            processLabelKey(labelKey, labelLanguage);
           }
-          this.render();
-        });
+        }
+        this.render();
+      });
     } else {
       this.render();
     }
@@ -410,13 +399,15 @@ function showInputHelp(this: HTMLElement): void {
     $(this)
       .parents('form')
       .find('input,textarea')
-      .each(function() {
+      .each(function () {
         let eleRight = this.getBoundingClientRect().right;
-        if (maxRight === undefined || maxRight < eleRight)
-          maxRight = eleRight;
+        if (maxRight === undefined || maxRight < eleRight) maxRight = eleRight;
       });
 
-    if (posHelp.left > posLabel.right && document.body.clientWidth >= Math.ceil(posLabel.width) + Math.ceil(posHelp.width) + 5) {
+    if (
+      posHelp.left > posLabel.right &&
+      document.body.clientWidth >= Math.ceil(posLabel.width) + Math.ceil(posHelp.width) + 5
+    ) {
       let newTopPos = Math.floor(window.scrollY) + Math.floor(posLabel.top);
       let newLeftPos = maxRight! + 5;
       let style = `position:absolute;top:${newTopPos}px;display:inline-block;left:${newLeftPos}px;`;
@@ -434,49 +425,50 @@ function showInputHelp(this: HTMLElement): void {
  */
 function hideInputHelp(this: HTMLElement): void {
   let id = $(this).attr('data-acts-as') || this.id;
-  if (!$('.help-text:hover').length)
-    $(`#${id}-help`).hide();
+  if (!$('.help-text:hover').length) $(`#${id}-help`).hide();
 }
 
 /**
  * Adds custom jQuery plugin methods for form validation and UI patterns.
  */
 function initializePlugins(): void {
-  $.fn.getEmptyInputs = function() {
-    return this.filter(function() {
+  $.fn.getEmptyInputs = function () {
+    return this.filter(function () {
       return this.value === undefined || String(this.value) === '';
     });
   };
 
-  $.fn.highlightLabels = function(indicatorSelector?: string) {
-    if (!indicatorSelector)
-      indicatorSelector = 'span.required';
+  $.fn.highlightLabels = function (indicatorSelector?: string) {
+    if (!indicatorSelector) indicatorSelector = 'span.required';
 
-    this.each(function() {
+    this.each(function () {
       $(`label[for="${this.id}"] ${indicatorSelector}`).show();
     });
 
     return this;
   };
 
-  $.fn.attachRequiredFieldHandler = function(options) {
-    if (!options)
-      options = {};
+  $.fn.attachRequiredFieldHandler = function (options) {
+    if (!options) options = {};
 
     let indicatorSelector = options.indicatorSelector || 'span.required';
     let requiredFieldsMessage = options.requiredFieldMessage || '#required-fields-message';
     let formErrorMessage = options.formErrorMessage || '#form-error-message';
     let formSelector = options.formSelector ? options.formSelector + ' ' : '';
-    let validationErrorSelector = options.validationErrorSelector ||
-      `${formSelector}.validation-error:visible`;
+    let validationErrorSelector =
+      options.validationErrorSelector || `${formSelector}.validation-error:visible`;
     let cb = options.callback;
 
     this.click(requiredFieldHandler);
 
     function requiredFieldHandler(event: JQuery.ClickEvent) {
-      $(`${formSelector}${requiredFieldsMessage},${formSelector}${formErrorMessage},${formSelector}label ${indicatorSelector}`).hide();
+      $(
+        `${formSelector}${requiredFieldsMessage},${formSelector}${formErrorMessage},${formSelector}label ${indicatorSelector}`
+      ).hide();
 
-      let $emptyFields = $(`${formSelector}input[data-required],${formSelector}textarea[data-required],${formSelector}select[data-required]`)
+      let $emptyFields = $(
+        `${formSelector}input[data-required],${formSelector}textarea[data-required],${formSelector}select[data-required]`
+      )
         .getEmptyInputs()
         .highlightLabels();
 
@@ -492,30 +484,29 @@ function initializePlugins(): void {
         return;
       }
 
-      if (cb)
-        cb.call(this, event);
+      if (cb) cb.call(this, event);
     }
 
     return this;
   };
 
-  $.fn.lockTab = function() {
-    const $inputs = this
-      .find('select, input, textarea, button, a, [data-focusable]')
-      .filter(':visible');
+  $.fn.lockTab = function () {
+    const $inputs = this.find('select, input, textarea, button, a, [data-focusable]').filter(
+      ':visible'
+    );
     const $firstInput = $inputs.first();
     const $lastInput = $inputs.last();
 
     $firstInput.focus();
 
-    $lastInput.on('keydown', function(e) {
+    $lastInput.on('keydown', function (e) {
       if (e.which === 9 && !e.shiftKey) {
         e.preventDefault();
         $firstInput.focus();
       }
     });
 
-    $firstInput.on('keydown', function(e) {
+    $firstInput.on('keydown', function (e) {
       if (e.which === 9 && e.shiftKey) {
         e.preventDefault();
         $lastInput.focus();
@@ -525,8 +516,10 @@ function initializePlugins(): void {
     return this;
   };
 
-  $.fn.toggleSwitcher = function() {
-    let $selectedIndicator = $('<span class="fa fa-fw fa-check-circle switcher-selected-indicator">&nbsp;</span>');
+  $.fn.toggleSwitcher = function () {
+    let $selectedIndicator = $(
+      '<span class="fa fa-fw fa-check-circle switcher-selected-indicator">&nbsp;</span>'
+    );
 
     let $from = this.find('.switcher-option.switcher-option-selected'),
       $to = this.find('.switcher-option').not('.switcher-option-selected');
@@ -545,10 +538,11 @@ function initializePlugins(): void {
     return this;
   };
 
-  $.fn.conditionalSwitcherClick = function(eventHandler: (this: HTMLElement, event: JQuery.Event) => void) {
-    this.click(function(event) {
-      if ($(this).hasClass('switcher-option-selected'))
-        return false;
+  $.fn.conditionalSwitcherClick = function (
+    eventHandler: (this: HTMLElement, event: JQuery.Event) => void
+  ) {
+    this.click(function (event) {
+      if ($(this).hasClass('switcher-option-selected')) return false;
       $(this).parent().toggleSwitcher();
       eventHandler.call(this, event);
     });
@@ -565,37 +559,36 @@ function initializePlugins(): void {
  * @returns The public libreviews API
  */
 function initializeLibreviews(): LibreviewsAPI {
-  if (initialized)
-    return libreviews;
+  if (initialized) return libreviews;
 
   initializePlugins();
   initializeSisyphus();
 
-  $('input[type="radio"][data-enable-required-group]').focus(function() {
+  $('input[type="radio"][data-enable-required-group]').focus(function () {
     enableRequiredGroup($(this).attr('data-enable-required-group')!);
   });
 
-  $('input[type="radio"][data-disable-required-group]').focus(function() {
+  $('input[type="radio"][data-disable-required-group]').focus(function () {
     disableRequiredGroup($(this).attr('data-disable-required-group')!);
   });
 
-  $('button[data-dismiss-element]').click(function(event) {
+  $('button[data-dismiss-element]').click(function (event) {
     let id = $(this).attr('data-dismiss-element');
     $(`#${id}`).fadeOut(200);
     event.preventDefault();
   });
 
-  $('button[data-suppress-notice]').click(function(event) {
+  $('button[data-suppress-notice]').click(function (event) {
     let id = $(this).attr('data-suppress-notice');
     $.ajax({
-        type: 'POST',
-        url: `/api/actions/suppress-notice`,
-        data: JSON.stringify({
-          noticeType: id
-        }),
-        contentType: 'application/json',
-        dataType: 'json'
-      })
+      type: 'POST',
+      url: `/api/actions/suppress-notice`,
+      data: JSON.stringify({
+        noticeType: id,
+      }),
+      contentType: 'application/json',
+      dataType: 'json',
+    })
       .done(() => {
         $(`#${id}`).fadeOut(200);
       })
@@ -609,11 +602,13 @@ function initializeLibreviews(): LibreviewsAPI {
 
   $('input[data-auto-trim],textarea[data-auto-trim]').change(trimInput);
 
-  $('.long-text h2,.long-text h3').each(function() {
-    $(this).prepend(`<a href="#${this.id}" class="fragment-link no-print"><span class="fa fa-link"></span></a>`);
+  $('.long-text h2,.long-text h3').each(function () {
+    $(this).prepend(
+      `<a href="#${this.id}" class="fragment-link no-print"><span class="fa fa-link"></span></a>`
+    );
   });
 
-  $('.expand-link').click(function() {
+  $('.expand-link').click(function () {
     let target = $(this).attr('data-target');
     if (target) {
       let toggleText = $(this).attr('data-toggle-text');
@@ -630,13 +625,12 @@ function initializeLibreviews(): LibreviewsAPI {
     }
   });
 
-  $('.expand-link').keyup(function(e) {
-    if (e.which == 13)
-      $('.expand-link').trigger('click');
+  $('.expand-link').keyup(function (e) {
+    if (e.which == 13) $('.expand-link').trigger('click');
   });
 
   if ($('[data-help-for]').length) {
-    $('[data-help-for]').each(function() {
+    $('[data-help-for]').each(function () {
       let inputID = $(this).attr('data-help-for');
       let $input = $(`#${inputID}`) as JQuery<HTMLInputElement | HTMLTextAreaElement>;
       addHelpListeners($input);
@@ -645,25 +639,23 @@ function initializeLibreviews(): LibreviewsAPI {
     $(window).resize(repaintFocusedHelp);
   }
 
-  $('[data-show]').focus(function() {
+  $('[data-show]').focus(function () {
     $(`#${$(this).attr('data-show')}`).slideDown(200);
   });
 
-  $('[data-hide]').focus(function() {
+  $('[data-hide]').focus(function () {
     $(`#${$(this).attr('data-hide')}`).slideUp(200);
   });
 
   $('[data-focus]').focus();
 
-  $('[data-powertip]')
-    .attr('title', '')
-    .powerTip({
-      placement: 's',
-      smartPlacement: true,
-      mouseOnToPopup: true
-    });
+  $('[data-powertip]').attr('title', '').powerTip({
+    placement: 's',
+    smartPlacement: true,
+    mouseOnToPopup: true,
+  });
 
-  $('[data-copy]').click(function() {
+  $('[data-copy]').click(function () {
     let copySourceID = $(this).attr('data-copy');
     let copySource = $(`#${copySourceID}`)[0];
 
@@ -680,17 +672,16 @@ function initializeLibreviews(): LibreviewsAPI {
 
   updateContentClickHandlers();
 
-  if ($('#search-input').length)
-    setupSearch();
+  if ($('#search-input').length) setupSearch();
 
   console.log(
     '\n' +
-    '    ___ __\n' +
-    '   / (_) /_    ________ _   __(_)__ _      _______\n' +
-    '  / / / __ \\  / ___/ _ \\ | / / / _ \\ | /| / / ___/\n' +
-    ' / / / /_/ / / /  /  __/ |/ / /  __/ |/ |/ (__  )\n' +
-    '/_/_/_.___(_)_/   \\___/|___/_/\\___/|__/|__/____/\n' +
-    'Happy hacking! https://github.com/permacommons/lib.reviews\n\n'
+      '    ___ __\n' +
+      '   / (_) /_    ________ _   __(_)__ _      _______\n' +
+      '  / / / __ \\  / ___/ _ \\ | / / / _ \\ | /| / / ___/\n' +
+      ' / / / /_/ / / /  /  __/ |/ / /  __/ |/ |/ (__  )\n' +
+      '/_/_/_.___(_)_/   \\___/|___/_/\\___/|__/|__/____/\n' +
+      'Happy hacking! https://github.com/permacommons/lib.reviews\n\n'
   );
 
   initialized = true;
@@ -709,14 +700,13 @@ const libreviews: LibreviewsAPI = {
   updateContentClickHandlers,
   validateURL,
   urlHasSupportedProtocol,
-  activeRTEs: {}
+  activeRTEs: {},
 };
 
 // Auto-initialize and expose globally when loaded in browser
 if (typeof window !== 'undefined') {
   const api = initializeLibreviews();
-  if (!window.libreviews)
-    window.libreviews = api;
+  if (!window.libreviews) window.libreviews = api;
 }
 
 export { initializeLibreviews };

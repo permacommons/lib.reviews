@@ -9,13 +9,17 @@ import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 // Type describing passport's internal API for testing
 interface PassportInternalAPI {
   _strategy: (name: string) => {
-    _verify: (username: string, password: string, callback: (error: unknown, user: unknown, info: { message?: string } | undefined) => void) => void;
+    _verify: (
+      username: string,
+      password: string,
+      callback: (error: unknown, user: unknown, info: { message?: string } | undefined) => void
+    ) => void;
   };
 }
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'user_file_models',
-  cleanupTables: ['files', 'users', 'user_metas']
+  cleanupTables: ['files', 'users', 'user_metas'],
 });
 
 let User;
@@ -29,7 +33,7 @@ test.before(async () => {
 
   const { User: userModel, File: fileModel } = await dalFixture.initializeModels([
     { key: 'users', alias: 'User' },
-    { key: 'files', alias: 'File' }
+    { key: 'files', alias: 'File' },
   ]);
 
   User = userModel;
@@ -40,12 +44,11 @@ test.before(async () => {
 test.after.always(unmockSearch);
 
 test.serial('User model: create hashes password and canonicalizes name', async t => {
-
   const uniqueName = `TestUser-${randomUUID()}`;
   const user = await User.create({
     name: uniqueName,
     password: 'secret123',
-    email: `${uniqueName.toLowerCase()}@example.com`
+    email: `${uniqueName.toLowerCase()}@example.com`,
   });
 
   t.truthy(user.id, 'User persisted with generated UUID');
@@ -55,19 +58,20 @@ test.serial('User model: create hashes password and canonicalizes name', async t
 });
 
 test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
-
   const name = `Duplicate-${randomUUID()}`;
   await User.create({
     name,
     password: 'secret123',
-    email: `${name.toLowerCase()}@example.com`
+    email: `${name.toLowerCase()}@example.com`,
   });
 
-  const thrownError = await t.throwsAsync(() => User.create({
-    name,
-    password: 'different123',
-    email: `${name.toLowerCase()}+other@example.com`
-  }));
+  const thrownError = await t.throwsAsync(() =>
+    User.create({
+      name,
+      password: 'different123',
+      email: `${name.toLowerCase()}+other@example.com`,
+    })
+  );
 
   t.true(thrownError instanceof NewUserErrorClass);
   const [userMessage] = (thrownError as NewUserError).getEscapedUserMessageArray();
@@ -75,7 +79,6 @@ test.serial('User model: ensureUnique rejects duplicate usernames', async t => {
 });
 
 test.serial('User model: checkPassword validates bcrypt hash', async t => {
-
   const name = `Password-${randomUUID()}`;
   const email = `${name.toLowerCase()}@example.com`;
   const password = 'supersecret';
@@ -88,7 +91,6 @@ test.serial('User model: checkPassword validates bcrypt hash', async t => {
 });
 
 test.serial('User model: account without password is treated as locked', async t => {
-
   const name = `LockedAccount-${randomUUID()}`;
   const email = `${name.toLowerCase()}@example.com`;
   const password = 'secret123';
@@ -110,7 +112,11 @@ test.serial('User model: account without password is treated as locked', async t
   // We need to test through the auth strategy
   await import('../auth.ts');
 
-  const authenticatePromise = new Promise<{ error: unknown; user: unknown; info: { message?: string } | undefined }>((resolve) => {
+  const authenticatePromise = new Promise<{
+    error: unknown;
+    user: unknown;
+    info: { message?: string } | undefined;
+  }>(resolve => {
     // Access internal passport API for testing - will fail at compile time if passport changes
     const strategy = (passport as unknown as PassportInternalAPI)._strategy('local');
     strategy._verify(name, 'anypassword', (error, user, info) => {
@@ -125,12 +131,11 @@ test.serial('User model: account without password is treated as locked', async t
 });
 
 test.serial('User model: increaseInviteLinkCount increments atomically', async t => {
-
   const name = `Invites-${randomUUID()}`;
   const user = await User.create({
     name,
     password: 'secret123',
-    email: `${name.toLowerCase()}@example.com`
+    email: `${name.toLowerCase()}@example.com`,
   });
 
   const first = await User.increaseInviteLinkCount(user.id);
@@ -144,7 +149,6 @@ test.serial('User model: increaseInviteLinkCount increments atomically', async t
 });
 
 test.serial('User model: findByURLName loads metadata and teams safely', async t => {
-
   const name = `Bio-${randomUUID()}`;
   const email = `${name.toLowerCase()}@example.com`;
   const password = 'secret123';
@@ -154,16 +158,16 @@ test.serial('User model: findByURLName loads metadata and teams safely', async t
   const bio = {
     bio: {
       text: { en: 'Test bio' },
-      html: { en: '<p>Test bio</p>' }
+      html: { en: '<p>Test bio</p>' },
     },
-    originalLanguage: 'en'
+    originalLanguage: 'en',
   };
 
   await User.createBio(user, bio);
 
   const fetched = await User.findByURLName(user.urlName, {
     withData: true,
-    withTeams: true
+    withTeams: true,
   });
 
   t.truthy(fetched.meta, 'Metadata attached to fetched user');
@@ -172,29 +176,32 @@ test.serial('User model: findByURLName loads metadata and teams safely', async t
   t.true(Array.isArray(fetched.moderatorOf), 'Moderator list provided');
 });
 
-test.serial('User model: password preserved when updating user field without loading sensitive fields', async t => {
-  const name = `PasswordPreserve-${randomUUID()}`;
-  const email = `${name.toLowerCase()}@example.com`;
-  const password = 'supersecret123';
+test.serial(
+  'User model: password preserved when updating user field without loading sensitive fields',
+  async t => {
+    const name = `PasswordPreserve-${randomUUID()}`;
+    const email = `${name.toLowerCase()}@example.com`;
+    const password = 'supersecret123';
 
-  // Create user with password
-  const user = await User.create({ name, password, email });
-  const userId = user.id;
+    // Create user with password
+    const user = await User.create({ name, password, email });
+    const userId = user.id;
 
-  // Load user WITHOUT sensitive fields (default behavior)
-  const userWithoutPassword = await User.get(userId);
-  t.false(userWithoutPassword._data.hasOwnProperty('password'), 'Password not loaded in _data');
+    // Load user WITHOUT sensitive fields (default behavior)
+    const userWithoutPassword = await User.get(userId);
+    t.false(userWithoutPassword._data.hasOwnProperty('password'), 'Password not loaded in _data');
 
-  // Update a non-sensitive field
-  userWithoutPassword.isTrusted = true;
-  await userWithoutPassword.save();
+    // Update a non-sensitive field
+    userWithoutPassword.isTrusted = true;
+    await userWithoutPassword.save();
 
-  // Reload user with password and verify it's still set
-  const reloadedUser = await User.get(userId, { includeSensitive: ['password'] });
-  t.truthy(reloadedUser.password, 'Password still exists after update');
-  t.true(await reloadedUser.checkPassword(password), 'Original password still validates');
-  t.true(reloadedUser.isTrusted, 'Update to non-sensitive field was saved');
-});
+    // Reload user with password and verify it's still set
+    const reloadedUser = await User.get(userId, { includeSensitive: ['password'] });
+    t.truthy(reloadedUser.password, 'Password still exists after update');
+    t.true(await reloadedUser.checkPassword(password), 'Original password still validates');
+    t.true(reloadedUser.isTrusted, 'Update to non-sensitive field was saved');
+  }
+);
 
 test.serial('User model: password preserved during bio creation flow', async t => {
   const name = `BioPassword-${randomUUID()}`;
@@ -212,9 +219,9 @@ test.serial('User model: password preserved during bio creation flow', async t =
   const bio = {
     bio: {
       text: { en: 'My new bio' },
-      html: { en: '<p>My new bio</p>' }
+      html: { en: '<p>My new bio</p>' },
     },
-    originalLanguage: 'en'
+    originalLanguage: 'en',
   };
 
   // Create bio (this triggers user.save() internally)
@@ -223,7 +230,10 @@ test.serial('User model: password preserved during bio creation flow', async t =
   // Verify password is still intact
   const reloadedUser = await User.get(userId, { includeSensitive: ['password'] });
   t.truthy(reloadedUser.password, 'Password still exists after createBio');
-  t.true(await reloadedUser.checkPassword(password), 'Original password still validates after createBio');
+  t.true(
+    await reloadedUser.checkPassword(password),
+    'Original password still validates after createBio'
+  );
 
   // Verify bio was created by loading with metadata
   const userWithMeta = await User.findByURLName(name, { withData: true });
@@ -241,9 +251,9 @@ test.serial('User model: in-place JSONB modification is detected and saved', asy
   const bio = {
     bio: {
       text: { en: 'Original bio text' },
-      html: { en: '<p>Original bio text</p>' }
+      html: { en: '<p>Original bio text</p>' },
     },
-    originalLanguage: 'en'
+    originalLanguage: 'en',
   };
   await User.createBio(user, bio);
 
@@ -278,9 +288,9 @@ test.serial('User model: unchanged JSONB fields are not marked dirty during save
   const bio = {
     bio: {
       text: { en: 'Bio text', es: 'Texto biográfico' },
-      html: { en: '<p>Bio text</p>', es: '<p>Texto biográfico</p>' }
+      html: { en: '<p>Bio text</p>', es: '<p>Texto biográfico</p>' },
     },
-    originalLanguage: 'en'
+    originalLanguage: 'en',
   };
   await User.createBio(user, bio);
 
@@ -355,12 +365,11 @@ test.serial('User model: password update blocked without updateSensitive option'
 });
 
 test.serial('File model: create first revision and retrieve stashed upload', async t => {
-
   const uploaderName = `Uploader-${randomUUID()}`;
   const uploader = await User.create({
     name: uploaderName,
     password: 'secret123',
-    email: `${uploaderName.toLowerCase()}@example.com`
+    email: `${uploaderName.toLowerCase()}@example.com`,
   });
 
   const draft = await File.createFirstRevision(uploader, { tags: ['upload'] });
@@ -389,20 +398,19 @@ test.serial('File model: create first revision and retrieve stashed upload', asy
 });
 
 test.serial('File model: populateUserInfo reflects permissions', async t => {
-
   const uploaderName = `Perms-${randomUUID()}`;
   const otherName = `Viewer-${randomUUID()}`;
 
   const uploader = await User.create({
     name: uploaderName,
     password: 'secret123',
-    email: `${uploaderName.toLowerCase()}@example.com`
+    email: `${uploaderName.toLowerCase()}@example.com`,
   });
 
   const moderator = await User.create({
     name: otherName,
     password: 'secret123',
-    email: `${otherName.toLowerCase()}@example.com`
+    email: `${otherName.toLowerCase()}@example.com`,
   });
   moderator.isSiteModerator = true;
   await moderator.save();

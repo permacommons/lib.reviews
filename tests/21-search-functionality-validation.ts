@@ -9,15 +9,13 @@ import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import searchModule from '../search.ts';
 
-
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_validation',
-  cleanupTables: ['users', 'things', 'reviews']
+  cleanupTables: ['users', 'things', 'reviews'],
 });
 
 let Thing: ThingModel;
 let Review: ReviewModel;
-
 
 let searchQueries;
 let mockSearchResponse;
@@ -31,7 +29,7 @@ test.before(async () => {
 
   await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
-    { key: 'reviews', alias: 'Review' }
+    { key: 'reviews', alias: 'Review' },
   ]);
 
   Thing = dalFixture.getThingModel();
@@ -51,7 +49,6 @@ test.beforeEach(() => {
 });
 
 test.serial('searchThings API maintains compatibility with existing interface', async t => {
-
   const search = searchModule;
 
   // Test basic search
@@ -66,7 +63,6 @@ test.serial('searchThings API maintains compatibility with existing interface', 
 });
 
 test.serial('searchReviews API maintains compatibility with existing interface', async t => {
-
   const search = searchModule;
 
   // Test basic search
@@ -81,7 +77,6 @@ test.serial('searchReviews API maintains compatibility with existing interface',
 });
 
 test.serial('suggestThing API maintains compatibility with existing interface', async t => {
-
   const search = searchModule;
 
   // Test suggestion
@@ -96,7 +91,6 @@ test.serial('suggestThing API maintains compatibility with existing interface', 
 });
 
 test.serial('search queries include new PostgreSQL fields', async t => {
-
   const search = searchModule;
 
   // Create test data with PostgreSQL structure
@@ -111,15 +105,13 @@ test.serial('search queries include new PostgreSQL fields', async t => {
   thing.metadata = {
     description: {
       en: 'A test item for search validation',
-      de: 'Ein Testelement für die Suchvalidierung'
+      de: 'Ein Testelement für die Suchvalidierung',
     },
     subtitle: {
       en: 'Search Test Edition',
-      de: 'Suchtest-Ausgabe'
+      de: 'Suchtest-Ausgabe',
     },
-    authors: [
-      { en: 'Test Author', de: 'Test Autor' }
-    ]
+    authors: [{ en: 'Test Author', de: 'Test Autor' }],
   };
   thing.createdOn = new Date();
   thing.createdBy = testUserId;
@@ -133,16 +125,27 @@ test.serial('search queries include new PostgreSQL fields', async t => {
   t.truthy(thing.metadata.authors, 'Thing should have authors in metadata');
 
   // Test that search would work with this structure
-  t.deepEqual(thing.label, { en: 'Test Search Item', de: 'Test-Suchelement' }, 'Label should be multilingual');
-  t.deepEqual(thing.aliases, { en: ['Alternative Name'], de: ['Alternativer Name'] }, 'Aliases should be multilingual');
-  t.deepEqual(thing.metadata.description, {
-    en: 'A test item for search validation',
-    de: 'Ein Testelement für die Suchvalidierung'
-  }, 'Description should be multilingual in metadata');
+  t.deepEqual(
+    thing.label,
+    { en: 'Test Search Item', de: 'Test-Suchelement' },
+    'Label should be multilingual'
+  );
+  t.deepEqual(
+    thing.aliases,
+    { en: ['Alternative Name'], de: ['Alternativer Name'] },
+    'Aliases should be multilingual'
+  );
+  t.deepEqual(
+    thing.metadata.description,
+    {
+      en: 'A test item for search validation',
+      de: 'Ein Testelement für die Suchvalidierung',
+    },
+    'Description should be multilingual in metadata'
+  );
 });
 
 test.serial('search performance with PostgreSQL JSONB fields', async t => {
-
   const { Thing } = dalFixture;
 
   const testUserId = randomUUID();
@@ -157,31 +160,31 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
     thing.label = {
       en: `Performance Test Item ${i}`,
       de: `Leistungstest-Element ${i}`,
-      fr: `Élément de test de performance ${i}`
+      fr: `Élément de test de performance ${i}`,
     };
     thing.aliases = {
       en: [`Alt Name ${i}`, `Alternative ${i}`],
       de: [`Alt Name ${i}`, `Alternative ${i}`],
-      fr: [`Nom Alt ${i}`, `Alternative ${i}`]
+      fr: [`Nom Alt ${i}`, `Alternative ${i}`],
     };
     thing.metadata = {
       description: {
         en: `Performance test description for item ${i}`,
         de: `Leistungstest-Beschreibung für Element ${i}`,
-        fr: `Description du test de performance pour l'élément ${i}`
+        fr: `Description du test de performance pour l'élément ${i}`,
       },
       subtitle: {
         en: `Performance Edition ${i}`,
         de: `Leistungsausgabe ${i}`,
-        fr: `Édition Performance ${i}`
+        fr: `Édition Performance ${i}`,
       },
       authors: [
         {
           en: `Performance Author ${i}`,
           de: `Leistungsautor ${i}`,
-          fr: `Auteur Performance ${i}`
-        }
-      ]
+          fr: `Auteur Performance ${i}`,
+        },
+      ],
     };
     thing.createdOn = new Date();
     thing.createdBy = testUserId;
@@ -203,7 +206,9 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
   t.true(queryTime < 1000, `Query should complete in reasonable time (${queryTime}ms)`);
 
   // Verify JSONB data integrity
-  const firstThing = currentThings.find(t => t.label && t.label.en && t.label.en.includes('Performance Test Item'));
+  const firstThing = currentThings.find(
+    t => t.label && t.label.en && t.label.en.includes('Performance Test Item')
+  );
   if (firstThing) {
     t.truthy(firstThing.metadata, 'Thing should have metadata');
     t.truthy(firstThing.metadata.description, 'Thing should have description in metadata');
@@ -213,7 +218,6 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
 });
 
 test.serial('search API error handling remains consistent', async t => {
-
   const search = searchModule;
 
   // Test with invalid parameters (should not throw)
@@ -233,7 +237,6 @@ test.serial('search API error handling remains consistent', async t => {
 });
 
 test.serial('search results structure remains compatible', async t => {
-
   const search = searchModule;
 
   // Set up mock response with expected structure
@@ -245,14 +248,14 @@ test.serial('search results structure remains compatible', async t => {
           type: 'thing',
           label: { en: 'Test Item' },
           description: { en: 'Test description' },
-          createdOn: new Date().toISOString()
+          createdOn: new Date().toISOString(),
         },
         highlight: {
-          'label.en': ['<span class="search-highlight">Test</span> Item']
-        }
-      }
+          'label.en': ['<span class="search-highlight">Test</span> Item'],
+        },
+      },
     ],
-    total: { value: 1 }
+    total: { value: 1 },
   };
 
   const result = await search.searchThings('test', 'en');

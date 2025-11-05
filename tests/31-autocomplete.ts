@@ -3,16 +3,22 @@ import { JSDOM } from 'jsdom';
 import Autocomplete from '../frontend/lib/ac.js';
 
 test.beforeEach(t => {
-  const dom = new JSDOM('<!doctype html><html><body><input type="text" id="search"></body></html>', {
-    pretendToBeVisual: true
-  });
+  const dom = new JSDOM(
+    '<!doctype html><html><body><input type="text" id="search"></body></html>',
+    {
+      pretendToBeVisual: true,
+    }
+  );
 
   t.context.dom = dom;
   Object.defineProperty(global, 'window', { value: dom.window, configurable: true });
   Object.defineProperty(global, 'document', { value: dom.window.document, configurable: true });
   Object.defineProperty(global, 'navigator', { value: dom.window.navigator, configurable: true });
   Object.defineProperty(global, 'Node', { value: dom.window.Node, configurable: true });
-  Object.defineProperty(global, 'HTMLElement', { value: dom.window.HTMLElement, configurable: true });
+  Object.defineProperty(global, 'HTMLElement', {
+    value: dom.window.HTMLElement,
+    configurable: true,
+  });
   Object.defineProperty(global, 'Event', { value: dom.window.Event, configurable: true });
 });
 
@@ -36,10 +42,7 @@ test('render builds rows and updates aria attributes', t => {
   ac.delay = 0;
   ac.mount();
 
-  ac.results = [
-    { title: 'Alpha', subtitle: 'One' },
-    { title: 'Beta' }
-  ];
+  ac.results = [{ title: 'Alpha', subtitle: 'One' }, { title: 'Beta' }];
   ac.render();
 
   t.is(ac.rowWrapperEl.children.length, 2);

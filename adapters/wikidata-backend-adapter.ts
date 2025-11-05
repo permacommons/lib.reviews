@@ -5,7 +5,10 @@ import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
 
 /* Internal deps */
-import AbstractBackendAdapter, { type AdapterLookupResult, type AdapterMultilingualString } from './abstract-backend-adapter.ts';
+import AbstractBackendAdapter, {
+  type AdapterLookupResult,
+  type AdapterMultilingualString,
+} from './abstract-backend-adapter.ts';
 import languages from '../locales/languages.ts';
 
 /**
@@ -15,7 +18,7 @@ import languages from '../locales/languages.ts';
  */
 const nativeToWikidata: Record<string, string> = {
   pt: 'pt-br',
-  'pt-PT': 'pt'
+  'pt-PT': 'pt',
 };
 
 const apiBaseURL = 'https://www.wikidata.org/w/api.php';
@@ -38,10 +41,12 @@ interface WikidataResponse {
 }
 
 export default class WikidataBackendAdapter extends AbstractBackendAdapter {
-
   constructor() {
     super();
-    this.supportedPattern = new RegExp('^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)(?:#.*)?$', 'i');
+    this.supportedPattern = new RegExp(
+      '^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)(?:#.*)?$',
+      'i'
+    );
     this.supportedFields = ['label', 'description'];
     this.sourceID = 'wikidata';
     this.sourceURL = 'https://www.wikidata.org/';
@@ -50,7 +55,9 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
   async lookup(url: string): Promise<AdapterLookupResult> {
     let qNumber = (url.match(this.supportedPattern) || [])[4];
     if (!qNumber)
-      throw new Error('URL does not appear to contain a Q number (e.g., Q42) or is not a Wikidata URL.');
+      throw new Error(
+        'URL does not appear to contain a Q number (e.g., Q42) or is not a Wikidata URL.'
+      );
 
     // in case the URL had a lower case "q"
     qNumber = qNumber.toUpperCase();
@@ -63,15 +70,15 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
       format: 'json',
       languages: this.getAcceptedWikidataLanguageList(),
       props: 'labels|descriptions',
-      ids: qNumber
+      ids: qNumber,
     }).toString();
 
     const data = await fetchJSON<WikidataResponse>(urlWithParams, {
       timeout: config.adapterTimeout,
       label: 'Wikidata',
       headers: {
-        'User-Agent': config.adapterUserAgent
-      }
+        'User-Agent': config.adapterUserAgent,
+      },
     });
     debug.adapters('Received data from Wikidata adapter:\\n' + JSON.stringify(data, null, 2));
 
@@ -95,9 +102,9 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
     return {
       data: {
         label,
-        description
+        description,
       },
-      sourceID: this.sourceID
+      sourceID: this.sourceID,
     };
   }
 
@@ -116,14 +123,12 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
     for (const language of Object.keys(wdObj)) {
       const native = this.getNativeLanguageCode(language);
       // Can't handle this language in lib.reviews, ignore
-      if (native === null)
-        continue;
+      if (native === null) continue;
 
       const entry = wdObj[language];
       if (entry && typeof entry === 'object' && entry.language === language && entry.value) {
         let wdStr = escapeHTML(entry.value);
-        if (typeof maxLength === 'number')
-          wdStr = wdStr.substr(0, maxLength);
+        if (typeof maxLength === 'number') wdStr = wdStr.substr(0, maxLength);
         mlStr[native] = escapeHTML(wdStr);
       }
     }
@@ -143,16 +148,14 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
    */
   getNativeLanguageCode(language: string): string | null {
     for (const k in nativeToWikidata) {
-      if (nativeToWikidata[k].toUpperCase() === language.toUpperCase())
-        return k;
+      if (nativeToWikidata[k].toUpperCase() === language.toUpperCase()) return k;
     }
     return languages.isValid(language) ? language : null;
   }
 
   /** Return array of the codes we can handle */
   getAcceptedWikidataLanguageCodes(): string[] {
-    return languages
-      .getValidLanguages().map(language => this.getWikidataLanguageCode(language));
+    return languages.getValidLanguages().map(language => this.getWikidataLanguageCode(language));
   }
 
   /** Return codes in list format expected by API */

@@ -27,14 +27,14 @@ const entryPatterns = [
   'bin/**/*.ts',
   'maintenance/**/*.ts',
   'tools/**/*.ts',
-  'adapters/sync/**/*.ts'
+  'adapters/sync/**/*.ts',
 ];
 const ignore = ['**/*.d.ts'];
 
 const entryPoints = await fg(entryPatterns, {
   cwd: projectRoot,
   ignore,
-  onlyFiles: true
+  onlyFiles: true,
 });
 
 if (entryPoints.length === 0) {
@@ -64,11 +64,11 @@ try {
     define: {
       'process.env.NODE_ENV': '"production"',
       'process.env.LIBREVIEWS_VITE_DEV_SERVER': '"off"',
-      'process.env.VITE_USE_POLLING': '"0"'
+      'process.env.VITE_USE_POLLING': '"0"',
     },
     // Treat all node builtins and npm packages as external; app code is bundled.
     external: ['node:*', ...externalPkgs, ...devExternalPkgs, 'vite', 'lightningcss'],
-    logLevel: 'info'
+    logLevel: 'info',
   });
 
   console.log('[build-backend] Build completed. Output in build/server/');

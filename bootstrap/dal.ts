@@ -13,11 +13,7 @@ import config from 'config';
 import debug from '../util/debug.ts';
 import PostgresDAL from '../dal/index.ts';
 
-import type {
-  DataAccessLayer,
-  JsonObject,
-  ModelConstructor
-} from '../dal/lib/model-types.ts';
+import type { DataAccessLayer, JsonObject, ModelConstructor } from '../dal/lib/model-types.ts';
 
 import userModule from '../models/user.ts';
 import userMetaModule from '../models/user-meta.ts';
@@ -48,15 +44,16 @@ type ModelInitializerDescriptor =
       name?: string;
     };
 
-const PostgresDALFactoryValue = typeof PostgresDAL === 'function'
-  ? PostgresDAL
-  : (PostgresDAL as { default?: unknown }).default;
+const PostgresDALFactoryValue =
+  typeof PostgresDAL === 'function' ? PostgresDAL : (PostgresDAL as { default?: unknown }).default;
 
 if (typeof PostgresDALFactoryValue !== 'function') {
   throw new TypeError('Postgres DAL factory not found. Ensure ../dal/index.ts exports a function.');
 }
 
-const PostgresDALFactory = PostgresDALFactoryValue as (config?: Partial<PostgresConfig> & JsonObject) => DataAccessLayer;
+const PostgresDALFactory = PostgresDALFactoryValue as (
+  config?: Partial<PostgresConfig> & JsonObject
+) => DataAccessLayer;
 
 const DEFAULT_MODEL_INITIALIZERS: ModelInitializerDescriptor[] = [];
 
@@ -98,7 +95,8 @@ function getPostgresConfig(): Partial<PostgresConfig> & JsonObject {
     return (config as JsonObject).postgres as Partial<PostgresConfig> & JsonObject;
   }
   if (typeof (config as { get?: (key: string) => unknown }).get === 'function') {
-    return ((config as { get: (key: string) => unknown }).get('postgres') ?? {}) as Partial<PostgresConfig> & JsonObject;
+    return ((config as { get: (key: string) => unknown }).get('postgres') ??
+      {}) as Partial<PostgresConfig> & JsonObject;
   }
   throw new Error('PostgreSQL configuration not found.');
 }
@@ -111,10 +109,13 @@ function getPostgresConfig(): Partial<PostgresConfig> & JsonObject {
  */
 async function tryReuseSharedDAL(): Promise<DataAccessLayer> {
   const dbModule = await import('../db-postgres.ts');
-  const exported = (dbModule && typeof dbModule.default === 'object')
-    ? (dbModule.default as JsonObject)
-    : (dbModule as JsonObject);
-  const getPostgresDAL = exported?.getPostgresDAL as (() => Promise<DataAccessLayer> | DataAccessLayer) | undefined;
+  const exported =
+    dbModule && typeof dbModule.default === 'object'
+      ? (dbModule.default as JsonObject)
+      : (dbModule as JsonObject);
+  const getPostgresDAL = exported?.getPostgresDAL as
+    | (() => Promise<DataAccessLayer> | DataAccessLayer)
+    | undefined;
   if (typeof getPostgresDAL !== 'function') {
     throw new Error('getPostgresDAL is not available from db-postgres.ts');
   }
@@ -142,17 +143,13 @@ async function resolveInitializer(
 
   if (typeof entry === 'function') {
     initializer = entry;
-    key = (entry as ModelInitializer & { modelKey?: string; key?: string; name?: string }).modelKey
-      || (entry as { key?: string }).key
-      || (entry as { name?: string }).name
-      || null;
+    key =
+      (entry as ModelInitializer & { modelKey?: string; key?: string; name?: string }).modelKey ||
+      (entry as { key?: string }).key ||
+      (entry as { name?: string }).name ||
+      null;
   } else if (typeof entry === 'object') {
-    initializer =
-      entry.initializer
-      || entry.initialize
-      || entry.init
-      || entry.loader
-      || null;
+    initializer = entry.initializer || entry.initialize || entry.init || entry.loader || null;
     key = entry.key ?? entry.name ?? null;
   }
 
@@ -176,7 +173,9 @@ async function resolveInitializer(
  * @param customConfig Optional configuration overrides, typically used for tests.
  * @returns Resolves with the shared data access layer instance.
  */
-export async function initializeDAL(customConfig: (Partial<PostgresConfig> & JsonObject) | null = null): Promise<DataAccessLayer> {
+export async function initializeDAL(
+  customConfig: (Partial<PostgresConfig> & JsonObject) | null = null
+): Promise<DataAccessLayer> {
   if (initializationPromise) {
     return initializationPromise;
   }
@@ -197,14 +196,20 @@ export async function initializeDAL(customConfig: (Partial<PostgresConfig> & Jso
           await globalDAL.migrate();
           debug.db('Database migrations completed');
         } catch (migrationError) {
-          debug.db('Migration error (may be expected if DB already exists):', (migrationError as Error).message);
+          debug.db(
+            'Migration error (may be expected if DB already exists):',
+            (migrationError as Error).message
+          );
         }
       } else {
         try {
           globalDAL = await tryReuseSharedDAL();
           debug.db('Reusing existing PostgreSQL DAL instance');
         } catch (reuseError) {
-          debug.db('Unable to reuse shared DAL instance, creating a new one:', (reuseError as Error).message);
+          debug.db(
+            'Unable to reuse shared DAL instance, creating a new one:',
+            (reuseError as Error).message
+          );
           const dalConfig = getPostgresConfig();
           globalDAL = PostgresDALFactory(dalConfig);
           createdInternally = true;
@@ -216,7 +221,10 @@ export async function initializeDAL(customConfig: (Partial<PostgresConfig> & Jso
             await globalDAL.migrate();
             debug.db('Database migrations completed');
           } catch (migrationError) {
-            debug.db('Migration error (may be expected if DB already exists):', (migrationError as Error).message);
+            debug.db(
+              'Migration error (may be expected if DB already exists):',
+              (migrationError as Error).message
+            );
           }
         }
       }
@@ -278,9 +286,9 @@ export async function registerAllModels(
       debug.db(`Registered model: ${key}`);
     } catch (error) {
       const identifier =
-        (typeof entry === 'function' && (entry as { name?: string }).name)
-        || (typeof entry === 'object' ? entry?.key ?? entry?.name : null)
-        || 'unknown';
+        (typeof entry === 'function' && (entry as { name?: string }).name) ||
+        (typeof entry === 'object' ? (entry?.key ?? entry?.name) : null) ||
+        'unknown';
       const registerMessage = `Failed to register model ${identifier}: ${error instanceof Error ? error.message : String(error)}`;
       debug.error(registerMessage);
       if (error instanceof Error) {
@@ -357,9 +365,10 @@ export async function shutdown(): Promise<void> {
 
   try {
     const postgresModule = await import('../db-postgres.ts');
-    const exported = (postgresModule && typeof postgresModule.default === 'object')
-      ? (postgresModule.default as JsonObject)
-      : (postgresModule as JsonObject);
+    const exported =
+      postgresModule && typeof postgresModule.default === 'object'
+        ? (postgresModule.default as JsonObject)
+        : (postgresModule as JsonObject);
     const sharedDAL = exported?.dal as DataAccessLayer | undefined;
 
     if (sharedDAL && sharedDAL === globalDAL) {
@@ -438,10 +447,13 @@ export async function createTestHarness(options: TestHarnessOptions = {}): Promi
     schemaNamespace = null,
     autoMigrate = true,
     registerModels: shouldRegisterModels = true,
-    modelInitializers = DEFAULT_MODEL_INITIALIZERS
+    modelInitializers = DEFAULT_MODEL_INITIALIZERS,
   } = options;
 
-  if (typeof (config as { has?: (key: string) => boolean }).has === 'function' && !(config as { has: (key: string) => boolean }).has('postgres')) {
+  if (
+    typeof (config as { has?: (key: string) => boolean }).has === 'function' &&
+    !(config as { has: (key: string) => boolean }).has('postgres')
+  ) {
     throw new Error('PostgreSQL configuration not found. Cannot create test harness.');
   }
 
@@ -449,7 +461,7 @@ export async function createTestHarness(options: TestHarnessOptions = {}): Promi
   const dalConfig = {
     ...baseConfig,
     allowExitOnIdle: true,
-    ...configOverride
+    ...configOverride,
   } as Partial<PostgresConfig> & JsonObject;
 
   debug.db('Creating isolated test DAL harness...');
@@ -482,13 +494,16 @@ export async function createTestHarness(options: TestHarnessOptions = {}): Promi
     try {
       await testDAL.migrate();
     } catch (migrationError) {
-      debug.db('Test harness migration error (may be expected if schema already exists):', (migrationError as Error).message);
+      debug.db(
+        'Test harness migration error (may be expected if schema already exists):',
+        (migrationError as Error).message
+      );
     }
   }
 
   const previousState = {
     dal: globalDAL,
-    promise: initializationPromise
+    promise: initializationPromise,
   };
 
   globalDAL = testDAL;
@@ -532,7 +547,7 @@ export async function createTestHarness(options: TestHarnessOptions = {}): Promi
     schemaName: activeSchema,
     schemaNamespace: activeNamespace,
     registeredModels: registered,
-    cleanup
+    cleanup,
   };
 }
 
@@ -544,7 +559,7 @@ const bootstrapAPI = {
   isInitialized,
   shutdown,
   registerAllModels,
-  createTestHarness
+  createTestHarness,
 };
 
 if (typeof setBootstrapResolver === 'function') {

@@ -128,8 +128,8 @@ export class DuplicateSlugNameError extends DALError {
     this.name = 'DuplicateSlugNameError';
     this.payload = {
       slug: {
-        name: slugName
-      }
+        name: slugName,
+      },
     };
     this.tableName = tableName;
   }
@@ -201,7 +201,7 @@ const errors = {
   QueryError,
   ConstraintError,
   DuplicateSlugNameError,
-  convertPostgreSQLError
+  convertPostgreSQLError,
 } as const;
 
 export default errors;

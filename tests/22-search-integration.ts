@@ -6,17 +6,22 @@ import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
 
-import { mockSearch, unmockSearch, type MockIndexedItem, isThingItem, isReviewItem } from './helpers/mock-search.ts';
+import {
+  mockSearch,
+  unmockSearch,
+  type MockIndexedItem,
+  isThingItem,
+  isReviewItem,
+} from './helpers/mock-search.ts';
 import searchModule from '../search.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_integration',
-  cleanupTables: ['users', 'things', 'reviews']
+  cleanupTables: ['users', 'things', 'reviews'],
 });
 
 let Thing: ThingModel;
 let Review: ReviewModel;
-
 
 // Track indexing operations
 let indexedItems: MockIndexedItem[] = [];
@@ -29,7 +34,7 @@ test.before(async () => {
 
   await dalFixture.initializeModels([
     { key: 'things', alias: 'Thing' },
-    { key: 'reviews', alias: 'Review' }
+    { key: 'reviews', alias: 'Review' },
   ]);
 
   Thing = dalFixture.getThingModel();
@@ -50,7 +55,7 @@ test.after.always(async () => {
 });
 
 registerCompletionHandler(() => {
- const code = typeof process.exitCode === 'number' ? process.exitCode : 0;
+  const code = typeof process.exitCode === 'number' ? process.exitCode : 0;
   process.exit(code);
 });
 
@@ -67,7 +72,6 @@ test.serial('maintenance script bootstraps PostgreSQL models', async t => {
 });
 
 test.serial('search indexing integration with PostgreSQL models', async t => {
-
   const { Thing, Review } = dalFixture;
   const search = searchModule;
 
@@ -83,15 +87,13 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   thing.metadata = {
     description: {
       en: 'Integration test description',
-      de: 'Integrations-Testbeschreibung'
+      de: 'Integrations-Testbeschreibung',
     },
     subtitle: {
       en: 'Integration Edition',
-      de: 'Integrations-Ausgabe'
+      de: 'Integrations-Ausgabe',
     },
-    authors: [
-      { en: 'Integration Author', de: 'Integrations-Autor' }
-    ]
+    authors: [{ en: 'Integration Author', de: 'Integrations-Autor' }],
   };
   thing.createdOn = new Date();
   thing.createdBy = testUserId;
@@ -102,7 +104,10 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   review.thingID = thing.id;
   review.title = { en: 'Integration Test Review', de: 'Integrations-Test-Bewertung' };
   review.text = { en: 'Integration test review text', de: 'Integrations-Test-Bewertungstext' };
-  review.html = { en: '<p>Integration test review text</p>', de: '<p>Integrations-Test-Bewertungstext</p>' };
+  review.html = {
+    en: '<p>Integration test review text</p>',
+    de: '<p>Integrations-Test-Bewertungstext</p>',
+  };
   review.starRating = 4;
   review.createdOn = new Date();
   review.createdBy = testUserId;
@@ -125,7 +130,11 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   // Verify thing indexing
   t.is(indexedThing.data.id, thing.id, 'Indexed thing should have correct ID');
   t.deepEqual(indexedThing.data.label!, thing.label, 'Indexed thing should have correct label');
-  t.deepEqual(indexedThing.data.metadata?.description, thing.metadata.description, 'Indexed thing should have correct description');
+  t.deepEqual(
+    indexedThing.data.metadata?.description,
+    thing.metadata.description,
+    'Indexed thing should have correct description'
+  );
 
   // Verify review indexing
   t.is(indexedReview.data.id, review.id, 'Indexed review should have correct ID');
@@ -134,7 +143,6 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
 });
 
 test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => {
-
   const { Thing, Review } = dalFixture;
   const search = searchModule;
 
@@ -151,7 +159,7 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
     thing.urls = [`https://example.com/bulk-test-${i}`];
     thing.label = { en: `Bulk Test Item ${i}` };
     thing.metadata = {
-      description: { en: `Bulk test description ${i}` }
+      description: { en: `Bulk test description ${i}` },
     };
     thing.createdOn = new Date();
     thing.createdBy = testUserId;
@@ -176,8 +184,14 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   const currentThings = await Thing.filterNotStaleOrDeleted().run();
   const currentReviews = await Review.filterNotStaleOrDeleted().run();
 
-  t.true(currentThings.length >= 5, `Should have at least 5 current things (found ${currentThings.length})`);
-  t.true(currentReviews.length >= 5, `Should have at least 5 current reviews (found ${currentReviews.length})`);
+  t.true(
+    currentThings.length >= 5,
+    `Should have at least 5 current things (found ${currentThings.length})`
+  );
+  t.true(
+    currentReviews.length >= 5,
+    `Should have at least 5 current reviews (found ${currentReviews.length})`
+  );
 
   // Index all current items
   for (const thing of currentThings) {
@@ -192,8 +206,14 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   const indexedThings = indexedItems.filter(isThingItem);
   const indexedReviews = indexedItems.filter(isReviewItem);
 
-  t.true(indexedThings.length >= 5, `Should have indexed at least 5 things (indexed ${indexedThings.length})`);
-  t.true(indexedReviews.length >= 5, `Should have indexed at least 5 reviews (indexed ${indexedReviews.length})`);
+  t.true(
+    indexedThings.length >= 5,
+    `Should have indexed at least 5 things (indexed ${indexedThings.length})`
+  );
+  t.true(
+    indexedReviews.length >= 5,
+    `Should have indexed at least 5 reviews (indexed ${indexedReviews.length})`
+  );
 
   // Verify data integrity
   for (const indexedThing of indexedThings) {
@@ -213,7 +233,6 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
 });
 
 test.serial('search indexing skips old and deleted revisions in bulk operations', async t => {
-
   const { Thing } = dalFixture;
   const search = searchModule;
 
@@ -240,8 +259,8 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   const currentThings = await Thing.filterNotStaleOrDeleted().run();
 
   // Should only get the current revision
-  const matchingThings = currentThings.filter(t =>
-    t.urls && t.urls.includes('https://example.com/revision-test')
+  const matchingThings = currentThings.filter(
+    t => t.urls && t.urls.includes('https://example.com/revision-test')
   );
 
   t.is(matchingThings.length, 1, 'Should only find one current revision');
@@ -255,7 +274,9 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   // Verify only current revisions were indexed
   const indexedThings = indexedItems
     .filter(isThingItem)
-    .filter(item => Boolean(item.data.urls && item.data.urls.includes('https://example.com/revision-test')));
+    .filter(item =>
+      Boolean(item.data.urls && item.data.urls.includes('https://example.com/revision-test'))
+    );
 
   t.is(indexedThings.length, 1, 'Should only index one revision');
   t.is(indexedThings[0].data.label!.en, 'Updated Version', 'Should index the updated version');

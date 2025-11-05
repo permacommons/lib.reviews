@@ -32,19 +32,48 @@ export interface ModelConstructorLike {
 }
 
 export interface RevisionHelpers {
-  applyRevisionMetadata(instance: ModelInstance, options?: {
-    user?: { id?: string } | null;
-    userId?: string | null;
-    date?: Date | string;
-    tags?: string[] | string | null;
-    revId?: string | null;
-  }): ModelInstance;
-  getNewRevisionHandler(ModelClass: ModelConstructorLike): (this: ModelInstance, user: { id?: string } | null, options?: { tags?: string[] }) => Promise<ModelInstance>;
-  getDeleteAllRevisionsHandler(ModelClass: ModelConstructorLike): (this: ModelInstance, user: { id?: string } | null, options?: { tags?: string[] }) => Promise<ModelInstance>;
-  getNotStaleOrDeletedGetHandler(ModelClass: ModelConstructorLike): (this: ModelInstance, id: string, joinOptions?: Record<string, unknown>) => Promise<ModelInstance>;
-  getFirstRevisionHandler(ModelClass: ModelConstructorLike): (this: ModelInstance, user: { id?: string } | null, options?: { tags?: string[]; date?: Date }) => Promise<ModelInstance>;
+  applyRevisionMetadata(
+    instance: ModelInstance,
+    options?: {
+      user?: { id?: string } | null;
+      userId?: string | null;
+      date?: Date | string;
+      tags?: string[] | string | null;
+      revId?: string | null;
+    }
+  ): ModelInstance;
+  getNewRevisionHandler(
+    ModelClass: ModelConstructorLike
+  ): (
+    this: ModelInstance,
+    user: { id?: string } | null,
+    options?: { tags?: string[] }
+  ) => Promise<ModelInstance>;
+  getDeleteAllRevisionsHandler(
+    ModelClass: ModelConstructorLike
+  ): (
+    this: ModelInstance,
+    user: { id?: string } | null,
+    options?: { tags?: string[] }
+  ) => Promise<ModelInstance>;
+  getNotStaleOrDeletedGetHandler(
+    ModelClass: ModelConstructorLike
+  ): (
+    this: ModelInstance,
+    id: string,
+    joinOptions?: Record<string, unknown>
+  ) => Promise<ModelInstance>;
+  getFirstRevisionHandler(
+    ModelClass: ModelConstructorLike
+  ): (
+    this: ModelInstance,
+    user: { id?: string } | null,
+    options?: { tags?: string[]; date?: Date }
+  ) => Promise<ModelInstance>;
   getNotStaleOrDeletedFilterHandler(ModelClass: ModelConstructorLike): () => unknown;
-  getMultipleNotStaleOrDeletedHandler(ModelClass: ModelConstructorLike): (idArray: string[]) => unknown;
+  getMultipleNotStaleOrDeletedHandler(
+    ModelClass: ModelConstructorLike
+  ): (idArray: string[]) => unknown;
   getSchema(): Record<string, unknown>;
   registerFieldMappings(ModelClass: ModelConstructorLike): void;
   deletedError: Error;
@@ -57,7 +86,7 @@ export const REVISION_FIELD_MAPPINGS = Object.freeze({
   _revDate: '_rev_date',
   _revTags: '_rev_tags',
   _revDeleted: '_rev_deleted',
-  _oldRevOf: '_old_rev_of'
+  _oldRevOf: '_old_rev_of',
 });
 
 const deletedError = new Error('Revision has been deleted.');
@@ -87,7 +116,7 @@ const applyRevisionMetadata = (
     userId = null,
     date = new Date(),
     tags = [],
-    revId = null
+    revId = null,
   }: {
     user?: { id?: string } | null;
     userId?: string | null;
@@ -96,9 +125,10 @@ const applyRevisionMetadata = (
     revId?: string | null;
   } = {}
 ): ModelInstance => {
-  const resolvedUserId = user && typeof user === 'object' && 'id' in user && typeof user.id === 'string'
-    ? user.id
-    : userId;
+  const resolvedUserId =
+    user && typeof user === 'object' && 'id' in user && typeof user.id === 'string'
+      ? user.id
+      : userId;
   if (!resolvedUserId) {
     throw new ValidationError('Revision metadata requires a user ID');
   }
@@ -108,9 +138,7 @@ const applyRevisionMetadata = (
     throw new ValidationError('Revision metadata requires a valid date');
   }
 
-  const resolvedTags = tags == null
-    ? []
-    : (Array.isArray(tags) ? [...tags] : [tags]);
+  const resolvedTags = tags == null ? [] : Array.isArray(tags) ? [...tags] : [tags];
   const resolvedRevId = revId || randomUUID();
 
   instance._revID = resolvedRevId;
@@ -143,15 +171,19 @@ const revision: RevisionHelpers = {
      * @param options.tags - Tags to associate with revision
      * @returns New revision instance
      */
-    const newRevision = async function(this: ModelInstance, user: { id?: string } | null, { tags }: { tags?: string[] } = {}) {
+    const newRevision = async function (
+      this: ModelInstance,
+      user: { id?: string } | null,
+      { tags }: { tags?: string[] } = {}
+    ) {
       const currentRev = this;
 
       const oldRevData = { ...currentRev._data } as Record<string, unknown>;
       (oldRevData as Record<string, unknown>)._old_rev_of = currentRev.id;
       delete oldRevData.id;
 
-      const insertFields = Object.keys(oldRevData).filter((key) => oldRevData[key] !== undefined);
-      const insertValues = insertFields.map((key) => oldRevData[key]);
+      const insertFields = Object.keys(oldRevData).filter(key => oldRevData[key] !== undefined);
+      const insertValues = insertFields.map(key => oldRevData[key]);
       const placeholders = insertFields.map((_, index) => `$${index + 1}`);
 
       const insertQuery = `
@@ -166,7 +198,7 @@ const revision: RevisionHelpers = {
         user,
         userId: user?.id ?? null,
         date: metadataDate,
-        tags
+        tags,
       });
 
       return currentRev;
@@ -191,7 +223,11 @@ const revision: RevisionHelpers = {
      * @param options.tags - Tags for the deletion (will prepend 'delete')
      * @returns Deletion revision
      */
-    const deleteAllRevisions = async function(this: ModelInstance, user: { id?: string } | null, { tags = [] }: { tags?: string[] } = {}) {
+    const deleteAllRevisions = async function (
+      this: ModelInstance,
+      user: { id?: string } | null,
+      { tags = [] }: { tags?: string[] } = {}
+    ) {
       const id = this.id;
       const deletionTags = ['delete', ...tags];
 
@@ -230,7 +266,11 @@ const revision: RevisionHelpers = {
      * @returns Model instance
      * @throws If revision is deleted or stale
      */
-    const getNotStaleOrDeleted = async function(this: ModelInstance, id: string, joinOptions: Record<string, unknown> = {}) {
+    const getNotStaleOrDeleted = async function (
+      this: ModelInstance,
+      id: string,
+      joinOptions: Record<string, unknown> = {}
+    ) {
       // Validate UUID format before querying database to avoid PostgreSQL syntax errors
       if (!isUUID.v4(id)) {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);
@@ -240,10 +280,7 @@ const revision: RevisionHelpers = {
 
       if (Object.keys(joinOptions).length > 0) {
         const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
-        data = await query
-          .filter({ id })
-          .getJoin(joinOptions)
-          .first();
+        data = await query.filter({ id }).getJoin(joinOptions).first();
       } else {
         const queryText = `
           SELECT * FROM ${ModelClass.tableName}
@@ -286,13 +323,17 @@ const revision: RevisionHelpers = {
      * @param options.tags - Tags to associate with revision
      * @returns First revision instance
      */
-    const createFirstRevision = async function(this: ModelInstance, user: { id?: string } | null, { tags, date = new Date() }: { tags?: string[]; date?: Date } = {}) {
+    const createFirstRevision = async function (
+      this: ModelInstance,
+      user: { id?: string } | null,
+      { tags, date = new Date() }: { tags?: string[]; date?: Date } = {}
+    ) {
       const firstRev = new ModelClass({});
       applyRevisionMetadata(firstRev, {
         user,
         userId: user?.id ?? null,
         date,
-        tags
+        tags,
       });
 
       return firstRev;
@@ -313,7 +354,7 @@ const revision: RevisionHelpers = {
      *
      * @returns Query builder with revision filters applied
      */
-    const filterNotStaleOrDeleted = function() {
+    const filterNotStaleOrDeleted = function () {
       const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
       return query.filterNotStaleOrDeleted();
     };
@@ -334,7 +375,7 @@ const revision: RevisionHelpers = {
      * @param idArray - Array of record IDs
      * @returns Query builder for chaining
      */
-    const getMultipleNotStaleOrDeleted = function(idArray: string[]) {
+    const getMultipleNotStaleOrDeleted = function (idArray: string[]) {
       const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
 
       if (idArray.length > 0) {
@@ -359,7 +400,7 @@ const revision: RevisionHelpers = {
       _revID: types.string().uuid(4).required(true),
       _oldRevOf: types.string().uuid(4),
       _revDeleted: types.boolean().default(false),
-      _revTags: types.array(types.string()).default([])
+      _revTags: types.array(types.string()).default([]),
     };
   },
 
@@ -380,7 +421,7 @@ const revision: RevisionHelpers = {
   },
 
   deletedError,
-  staleError
+  staleError,
 };
 
 export { revision };

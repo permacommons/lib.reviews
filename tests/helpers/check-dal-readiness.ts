@@ -36,7 +36,7 @@ export async function checkDALReadiness() {
       schemaName: 'test_readiness_check',
       schemaNamespace: 'test_readiness_check.',
       registerModels: false,
-      autoMigrate: true
+      autoMigrate: true,
     });
 
     // Clean up immediately

@@ -1,12 +1,7 @@
 import escapeHTML from 'escape-html';
 
 import languages from '../../locales/languages.ts';
-import {
-  validateFiles,
-  cleanupFiles,
-  getFileRevs,
-  completeUploads
-} from '../uploads.ts';
+import { validateFiles, cleanupFiles, getFileRevs, completeUploads } from '../uploads.ts';
 import ReportedError from '../../util/reported-error.ts';
 import File from '../../models/file.ts';
 import api from '../helpers/api.ts';
@@ -64,7 +59,6 @@ type UploadResponse = HandlerResponse;
  */
 function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
   return (fileFilterError?: unknown) => {
-
     // Status code will be used for known errors from the app, not for errors
     // from multer or unknown errors
     const abortUpload = (errors: Error[] = []) => {
@@ -84,8 +78,7 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
       api.error(req, res, errorMessages);
     };
 
-    if (fileFilterError instanceof Error)
-      return abortUpload([fileFilterError]);
+    if (fileFilterError instanceof Error) return abortUpload([fileFilterError]);
     if (fileFilterError && !(fileFilterError instanceof Error))
       return abortUpload([new Error(String(fileFilterError))]);
 
@@ -93,8 +86,7 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
       return abortUpload([new Error('No files received.')]);
 
     const validationErrors = validateAllMetadata(req.files, req.body ?? {});
-    if (validationErrors.length)
-      return abortUpload(validationErrors);
+    if (validationErrors.length) return abortUpload(validationErrors);
 
     const persistRevisions = async (fileRevs: FileRevision[]): Promise<FileRevision[]> => {
       await Promise.all(fileRevs.map(fileRev => fileRev.save()));
@@ -104,7 +96,9 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
     validateFiles(req.files)
       .then(fileTypes => getFileRevs(req.files, fileTypes, req.user, ['upload', 'upload-via-api']))
       .then(fileRevs => addMetadata(req.files, fileRevs as FileRevision[], req.body ?? {}))
-      .then(fileRevs => completeUploads(fileRevs as unknown as FileRevision[], req.app.locals.paths.uploadsDir))
+      .then(fileRevs =>
+        completeUploads(fileRevs as unknown as FileRevision[], req.app.locals.paths.uploadsDir)
+      )
       .then(persistRevisions)
       .then(fileRevs => reportUploadSuccess(req, res, fileRevs))
       .catch(error => abortUpload([error instanceof Error ? error : new Error(String(error))]));
@@ -141,7 +135,6 @@ function validateAllMetadata(files: UploadFile[], data: Record<string, any>): Er
   return errors;
 }
 
-
 /**
  * Check that required metadata fields are present for a given upload. Also
  * ensures that language is valid, and that license is one of the accepted
@@ -159,22 +152,22 @@ function validateAllMetadata(files: UploadFile[], data: Record<string, any>): Er
  *  Validation errors for this field, if any
  */
 function validateMetadata(file: UploadFile, data: Record<string, any>, { addSuffix = false } = {}) {
-  const validLicenses = (File as unknown as { getValidLicenses: () => string[] }).getValidLicenses();
+  const validLicenses = (
+    File as unknown as { getValidLicenses: () => string[] }
+  ).getValidLicenses();
   const errors: Error[] = [],
     processedFields: string[] = [];
   // For multiple uploads, we use the filename as a suffix for each file
-  const field = (key: string) => addSuffix ? `${key}-${file.originalname}` : key;
+  const field = (key: string) => (addSuffix ? `${key}-${file.originalname}` : key);
   const ownWork = Boolean(data[field('ownwork')]);
 
-  const required = ownWork ?
-    ['description', 'license', 'ownwork', 'language'].map(field) :
-    ['description', 'creator', 'source', 'license', 'language'].map(field);
+  const required = ownWork
+    ? ['description', 'license', 'ownwork', 'language'].map(field)
+    : ['description', 'creator', 'source', 'license', 'language'].map(field);
 
   // We ignore presence/content of these conflicting fields if they are "falsy",
   // otherwise we report an error
-  const conditionallyIgnored = ownWork ?
-    ['creator', 'source'].map(field) :
-    ['ownwork'].map(field);
+  const conditionallyIgnored = ownWork ? ['creator', 'source'].map(field) : ['ownwork'].map(field);
 
   errors.push(...checkRequired(data, required, conditionallyIgnored));
   processedFields.push(...required, ...conditionallyIgnored);
@@ -186,8 +179,7 @@ function validateMetadata(file: UploadFile, data: Record<string, any>, { addSuff
 
   const license = data[field('license')];
   if (license && !validLicenses.includes(license))
-    errors.push(new Error(`License ${license} is not one of: ` +
-      validLicenses.join(', ')));
+    errors.push(new Error(`License ${license} is not one of: ` + validLicenses.join(', ')));
 
   return { errors, processedFields };
 }
@@ -218,20 +210,17 @@ function checkRequired(
   const errors: Error[] = [];
   for (const key in obj) {
     if (required.includes(key)) {
-      if (!obj[key])
-        errors.push(new Error(`Parameter must not be empty: ${key}`));
+      if (!obj[key]) errors.push(new Error(`Parameter must not be empty: ${key}`));
       required.splice(required.indexOf(key), 1);
     }
     if (conditionallyIgnored.includes(key) && Boolean(obj[key]))
       errors.push(new Error(`Parameter must be skipped, be empty, or evaluate to false: ${key}`));
-
   }
   if (required.length)
     errors.push(new Error(`Missing the following parameter(s): ${required.join(', ')}`));
 
   return errors;
 }
-
 
 /**
  * Add all metadata to each file revision (does not save)
@@ -253,7 +242,6 @@ function addMetadata(files: UploadFile[], fileRevs: FileRevision[], data: Record
   return fileRevs;
 }
 
-
 /**
  * Add all relevant metadata to an individual file revision
  *
@@ -268,19 +256,23 @@ function addMetadata(files: UploadFile[], fileRevs: FileRevision[], data: Record
  * @param options.addSuffix=false
  *  Add a filename suffix to each field (used for requests with multiple files)
  */
-function addMetadataToFileRev(file: UploadFile, fileRev: FileRevision, data: Record<string, any>, { addSuffix = false } = {}) {
-  const field = (key: string) => addSuffix ? `${key}-${file.originalname}` : key;
+function addMetadataToFileRev(
+  file: UploadFile,
+  fileRev: FileRevision,
+  data: Record<string, any>,
+  { addSuffix = false } = {}
+) {
+  const field = (key: string) => (addSuffix ? `${key}-${file.originalname}` : key);
   const addMlStr = (keys: string[], rev: Record<string, any>) => {
     for (const key of keys)
       if (data[field(key)])
         rev[key] = {
-          [data[field('language')]]: escapeHTML(String(data[field(key)]))
+          [data[field('language')]]: escapeHTML(String(data[field(key)])),
         };
   };
   addMlStr(['description', 'creator', 'source'], fileRev);
   fileRev.license = data[field('license')];
 }
-
 
 /**
  * Send a success response to the API request that contains the newly assigned
@@ -301,13 +293,19 @@ function reportUploadSuccess(req: UploadRequest, res: UploadResponse, fileRevs: 
     description: fileRevs[index].description,
     license: fileRevs[index].license,
     creator: fileRevs[index].creator,
-    source: fileRevs[index].source
+    source: fileRevs[index].source,
   }));
   res.status(200);
   res.type('json');
-  res.send(JSON.stringify({
-    message: 'Upload successful.',
-    uploads,
-    errors: []
-  }, null, 2));
+  res.send(
+    JSON.stringify(
+      {
+        message: 'Upload successful.',
+        uploads,
+        errors: [],
+      },
+      null,
+      2
+    )
+  );
 }

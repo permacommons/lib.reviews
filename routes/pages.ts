@@ -23,7 +23,7 @@ router.get('/terms', function (req: PagesRouteRequest, res: PagesRouteResponse, 
     .then(templateName =>
       render.template(req, res, templateName, {
         deferPageHeader: true,
-        titleKey: 'terms'
+        titleKey: 'terms',
       })
     )
     .catch(next);
@@ -34,12 +34,11 @@ router.get('/faq', function (req: PagesRouteRequest, res: PagesRouteResponse, ne
     .then(templateName =>
       render.template(req, res, templateName, {
         deferPageHeader: true,
-        titleKey: 'faq'
+        titleKey: 'faq',
       })
     )
     .catch(next);
 });
-
 
 // Detects the best available template in the multilingual templates directory
 // for a given locale.
@@ -57,15 +56,17 @@ async function resolveMultilingualTemplate(templateName: string, locale?: string
   const templateLookups = templateLanguages.map(language => {
     const relPath = getRelPath(language),
       absPath = getAbsPath(relPath);
-    return stat(absPath).then(_r => relPath).catch(_e => null);
+    return stat(absPath)
+      .then(_r => relPath)
+      .catch(_e => null);
   });
 
   const templates = await Promise.all(templateLookups);
-  for (let template of templates)
-    if (template)
-      return template;
+  for (let template of templates) if (template) return template;
 
   let langStr = templateLanguages.join(', ');
-  throw new Error(`Template ${templateName} does not appear to exist in any of these languages: ${langStr}`);
+  throw new Error(
+    `Template ${templateName} does not appear to exist in any of these languages: ${langStr}`
+  );
 }
 export default router;

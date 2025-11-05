@@ -11,7 +11,10 @@ import { fetchJSON } from '../util/http.ts';
 import languages from '../locales/languages.ts';
 
 /* Internal deps */
-import AbstractBackendAdapter, { type AdapterLookupResult, type AdapterMultilingualString } from './abstract-backend-adapter.ts';
+import AbstractBackendAdapter, {
+  type AdapterLookupResult,
+  type AdapterMultilingualString,
+} from './abstract-backend-adapter.ts';
 
 interface OverpassElement {
   tags?: Record<string, string>;
@@ -22,7 +25,6 @@ interface OverpassResponse {
 }
 
 export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter {
-
   constructor() {
     super();
 
@@ -31,8 +33,10 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
     // - ID number
     // - maybe followed by a fragment
     // - case doesn't matter
-    this.supportedPattern =
-      new RegExp('^https://www.openstreetmap.org/(node|way)/(\\d+)(?:#.*)?$', 'i');
+    this.supportedPattern = new RegExp(
+      '^https://www.openstreetmap.org/(node|way)/(\\d+)(?:#.*)?$',
+      'i'
+    );
     this.supportedFields = ['label'];
     this.sourceID = 'openstreetmap';
     this.sourceURL = 'https://openstreetmap.org/';
@@ -47,10 +51,7 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
     const osmType = m[1];
     const osmID = m[2];
 
-    const query =
-      '[out:json];\n' +
-      `${osmType}(${osmID});\n` +
-      'out;\n';
+    const query = '[out:json];\n' + `${osmType}(${osmID});\n` + 'out;\n';
 
     const body = new URLSearchParams({ data: query });
     const data = await fetchJSON<OverpassResponse>('https://overpass-api.de/api/interpreter', {
@@ -59,19 +60,20 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
       label: 'OpenStreetMap',
       headers: {
         'User-Agent': config.adapterUserAgent,
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body
+      body,
     });
-    debug.adapters('Received data from OpenStreetMap adapter (way/node lookup):\n' +
-      JSON.stringify(data, null, 2));
+    debug.adapters(
+      'Received data from OpenStreetMap adapter (way/node lookup):\n' +
+        JSON.stringify(data, null, 2)
+    );
 
     if (typeof data !== 'object' || !data.elements || !data.elements.length)
       throw new Error('Result from OpenStreetMap did not include any data.');
 
     const first = data.elements[0];
-    if (!first.tags)
-      throw new Error(`No tags set for ${osmType} ID: ${osmID}`);
+    if (!first.tags) throw new Error(`No tags set for ${osmType} ID: ${osmID}`);
 
     const tags = first.tags;
     const label: AdapterMultilingualString = {};
@@ -98,7 +100,7 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
 
     const result: AdapterLookupResult = {
       data: { label },
-      sourceID: this.sourceID
+      sourceID: this.sourceID,
     };
     debug.adapters('result:' + JSON.stringify(result, null, 2));
 

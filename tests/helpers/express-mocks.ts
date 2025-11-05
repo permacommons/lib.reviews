@@ -13,7 +13,7 @@ export interface CreateMockResponseOptions {
 export const createMockRequest = (overrides: Partial<Request> = {}): MockRequest => {
   const request = {
     originalUrl: '/',
-    ...overrides
+    ...overrides,
   } as Partial<Request>;
 
   return request as Request;
@@ -22,7 +22,7 @@ export const createMockRequest = (overrides: Partial<Request> = {}): MockRequest
 export const createMockResponse = (options: CreateMockResponseOptions = {}): MockResponse => {
   const redirects: string[] = [];
   const response = {
-    redirects
+    redirects,
   } as Partial<Response> & { redirects: string[] };
 
   const redirectImpl = ((statusOrUrl: number | string, maybeUrl?: string) => {

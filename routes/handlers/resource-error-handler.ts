@@ -17,9 +17,10 @@ export default function getResourceErrorHandler(
   messageKeyPrefix: string,
   bodyParam: string
 ): (error: ResourceError) => void {
-
   if (!messageKeyPrefix || !bodyParam)
-    throw new Error('We need a prefix for message keys, and a parameter containing e.g. the ID of the resource.');
+    throw new Error(
+      'We need a prefix for message keys, and a parameter containing e.g. the ID of the resource.'
+    );
 
   const escapedBodyParam = escapeHTML(bodyParam);
 
@@ -31,13 +32,13 @@ export default function getResourceErrorHandler(
       case 'DocumentNotFoundError':
         if (/%20$/.test(req.originalUrl))
           return res.redirect(req.originalUrl.replace(/(.+?)(%20)+$/, '$1'));
-        // falls through
+      // falls through
       case 'RevisionDeletedError':
         res.status(404);
         render.resourceError(req, res, {
           titleKey: `${messageKeyPrefix} not found title`,
           bodyKey: `${messageKeyPrefix} not found`,
-          bodyParam: escapedBodyParam
+          bodyParam: escapedBodyParam,
         });
         break;
       case 'InvalidUUIDError':
@@ -45,7 +46,7 @@ export default function getResourceErrorHandler(
         render.resourceError(req, res, {
           titleKey: `${messageKeyPrefix} address invalid title`,
           bodyKey: `${messageKeyPrefix} address invalid`,
-          bodyParam: escapedBodyParam
+          bodyParam: escapedBodyParam,
         });
         break;
       case 'RevisionStaleError':
@@ -53,7 +54,7 @@ export default function getResourceErrorHandler(
         render.resourceError(req, res, {
           titleKey: 'stale revision error title',
           bodyKey: 'stale revision error',
-          bodyParam: escapedBodyParam
+          bodyParam: escapedBodyParam,
         });
         break;
       case 'RedirectedError':

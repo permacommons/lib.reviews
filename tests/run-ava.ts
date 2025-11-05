@@ -11,16 +11,17 @@ process.on('unhandledRejection', rejectionHandler);
 const { checkDALReadinessOrExit } = await import('./helpers/check-dal-readiness.ts');
 
 const args = process.argv.slice(2);
-if (args.length === 0)
-  args.push('--verbose', 'tests/[0-9]*-*.ts');
+if (args.length === 0) args.push('--verbose', 'tests/[0-9]*-*.ts');
 
 const manifestPath = resolve(process.cwd(), 'build', 'frontend', '.vite', 'manifest.json');
 if (!existsSync(manifestPath)) {
-  process.stdout.write(`Missing Vite manifest at ${manifestPath}. Running "npm run build:frontend"…\n`);
+  process.stdout.write(
+    `Missing Vite manifest at ${manifestPath}. Running "npm run build:frontend"…\n`
+  );
   const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const buildResult = spawnSync(npmCommand, ['run', 'build:frontend'], {
     stdio: 'inherit',
-    env: process.env
+    env: process.env,
   });
 
   if (buildResult.status !== 0) {
@@ -35,14 +36,16 @@ if (!existsSync(manifestPath)) {
   }
 }
 
-const nodeOptions = process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} --import tsx/esm` : '--import tsx/esm';
+const nodeOptions = process.env.NODE_OPTIONS
+  ? `${process.env.NODE_OPTIONS} --import tsx/esm`
+  : '--import tsx/esm';
 
 const env = {
   ...process.env,
   LIBREVIEWS_VITE_DEV_SERVER: process.env.LIBREVIEWS_VITE_DEV_SERVER || 'off',
   NODE_APP_INSTANCE: process.env.NODE_APP_INSTANCE || 'testing',
   NODE_CONFIG_DISABLE_WATCH: process.env.NODE_CONFIG_DISABLE_WATCH || 'Y',
-  NODE_OPTIONS: nodeOptions
+  NODE_OPTIONS: nodeOptions,
 };
 
 // Check DAL readiness before running tests
@@ -53,11 +56,13 @@ process.off('unhandledRejection', rejectionHandler);
 
 const child = spawn('ava', args, {
   stdio: 'inherit',
-  env
+  env,
 });
 
 child.on('exit', (code, signal) => {
-  const exitCode = signal ? (128 + (signal === 'SIGINT' ? 2 : signal === 'SIGTERM' ? 15 : 0)) : (code ?? 0);
+  const exitCode = signal
+    ? 128 + (signal === 'SIGINT' ? 2 : signal === 'SIGTERM' ? 15 : 0)
+    : (code ?? 0);
   process.exit(exitCode);
 });
 

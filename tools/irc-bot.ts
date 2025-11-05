@@ -79,12 +79,10 @@ app.listen(ircConfig.appPort, '127.0.0.1', () => {
 
 // Quickly resolve multilingual string to English or first non-English language
 function resolveLabel(label: MultilingualLabel | undefined): string | undefined {
-  if (!label)
-    return undefined;
+  if (!label) return undefined;
 
   const langs = Object.keys(label);
-  if (langs.length === 0)
-    return undefined;
+  if (langs.length === 0) return undefined;
 
   return label.en ?? label[langs[0]];
 }

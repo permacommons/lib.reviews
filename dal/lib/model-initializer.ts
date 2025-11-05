@@ -2,7 +2,7 @@ import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
-  ModelInstance
+  ModelInstance,
 } from './model-types.ts';
 
 import { getOrCreateModel } from './model-factory.ts';
@@ -12,7 +12,7 @@ import type { ModelConstructorLike } from './revision.ts';
 const DEFAULT_REVISION_STATIC = [
   'createFirstRevision',
   'getNotStaleOrDeleted',
-  'filterNotStaleOrDeleted'
+  'filterNotStaleOrDeleted',
 ] as const;
 
 const DEFAULT_REVISION_INSTANCE = ['deleteAllRevisions'] as const;
@@ -23,7 +23,7 @@ const REVISION_HANDLER_MAP = {
   filterNotStaleOrDeleted: revision.getNotStaleOrDeletedFilterHandler,
   getMultipleNotStaleOrDeleted: revision.getMultipleNotStaleOrDeletedHandler,
   newRevision: revision.getNewRevisionHandler,
-  deleteAllRevisions: revision.getDeleteAllRevisionsHandler
+  deleteAllRevisions: revision.getDeleteAllRevisionsHandler,
 } as const;
 
 type RevisionHandlerName = keyof typeof REVISION_HANDLER_MAP;
@@ -62,14 +62,17 @@ export interface NormalizedRelationDefinition {
 
 type RelationDefinitionInput = NormalizedRelationDefinition | (RelationConfig & { name: string });
 
-type InstanceMethod<TInstance extends ModelInstance> = (this: TInstance, ...args: unknown[]) => unknown;
+type InstanceMethod<TInstance extends ModelInstance> = (
+  this: TInstance,
+  ...args: unknown[]
+) => unknown;
 
 type StaticMethod = (...args: unknown[]) => unknown;
 
 type RuntimeModel<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual>,
 > = ModelConstructor<TRecord, TVirtual, TInstance> & {
   defineRelation?: (name: string, config: RelationConfig) => void;
   define?: (name: string, handler: InstanceMethod<TInstance>) => void;
@@ -82,7 +85,7 @@ type RuntimeModel<
 export interface InitializeModelResult<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual>,
 > {
   model: RuntimeModel<TRecord, TVirtual, TInstance>;
   isNew: boolean;
@@ -92,7 +95,7 @@ export interface InitializeModelResult<
 export interface InitializeModelOptions<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual>,
 > {
   dal: DataAccessLayer;
   baseTable: string;
@@ -141,7 +144,7 @@ function normalizeRevisionConfig(config: boolean | RevisionHandlerConfig | null 
 
   return {
     static: toArray(config.static, DEFAULT_REVISION_STATIC),
-    instance: toArray(config.instance, DEFAULT_REVISION_INSTANCE)
+    instance: toArray(config.instance, DEFAULT_REVISION_INSTANCE),
   };
 }
 
@@ -153,10 +156,13 @@ function normalizeRevisionConfig(config: boolean | RevisionHandlerConfig | null 
 function attachRevisionHandlers<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual>,
 >(
   model: RuntimeModel<TRecord, TVirtual, TInstance>,
-  config: { static: readonly RevisionHandlerName[]; instance: readonly RevisionHandlerName[] } | null
+  config: {
+    static: readonly RevisionHandlerName[];
+    instance: readonly RevisionHandlerName[];
+  } | null
 ): void {
   if (!config) {
     return;
@@ -202,7 +208,7 @@ function normalizeRelationDefinitions(
 
   if (Array.isArray(relations)) {
     return relations
-      .map((entry) => {
+      .map(entry => {
         if (!entry || typeof entry !== 'object') {
           return null;
         }
@@ -227,9 +233,8 @@ function normalizeRelationDefinitions(
         return null;
       }
 
-      const normalizedConfig: RelationConfig = config && typeof config === 'object'
-        ? { ...config }
-        : {};
+      const normalizedConfig: RelationConfig =
+        config && typeof config === 'object' ? { ...config } : {};
 
       return { name, config: normalizedConfig };
     })
@@ -245,7 +250,7 @@ function normalizeRelationDefinitions(
 export function initializeModel<
   TRecord extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>
+  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
 >(
   options: InitializeModelOptions<TRecord, TVirtual, TInstance>
 ): InitializeModelResult<TRecord, TVirtual, TInstance> {
@@ -258,7 +263,7 @@ export function initializeModel<
     staticMethods = {},
     instanceMethods = {},
     registryKey,
-    relations = null
+    relations = null,
   } = options;
 
   if (!dal) {
@@ -280,7 +285,9 @@ export function initializeModel<
     dal,
     tableName,
     schemaDefinition,
-    { registryKey: registryKey ?? baseTable }
+    {
+      registryKey: registryKey ?? baseTable,
+    }
   );
 
   // Debugging: ensure revision handlers are attached when expected

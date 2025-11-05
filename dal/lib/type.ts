@@ -153,7 +153,7 @@ export class StringType extends Type {
   }
 
   email(): this {
-    this.validator((value) => {
+    this.validator(value => {
       if (typeof value !== 'string') {
         throw new ValidationError('Must be a valid email address');
       }
@@ -167,11 +167,12 @@ export class StringType extends Type {
   }
 
   uuid(_version = 4): this {
-    this.validator((value) => {
+    this.validator(value => {
       if (typeof value !== 'string') {
         throw new ValidationError('Must be a valid UUID');
       }
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(value)) {
         throw new ValidationError('Must be a valid UUID');
       }
@@ -336,7 +337,9 @@ export class ArrayType extends Type {
     }
 
     if (this.elementType) {
-      return validatedValue.map((item, index) => this.elementType!.validate(item, `${fieldName}[${index}]`));
+      return validatedValue.map((item, index) =>
+        this.elementType!.validate(item, `${fieldName}[${index}]`)
+      );
     }
 
     return validatedValue;
@@ -347,7 +350,10 @@ export class ArrayType extends Type {
  * Object type (for JSONB fields)
  */
 export class ObjectType extends Type {
-  override validate(value: unknown, fieldName = 'field'): Record<string, unknown> | null | undefined {
+  override validate(
+    value: unknown,
+    fieldName = 'field'
+  ): Record<string, unknown> | null | undefined {
     const validatedValue = super.validate(value, fieldName);
 
     if (validatedValue === null || validatedValue === undefined) {
@@ -383,12 +389,13 @@ const types = {
   number: (options?: Record<string, unknown>) => new NumberType(options),
   boolean: (options?: Record<string, unknown>) => new BooleanType(options),
   date: (options?: Record<string, unknown>) => new DateType(options),
-  array: (elementType?: Type | null, options?: Record<string, unknown>) => new ArrayType(elementType ?? null, options),
+  array: (elementType?: Type | null, options?: Record<string, unknown>) =>
+    new ArrayType(elementType ?? null, options),
   object: (options?: Record<string, unknown>) => new ObjectType(options),
   virtual: (options?: Record<string, unknown>) => new VirtualType(options),
 
   // Aliases for compatibility
-  any: (options?: Record<string, unknown>) => new Type(options)
+  any: (options?: Record<string, unknown>) => new Type(options),
 } as const;
 
 export { types };

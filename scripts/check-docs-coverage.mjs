@@ -4,12 +4,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 function parseArgs(argv) {
-  const args = { json: 'static/devdocs/typedoc.json', areas: ['util','dal','routes','bootstrap','adapters','models','tools','maintenance'], threshold: 1.0 };
+  const args = {
+    json: 'static/devdocs/typedoc.json',
+    areas: ['util', 'dal', 'routes', 'bootstrap', 'adapters', 'models', 'tools', 'maintenance'],
+    threshold: 1.0,
+  };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--json' && argv[i+1]) { args.json = argv[++i]; continue; }
-    if (a === '--areas' && argv[i+1]) { args.areas = argv[++i].split(',').map(s => s.trim()).filter(Boolean); continue; }
-    if (a === '--threshold' && argv[i+1]) { args.threshold = Number(argv[++i]); continue; }
+    if (a === '--json' && argv[i + 1]) {
+      args.json = argv[++i];
+      continue;
+    }
+    if (a === '--areas' && argv[i + 1]) {
+      args.areas = argv[++i]
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      continue;
+    }
+    if (a === '--threshold' && argv[i + 1]) {
+      args.threshold = Number(argv[++i]);
+      continue;
+    }
   }
   return args;
 }
@@ -21,7 +37,10 @@ function readJson(file) {
 
 function flattenText(summary) {
   if (!summary || !Array.isArray(summary)) return '';
-  return summary.map(p => typeof p.text === 'string' ? p.text : '').join('').trim();
+  return summary
+    .map(p => (typeof p.text === 'string' ? p.text : ''))
+    .join('')
+    .trim();
 }
 
 function hasDocComment(ref) {
@@ -71,7 +90,7 @@ function isExported(ref) {
   return true;
 }
 
-const TARGET_KINDS = new Set(['Function','Class','Interface','Type alias','Enum','Variable']);
+const TARGET_KINDS = new Set(['Function', 'Class', 'Interface', 'Type alias', 'Enum', 'Variable']);
 const TARGET_KIND_IDS = new Set([64, 128, 256, 32, 4, 4194304]);
 
 function getKindName(ref) {
@@ -81,13 +100,20 @@ function getKindName(ref) {
   }
   // Fallback to numeric kind mapping (TypeDoc ReflectionKind)
   switch (ref?.kind) {
-    case 64: return 'Function';
-    case 128: return 'Class';
-    case 256: return 'Interface';
-    case 32: return 'Variable';
-    case 4: return 'Enum';
-    case 4194304: return 'Type alias';
-    default: return undefined;
+    case 64:
+      return 'Function';
+    case 128:
+      return 'Class';
+    case 256:
+      return 'Interface';
+    case 32:
+      return 'Variable';
+    case 4:
+      return 'Enum';
+    case 4194304:
+      return 'Type alias';
+    default:
+      return undefined;
   }
 }
 
@@ -135,7 +161,10 @@ function isIgnored(ref) {
     const lower = name.toLowerCase();
     if (lower === 'router' || lower.endsWith('router')) return true;
     const tname = getRefTypeName(ref);
-    if (typeof tname === 'string' && (/(^|[.\s])Router$/.test(tname) || /Express\.Router$/.test(tname))) {
+    if (
+      typeof tname === 'string' &&
+      (/(^|[.\s])Router$/.test(tname) || /Express\.Router$/.test(tname))
+    ) {
       return true;
     }
   }
@@ -154,7 +183,16 @@ const ALLOWLIST = [
   // Router instances in uploads module
   { file: /^routes\/uploads\.ts$/, names: new Set(['stage1Router', 'stage2Router']) },
   // CSRF re-exports (middleware + helpers)
-  { file: /^util\/csrf\.ts$/, names: new Set(['csrfSynchronisedProtection', 'generateToken', 'getTokenFromRequest', 'getTokenFromState', 'invalidCsrfTokenError']) }
+  {
+    file: /^util\/csrf\.ts$/,
+    names: new Set([
+      'csrfSynchronisedProtection',
+      'generateToken',
+      'getTokenFromRequest',
+      'getTokenFromState',
+      'invalidCsrfTokenError',
+    ]),
+  },
 ];
 
 /**
@@ -207,7 +245,10 @@ function getParamDocsFromSignature(sig, knownParamNames) {
       continue;
     }
     const parts = Array.isArray(tag?.content) ? tag.content : [];
-    const text = parts.map(p => (typeof p.text === 'string' ? p.text : (typeof p.code === 'string' ? p.code : ''))).join('').trim();
+    const text = parts
+      .map(p => (typeof p.text === 'string' ? p.text : typeof p.code === 'string' ? p.code : ''))
+      .join('')
+      .trim();
     if (!text) continue;
     const first = text.split(/\s+/)[0];
     if (first && knownParamNames.has(first)) {
@@ -259,14 +300,14 @@ function calcCoverage(root, areas) {
   const paramWarnings = [];
   const total = { count: 0, documented: 0 };
 
-  walk(root, (ref) => {
+  walk(root, ref => {
     const kindName = getKindName(ref);
     if (!isTargetKind(ref)) return;
     if (!isExported(ref)) return;
     if (!belongsToArea(ref, areas)) return;
     if (isIgnored(ref)) return;
     const src = getPrimarySource(ref);
-    const filePath = src?.file ? src.file.replace(/\\/g,'/') : '';
+    const filePath = src?.file ? src.file.replace(/\\/g, '/') : '';
     if (isAllowlisted(ref, filePath)) return;
     const area = areaOfFile(filePath, areas);
     if (!area) return;
@@ -280,8 +321,10 @@ function calcCoverage(root, areas) {
       // Suppress param warnings for Express Router proxies (TypeDoc can misattribute
       // route handler callbacks to router variables as exported "functions").
       const fname = typeof ref?.name === 'string' ? ref.name.toLowerCase() : '';
-      const fpath = src?.file ? String(src.file).replace(/\\/g,'/') : '';
-      const isRouteProxy = /(?:^|\/)routes\//.test(fpath) && (fname.endsWith('router') || fname === 'stage1router' || fname === 'stage2router');
+      const fpath = src?.file ? String(src.file).replace(/\\/g, '/') : '';
+      const isRouteProxy =
+        /(?:^|\/)routes\//.test(fpath) &&
+        (fname.endsWith('router') || fname === 'stage1router' || fname === 'stage2router');
       if (!isRouteProxy) {
         const missingParams = getMissingParamDocs(ref);
         if (Array.isArray(missingParams) && missingParams.length > 0) {
@@ -290,7 +333,7 @@ function calcCoverage(root, areas) {
             name: ref.name,
             file: src?.file ?? 'unknown',
             line: src?.line ?? null,
-            missingParams
+            missingParams,
           });
         }
       }
@@ -306,7 +349,7 @@ function calcCoverage(root, areas) {
         kind: kindName ?? String(ref.kind ?? 'unknown'),
         name: ref.name,
         file: src?.file ?? 'unknown',
-        line: src?.line ?? null
+        line: src?.line ?? null,
       });
     }
     perArea.set(key, entry);
@@ -322,11 +365,14 @@ function formatPercent(n) {
 function printReport(result, threshold) {
   const lines = [];
   lines.push('Documentation coverage report (exported API in selected areas):');
-  for (const [area, {count, documented}] of result.perArea.entries()) {
+  for (const [area, { count, documented }] of result.perArea.entries()) {
     const pct = count === 0 ? 100 : Math.round((documented / count) * 1000) / 10;
     lines.push(`- ${area}: ${documented}/${count} (${pct}%)`);
   }
-  const totalPct = result.total.count === 0 ? 100 : Math.round((result.total.documented / result.total.count) * 1000) / 10;
+  const totalPct =
+    result.total.count === 0
+      ? 100
+      : Math.round((result.total.documented / result.total.count) * 1000) / 10;
   lines.push(`- total: ${result.total.documented}/${result.total.count} (${totalPct}%)`);
 
   // Warnings for functions missing @param docs (non-fatal)
@@ -335,12 +381,14 @@ function printReport(result, threshold) {
     lines.push('Parameter documentation warnings (@param missing):');
     for (const w of result.paramWarnings) {
       const loc = w.line != null ? `${w.file}:${w.line}` : w.file;
-      lines.push(`- [${w.area}] Function ${w.name} at ${loc} -> missing @param: ${w.missingParams.join(', ')}`);
+      lines.push(
+        `- [${w.area}] Function ${w.name} at ${loc} -> missing @param: ${w.missingParams.join(', ')}`
+      );
     }
   }
 
   // Strict gate: fail if any function or class lacks documentation
-  const isFuncOrClass = (k) => {
+  const isFuncOrClass = k => {
     const s = String(k);
     return s === 'Function' || s === 'Class' || s === '64' || s === '128';
   };
@@ -369,9 +417,11 @@ function printReport(result, threshold) {
   }
 
   console.log(lines.join('\n'));
-  const achieved = result.total.count === 0 ? 1 : (result.total.documented / result.total.count);
+  const achieved = result.total.count === 0 ? 1 : result.total.documented / result.total.count;
   if (achieved < threshold) {
-    console.error(`Documentation coverage below threshold: ${(achieved*100).toFixed(1)}% < ${(threshold*100).toFixed(1)}%`);
+    console.error(
+      `Documentation coverage below threshold: ${(achieved * 100).toFixed(1)}% < ${(threshold * 100).toFixed(1)}%`
+    );
     process.exit(1);
   }
 }
@@ -380,7 +430,9 @@ function main() {
   const args = parseArgs(process.argv);
   const jsonPath = path.resolve(args.json);
   if (!fs.existsSync(jsonPath)) {
-    console.error(`TypeDoc JSON not found: ${jsonPath}. Run: typedoc --options typedoc.json --json ${args.json}`);
+    console.error(
+      `TypeDoc JSON not found: ${jsonPath}. Run: typedoc --options typedoc.json --json ${args.json}`
+    );
     process.exit(1);
   }
   let root;

@@ -55,8 +55,7 @@ interface RichTextEditorInstance extends RichTextEditorHandle {
 
 const getEditorIdFromElement = (element: Element): string => {
   const match = element.id.match(/\d+/);
-  if (!match)
-    throw new Error('Editor container missing numeric id');
+  if (!match) throw new Error('Editor container missing numeric id');
   return match[0];
 };
 
@@ -66,24 +65,16 @@ interface TogglePreferenceResponse {
 
 // ProseMirror provides no native way to enable/disable the editor, so
 // we add it here
-EditorView.prototype.disable = function() {
+EditorView.prototype.disable = function () {
   let editorElement = this.dom;
-  $(editorElement)
-    .removeAttr('contenteditable')
-    .addClass('ProseMirror-disabled');
-  $(editorElement)
-    .prev('.ProseMirror-menubar')
-    .addClass('ProseMirror-menubar-disabled');
+  $(editorElement).removeAttr('contenteditable').addClass('ProseMirror-disabled');
+  $(editorElement).prev('.ProseMirror-menubar').addClass('ProseMirror-menubar-disabled');
 };
 
-EditorView.prototype.enable = function() {
+EditorView.prototype.enable = function () {
   let editorElement = this.dom;
-  $(editorElement)
-    .attr('contenteditable', 'true')
-    .removeClass('ProseMirror-disabled');
-  $(editorElement)
-    .prev('.ProseMirror-menubar')
-    .removeClass('ProseMirror-menubar-disabled');
+  $(editorElement).attr('contenteditable', 'true').removeClass('ProseMirror-disabled');
+  $(editorElement).prev('.ProseMirror-menubar').removeClass('ProseMirror-menubar-disabled');
 };
 
 // We can have multiple RTEs on a page, and we keep generating new instances.
@@ -99,7 +90,7 @@ const rteCounter = {
   },
   set current(_c: number) {
     throw new Error('Counter should only be increase()d or accessed.');
-  }
+  },
 };
 
 // Active view instances and associated information. Uses numbers as keys
@@ -111,7 +102,7 @@ libreviews.activeRTEs = rtes;
 
 // We keep track of the RTE's caret and scroll position, but only if the
 // markdown representation hasn't been changed.
-$('textarea[data-markdown]').on('change', function(this: HTMLTextAreaElement) {
+$('textarea[data-markdown]').on('change', function (this: HTMLTextAreaElement) {
   $(this)
     .removeAttr('data-rte-sel-start')
     .removeAttr('data-rte-sel-end')
@@ -123,8 +114,7 @@ const ENABLE_RTE_SELECTOR = '[data-enable-rte]';
 
 $(ENABLE_RTE_SELECTOR).conditionalSwitcherClick(function enableRTE(this: HTMLElement) {
   const $textarea = $(this).parent().prev('textarea') as JQuery<HTMLTextAreaElement>;
-  if ($textarea.length === 0)
-    return;
+  if ($textarea.length === 0) return;
 
   const selStartAttr = $textarea.attr('data-rte-sel-start');
   const selEndAttr = $textarea.attr('data-rte-sel-end');
@@ -146,30 +136,27 @@ $(ENABLE_RTE_SELECTOR).conditionalSwitcherClick(function enableRTE(this: HTMLEle
     restoreSelection($contentEditable[0] as HTMLElement, selectionRange);
   }
 
-  if (scrollY !== undefined)
-    $contentEditable.scrollTop(scrollY);
+  if (scrollY !== undefined) $contentEditable.scrollTop(scrollY);
 
   rtes[editorID]?.editorView.focus();
 
   // Show pin for persisting RTE settings
-  $(this)
-    .parent()
-    .find('.switcher-pin')
-    .toggleClass('hidden', false);
-
+  $(this).parent().find('.switcher-pin').toggleClass('hidden', false);
 });
 
 // Switch back to markdown
 const ENABLE_MARKDOWN_SELECTOR = '[data-enable-markdown]';
 
-$(ENABLE_MARKDOWN_SELECTOR).conditionalSwitcherClick(function enableMarkdown(this: HTMLElement, event: JQuery.TriggeredEvent<HTMLElement>) {
+$(ENABLE_MARKDOWN_SELECTOR).conditionalSwitcherClick(function enableMarkdown(
+  this: HTMLElement,
+  event: JQuery.TriggeredEvent<HTMLElement>
+) {
   const $rteContainer = $(this).parent().prev('.rte-container');
   const $textarea = $rteContainer.prev('textarea') as JQuery<HTMLTextAreaElement>;
   const $contentEditable = $rteContainer.find('[contenteditable=\"true\"]') as JQuery<HTMLElement>;
   const editorID = $rteContainer[0] ? getEditorIdFromElement($rteContainer[0]) : undefined;
 
-  if (!editorID)
-    return;
+  if (!editorID) return;
 
   // .detail contains number of clicks. If 0, user likely got here via
   // accesskey, so the blur() event never fired.
@@ -193,10 +180,7 @@ $(ENABLE_MARKDOWN_SELECTOR).conditionalSwitcherClick(function enableMarkdown(thi
   }
 
   // Hide pin for persisting RTE settings
-  $(this)
-    .parent()
-    .find('.switcher-pin')
-    .toggleClass('hidden', true);
+  $(this).parent().find('.switcher-pin').toggleClass('hidden', true);
   $textarea.trigger('focus');
 });
 
@@ -204,28 +188,26 @@ $(ENABLE_MARKDOWN_SELECTOR).conditionalSwitcherClick(function enableMarkdown(thi
 // RTE control
 const togglePreferenceSelector = '.switcher-pin[data-toggle-rte-preference]';
 
-$(togglePreferenceSelector).on('click', function(this: HTMLElement) {
+$(togglePreferenceSelector).on('click', function (this: HTMLElement) {
   const $pin = $(this);
-  const spin = () => $pin
-    .removeClass('fa-thumb-tack')
-    .addClass('fa-spinner fa-spin switcher-working');
-  const unspin = () => $pin
-    .removeClass('fa-spinner fa-spin switcher-working')
-    .addClass('fa-thumb-tack');
+  const spin = () =>
+    $pin.removeClass('fa-thumb-tack').addClass('fa-spinner fa-spin switcher-working');
+  const unspin = () =>
+    $pin.removeClass('fa-spinner fa-spin switcher-working').addClass('fa-thumb-tack');
 
   let done = false;
   setTimeout(() => {
     if (!done) spin();
   }, 100);
   $.ajax({
-      type: 'POST',
-      url: `/api/actions/toggle-preference/`,
-      data: JSON.stringify({
-        preferenceName: 'prefersRichTextEditor'
-      }),
-      contentType: 'application/json',
-      dataType: 'json'
-    })
+    type: 'POST',
+    url: `/api/actions/toggle-preference/`,
+    data: JSON.stringify({
+      preferenceName: 'prefersRichTextEditor',
+    }),
+    contentType: 'application/json',
+    dataType: 'json',
+  })
     .done((res: TogglePreferenceResponse) => {
       done = true;
       unspin();
@@ -253,7 +235,7 @@ $(togglePreferenceSelector).on('click', function(this: HTMLElement) {
 // Switch all RTEs on if this is the user's preference. The switcher controls
 // are already rendered server-side to be in RTE state.
 if (window.config.userPrefersRichTextEditor) {
-  $('textarea[data-markdown]').each(function(this: HTMLTextAreaElement) {
+  $('textarea[data-markdown]').each(function (this: HTMLTextAreaElement) {
     const $textarea = $(this) as JQuery<HTMLTextAreaElement>;
     $textarea.hide();
     renderRTE($textarea);
@@ -263,13 +245,13 @@ if (window.config.userPrefersRichTextEditor) {
 // Create a new RTE (ProseMirror) instance and add it to the DOM; register
 // relevant event handlers.
 function renderRTE($textarea: JQuery<HTMLTextAreaElement>): JQuery<HTMLDivElement> {
-
   // Local copy for this instance; only access count if you want to increase
   const myNumericId = rteCounter.current;
   const myID = String(myNumericId);
 
-  const $rteContainer = $(`<div id="pm-edit-${myID}" class="rte-container"></div>`)
-    .insertAfter($textarea) as JQuery<HTMLDivElement>;
+  const $rteContainer = $(`<div id="pm-edit-${myID}" class="rte-container"></div>`).insertAfter(
+    $textarea
+  ) as JQuery<HTMLDivElement>;
 
   const menuObj = buildMenuItems(markdownSchema);
   const initialContent = String($textarea.val() ?? '');
@@ -283,17 +265,16 @@ function renderRTE($textarea: JQuery<HTMLTextAreaElement>): JQuery<HTMLDivElemen
       dropCursor(),
       menuBar({
         floating: false,
-        content: menuObj.menu
-      })
-    ]
+        content: menuObj.menu,
+      }),
+    ],
   });
 
   const containerElement = $rteContainer[0];
-  if (!containerElement)
-    throw new Error('Failed to create RTE container');
+  if (!containerElement) throw new Error('Failed to create RTE container');
 
   const editorView = new EditorView(containerElement, {
-    state
+    state,
   });
 
   const instance: RichTextEditorInstance = {
@@ -301,7 +282,7 @@ function renderRTE($textarea: JQuery<HTMLTextAreaElement>): JQuery<HTMLDivElemen
     enterFullScreen: () => {},
     exitFullScreen: () => {},
     nuke: () => {},
-    reRender: () => {}
+    reRender: () => {},
   };
 
   rtes[myID] = instance;
@@ -329,7 +310,7 @@ function addCustomFeatures({
   $rteContainer,
   $textarea,
   instance,
-  instanceId
+  instanceId,
 }: {
   $rteContainer: JQuery<HTMLDivElement>;
   $textarea: JQuery<HTMLTextAreaElement>;
@@ -345,18 +326,16 @@ function addCustomFeatures({
   $ce.on('focusout', removeFocusStyle);
 
   const getTextareaHeight = (): number => parseInt($textarea.css('height') || '0', 10) || 0;
-  const getMenuHeight = (): number => parseInt($rteContainer.find('.ProseMirror-menubar').css('height') || '41', 10) || 41;
+  const getMenuHeight = (): number =>
+    parseInt($rteContainer.find('.ProseMirror-menubar').css('height') || '41', 10) || 41;
 
   // Adjust height to match textarea
   const setRTEHeight = () => {
     const textareaHeight = getTextareaHeight();
-    if (textareaHeight)
-      $rteContainer.css('height', `${textareaHeight}px`);
-    else
-      $rteContainer.css('height', '10em');
+    if (textareaHeight) $rteContainer.css('height', `${textareaHeight}px`);
+    else $rteContainer.css('height', '10em');
     const rteHeight = textareaHeight - (getMenuHeight() + 2);
-    if (rteHeight > 0)
-      $ce.css('height', `${rteHeight}px`);
+    if (rteHeight > 0) $ce.css('height', `${rteHeight}px`);
   };
   setRTEHeight();
 
@@ -364,9 +343,9 @@ function addCustomFeatures({
   const setRTEHeightFullScreen = () => {
     $rteContainer.addClass('rte-container-full-screen');
     $rteContainer.find('.ProseMirror,.ProseMirror-menubar').addClass('ProseMirror-full-screen');
-    const rteHeight = (parseInt($rteContainer.css('height') || '0', 10) || 0) - (getMenuHeight() + 2);
-    if (rteHeight > 0)
-      $ce.css('height', `${rteHeight}px`);
+    const rteHeight =
+      (parseInt($rteContainer.css('height') || '0', 10) || 0) - (getMenuHeight() + 2);
+    if (rteHeight > 0) $ce.css('height', `${rteHeight}px`);
   };
 
   // Helper to use full available window (or full screen if enabled) for editor
@@ -396,7 +375,7 @@ function addCustomFeatures({
   // Menu can wrap, so keep an eye on the height
   $(window).on('resize', setRTEHeight);
 
-  $ce.on('blur', function() {
+  $ce.on('blur', function () {
     const $current = $(this) as JQuery<HTMLElement>;
     updateRTESelectionData($textarea, $current);
     // Re-generating the markdown on blur is a performance compromise; we may want
@@ -411,7 +390,7 @@ function addCustomFeatures({
   $(window).on('beforeunload', updateOnUnload);
 
   // Full remove this control and all associated event handlers
-  instance.nuke = function() {
+  instance.nuke = function () {
     $ce.off();
     $(window).off('resize', setRTEHeight);
     $(window).off('resize', setRTEHeightFullScreen);
@@ -422,7 +401,7 @@ function addCustomFeatures({
   };
 
   // Helper for external access to re-generate RTE
-  instance.reRender = function() {
+  instance.reRender = function () {
     instance.nuke();
     renderRTE($textarea);
   };
@@ -438,9 +417,7 @@ function updateTextarea(
   const currentValue = String($textarea.val() ?? '');
   if (markdown !== currentValue) {
     $textarea.val(markdown);
-    $textarea
-      .trigger('keyup')
-      .trigger('change');
+    $textarea.trigger('keyup').trigger('change');
     // Make a note that cursor needs to be reset. This must happen after
     // the textarea's visibility is restored to work correctly in Firefox.
     $textarea.attr('data-reset-textarea', '');

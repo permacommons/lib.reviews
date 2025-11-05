@@ -66,12 +66,15 @@ const forms = {
    * @returns Parsed values and validation status flags
    */
   parseSubmission(req: Request, options: ParseSubmissionOptions = {}): ParseSubmissionResult {
-    const resolvedOptions = Object.assign({
-      formDef: undefined as FormField[] | undefined,
-      formKey: undefined as string | undefined,
-      language: undefined as string | undefined,
-      skipRequiredCheck: [] as string[]
-    }, options);
+    const resolvedOptions = Object.assign(
+      {
+        formDef: undefined as FormField[] | undefined,
+        formKey: undefined as string | undefined,
+        language: undefined as string | undefined,
+        skipRequiredCheck: [] as string[],
+      },
+      options
+    );
 
     forms.checkLanguage(req, resolvedOptions.language);
 
@@ -89,22 +92,28 @@ const forms = {
     formDef.push({
       name: '_csrf',
       required: true,
-      skipValue: true
+      skipValue: true,
     });
 
     // Process simple captcha if enabled for this form
     const captchaFormKey = String(formKey);
-    const formsConfig = config.questionCaptcha.forms as unknown as Record<string, string | undefined>;
+    const formsConfig = config.questionCaptcha.forms as unknown as Record<
+      string,
+      string | undefined
+    >;
     const configuredCaptcha = formsConfig[captchaFormKey];
 
     if (configuredCaptcha) {
-      formDef.push({
-        name: 'captcha-id',
-        required: true
-      }, {
-        name: 'captcha-answer',
-        required: true
-      });
+      formDef.push(
+        {
+          name: 'captcha-id',
+          required: true,
+        },
+        {
+          name: 'captcha-answer',
+          required: true,
+        }
+      );
 
       hasCorrectCaptcha = forms.processCaptchaAnswer(req);
     }
@@ -113,8 +122,7 @@ const forms = {
 
     for (const field of formDef) {
       const processedIndex = processedKeys.indexOf(field.name);
-      if (processedIndex !== -1)
-        processedKeys.splice(processedIndex, 1);
+      if (processedIndex !== -1) processedKeys.splice(processedIndex, 1);
 
       const key = (field.keyValueMap as string) || (field.key as string) || field.name;
 
@@ -126,8 +134,7 @@ const forms = {
         }
       }
 
-      if (field.skipValue || resolvedOptions.skipRequiredCheck.indexOf(field.name) !== -1)
-        continue;
+      if (field.skipValue || resolvedOptions.skipRequiredCheck.indexOf(field.name) !== -1) continue;
 
       let val: unknown;
 
@@ -150,7 +157,9 @@ const forms = {
 
           case 'text':
             val = {
-              [resolvedOptions.language as string]: escapeHTML(toStringValue(req.body[field.name]).trim())
+              [resolvedOptions.language as string]: escapeHTML(
+                toStringValue(req.body[field.name]).trim()
+              ),
             };
             break;
 
@@ -158,18 +167,32 @@ const forms = {
             if (!field.flat) {
               val = {
                 text: {
-                  [resolvedOptions.language as string]: escapeHTML(toStringValue(req.body[field.name]).trim())
+                  [resolvedOptions.language as string]: escapeHTML(
+                    toStringValue(req.body[field.name]).trim()
+                  ),
                 },
                 html: {
-                  [resolvedOptions.language as string]: md.render(toStringValue(req.body[field.name]).trim(), { language: req.locale })
-                }
+                  [resolvedOptions.language as string]: md.render(
+                    toStringValue(req.body[field.name]).trim(),
+                    {
+                      language: req.locale,
+                    }
+                  ),
+                },
               };
             } else {
               formValues[key] = {
-                [resolvedOptions.language as string]: escapeHTML(toStringValue(req.body[field.name]).trim())
+                [resolvedOptions.language as string]: escapeHTML(
+                  toStringValue(req.body[field.name]).trim()
+                ),
               };
               formValues[field.htmlKey as string] = {
-                [resolvedOptions.language as string]: md.render(toStringValue(req.body[field.name]).trim(), { language: req.locale })
+                [resolvedOptions.language as string]: md.render(
+                  toStringValue(req.body[field.name]).trim(),
+                  {
+                    language: req.locale,
+                  }
+                ),
               };
             }
             break;
@@ -191,13 +214,10 @@ const forms = {
           // resulting in an array with length 0 but with properties. This is semantically confusing
           // and requires downstream code to call Object.keys() to extract the property names.
           // Should initialize as {} for UUID-based key-value maps and [] only for true arrays.
-          if (typeof formValues[key] !== 'object')
-            formValues[key] = [];
+          if (typeof formValues[key] !== 'object') formValues[key] = [];
 
-          if (id)
-            formValues[key][id] = val;
-          else
-            formValues[key].push(val);
+          if (id) formValues[key][id] = val;
+          else formValues[key].push(val);
         } else {
           formValues[key] = val;
         }
@@ -213,7 +233,7 @@ const forms = {
       hasRequiredFields,
       hasUnknownFields,
       hasCorrectCaptcha,
-      formValues
+      formValues,
     };
   },
 
@@ -239,7 +259,10 @@ const forms = {
    */
   getCaptcha(req: Request, formKey?: string) {
     const captchaFormKey = String(formKey);
-    const formsConfig = config.questionCaptcha.forms as unknown as Record<string, string | undefined>;
+    const formsConfig = config.questionCaptcha.forms as unknown as Record<
+      string,
+      string | undefined
+    >;
     const id = formsConfig[captchaFormKey];
 
     if (id) {
@@ -247,7 +270,7 @@ const forms = {
         id,
         question: req.__(config.questionCaptcha.captchas[id].questionKey),
         placeholder: req.__(config.questionCaptcha.captchas[id].placeholderKey),
-        captcha: config.questionCaptcha.captchas[id]
+        captcha: config.questionCaptcha.captchas[id],
       };
     }
     return undefined;
@@ -260,15 +283,17 @@ const forms = {
    *  Identifier for the form requesting captcha data
    */
   getQuestionCaptcha(formKey?: string) {
-    const formsConfig = config.questionCaptcha.forms as unknown as Record<string, boolean | undefined>;
-    if (!formKey || !formsConfig[String(formKey)])
-      return undefined;
+    const formsConfig = config.questionCaptcha.forms as unknown as Record<
+      string,
+      boolean | undefined
+    >;
+    if (!formKey || !formsConfig[String(formKey)]) return undefined;
 
     const captchas = config.questionCaptcha.captchas as Array<Record<string, unknown>>;
     const id = Math.floor(Math.random() * captchas.length);
     return {
       id,
-      captcha: captchas[id]
+      captcha: captchas[id],
     };
   },
 
@@ -282,8 +307,7 @@ const forms = {
     const id = req.body?.['captcha-id'];
     const answerText = req.body?.['captcha-answer'];
 
-    if (!answerText)
-      return false;
+    if (!answerText) return false;
 
     if (!config.questionCaptcha.captchas[id]) {
       req.flash('pageErrors', req.__('unknown captcha'));
@@ -314,7 +338,7 @@ const forms = {
     }
 
     return formDef.filter(field => !/%uuid/.test(field.name));
-  }
+  },
 };
 
 export type FormsHelper = typeof forms;

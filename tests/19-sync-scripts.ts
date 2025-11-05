@@ -10,11 +10,13 @@ type ThingModel = typeof import('../models/thing.ts').default;
 mockSearch();
 
 type SetupPostgresTestFn = typeof import('./helpers/setup-postgres-test.ts')['setupPostgresTest'];
-const { setupPostgresTest } = (await import('./helpers/setup-postgres-test.ts')) as { setupPostgresTest: SetupPostgresTestFn };
+const { setupPostgresTest } = (await import('./helpers/setup-postgres-test.ts')) as {
+  setupPostgresTest: SetupPostgresTestFn;
+};
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'sync_scripts',
-  cleanupTables: ['things', 'users']
+  cleanupTables: ['things', 'users'],
 });
 
 let Thing: ThingModel;
@@ -24,16 +26,13 @@ test.before(async () => {
 
   mockSearch();
 
-  await dalFixture.initializeModels([
-    { key: 'things', alias: 'Thing' }
-  ]);
+  await dalFixture.initializeModels([{ key: 'things', alias: 'Thing' }]);
   Thing = dalFixture.getThingModel();
 });
 
 test.after.always(unmockSearch);
 
 test.serial('sync scripts can be imported and work with PostgreSQL Thing model', async t => {
-
   // Create a test thing with Wikidata URL
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -45,8 +44,8 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
   thing.sync = {
     description: {
       active: true,
-      source: 'wikidata'
-    }
+      source: 'wikidata',
+    },
   };
   thing.createdOn = new Date();
   thing.createdBy = testUserId;
@@ -68,11 +67,14 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
   t.truthy(foundThing.sync, 'Sync settings should be configured');
   t.truthy(foundThing.sync.description, 'Description sync should be configured');
   t.is(foundThing.sync.description.active, true, 'Description sync should be active');
-  t.is(foundThing.sync.description.source, 'wikidata', 'Description sync source should be wikidata');
+  t.is(
+    foundThing.sync.description.source,
+    'wikidata',
+    'Description sync source should be wikidata'
+  );
 });
 
 test.serial('sync functionality works with metadata grouping', async t => {
-
   // Create a test thing
   const testUserId = randomUUID();
   const testUser = { id: testUserId, is_super_user: false, is_trusted: true };
@@ -84,8 +86,8 @@ test.serial('sync functionality works with metadata grouping', async t => {
   thing.sync = {
     description: {
       active: true,
-      source: 'wikidata'
-    }
+      source: 'wikidata',
+    },
   };
   thing.createdOn = new Date();
   thing.createdBy = testUserId;
@@ -93,17 +95,19 @@ test.serial('sync functionality works with metadata grouping', async t => {
   await thing.save();
 
   // Mock the Wikidata adapter to simulate sync
-  type WikidataBackendAdapterCtor = typeof import('../adapters/wikidata-backend-adapter.ts').default;
-  const WikidataBackendAdapter = ((await import('../adapters/wikidata-backend-adapter.ts')).default) as WikidataBackendAdapterCtor;
+  type WikidataBackendAdapterCtor =
+    typeof import('../adapters/wikidata-backend-adapter.ts').default;
+  const WikidataBackendAdapter = (await import('../adapters/wikidata-backend-adapter.ts'))
+    .default as WikidataBackendAdapterCtor;
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
 
-  WikidataBackendAdapter.prototype.lookup = async function(url): Promise<AdapterLookupResult> {
+  WikidataBackendAdapter.prototype.lookup = async function (url): Promise<AdapterLookupResult> {
     return {
       data: {
         label: { en: 'Synced label from Wikidata' },
-        description: { en: 'Synced description from Wikidata' }
+        description: { en: 'Synced description from Wikidata' },
       },
-      sourceID: 'wikidata'
+      sourceID: 'wikidata',
     };
   };
 
@@ -111,16 +115,17 @@ test.serial('sync functionality works with metadata grouping', async t => {
     // Test updateActiveSyncs (core sync functionality)
     const updatedThing = await thing.updateActiveSyncs(testUserId);
 
-
-
     // Verify description was synced to metadata
     t.truthy(updatedThing.metadata, 'Metadata should be created');
     t.truthy(updatedThing.metadata.description, 'Description should be in metadata');
-    t.deepEqual(updatedThing.metadata.description, { en: 'Synced description from Wikidata' }, 'Description should be synced');
+    t.deepEqual(
+      updatedThing.metadata.description,
+      { en: 'Synced description from Wikidata' },
+      'Description should be synced'
+    );
 
     // Verify sync timestamp was updated
     t.truthy(updatedThing.sync.description.updated, 'Sync timestamp should be updated');
-
   } finally {
     // Restore original lookup method
     WikidataBackendAdapter.prototype.lookup = originalLookup;
@@ -128,7 +133,6 @@ test.serial('sync functionality works with metadata grouping', async t => {
 });
 
 test.serial('adapter integration with PostgreSQL Thing model', async t => {
-
   // Test that adapters can work with the PostgreSQL Thing model
   type AdaptersModule = typeof import('../adapters/adapters.ts');
   const adapters = ((await import('../adapters/adapters.ts')) as AdaptersModule).default;
