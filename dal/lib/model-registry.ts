@@ -4,6 +4,7 @@ import type {
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
+import type { ModelManifest } from './model-manifest.ts';
 
 export interface RegisterModelOptions extends JsonObject {
   key?: string;
@@ -123,3 +124,47 @@ export class ModelRegistry {
 }
 
 export default ModelRegistry;
+
+// ----- Manifest Registry (for createModel() system) -----
+
+/**
+ * Global manifest registry for manifest-based models
+ * Maps table names to their declarative manifests
+ */
+const manifestRegistry = new Map<string, ModelManifest>();
+
+/**
+ * Register a model manifest (called by createModel())
+ */
+export function registerManifest(manifest: ModelManifest): void {
+  if (manifestRegistry.has(manifest.tableName)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        `Manifest for table "${manifest.tableName}" is being re-registered. ` +
+          'This is normal in tests but may indicate a problem in production.'
+      );
+    }
+  }
+  manifestRegistry.set(manifest.tableName, manifest);
+}
+
+/**
+ * Get a registered manifest by table name
+ */
+export function getManifest(tableName: string): ModelManifest | undefined {
+  return manifestRegistry.get(tableName);
+}
+
+/**
+ * Get all registered manifests
+ */
+export function getAllManifests(): Map<string, ModelManifest> {
+  return new Map(manifestRegistry);
+}
+
+/**
+ * Clear manifest registry (primarily for testing)
+ */
+export function clearManifestRegistry(): void {
+  manifestRegistry.clear();
+}

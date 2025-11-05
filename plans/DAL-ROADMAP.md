@@ -103,12 +103,12 @@ export default User;
 ```
 
 **Infrastructure (additive, no breaking changes):**
-- [ ] Add `VersionedModelInstance<TRecord, TVirtual>` interface to model-types.ts
-- [ ] Add `VersionedModelConstructor<TRecord, TVirtual, TInstance>` to model-types.ts
-- [ ] Create `dal/lib/model-manifest.ts` with manifest type and inference helpers
-- [ ] Create `dal/lib/model-registry.ts` for global manifest storage
-- [ ] Create `dal/lib/create-model.ts` that returns typed proxy from manifest
-- [ ] Update `ModelInstance` to extend `TRecord & TVirtual` (with compatibility layer)
+- [x] Add `VersionedModelInstance<TRecord, TVirtual>` interface to model-types.ts
+- [x] Add `VersionedModelConstructor<TRecord, TVirtual, TInstance>` to model-types.ts
+- [x] Create `dal/lib/model-manifest.ts` with manifest type and inference helpers
+- [x] Create `dal/lib/model-registry.ts` for global manifest storage
+- [x] Create `dal/lib/create-model.ts` that returns typed proxy from manifest
+- [x] Update `ModelInstance` to use `TRecord` and `TVirtual` (kept compatibility layer)
 
 **Model migrations (each independent and deployable):**
 - [ ] Migrate `team-slug.ts` to manifest format (proof of concept)
