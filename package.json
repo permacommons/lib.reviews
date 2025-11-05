@@ -2,6 +2,9 @@
   "name": "lib.reviews",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build:frontend": "vite build",
     "build:types:frontend": "tsc -p tsconfig.frontend.dts.json",

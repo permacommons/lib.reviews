@@ -24,7 +24,7 @@ jobs:
           --health-retries 5
     strategy:
       matrix:
-        node-version: [22.x, 20.x]
+        node-version: [22.x]
 
     steps:
       - name: Checkout repository
