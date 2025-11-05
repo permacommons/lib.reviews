@@ -11,6 +11,12 @@ import types from './type.ts';
  * features like partial indexes for performance.
  */
 
+// TODO Phase 4: Remove this local ModelInstance interface.
+// This duplicates the canonical ModelInstance from model-types.ts and causes type confusion.
+// In Phase 4, this should be replaced with:
+//   - Import ModelInstance from model-types.ts
+//   - Define a VersionedModelInstance that extends ModelInstance with revision fields
+//   - Update all revision handlers to use the proper type hierarchy
 export interface ModelInstance {
   id: string;
   _data: Record<string, any>;
@@ -20,6 +26,8 @@ export interface ModelInstance {
   [key: string]: any;
 }
 
+// TODO Phase 4: Replace with proper ModelConstructor type from model-types.ts.
+// This interface duplicates concerns and should extend the canonical type instead.
 export interface ModelConstructorLike {
   new (data?: Record<string, unknown>): ModelInstance;
   tableName: string;
@@ -422,7 +430,5 @@ const revision: RevisionHelpers = {
   deletedError,
   staleError,
 };
-
-export { revision };
 
 export default revision;

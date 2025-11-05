@@ -47,24 +47,88 @@ target architecture for the Data Access Layer (DAL).
 - ✅ `getOrCreateModel` prevents duplicate registrations across production and
      test DALs.
 
+### Phase 3.5 – Type System Cleanup & Documentation (current)
+
+Prepare the type system for Phase 4's registry-driven approach by addressing
+immediate inconsistencies and documenting the target architecture.
+
+**Immediate fixes:**
+- Remove double export of `revision` object in `dal/lib/revision.ts` (both named
+  and default export exist).
+- Add TODO comments marking duplicate `ModelInstance` interface in `revision.ts`
+  for consolidation in Phase 4.
+- Document type safety issues in `model-types.ts` where generic type parameters
+  are unused (prefixed with `_`), preventing proper type inference for model fields.
+
+**Design documentation:**
+- Document the distinction between base models and versioned models, clarifying
+  that `hasRevisions` flag should drive type generation in Phase 4.
+- Specify how the future registry should generate different instance types:
+  - `ModelInstance<TRecord, TVirtual>` for base models
+  - `VersionedModelInstance<TRecord, TVirtual>` for versioned models
+- Outline the target type hierarchy where `ModelInstance` extends `TRecord & TVirtual`
+  to provide proper type safety and autocomplete for model properties.
+- Define proper option types (`SaveOptions`, `DeleteOptions`, `RevisionOptions`)
+  to replace generic `JsonObject` parameters.
+
+**Validation:**
+- Audit all model files to ensure consistent use of `& Record<string, any>`
+  workaround pattern (accepted short-term solution).
+- Verify all models properly specify `hasRevisions` flag in initialization.
+- Ensure revision-specific methods are only called on revisioned models.
+
+**Outcomes:**
+This phase creates a clear blueprint for Phase 4's type generation system while
+maintaining stability. The current `ModelInstance` workarounds remain acceptable
+until the registry can generate proper types automatically.
+
 ### Phase 4 – Declarative Model Registry & Typed Handles (next)
 
-- Define a canonical model registry that maps literal keys (for example,
-  `"reviews"`) to declarative `defineModel` manifests. Each manifest captures
-  schema, camel-to-snake mappings, relations, revision metadata, and custom
-  methods as data.
-- Generate strongly typed constructors and handles from the registry so both
-  production code and tests can `import { Review }` and receive the fully typed
-  API without casts. The registry becomes the single source of truth for model keys.
-- Update bootstrap to initialise the registry in one pass (prod and tests) and
-  return the typed map. Fixtures obtain their DAL instance and call the same
-  registry helper, eliminating test-only `initializeModel` calls.
-- Provide utilities such as `getModel<'reviews'>(dal)` that leverage the registry's
-  type information, removing ad hoc narrowing and `as any` escapes throughout
-  the codebase.
-- Use the registry metadata to unlock follow-up ergonomics: code-generation for
-  fixtures, declarative migration checks, and future backend experiments once
-  the TypeScript build lands in production.
+Replace manual model initialization with declarative manifests that drive type
+generation. See `plans/PHASE-4-TYPE-SYSTEM.md` for detailed design.
+
+**Goal:** Zero DAL exposure, full type safety, manifest as single source of truth.
+
+**Example transformation:**
+```typescript
+// Before: manual types, explicit initialization
+type UserInstance = ModelInstance<UserRecord, UserVirtual> & Record<string, any>;
+const { model } = initializeModel({ dal, schema, ... });
+
+// After: manifest-driven with inferred types
+const manifest = { tableName: 'users', hasRevisions: true, schema: {...} } as const;
+const User = createModel(manifest);
+export default User;
+// Usage: import User from './models/user'; (fully typed, no DAL visible)
+```
+
+**Infrastructure (additive, no breaking changes):**
+- [ ] Add `VersionedModelInstance<TRecord, TVirtual>` interface to model-types.ts
+- [ ] Add `VersionedModelConstructor<TRecord, TVirtual, TInstance>` to model-types.ts
+- [ ] Create `dal/lib/model-manifest.ts` with manifest type and inference helpers
+- [ ] Create `dal/lib/model-registry.ts` for global manifest storage
+- [ ] Create `dal/lib/create-model.ts` that returns typed proxy from manifest
+- [ ] Update `ModelInstance` to extend `TRecord & TVirtual` (with compatibility layer)
+
+**Model migrations (each independent and deployable):**
+- [ ] Migrate `team-slug.ts` to manifest format (proof of concept)
+- [ ] Migrate `team-join-request.ts` to manifest format
+- [ ] Migrate `invite-link.ts` to manifest format
+- [ ] Migrate `thing-slug.ts` to manifest format
+- [ ] Migrate `user-meta.ts` to manifest format
+- [ ] Migrate `team.ts` to manifest format
+- [ ] Migrate `user.ts` to manifest format
+- [ ] Migrate `thing.ts` to manifest format
+- [ ] Migrate `review.ts` to manifest format
+- [ ] Convert `file.ts` to TypeScript + manifest format
+- [ ] Convert `blog-post.ts` to TypeScript + manifest format
+
+**Bootstrap & cleanup:**
+- [ ] Update bootstrap to import models (auto-register) instead of explicit init
+- [ ] Remove old `initializeModel` function from model-initializer.ts
+- [ ] Remove duplicate `ModelInstance` interface from revision.ts
+- [ ] Remove TODO comments added in Phase 3.5
+- [ ] Verify all `& Record<string, any>` workarounds removed
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)
 

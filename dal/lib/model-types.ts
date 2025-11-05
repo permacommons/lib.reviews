@@ -4,6 +4,17 @@ export interface JsonObject {
   [key: string]: JsonValue;
 }
 
+// TODO Phase 4: Fix type parameter usage and interface design.
+// Current issues:
+//   1. Type parameters are prefixed with _ (unused), preventing type inference for model fields
+//   2. Index signature [key: string]: unknown allows any property, defeating type safety
+//   3. Methods are optional (?) but always implemented by Model class
+//   4. Should extend TRecord & TVirtual to provide autocomplete and type checking
+// Target design:
+//   - Split into ModelInstance (base) and VersionedModelInstance (with revision fields)
+//   - Make interface extend TRecord & TVirtual for proper type inference
+//   - Replace JsonObject parameters with specific option types (SaveOptions, etc.)
+//   - Make core methods required, not optional
 export interface ModelInstance<
   _TRecord extends JsonObject = JsonObject,
   _TVirtual extends JsonObject = JsonObject,
