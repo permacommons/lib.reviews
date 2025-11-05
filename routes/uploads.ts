@@ -1,0 +1,646 @@
+/**
+ * Process uploads via the web (provides general functions shared by the API).
+ *
+ * @namespace Uploads
+ */
+
+import { Router } from 'express';
+import multer from 'multer';
+import path from 'node:path';
+import fs from 'node:fs';
+import isSVG from 'is-svg';
+import config from 'config';
+import is from 'type-is';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+
+import { generateToken, getTokenFromRequest, getTokenFromState, invalidCsrfTokenError } from '../util/csrf.ts';
+import File from '../models/file.ts';
+import getResourceErrorHandler from './handlers/resource-error-handler.ts';
+import render from './helpers/render.ts';
+import slugs from './helpers/slugs.ts';
+import debug from '../util/debug.ts';
+import ReportedError from '../util/reported-error.ts';
+import languages from '../locales/languages.ts';
+import forms from './helpers/forms.ts';
+import type { FileFilterCallback } from 'multer';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const readFile = promisify(fs.readFile);
+const rename = promisify(fs.rename);
+const unlink = promisify(fs.unlink);
+type UploadsRequest<Params extends Record<string, string> = Record<string, string>> = HandlerRequest<Params>;
+type UploadsResponse = HandlerResponse;
+type UploadedFile = {
+  originalname: string;
+  filename: string;
+  mimetype?: string;
+  path?: string;
+  size?: number;
+  [key: string]: unknown;
+};
+type UploadRevision = Record<string, any>;
+type ThingInstance = Record<string, any>;
+type FileModelType = {
+  createFirstRevision(user: Express.User, options?: Record<string, unknown>): Promise<UploadRevision>;
+  getNotStaleOrDeleted(id: string): Promise<UploadRevision>;
+  getStashedUpload(userID: string, name: string): Promise<UploadRevision | null>;
+};
+
+// Uploading is a two step process. In the first step, the user simply posts the
+// file or files. In the second step, they provide information such as the
+// license and description. This first step has to be handled prior to the CSRF
+// middleware because of the requirement of managing upload streams and
+// multipart forms.
+//
+// Whether or not an upload is finished, as long as we have a valid file, we
+// keep it on disk, initially in a temporary directory. We also create a
+// record in the "files" table for it that can be completed later.
+const stage1Router = Router();
+const stage2Router = Router();
+const FileModel = File as unknown as FileModelType;
+
+let fileTypeFromFileFn;
+async function detectFileType(filePath) {
+  if (!fileTypeFromFileFn) {
+    ({ fileTypeFromFile: fileTypeFromFileFn } = await import('file-type'));
+  }
+  return fileTypeFromFileFn(filePath);
+}
+
+const allowedTypes = [
+  'image/png', 'image/gif', 'image/svg+xml', 'image/jpeg', 'image/webp',
+  'video/webm', 'video/ogg',
+  'audio/ogg', 'audio/mpeg'
+];
+
+// You can upload multiple uploads in one batch; this form is used to process
+// the metadata
+const uploadFormDef = [{
+    name: 'upload-language',
+    required: true
+  }, {
+    name: 'upload-%uuid',
+    required: false,
+    keyValueMap: 'uploads'
+  }, {
+    name: 'upload-%uuid-description',
+    required: false,
+    type: 'text',
+    keyValueMap: 'descriptions'
+  }, {
+    name: 'upload-%uuid-by',
+    required: false,
+    type: 'string', // can be 'uploader' or 'other'
+    keyValueMap: 'creators'
+  }, {
+    required: false,
+    name: 'upload-%uuid-creator',
+    type: 'text',
+    keyValueMap: 'creatorDetails'
+  },
+  {
+    name: 'upload-%uuid-source',
+    required: false,
+    type: 'text',
+    keyValueMap: 'sources'
+  },
+  {
+    name: 'upload-license-%uuid',
+    required: false,
+    type: 'string', // enum defined in model
+    keyValueMap: 'licenses'
+  }
+];
+
+stage1Router.post('/:id/upload',
+  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
+
+    // On to stage 2
+    if (!is(req, ['multipart']))
+      return next();
+
+    let id = req.params.id.trim();
+    slugs.resolveAndLoadThing(req, res, id)
+      .then(thing => {
+
+        thing.populateUserInfo(req.user);
+        if (!thing.userCanUpload)
+          return render.permissionError(req, res, {
+            titleKey: 'add media'
+          });
+
+        let storage = multer.diskStorage({
+          destination: config.uploadTempDir,
+          filename: assignFilename
+        });
+
+        let upload = multer({
+          limits: {
+            fileSize: config.uploadMaxSize
+          },
+          fileFilter: getFileFilter(req, res),
+          storage
+        }).array('media');
+
+        // Execute the actual upload middleware
+        upload(req, res, getUploadHandler(req, res, next, thing));
+      })
+      .catch(getResourceErrorHandler(req, res, next, 'thing', id));
+  }
+);
+
+stage2Router.post('/:id/upload',
+  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
+    let id = req.params.id.trim();
+    slugs.resolveAndLoadThing(req, res, id)
+      .then(thing => {
+
+        thing.populateUserInfo(req.user);
+        if (!thing.userCanUpload)
+          return render.permissionError(req, res, {
+            titleKey: 'add media'
+          });
+
+        processUploadForm(req, res, next, thing);
+
+      })
+      .catch(getResourceErrorHandler(req, res, next, 'thing', id));
+  }
+);
+
+/**
+ * Create a Multer file filter bound to the current request and response.
+ * Validates candidate files against permitted MIME types, producing an
+ * error for unsupported types and allowing permitted ones to proceed.
+ *
+ * @param req Request object for the upload route context
+ * @param res Response object for the upload route context
+ * @returns A Multer FileFilter callback that enforces permitted types
+ */
+function getFileFilter(req: UploadsRequest<{ id: string }>, res: UploadsResponse) {
+  return (_req: UploadsRequest, file: UploadedFile, done: FileFilterCallback) => {
+    const { fileTypeError, isPermitted } = checkMIMEType(file);
+    return done(fileTypeError as Error | null, isPermitted);
+  };
+}
+
+/**
+ * Check whether a file's reported MIME type is permitted for upload.
+ * This does not validate the file contents—only the claimed type.
+ *
+ * @param file Uploaded file metadata (original name, mimetype, etc.)
+ * @returns Object indicating any validation error and whether the file is permitted
+ */
+function checkMIMEType(file: UploadedFile): { fileTypeError: Error | null; isPermitted: boolean } {
+  if (!allowedTypes.includes(file.mimetype))
+    return {
+      fileTypeError: new ReportedError({
+        userMessage: 'unsupported file type',
+        userMessageParams: [file.originalname, file.mimetype]
+      }),
+      isPermitted: false
+    };
+  else
+    return {
+      fileTypeError: null,
+      isPermitted: true
+    };
+}
+
+// Checks validity of the files and, if appropriate, performs the actual upload
+function getUploadHandler(
+  req: UploadsRequest<{ id: string }>,
+  res: UploadsResponse,
+  next: HandlerNext,
+  thing: ThingInstance
+) {
+  return (error?: unknown) => {
+    const uploadRequest = req as UploadsRequest<{ id: string }> & { files?: UploadedFile[]; flashError?: (error: unknown) => void };
+
+    const abortUpload = (uploadError: unknown) => {
+      // Async, but we don't wait for completion. Note that multer performs
+      // its own cleanup on fileFilter errors, and req.files will be an empty
+      // array in that case.
+      cleanupFiles(uploadRequest);
+      uploadRequest.flashError?.(uploadError);
+      res.redirect(`/${thing.urlID}`);
+    };
+
+    // Validate CSRF token first (now that req.body is populated by multer).
+    // This ensures temp files are immediately cleaned up if CSRF is invalid.
+    const submittedToken = getTokenFromRequest(req);
+    const storedToken = getTokenFromState(req);
+
+    if (!submittedToken || !storedToken || submittedToken !== storedToken) {
+      return abortUpload(invalidCsrfTokenError);
+    }
+
+    // An error at this stage most likely means an unsupported file type was among the batch.
+    // We reject the whole batch and report the bad apple.
+    if (error)
+      return abortUpload(error);
+
+    const files = uploadRequest.files ?? [];
+    if (files.length) {
+      const user = uploadRequest.user;
+      if (!user) {
+        abortUpload(new Error('User required for upload.'));
+        return;
+      }
+
+      validateFiles(files)
+        .then(fileTypes => getFileRevs(files, fileTypes, user,
+          ['upload', 'upload-via-form']))
+        .then(fileRevs => attachFileRevsToThing(fileRevs, thing))
+        .then(uploadedFiles =>
+          render.template(req, res, 'thing-upload-step-2', {
+            titleKey: 'add media',
+            thing,
+            uploadedFiles,
+            csrfToken: generateToken(req)
+          })
+        )
+        .catch(abortUpload);
+    } else {
+      req.flash('pageErrors', req.__('no file received'));
+      res.redirect(`/${thing.urlID}`);
+    }
+  };
+}
+
+/**
+ * Validate a batch of uploaded files for correctness and safety.
+ * Uses magic-number detection for most types and specialized checks for SVG.
+ *
+ * @param files Array of uploaded file descriptors to validate
+ * @returns Resolved MIME types for each file (aligned by index)
+ */
+async function validateFiles(files: UploadedFile[]): Promise<string[]> {
+  const validators: Promise<string>[] = [];
+  files.forEach(file => {
+    const filePath = typeof file.path === 'string' ? file.path : '';
+    // SVG files need full examination
+    if (!filePath) {
+      validators.push(Promise.reject(new ReportedError({
+        userMessage: 'unrecognized file type',
+        userMessageParams: [file.originalname]
+      })));
+    } else if (file.mimetype != 'image/svg+xml')
+      validators.push(validateFile(filePath, file.mimetype));
+    else
+      validators.push(validateSVG(filePath));
+  });
+  const fileTypes = await Promise.all(validators);
+  return fileTypes;
+}
+
+/**
+ * Create initial File model revisions for each uploaded file and populate
+ * core metadata (name, MIME type, uploader, timestamps), optionally tagging
+ * each revision for audit/traceability.
+ *
+ * @param files Files received from the client
+ * @param fileTypes Validated MIME types corresponding to each file
+ * @param user Authenticated user responsible for the upload
+ * @param tags Optional tags applied to each created file revision
+ * @returns Array of File revisions ready to be associated to a Thing
+ */
+async function getFileRevs(
+  files: UploadedFile[],
+  fileTypes: string[],
+  user: Express.User,
+  tags: string[] = []
+): Promise<UploadRevision[]> {
+  const fileRevs = await Promise.all(
+    files.map(() => FileModel.createFirstRevision(user, { tags }))
+  );
+  files.forEach((file, index) => {
+    fileRevs[index].name = file.filename;
+    // We don't use the reported MIME type from the upload
+    // because it may be wrong in some edge cases like Ogg
+    // audio vs. Ogg video
+    fileRevs[index].mimeType = fileTypes[index];
+    fileRevs[index].uploadedBy = user.id;
+    fileRevs[index].uploadedOn = new Date();
+  });
+  return fileRevs;
+}
+
+async function attachFileRevsToThing(fileRevs: UploadRevision[], thing: ThingInstance): Promise<UploadRevision[]> {
+  // Note that the file association is stored in a separate table, so we do not
+  // create a new Thing revision in this case
+  if (!Array.isArray(fileRevs) || !fileRevs.length) {
+    return [];
+  }
+
+  if (!Array.isArray(thing.files)) {
+    thing.files = [];
+  }
+
+  fileRevs.forEach(fileRev => {
+    thing.addFile(fileRev);
+  });
+
+  await Promise.all(fileRevs.map(fileRev => fileRev.save()));
+  await thing.saveAll({ files: true });
+  return fileRevs;
+}
+
+/**
+ * Remove any temporarily staged files associated with the current request.
+ * Intended for early-abort paths (e.g., CSRF failure or filter error),
+ * this function ensures disk cleanup for partially processed uploads.
+ *
+ * @param req Request object that may contain a files array
+ * @returns Nothing; resolves once cleanup attempts are complete
+ */
+async function cleanupFiles(req: UploadsRequest & { files?: UploadedFile[] }): Promise<void> {
+  if (!Array.isArray(req.files) || !req.files?.length)
+    return;
+
+  try {
+    await Promise.all(req.files
+      .filter(file => typeof file.path === 'string')
+      .map(file => unlink(String(file.path))));
+  } catch (error) {
+    debug.error({ error, req });
+  }
+}
+
+// Verify that a file's contents match its claimed MIME type. This is shallow,
+// fast validation. If files are manipulated, we need to pay further attention
+// to any possible exploits.
+async function validateFile(filePath: string, claimedType: string | undefined): Promise<string> {
+  if (!filePath)
+    throw new ReportedError({
+      userMessage: 'unrecognized file type',
+      userMessageParams: ['']
+    });
+  const type = await detectFileType(filePath);
+
+  // Browser sometimes misreports media type for Ogg files. We don't throw an
+  // error in this case, but return the correct type.
+  const allOgg = (...types) => types.every(type => /\/ogg$/.test(type));
+
+  if (!type)
+    throw new ReportedError({
+      userMessage: 'unrecognized file type',
+      userMessageParams: [path.basename(filePath)],
+    });
+  else if (type.mime !== claimedType && !allOgg(type.mime, claimedType ?? ''))
+    throw new ReportedError({
+      userMessage: 'mime mismatch',
+      userMessageParams: [path.basename(filePath), claimedType, type.mime],
+    });
+  else
+    return type.mime;
+}
+
+/**
+ * Perform a shallow validation that a file contains SVG data.
+ * Reads the file and checks content using an SVG detector.
+ *
+ * @param filePath Path to the staged file on disk
+ * @returns The canonical MIME type string for SVG when valid
+ */
+async function validateSVG(filePath: string): Promise<string> {
+  if (!filePath)
+    throw new ReportedError({
+      userMessage: 'unrecognized file type',
+      userMessageParams: ['']
+    });
+  const data = await readFile(filePath);
+  if (isSVG(data))
+    return 'image/svg+xml';
+  else
+    throw new ReportedError({
+      userMessage: 'not valid svg',
+      userMessageParams: [path.basename(filePath)],
+    });
+}
+
+// If an upload is unfinished, it can still be viewed at its destination URL
+// by the user who uploaded it.
+stage1Router.get('/static/uploads/restricted/:name',
+  function(req: UploadsRequest<{ name: string }>, res: UploadsResponse, next: HandlerNext) {
+  if (!req.user)
+    return next();
+
+  const userIDValue = req.user.id;
+  const userID = typeof userIDValue === 'string' ? userIDValue
+    : typeof userIDValue === 'number' ? String(userIDValue) : null;
+
+  if (!userID)
+    return next();
+
+  FileModel
+    .getStashedUpload(userID, req.params.name)
+    .then(upload => {
+      if (!upload)
+        return next();
+      res.sendFile(path.join(config.uploadTempDir, upload.name));
+    })
+    .catch(next);
+});
+
+function processUploadForm(
+  req: UploadsRequest<{ id: string }>,
+  res: UploadsResponse,
+  _next: HandlerNext,
+  thing: ThingInstance
+) {
+
+  // Flash a message from a [key, param1, ...] array, then redirect to thing
+  const redirectBack = ({ message, error }: { message?: unknown[]; error?: unknown[] } = {}) => {
+    if (Array.isArray(error)) {
+      const [key, ...params] = error as [string, ...unknown[]];
+      const strParams = params.map(p => String(p));
+      req.flash('pageErrors', req.__(key, ...strParams));
+    }
+    if (Array.isArray(message)) {
+      const [key, ...params] = message as [string, ...unknown[]];
+      const strParams = params.map(p => String(p));
+      req.flash('pageMessages', req.__(key, ...strParams));
+    }
+
+     res.redirect(`/${thing.urlID}`);
+   };
+
+  const languageValue = req.body['upload-language'];
+  const language = typeof languageValue === 'string' ? languageValue : '';
+
+  if (!languages.isValid(language))
+    return redirectBack({ error: ['invalid language code', language] });
+
+  let formData = forms.parseSubmission(req, {
+    formDef: uploadFormDef,
+    formKey: 'upload-file',
+    language
+  });
+
+  if (req.flashHas?.('pageErrors'))
+    return redirectBack();
+
+  let uploadIDs;
+  let hasUploads = typeof formData.formValues.uploads == 'object' &&
+    (uploadIDs = Object.keys(formData.formValues.uploads)).length;
+
+  if (!hasUploads)
+    return redirectBack({ error: ['data missing'] });
+
+  const getFiles = async (ids: string[]) =>
+    await Promise.all(ids.map(id => FileModel.getNotStaleOrDeleted(id)));
+
+  // Load file info from stage 1 using the upload IDs from the form. Parse the
+  // form and abort if there's a problem with any given upload. If there's no
+  // problem, move the upload to its final location, update its metadata and
+  // mark it as finished.
+  getFiles(uploadIDs)
+    .then(files => processUploads(files, formData.formValues, language, req.app.locals.paths.uploadsDir))
+    .then(() => redirectBack({ message: ['upload completed'] }))
+    .catch(error => {
+      req.flashError?.(error);
+      redirectBack();
+    });
+}
+
+
+async function processUploads(uploads: UploadRevision[], formValues: Record<string, any>, language: string, uploadsDir: string): Promise<void> {
+    let completeUploadPromises: Promise<unknown>[] = [];
+    uploads.forEach(upload => {
+
+      const getVal = (obj: Record<string, any>) => !Array.isArray(obj) || !obj[upload.id] ? null : obj[upload.id];
+
+      upload.description = getVal(formValues.descriptions);
+
+      if (!upload.description || !upload.description[language])
+        throw new ReportedError({
+          message: `Form data for upload %s lacks a description.`,
+          messageParams: [upload.name],
+          userMessage: 'upload needs description',
+        });
+
+      let by = getVal(formValues.creators);
+      if (!by)
+        throw new ReportedError({
+          message: `Form data for upload missing creator information.`,
+          userMessage: 'data missing'
+        });
+
+      if (by === 'other') {
+        upload.creator = getVal(formValues.creatorDetails);
+
+        if (!upload.creator || !upload.creator[language])
+          throw new ReportedError({
+            message: 'Form data for upload %s lacks creator information.',
+            messageParams: [upload.name],
+            userMessage: 'upload needs creator'
+          });
+
+        upload.source = getVal(formValues.sources);
+
+        if (!upload.source || !upload.source[language])
+          throw new ReportedError({
+            message: 'Form data for upload %s lacks source information.',
+            messageParams: [upload.name],
+            userMessage: 'upload needs source'
+          });
+
+        upload.license = getVal(formValues.licenses);
+
+        if (!upload.license)
+          throw new ReportedError({
+            message: 'Form data for upload %s lacks license information.',
+            messageParams: [upload.name],
+            userMessage: 'upload needs license'
+          });
+
+      } else if (by === 'uploader') {
+        upload.license = 'cc-by-sa';
+      } else {
+        throw new ReportedError({
+          message: 'Upload form contained unexpected form data.',
+          userMessage: 'unexpected form data'
+        });
+      }
+      completeUploadPromises.push(completeUpload(upload, uploadsDir));
+    });
+
+    await Promise.all(completeUploadPromises);
+}
+
+
+/**
+ * Move a staged upload to its final public location and mark it complete.
+ * Ensures safe filenames, performs the move, and persists metadata.
+ * If persistence fails, the file is moved back to the staging area.
+ *
+ * @param upload Upload revision to finalize
+ * @param uploadsDir Destination directory for completed uploads
+ * @returns Nothing; resolves once the upload is finalized or rolled back
+ */
+async function completeUpload(upload: UploadRevision, uploadsDir: string): Promise<void> {
+  // File names are sanitized on input but ..
+  // This error is not shown to the user but logged, hence native.
+  if (!upload.name || /[/<>]/.test(upload.name))
+    throw new Error(`Invalid filename: ${upload.name}`);
+
+  // Move the file to its final location so it can be served
+  const oldPath = path.join(config.uploadTempDir, upload.name);
+  const newPath = path.join(uploadsDir, upload.name);
+
+  await rename(oldPath, newPath);
+  upload.completed = true;
+  try {
+    await upload.save();
+  } catch (error) {
+    // Problem saving the metadata. Move upload back to
+    // temporary stash.
+    await rename(newPath, oldPath);
+  }
+}
+
+/**
+ * Move a set of uploads to their final location and set the "completed"
+ * property to true.
+ *
+ * @param fileRevs Upload revisions to complete
+ * @param uploadsDir Destination directory for completed uploads
+ * @returns The same uploads after being finalized
+ */
+async function completeUploads(fileRevs: UploadRevision[], uploadsDir: string): Promise<UploadRevision[]> {
+  for (let fileRev of fileRevs)
+    await completeUpload(fileRev, uploadsDir);
+  return fileRevs;
+}
+
+/**
+ * Generate a sanitized, unique filename for a freshly uploaded file by
+ * appending a timestamp to the original name while preserving the extension.
+ *
+ * @param _req Request object (unused)
+ * @param file Uploaded file descriptor containing the original name
+ * @param done Multer callback invoked with the generated filename
+ */
+function assignFilename(_req: UploadsRequest, file: UploadedFile, done: (error: Error | null, filename?: string) => void) {
+  let p = path.parse(file.originalname);
+  let name = `${p.name}-${Date.now()}${p.ext}`;
+  name.replace(/<>&/g, '');
+  done(null, name);
+}
+
+export {
+  stage1Router,
+  stage2Router,
+  checkMIMEType,
+  cleanupFiles,
+  validateFiles,
+  getFileRevs,
+  assignFilename,
+  completeUpload,
+  completeUploads
+};

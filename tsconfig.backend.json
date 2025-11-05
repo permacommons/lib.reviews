@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": [
+    "*.js",
+    "*.ts",
+    "adapters/**/*.js",
+    "adapters/**/*.ts",
+    "app.ts",
+    "auth.ts",
+    "bootstrap/**/*.js",
+    "bootstrap/**/*.ts",
+    "config/**/*.js",
+    "config/**/*.ts",
+    "dal/**/*.js",
+    "deployment/**/*.js",
+    "models/**/*.js",
+    "models/**/*.ts",
+    "routes/**/*.js",
+    "routes/**/*.ts",
+    "search.ts",
+    "util/**/*.js",
+    "util/**/*.ts",
+    "vite.config.ts",
+    "types/**/*.d.ts",
+    "types/**/*.ts"
+  ],
+  "exclude": [
+    "frontend/**/*",
+    "types/frontend/**/*"
+  ]
+}

@@ -24,7 +24,7 @@ jobs:
           --health-retries 5
     strategy:
       matrix:
-        node-version: [22.x, 20.x]
+        node-version: [22.x]
 
     steps:
       - name: Checkout repository
@@ -60,8 +60,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build assets
-        run: npm run build
+      - name: Type check
+        run: npm run typecheck:ci
+
+      - name: Docs coverage (util/dal/routes)
+        run: npm run docs:coverage
+
+      - name: Create a deployment build
+        run: npm run build:deploy
 
       - name: Run tests
         run: npm run test
+

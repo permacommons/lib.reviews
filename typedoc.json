@@ -1,0 +1,30 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "tsconfig": "tsconfig.docs.json",
+  "entryPoints": [
+    "app.ts",
+    "auth.ts",
+    "db-postgres.ts",
+    "vite.config.ts",
+    "frontend",
+    "bootstrap",
+    "dal",
+    "models",
+    "routes",
+    "util",
+    "tools",
+    "maintenance",
+    "adapters",
+    "types"
+  ],
+  "entryPointStrategy": "expand",
+  "out": "static/devdocs",
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "readme": "none",
+  "githubPages": false,
+  "cleanOutputDir": false,
+  "validation": {
+    "notExported": false
+  }
+}

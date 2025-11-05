@@ -12,7 +12,7 @@ We welcome contributions to [any of our open issues](https://github.com/permacom
 2. **Clone** the repository
 3. **Setup PostgreSQL** (see Database Setup below)
 4. **Install dependencies:** `npm install`
-5. **Build assets:** `npm run build`
+5. **Build frontend assets:** `npm run build:frontend`
 6. **Configure** (optional): Copy `config/default.json5` to `config/development.json5` and customize
 7. **Start dev server:** `npm run start-dev`
 8. **Run tests:** `npm run test`
@@ -94,7 +94,7 @@ The application automatically applies pending migrations on startup. You can sto
 - **Connection failures:** Verify PostgreSQL is running on `localhost:5432`
 - **Permission errors:** Re-run `dal/setup-db-grants.sql`
 - **Missing extensions:** Ensure `pgcrypto` exists in both databases
-- **Asset build issues:** Delete `build/vite` and rebuild
+- **Asset build issues:** Delete `build/frontend` and rebuild
 
 ## Development
 
@@ -126,15 +126,16 @@ Copy `config/default.json5` to `config/development.json5` to customize your loca
 npm run test
 ```
 
-The test script automatically ensures a production Vite manifest exists, running `npm run build` if necessary before starting the AVA test suite.
+The test script automatically ensures a production Vite manifest exists, running `npm run build:frontend` if necessary before starting the AVA test suite.
 
 ## Technical Overview
 
-lib.reviews is a pure-JavaScript application using modern language features.
+lib.reviews is a TypeScript application using modern ESM patterns.
 
 | Technology | Purpose |
 |-----------|---------|
 | [Node.js](https://nodejs.org/en/) 22.x | Server, API, and tests |
+| [TypeScript](https://www.typescriptlang.org/) | Type-safe development |
 | [Express](https://expressjs.com/) V5 | Web application framework |
 | [PostgreSQL](https://www.postgresql.org/) | Primary storage backend |
 | [ElasticSearch](https://www.elastic.co/) | Search backend |
@@ -144,7 +145,9 @@ lib.reviews is a pure-JavaScript application using modern language features.
 | [PureCSS](https://purecss.io/) | Grid system and base styles |
 | [Vite](https://vite.dev/) | Build pipeline for front-end assets |
 | [Babel](https://babeljs.io/) | JavaScript transpilation |
+| [tsx](https://github.com/privatenumber/tsx) | TypeScript execution in development |
 | [ava](https://github.com/avajs/ava) | Asynchronous test runner |
+| [TypeDoc](https://typedoc.org/) | API documentation generation |
 | [systemd](https://systemd.io/) | Production service supervision |
 | [ProseMirror](http://prosemirror.net/) | Rich-text editor |
 | [jQuery](https://jquery.com/) | DOM manipulation |
@@ -161,11 +164,11 @@ lib.reviews is a pure-JavaScript application using modern language features.
 
 - For functions with more than two arguments, use destructured `options` or `spec` parameters:
 
-  ```javascript
+  ```typescript
   let date = new Date(), user = 'unknown';
   hello({ recipient: 'World', sender: user, date });
 
-  function hello(spec) {
+  function hello(spec: { recipient: string; sender: string; date: Date }) {
     const { sender, recipient, date } = spec;
     console.log(`Hello ${recipient} from ${sender} on ${date}!`);
   }
@@ -179,7 +182,7 @@ lib.reviews is a pure-JavaScript application using modern language features.
 
 - Semicolons are encouraged for navigating multi-line statements:
 
-  ```javascript
+  ```typescript
   if (true)
     Promise.resolve()
       .then(() => console.log('Done'))
@@ -187,6 +190,41 @@ lib.reviews is a pure-JavaScript application using modern language features.
   ```
 
 - Break chains for readability at ~3 or more chained calls
+
+### TypeScript Guidelines
+
+- Add descriptive JSDoc comments in TypeDoc format for public APIs
+- Include parameter descriptions, but avoid repeating type information that TypeScript already provides
+- Prefer type inference where it's clear; add explicit types for public interfaces and complex return types
+- Use `// @ts-expect-error` with an explanation when deferring known type issues
+- Avoid `any` - use `unknown` or create proper types instead
+
+**Type-checking:**
+```bash
+# Check all TypeScript code
+npm run typecheck
+
+# Check specific areas
+npm run typecheck:backend
+npm run typecheck:frontend
+npm run typecheck:tests
+npm run typecheck:node
+```
+
+**Type coverage:**
+```bash
+# View type coverage statistics
+npm run type-coverage
+```
+
+**API documentation:**
+```bash
+# Generate TypeDoc documentation
+npm run build:docs
+
+# Check documentation coverage
+npm run docs:coverage
+```
 
 ## Database Architecture
 
@@ -254,7 +292,7 @@ Historical database dumps (from before 2025-10-30) are available in RethinkDB fo
 
 ## Front-end Development
 
-- **Build system:** Vite (`npm run build`), source in `frontend/` directory
+- **Build system:** Vite (`npm run build:frontend`), source in `frontend/` directory
 - **Module system:** Not consistently using CommonJS yet (only in editor module)
 - **Globals:** We minimize globals, but use:
   - `window.config` - Settings and UI messages specific to current user and page
