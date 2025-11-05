@@ -1,15 +1,15 @@
-import { undo, redo } from 'prosemirror-history';
-import { undoInputRule } from 'prosemirror-inputrules';
 import {
-  wrapIn,
-  setBlockType,
   chainCommands,
-  toggleMark,
   exitCode,
   selectParentNode,
+  setBlockType,
+  toggleMark,
+  wrapIn,
 } from 'prosemirror-commands';
-import { wrapInList, splitListItem, liftListItem, sinkListItem } from 'prosemirror-schema-list';
-import type { Schema, MarkType, NodeType } from 'prosemirror-model';
+import { redo, undo } from 'prosemirror-history';
+import { undoInputRule } from 'prosemirror-inputrules';
+import type { MarkType, NodeType, Schema } from 'prosemirror-model';
+import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
 import type { Command, EditorState, Transaction } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { EditorMenuItems } from './editor-menu.ts';

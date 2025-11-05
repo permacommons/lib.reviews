@@ -1,7 +1,7 @@
 import test from 'ava';
 import OpenLibraryBackendAdapter from '../adapters/openlibrary-backend-adapter.ts';
-import WikidataBackendAdapter from '../adapters/wikidata-backend-adapter.ts';
 import OpenStreetMapBackendAdapter from '../adapters/openstreetmap-backend-adapter.ts';
+import WikidataBackendAdapter from '../adapters/wikidata-backend-adapter.ts';
 import { setupAdapterApiMocks, teardownAdapterApiMocks } from './helpers/adapter-api-mocks.ts';
 
 test.before(() => {

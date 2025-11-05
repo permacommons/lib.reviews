@@ -19,7 +19,7 @@ passport.serializeUser((user: Express.User, done: (err: unknown, id?: Serialized
   done(null, user.id as SerializedId);
 });
 
-passport.deserializeUser(async function (id: unknown, done: DeserializeCallback) {
+passport.deserializeUser(async (id: unknown, done: DeserializeCallback) => {
   const userId = id as SerializedId;
   try {
     const user = await User.getWithTeams(userId);

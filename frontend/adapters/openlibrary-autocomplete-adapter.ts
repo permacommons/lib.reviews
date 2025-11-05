@@ -1,8 +1,9 @@
 /* global $, AC */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
-import { msg, repaintFocusedHelp } from '../libreviews.js';
+
 import type { LookupResult, UpdateCallback } from '../../types/frontend/adapters.js';
 import type Autocomplete from '../lib/ac.js';
+import { msg, repaintFocusedHelp } from '../libreviews.js';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
 
 interface OpenLibraryEdition {
   title?: string;
@@ -50,10 +51,8 @@ class OpenLibraryAutocompleteAdapter extends AbstractAutocompleteAdapter {
 
     // Standard adapter settings
     this.sourceID = 'openlibrary';
-    this.supportedPattern = new RegExp(
-      '^https*://openlibrary.org/(works|books)/(OL[^/.]+)(?:/(?:.*))*$',
-      'i'
-    );
+    this.supportedPattern =
+      /^https*:\/\/openlibrary.org\/(works|books)\/(OL[^\/.]+)(?:\/(?:.*))*$/i;
 
     /**
      * How many results to get per query. This is pretty low since a result

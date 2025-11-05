@@ -1,13 +1,13 @@
-import { DocumentNotFound, convertPostgreSQLError } from './errors.ts';
-import QueryBuilder from './query-builder.ts';
-import revision from './revision.ts';
+import { convertPostgreSQLError, DocumentNotFound } from './errors.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
+import QueryBuilder from './query-builder.ts';
 import type { ModelConstructorLike } from './revision.ts';
+import revision from './revision.ts';
 
 export interface ModelSchemaField<TValue = unknown> extends JsonObject {
   validate(value: unknown, fieldName?: string): TValue;

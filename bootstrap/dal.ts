@@ -9,25 +9,22 @@
 import type { PostgresConfig } from 'config';
 
 import config from 'config';
-
-import debug from '../util/debug.ts';
 import PostgresDAL from '../dal/index.ts';
+import { setBootstrapResolver } from '../dal/lib/model-handle.ts';
 
 import type { DataAccessLayer, JsonObject, ModelConstructor } from '../dal/lib/model-types.ts';
-
-import userModule from '../models/user.ts';
-import userMetaModule from '../models/user-meta.ts';
+import blogPostModule from '../models/blog-post.ts';
+import fileModule from '../models/file.ts';
+import inviteLinkModule from '../models/invite-link.ts';
+import reviewModule from '../models/review.ts';
 import teamModule from '../models/team.ts';
 import teamJoinRequestModule from '../models/team-join-request.ts';
 import teamSlugModule from '../models/team-slug.ts';
 import thingModule from '../models/thing.ts';
 import thingSlugModule from '../models/thing-slug.ts';
-import reviewModule from '../models/review.ts';
-import blogPostModule from '../models/blog-post.ts';
-import fileModule from '../models/file.ts';
-import inviteLinkModule from '../models/invite-link.ts';
-
-import { setBootstrapResolver } from '../dal/lib/model-handle.ts';
+import userModule from '../models/user.ts';
+import userMetaModule from '../models/user-meta.ts';
+import debug from '../util/debug.ts';
 
 type ModelInitializer<TModel extends ModelConstructor = ModelConstructor> = (
   dal: DataAccessLayer

@@ -1,13 +1,13 @@
-import { Router } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
-import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+import { Router } from 'express';
 
 import File from '../models/file.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import render from './helpers/render.ts';
-import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 
 type FilesRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
@@ -24,7 +24,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rename = promisify(fs.rename);
 
-router.get('/files', function (req: FilesRouteRequest, res: FilesRouteResponse, next: HandlerNext) {
+router.get('/files', (req: FilesRouteRequest, res: FilesRouteResponse, next: HandlerNext) => {
   FileModel.getFileFeed()
     .then(feed => showFiles(req, res, feed))
     .catch(next);
@@ -32,11 +32,7 @@ router.get('/files', function (req: FilesRouteRequest, res: FilesRouteResponse, 
 
 router.get(
   '/files/before/:utcisodate',
-  function (
-    req: FilesRouteRequest<{ utcisodate: string }>,
-    res: FilesRouteResponse,
-    next: HandlerNext
-  ) {
+  (req: FilesRouteRequest<{ utcisodate: string }>, res: FilesRouteResponse, next: HandlerNext) => {
     let utcISODate = req.params.utcisodate;
     let offsetDate = new Date(utcISODate);
     if (Number.isNaN(offsetDate.getTime())) offsetDate = null;
@@ -59,7 +55,7 @@ function showFiles(req: FilesRouteRequest, res: FilesRouteResponse, feed: Record
 
 router.get(
   '/file/:id/delete',
-  function (req: FilesRouteRequest<{ id: string }>, res: FilesRouteResponse, next: HandlerNext) {
+  (req: FilesRouteRequest<{ id: string }>, res: FilesRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
     FileModel.getNotStaleOrDeleted(id)
       .then(file => {
@@ -79,7 +75,7 @@ router.get(
 
 router.post(
   '/file/:id/delete',
-  function (req: FilesRouteRequest<{ id: string }>, res: FilesRouteResponse, next: HandlerNext) {
+  (req: FilesRouteRequest<{ id: string }>, res: FilesRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
     FileModel.getNotStaleOrDeleted(id)
       .then(file => {

@@ -1,10 +1,10 @@
 // NOTE: This module loads language metadata into memory synchronously and
 // should be imported on startup.
 
+import { createRequire } from 'node:module';
+import path from 'node:path';
 // External dependencies
 import jsonfile from 'jsonfile';
-import path from 'node:path';
-import { createRequire } from 'node:module';
 
 // Internal dependencies
 import ReportedError from '../util/reported-error.ts';

@@ -1,13 +1,12 @@
+import { getOrCreateModel } from './model-factory.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
-
-import { getOrCreateModel } from './model-factory.ts';
-import revision from './revision.ts';
 import type { ModelConstructorLike } from './revision.ts';
+import revision from './revision.ts';
 
 const DEFAULT_REVISION_STATIC = [
   'createFirstRevision',

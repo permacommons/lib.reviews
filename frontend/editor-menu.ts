@@ -1,35 +1,34 @@
-import $ from './lib/jquery.js';
+import { guessMediaType } from 'markdown-it-html5-media';
+import { setBlockType, toggleMark, wrapIn } from 'prosemirror-commands';
 import {
-  wrapItem,
   blockTypeItem,
   Dropdown,
   DropdownSubmenu,
+  icons,
   joinUpItem,
   liftItem,
-  undoItem,
-  redoItem,
-  icons,
-  MenuItem,
   type MenuElement,
+  MenuItem,
+  redoItem,
+  undoItem,
+  wrapItem,
 } from 'prosemirror-menu';
-
-import type { Schema, NodeType, Attrs, MarkType } from 'prosemirror-model';
+import type { Attrs, MarkType, NodeType, Schema } from 'prosemirror-model';
+import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
 import {
+  type Command,
+  EditorState,
   NodeSelection,
   TextSelection,
-  EditorState,
   Transaction,
-  type Command,
 } from 'prosemirror-state';
-import { toggleMark, wrapIn, setBlockType } from 'prosemirror-commands';
-import { wrapInList, splitListItem, liftListItem, sinkListItem } from 'prosemirror-schema-list';
 import type { EditorView } from 'prosemirror-view';
 
 import unescapeHTML from 'unescape-html';
+import { openPrompt, type PromptSpec, TextField } from './editor-prompt.ts';
+import $ from './lib/jquery.js';
 import libreviews, { msg } from './libreviews.ts';
-import { TextField, openPrompt, type PromptSpec } from './editor-prompt.ts';
 import { uploadModal } from './upload-modal.ts';
-import { guessMediaType } from 'markdown-it-html5-media';
 
 type MediaKind = 'image' | 'video' | 'audio';
 
@@ -349,7 +348,7 @@ function uploadModalItem(mediaNodes: MediaNodeTypes, schema: Schema): MenuItem {
             $('#social-media-image-select').append(
               `<option value="${firstUpload.fileID}">` +
                 `${firstUpload.uploadedFileName}: ${summarizedDesc}` +
-                `</option>`
+                '</option>'
             );
           }
         }

@@ -69,10 +69,8 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
     // - maybe followed by a slash, and maybe some more stuff after that
     // - which we don't care about hence the non-capturing groups (?:)
     // - case doesn't matter
-    this.supportedPattern = new RegExp(
-      '^https*://openlibrary.org/(works|books)/(OL[^/.]+)(?:/(?:.*))*$',
-      'i'
-    );
+    this.supportedPattern =
+      /^https*:\/\/openlibrary.org\/(works|books)\/(OL[^\/.]+)(?:\/(?:.*))*$/i;
     this.supportedFields = ['label', 'authors', 'subtitle'];
     this.sourceID = 'openlibrary';
     this.sourceURL = 'https://openlibrary.org/';
@@ -114,7 +112,7 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
 
     if (Array.isArray(data.languages) && data.languages.length) {
       const languageKey = data.languages[0].key;
-      const code = (languageKey.match(new RegExp('/languages/(.*)')) || [])[1];
+      const code = (languageKey.match(/\/languages\/(.*)/) || [])[1];
       language = openLibraryToNative[code] || language;
     }
 

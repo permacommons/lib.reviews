@@ -6,9 +6,9 @@
 /* External deps */
 import config from 'config';
 import escapeHTML from 'escape-html';
+import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
-import languages from '../locales/languages.ts';
 
 /* Internal deps */
 import AbstractBackendAdapter, {
@@ -33,10 +33,7 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
     // - ID number
     // - maybe followed by a fragment
     // - case doesn't matter
-    this.supportedPattern = new RegExp(
-      '^https://www.openstreetmap.org/(node|way)/(\\d+)(?:#.*)?$',
-      'i'
-    );
+    this.supportedPattern = /^https:\/\/www.openstreetmap.org\/(node|way)\/(\d+)(?:#.*)?$/i;
     this.supportedFields = ['label'];
     this.sourceID = 'openstreetmap';
     this.sourceURL = 'https://openstreetmap.org/';

@@ -5,9 +5,9 @@ import { DocumentNotFound } from '../dal/lib/errors.ts';
 import { createModelModule } from '../dal/lib/model-handle.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import Team from './team.ts';
 import UserMeta from './user-meta.ts';
 

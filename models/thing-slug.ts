@@ -1,9 +1,9 @@
 import dal from '../dal/index.ts';
 import { ConstraintError } from '../dal/lib/errors.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
-import debug from '../util/debug.ts';
 import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import debug from '../util/debug.ts';
 
 type PostgresModule = typeof import('../db-postgres.ts');
 

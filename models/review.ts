@@ -1,14 +1,14 @@
-import dal from '../dal/index.ts';
-import debug from '../util/debug.ts';
-import ReportedError from '../util/reported-error.ts';
-import languages from '../locales/languages.ts';
+import { randomUUID } from 'crypto';
 import adapters from '../adapters/adapters.ts';
-import Thing from './thing.ts';
-import Team from './team.ts';
+import dal from '../dal/index.ts';
 import { createModelModule } from '../dal/lib/model-handle.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
-import { randomUUID } from 'crypto';
+import languages from '../locales/languages.ts';
+import debug from '../util/debug.ts';
+import ReportedError from '../util/reported-error.ts';
+import Team from './team.ts';
+import Thing from './thing.ts';
 
 type PostgresModule = typeof import('../db-postgres.ts');
 

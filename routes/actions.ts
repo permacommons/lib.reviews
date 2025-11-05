@@ -1,18 +1,17 @@
-import { Router } from 'express';
-import passport from 'passport';
 import config from 'config';
+import { Router } from 'express';
 import i18n from 'i18n';
-
-import render from './helpers/render.ts';
-import forms from './helpers/forms.ts';
-import User from '../models/user.ts';
+import passport from 'passport';
+import languages from '../locales/languages.ts';
 import InviteLink from '../models/invite-link.ts';
+import User from '../models/user.ts';
+import search from '../search.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import debug from '../util/debug.ts';
 import actionHandler from './handlers/action-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
-import languages from '../locales/languages.ts';
-import search from '../search.ts';
-import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import forms from './helpers/forms.ts';
+import render from './helpers/render.ts';
 
 type ActionsRequest = HandlerRequest<Record<string, string>, unknown, Record<string, unknown>>;
 type ActionsResponse = HandlerResponse;
@@ -51,50 +50,42 @@ const formDefs = {
   ],
 };
 
-router.get(
-  '/actions/search',
-  function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
-    const queryValue = req.query.query;
-    const rawQuery =
-      typeof queryValue === 'string'
-        ? queryValue
-        : Array.isArray(queryValue)
-          ? String(queryValue[0] ?? '')
-          : '';
-    const query = rawQuery.trim();
-    if (query) {
-      const localeCode = languages.isValid(req.locale)
-        ? (req.locale as LibReviews.LocaleCode)
-        : 'en';
-      Promise.all([search.searchThings(query, localeCode), search.searchReviews(query, localeCode)])
-        .then(([thingsResult, reviewsResult]) => {
-          let labelMatches = thingsResult.hits.hits;
-          let textMatches = search.filterDuplicateInnerHighlights(
-            reviewsResult.hits.hits,
-            'review'
-          );
-          const noMatches = !labelMatches.length && !textMatches.length;
+router.get('/actions/search', (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+  const queryValue = req.query.query;
+  const rawQuery =
+    typeof queryValue === 'string'
+      ? queryValue
+      : Array.isArray(queryValue)
+        ? String(queryValue[0] ?? '')
+        : '';
+  const query = rawQuery.trim();
+  if (query) {
+    const localeCode = languages.isValid(req.locale) ? (req.locale as LibReviews.LocaleCode) : 'en';
+    Promise.all([search.searchThings(query, localeCode), search.searchReviews(query, localeCode)])
+      .then(([thingsResult, reviewsResult]) => {
+        let labelMatches = thingsResult.hits.hits;
+        let textMatches = search.filterDuplicateInnerHighlights(reviewsResult.hits.hits, 'review');
+        const noMatches = !labelMatches.length && !textMatches.length;
 
-          render.template(req, res, 'search', {
-            titleKey: 'search results',
-            noMatches,
-            labelMatches,
-            textMatches,
-            query,
-            showHelp: noMatches,
-            deferPageHeader: true,
-          });
-        })
-        .catch(next);
-    } else {
-      render.template(req, res, 'search', {
-        titleKey: 'search lib.reviews',
-        showHelp: true,
-        deferPageHeader: true,
-      });
-    }
+        render.template(req, res, 'search', {
+          titleKey: 'search results',
+          noMatches,
+          labelMatches,
+          textMatches,
+          query,
+          showHelp: noMatches,
+          deferPageHeader: true,
+        });
+      })
+      .catch(next);
+  } else {
+    render.template(req, res, 'search', {
+      titleKey: 'search lib.reviews',
+      showHelp: true,
+      deferPageHeader: true,
+    });
   }
-);
+});
 
 router.get('/actions/invite', signinRequiredRoute('invite users', renderInviteLinkPage));
 
@@ -102,7 +93,7 @@ router.post(
   '/actions/invite',
   signinRequiredRoute(
     'invite users',
-    async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
+    async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
       try {
         const user = req.user;
         if (!user) {
@@ -171,7 +162,7 @@ async function renderInviteLinkPage(req: ActionsRequest, res: ActionsResponse, n
 
 router.post('/actions/suppress-notice', actionHandler.suppressNotice);
 
-router.post('/actions/change-language', function (req: ActionsRequest, res: ActionsResponse) {
+router.post('/actions/change-language', (req: ActionsRequest, res: ActionsResponse) => {
   const maxAge = 1000 * 60 * config.sessionCookieDuration; // cookie age: 30 days
   const lang = typeof req.body?.lang === 'string' ? req.body.lang : '';
   const redirectTo =
@@ -200,7 +191,7 @@ router.post('/actions/change-language', function (req: ActionsRequest, res: Acti
 
 // Below actions have shorter names for convenience
 
-router.get('/signin', function (req: ActionsRequest, res: ActionsResponse) {
+router.get('/signin', (req: ActionsRequest, res: ActionsResponse) => {
   const pageErrors = req.flash('pageErrors');
   render.template(req, res, 'signin', {
     titleKey: 'sign in',
@@ -208,14 +199,14 @@ router.get('/signin', function (req: ActionsRequest, res: ActionsResponse) {
   });
 });
 
-router.post('/signin', function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
+router.post('/signin', (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
   if (!req.body.username || !req.body.password) {
     if (!req.body.username) req.flash('pageErrors', req.__('need username'));
     if (!req.body.password) req.flash('pageErrors', req.__('need password'));
     return res.redirect('/signin');
   }
 
-  passport.authenticate('local', function (error, user, info) {
+  passport.authenticate('local', (error, user, info) => {
     if (error) {
       debug.error({ req, error });
       return res.redirect('/signin');
@@ -226,7 +217,7 @@ router.post('/signin', function (req: ActionsRequest, res: ActionsResponse, next
       }
       return res.redirect('/signin');
     }
-    req.login(user, function (error) {
+    req.login(user, error => {
       if (error) {
         debug.error({ req, error });
         return res.redirect('/signin');
@@ -237,11 +228,11 @@ router.post('/signin', function (req: ActionsRequest, res: ActionsResponse, next
   })(req, res, next);
 });
 
-router.get('/new/user', function (req: ActionsRequest, res: ActionsResponse) {
+router.get('/new/user', (req: ActionsRequest, res: ActionsResponse) => {
   res.redirect('/register');
 });
 
-router.get('/register', function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
+router.get('/register', (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
   viewInSignupLanguage(req);
   if (config.requireInviteLinks)
     return render.template(req, res, 'invite-needed', {
@@ -252,7 +243,7 @@ router.get('/register', function (req: ActionsRequest, res: ActionsResponse, nex
 
 router.get(
   '/register/:code',
-  async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
+  async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
     viewInSignupLanguage(req);
     const { code } = req.params;
 
@@ -278,61 +269,58 @@ router.get(
   }
 );
 
-router.post('/signout', function (req: ActionsRequest, res: ActionsResponse) {
+router.post('/signout', (req: ActionsRequest, res: ActionsResponse) => {
   req.logout(() => res.redirect('/'));
 });
 
 if (!config.requireInviteLinks) {
-  router.post(
-    '/register',
-    async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
-      viewInSignupLanguage(req);
+  router.post('/register', async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+    viewInSignupLanguage(req);
 
-      let formInfo = forms.parseSubmission(req, {
-        formDef: formDefs.register,
-        formKey: 'register',
+    let formInfo = forms.parseSubmission(req, {
+      formDef: formDefs.register,
+      formKey: 'register',
+    });
+
+    if (req.flashHas?.('pageErrors')) {
+      try {
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (error) {
+        return next(error);
+      }
+      return;
+    }
+
+    try {
+      const user = await User.create({
+        name: req.body.username,
+        password: req.body.password,
+        email: req.body.email,
       });
 
-      if (req.flashHas?.('pageErrors')) {
-        try {
-          await sendRegistrationForm(req, res, formInfo);
-        } catch (error) {
-          return next(error);
+      setSignupLanguage(req, res);
+      req.login(user, error => {
+        if (error) {
+          debug.error({ req, error });
         }
-        return;
-      }
-
+        req.flash('siteMessages', res.__('welcome new user', user.displayName));
+        returnToPath(req, res);
+      });
+    } catch (error) {
+      req.flashError?.(error);
       try {
-        const user = await User.create({
-          name: req.body.username,
-          password: req.body.password,
-          email: req.body.email,
-        });
-
-        setSignupLanguage(req, res);
-        req.login(user, error => {
-          if (error) {
-            debug.error({ req, error });
-          }
-          req.flash('siteMessages', res.__('welcome new user', user.displayName));
-          returnToPath(req, res);
-        });
-      } catch (error) {
-        req.flashError?.(error);
-        try {
-          await sendRegistrationForm(req, res, formInfo);
-        } catch (formError) {
-          return next(formError);
-        }
-        return;
+        await sendRegistrationForm(req, res, formInfo);
+      } catch (formError) {
+        return next(formError);
       }
+      return;
     }
-  );
+  });
 }
 
 router.post(
   '/register/:code',
-  async function (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) {
+  async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
     viewInSignupLanguage(req);
 
     const { code } = req.params;
@@ -434,7 +422,7 @@ function sendRegistrationForm(
 function returnToPath(req: ActionsRequest, res: ActionsResponse) {
   let returnTo = typeof req.body.returnTo === 'string' ? req.body.returnTo : '';
   // leading slash followed by any non-slash character
-  const localPathRegex = new RegExp('^/[^/]');
+  const localPathRegex = /^\/[^\/]/;
 
   if (typeof returnTo != 'string' || !localPathRegex.test(returnTo)) returnTo = '/';
   res.redirect(returnTo);

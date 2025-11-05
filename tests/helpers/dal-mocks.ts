@@ -1,13 +1,13 @@
-import QueryBuilder from '../../dal/lib/query-builder.ts';
+import type { Pool, PoolClient, QueryResult } from 'pg';
 import Model, { type ModelSchema } from '../../dal/lib/model.ts';
-import typesLib from '../../dal/lib/type.ts';
 import {
-  initializeModel,
   type InitializeModelResult,
+  initializeModel,
   type RelationConfig,
 } from '../../dal/lib/model-initializer.ts';
 import type { DataAccessLayer, JsonObject, ModelConstructor } from '../../dal/lib/model-types.ts';
-import type { QueryResult, Pool, PoolClient } from 'pg';
+import QueryBuilder from '../../dal/lib/query-builder.ts';
+import typesLib from '../../dal/lib/type.ts';
 
 export type RuntimeModel = InitializeModelResult<
   JsonObject,

@@ -1,27 +1,27 @@
 /* global config */
 /* eslint prefer-reflect: "off" */
 
-import $ from './lib/jquery.js';
 import { polyfill as es6PromisePolyfill } from 'es6-promise';
+import type {
+  IAutocompleteAdapter,
+  ILookupAdapter,
+  LookupError,
+  LookupResult,
+  Thing,
+  UpdateCallbackData,
+} from '../types/frontend/adapters';
 import NativeLookupAdapter from './adapters/native-lookup-adapter.js';
+import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter.js';
 import OpenStreetMapLookupAdapter from './adapters/openstreetmap-lookup-adapter.js';
 import WikidataAutocompleteAdapter from './adapters/wikidata-autocomplete-adapter.js';
-import OpenLibraryAutocompleteAdapter from './adapters/openlibrary-autocomplete-adapter.js';
+import $ from './lib/jquery.js';
 import libreviews, {
   msg,
   repaintFocusedHelp,
   trimInput,
-  validateURL,
   urlHasSupportedProtocol,
+  validateURL,
 } from './libreviews';
-import type {
-  ILookupAdapter,
-  IAutocompleteAdapter,
-  LookupResult,
-  LookupError,
-  UpdateCallbackData,
-  Thing,
-} from '../types/frontend/adapters';
 
 es6PromisePolyfill();
 
@@ -137,7 +137,7 @@ if (!editing) {
   $('#source-selector-dropdown').change(selectSource);
 
   // Bubbling interferes with autocomplete's window-level click listener
-  $('#source-selector-dropdown').click(function (event) {
+  $('#source-selector-dropdown').click(event => {
     event.stopPropagation();
   });
 
@@ -546,7 +546,7 @@ function processLoadedData(): void {
  */
 function clearStars(start?: number): void {
   if (!start || typeof start !== 'number') start = 1;
-  for (let i = start; i < 6; i++) replaceStar(i, `/static/img/star-placeholder.svg`, 'star-holder');
+  for (let i = start; i < 6; i++) replaceStar(i, '/static/img/star-placeholder.svg', 'star-holder');
 }
 
 /**

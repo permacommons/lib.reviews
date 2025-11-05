@@ -2,8 +2,8 @@ import { decodeHTML } from 'entities';
 import stripTags from 'striptags';
 
 import languages from '../../locales/languages.ts';
-import types, { ObjectType } from './type.ts';
 import { ValidationError } from './errors.ts';
+import types, { ObjectType } from './type.ts';
 
 const langKeys = languages.getValidLanguagesAndUndetermined() as string[];
 

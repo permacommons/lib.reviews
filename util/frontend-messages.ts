@@ -1,9 +1,9 @@
-import getMessages from './get-messages.ts';
+import adapterMessagesJson from '../frontend/messages/adapter-keys.json' with { type: 'json' };
+import editorMessagesJson from '../frontend/messages/editor-keys.json' with { type: 'json' };
 import uploadModalMessagesJson from '../frontend/messages/upload-modal-keys.json' with {
   type: 'json',
 };
-import editorMessagesJson from '../frontend/messages/editor-keys.json' with { type: 'json' };
-import adapterMessagesJson from '../frontend/messages/adapter-keys.json' with { type: 'json' };
+import getMessages from './get-messages.ts';
 
 /** Tuple of translation keys produced by the frontend build. */
 type MessageKeyArray = readonly string[];

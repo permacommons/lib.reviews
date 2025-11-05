@@ -1,21 +1,20 @@
-import { Router } from 'express';
-import escapeHTML from 'escape-html';
 import * as url from 'node:url';
 import config from 'config';
-
-import Thing from '../models/thing.ts';
-import Review from '../models/review.ts';
-import render from './helpers/render.ts';
-import getResourceErrorHandler from './handlers/resource-error-handler.ts';
+import escapeHTML from 'escape-html';
+import { Router } from 'express';
 import languages from '../locales/languages.ts';
-import feeds from './helpers/feeds.ts';
-import forms from './helpers/forms.ts';
-import slugs from './helpers/slugs.ts';
+import Review from '../models/review.ts';
+import Thing from '../models/thing.ts';
 import search from '../search.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import getMessages from '../util/get-messages.ts';
 import urlUtils from '../util/url-utils.ts';
+import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
-import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import feeds from './helpers/feeds.ts';
+import forms from './helpers/forms.ts';
+import render from './helpers/render.ts';
+import slugs from './helpers/slugs.ts';
 
 type ThingRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
@@ -43,7 +42,7 @@ const editableFields = ['description', 'label'];
 
 router.get(
   '/:id',
-  function (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse, next: HandlerNext) {
+  (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
     slugs
       .resolveAndLoadThing(req, res, id)
@@ -99,11 +98,11 @@ router.post(
 
 router.get(
   '/:id/edit/:field',
-  function (
+  (
     req: ThingRouteRequest<{ id: string; field: string }>,
     res: ThingRouteResponse,
     next: HandlerNext
-  ) {
+  ) => {
     if (!editableFields.includes(req.params.field)) return next();
 
     const titleKey = `edit ${req.params.field}`;
@@ -138,11 +137,11 @@ router.post('/:id/edit/:field', processTextFieldUpdate);
 
 router.get(
   '/:id/before/:utcisodate',
-  function (
+  (
     req: ThingRouteRequest<{ id: string; utcisodate: string }>,
     res: ThingRouteResponse,
     next: HandlerNext
-  ) {
+  ) => {
     const { id } = req.params;
     let utcISODate = req.params.utcisodate;
     slugs
@@ -158,11 +157,11 @@ router.get(
 
 router.get(
   '/:id/atom/:language',
-  function (
+  (
     req: ThingRouteRequest<{ id: string; language: string }>,
     res: ThingRouteResponse,
     next: HandlerNext
-  ) {
+  ) => {
     const { id } = req.params;
     let language = req.params.language;
     slugs
@@ -207,17 +206,14 @@ router.get(
 
 // Legacy redirects
 
-router.get(
-  '/thing/:id',
-  function (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse) {
-    const { id } = req.params;
-    return res.redirect(`/${id}`);
-  }
-);
+router.get('/thing/:id', (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse) => {
+  const { id } = req.params;
+  return res.redirect(`/${id}`);
+});
 
 router.get(
   '/thing/:id/before/:utcisodate',
-  function (req: ThingRouteRequest<{ id: string; utcisodate: string }>, res: ThingRouteResponse) {
+  (req: ThingRouteRequest<{ id: string; utcisodate: string }>, res: ThingRouteResponse) => {
     const { id } = req.params;
     let utcISODate = req.params.utcisodate;
     return res.redirect(`/${id}/before/${utcISODate}`);
@@ -226,7 +222,7 @@ router.get(
 
 router.get(
   '/thing/:id/atom/:language',
-  function (req: ThingRouteRequest<{ id: string; language: string }>, res: ThingRouteResponse) {
+  (req: ThingRouteRequest<{ id: string; language: string }>, res: ThingRouteResponse) => {
     const { id } = req.params;
     let language = req.params.language;
     return res.redirect(`/${id}/atom/${language}`);

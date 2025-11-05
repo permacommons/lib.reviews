@@ -1,13 +1,11 @@
+import config from 'config';
 import multer from 'multer';
 import is from 'type-is';
-import config from 'config';
-
-import render from '../helpers/render.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import api from '../helpers/api.ts';
-
+import render from '../helpers/render.ts';
+import { assignFilename, checkMIMEType } from '../uploads.ts';
 import apiUploadHandler from './api-upload-handler.ts';
-import { checkMIMEType, assignFilename } from '../uploads.ts';
-import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
 
 type UploadFile = {
   originalname: string;
@@ -84,7 +82,7 @@ const actionHandler = {
 
     switch (noticeType) {
       case 'language-notice-review':
-      case 'language-notice-thing':
+      case 'language-notice-thing': {
         if (!user.suppressedNotices) user.suppressedNotices = [noticeType];
         else if (user.suppressedNotices.indexOf(noticeType) === -1)
           user.suppressedNotices.push(noticeType);
@@ -108,6 +106,7 @@ const actionHandler = {
           })
           .catch(next);
         break;
+      }
 
       default:
         if (req.isAPI) {

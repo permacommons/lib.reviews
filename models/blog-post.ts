@@ -1,11 +1,11 @@
 import dal from '../dal/index.ts';
+import dalErrors from '../dal/lib/errors.ts';
 import mlString from '../dal/lib/ml-string.ts';
+import modelHandle from '../dal/lib/model-handle.ts';
+import modelInitializer from '../dal/lib/model-initializer.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
-import dalErrors from '../dal/lib/errors.ts';
 import User from './user.ts';
-import modelInitializer from '../dal/lib/model-initializer.ts';
-import modelHandle from '../dal/lib/model-handle.ts';
 
 let postgresModulePromise;
 async function loadDbPostgres() {

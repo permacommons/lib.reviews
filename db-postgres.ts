@@ -5,12 +5,11 @@
  * initialization idempotent across production code and tests.
  */
 
+import type { PostgresConfig } from 'config';
 import config from 'config';
-
-import debug from './util/debug.ts';
 import createDataAccessLayer from './dal/index.ts';
 import type { DataAccessLayer } from './dal/lib/model-types.ts';
-import type { PostgresConfig } from 'config';
+import debug from './util/debug.ts';
 
 type JsonObject = Record<string, unknown>;
 

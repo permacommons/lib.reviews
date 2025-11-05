@@ -1,8 +1,8 @@
 import debug from '../util/debug.ts';
-import WikidataBackendAdapter from './wikidata-backend-adapter.ts';
+import AbstractBackendAdapter, { type AdapterLookupResult } from './abstract-backend-adapter.ts';
 import OpenLibraryBackendAdapter from './openlibrary-backend-adapter.ts';
 import OpenStreetMapBackendAdapter from './openstreetmap-backend-adapter.ts';
-import AbstractBackendAdapter, { type AdapterLookupResult } from './abstract-backend-adapter.ts';
+import WikidataBackendAdapter from './wikidata-backend-adapter.ts';
 
 type BackendAdapter = AbstractBackendAdapter;
 

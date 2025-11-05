@@ -1,6 +1,6 @@
-import { spawn, spawnSync } from 'child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { spawn, spawnSync } from 'child_process';
 import process from 'process';
 
 // Suppress unhandled rejection warnings during DAL check

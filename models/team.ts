@@ -1,15 +1,15 @@
-import unescapeHTML from 'unescape-html';
-import isUUID from 'is-uuid';
 import { randomUUID } from 'crypto';
+import isUUID from 'is-uuid';
+import unescapeHTML from 'unescape-html';
 
 import dal from '../dal/index.ts';
 import { createModelModule } from '../dal/lib/model-handle.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
-import debug from '../util/debug.ts';
 import languages from '../locales/languages.ts';
-import User from './user.ts';
+import debug from '../util/debug.ts';
 import Review from './review.ts';
+import User from './user.ts';
 
 type PostgresModule = typeof import('../db-postgres.ts');
 

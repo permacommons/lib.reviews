@@ -1,6 +1,6 @@
 import type { NextFunction, Response } from 'express';
-import type { Session, SessionData } from 'express-session';
 import type { Request } from 'express-serve-static-core';
+import type { Session, SessionData } from 'express-session';
 
 /** Storage map keyed by message type to an array of payloads. */
 type FlashBucket = Record<string, unknown[]>;

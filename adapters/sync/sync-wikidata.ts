@@ -6,8 +6,8 @@ import promiseLimit from 'promise-limit';
 import { initializeDAL } from '../../bootstrap/dal.ts';
 import Thing from '../../models/thing.js';
 import search from '../../search.ts';
-import WikidataBackendAdapter from '../wikidata-backend-adapter.ts';
 import type { AdapterLookupResult } from '../abstract-backend-adapter.ts';
+import WikidataBackendAdapter from '../wikidata-backend-adapter.ts';
 
 interface DescriptionSyncState {
   active?: boolean;
@@ -33,7 +33,7 @@ const limit = promiseLimit<AdapterLookupResult>(4); // Max 4 concurrent requests
 
 // URL pattern a thing needs to have among its .urls to enable and perform
 // sync for descriptions. This is identical to the one used by the adapter.
-const wikidataURLPattern = new RegExp('^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)$');
+const wikidataURLPattern = /^http(s)*:\/\/(www.)*wikidata.org\/(entity|wiki)\/(Q\d+)$/;
 
 async function syncWikidata(): Promise<void> {
   await initializeDAL();

@@ -1,19 +1,21 @@
 import test, { registerCompletionHandler } from 'ava';
+
 type ThingModel = typeof import('../models/thing.ts').default;
 type ReviewModel = typeof import('../models/review.ts').default;
+
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
-import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
+import searchModule from '../search.ts';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 
 import {
+  isReviewItem,
+  isThingItem,
+  type MockIndexedItem,
   mockSearch,
   unmockSearch,
-  type MockIndexedItem,
-  isThingItem,
-  isReviewItem,
 } from './helpers/mock-search.ts';
-import searchModule from '../search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_integration',

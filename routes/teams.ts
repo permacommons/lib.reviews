@@ -1,13 +1,12 @@
 import escapeHTML from 'escape-html';
-
-import TeamProvider from './handlers/team-provider.ts';
-import TeamJoinRequest from '../models/team-join-request.ts';
-import getResourceErrorHandler from './handlers/resource-error-handler.ts';
-import render from './helpers/render.ts';
 import mlString from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
-import slugs from './helpers/slugs.ts';
+import TeamJoinRequest from '../models/team-join-request.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import getResourceErrorHandler from './handlers/resource-error-handler.ts';
+import TeamProvider from './handlers/team-provider.ts';
+import render from './helpers/render.ts';
+import slugs from './helpers/slugs.ts';
 
 // Default routes for read, edit, add, delete
 type TeamRouteRequest<Params extends Record<string, string> = Record<string, string>> =
@@ -83,7 +82,7 @@ router.get(
 );
 
 // Show list of all teams
-router.get('/teams', function (req: TeamRouteRequest, res: TeamRouteResponse, next: HandlerNext) {
+router.get('/teams', (req: TeamRouteRequest, res: TeamRouteResponse, next: HandlerNext) => {
   let teamProvider = new TeamProvider(req, res, next, {
     action: 'browse',
     method: 'GET',
@@ -94,7 +93,7 @@ router.get('/teams', function (req: TeamRouteRequest, res: TeamRouteResponse, ne
 // Show membership roster for a specific team
 router.get(
   '/team/:id/members',
-  function (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
+  (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
     let teamProvider = new TeamProvider(req, res, next, {
       action: 'members',
       method: 'GET',
@@ -107,7 +106,7 @@ router.get(
 // Moderator tool for managing requests which require moderator approval
 router.get(
   '/team/:id/manage-requests',
-  function (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
+  (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
     let teamProvider = new TeamProvider(req, res, next, {
       action: 'manageRequests',
       method: 'GET',
@@ -120,7 +119,7 @@ router.get(
 // Moderator tool for managing requests which require moderator approval
 router.post(
   '/team/:id/manage-requests',
-  function (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
+  (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
     let teamProvider = new TeamProvider(req, res, next, {
       action: 'manageRequests',
       method: 'POST',
@@ -133,7 +132,7 @@ router.post(
 // Process join requests, form is on team page itself
 router.post(
   '/team/:id/join',
-  function (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
+  (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
     slugs
       .resolveAndLoadTeam(req, res, id)
@@ -209,7 +208,7 @@ router.post(
 // Process leave requests, form is on team page itself
 router.post(
   '/team/:id/leave',
-  function (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) {
+  (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
     slugs
       .resolveAndLoadTeam(req, res, id)

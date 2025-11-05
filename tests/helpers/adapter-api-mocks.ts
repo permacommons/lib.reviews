@@ -1,6 +1,5 @@
+import { URL, URLSearchParams } from 'node:url';
 import nock from 'nock';
-import { URL } from 'node:url';
-import { URLSearchParams } from 'node:url';
 
 const OPENLIBRARY_HOST = 'https://openlibrary.org';
 const WIKIDATA_HOST = 'https://www.wikidata.org';

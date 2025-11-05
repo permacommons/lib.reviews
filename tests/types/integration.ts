@@ -1,6 +1,6 @@
+import type { ExecutionContext } from 'ava';
 import type { Express } from 'express';
 import type { SuperAgentTest } from 'supertest';
-import type { ExecutionContext } from 'ava';
 
 /**
  * Agent union compatible with current @types/supertest output from supertest.agent(app),

@@ -1,6 +1,6 @@
-import { createDALFixtureAVA } from '../fixtures/dal-fixture-ava.ts';
 import type { TestFn } from 'ava';
 import type DALFixtureAVA from '../fixtures/dal-fixture-ava.ts';
+import { createDALFixtureAVA } from '../fixtures/dal-fixture-ava.ts';
 
 type MaybeAsync<T> = T | (() => T | Promise<T>) | Promise<T>;
 

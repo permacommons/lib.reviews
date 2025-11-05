@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Create sanitized database dumps for public distribution using SQL views
  *
@@ -6,16 +7,15 @@
  * filtering logic, dumps from those views, then drops them once complete.
  */
 
-import { spawn } from 'node:child_process';
 import type { SpawnOptions } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Writable } from 'node:stream';
-
-import config from 'config';
+import { fileURLToPath } from 'node:url';
 import type { PostgresConfig } from 'config';
+import config from 'config';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 

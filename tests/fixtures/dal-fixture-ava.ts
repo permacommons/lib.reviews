@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto';
-import { logNotice, logOK } from '../helpers/test-helpers.ts';
-import { createTestHarness } from '../../bootstrap/dal.ts';
 import pgModule from 'pg';
+import { createTestHarness } from '../../bootstrap/dal.ts';
 import { initializeModel } from '../../dal/lib/model-initializer.ts';
 import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
+import { logNotice, logOK } from '../helpers/test-helpers.ts';
 
 type ThingModel = typeof import('../../models/thing.ts').default;
 type ThingSlugModel = typeof import('../../models/thing-slug.ts').default;

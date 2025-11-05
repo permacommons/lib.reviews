@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Backend/CLI production build using esbuild.
  * - Bundles server entry and CLI tools into ESM output under build/server/
@@ -8,11 +9,11 @@
  * Usage: npm run build:backend
  */
 
-import { build } from 'esbuild';
-import fg from 'fast-glob';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
+import fg from 'fast-glob';
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptsDir, '..');

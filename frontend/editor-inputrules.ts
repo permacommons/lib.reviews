@@ -1,15 +1,16 @@
 // Adapted from https://github.com/ProseMirror/prosemirror-example-setup
+
+import type { InputRule } from 'prosemirror-inputrules';
 import {
-  inputRules,
-  wrappingInputRule,
-  textblockTypeInputRule,
-  smartQuotes,
-  emDash,
   ellipsis,
+  emDash,
+  inputRules,
+  smartQuotes,
+  textblockTypeInputRule,
+  wrappingInputRule,
 } from 'prosemirror-inputrules';
 import type { NodeType, Schema } from 'prosemirror-model';
 import type { Plugin } from 'prosemirror-state';
-import type { InputRule } from 'prosemirror-inputrules';
 
 // Given a blockquote node type, returns an input rule that turns `"> "`
 // at the start of a textblock into a blockquote.

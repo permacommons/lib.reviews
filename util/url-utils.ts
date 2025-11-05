@@ -197,9 +197,7 @@ function comparePlacement(order: string[], id1: string, id2: string): number {
 
 /** Collapses OpenLibrary URLs to a canonical work/book slug. */
 function _stripOpenLibraryTitleSuffix(inputURL: string): string {
-  const match = inputURL.match(
-    new RegExp('^https*://openlibrary.org/(works|books)/(OL[^/]+)/*(.*)$', 'i')
-  );
+  const match = inputURL.match(/^https*:\/\/openlibrary.org\/(works|books)\/(OL[^\/]+)\/*(.*)$/i);
   if (match === null) return inputURL;
   else return `https://openlibrary.org/${match[1]}/${match[2]}`;
 }

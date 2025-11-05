@@ -1,15 +1,14 @@
 /* External deps */
 import config from 'config';
 import escapeHTML from 'escape-html';
+import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
-
 /* Internal deps */
 import AbstractBackendAdapter, {
   type AdapterLookupResult,
   type AdapterMultilingualString,
 } from './abstract-backend-adapter.ts';
-import languages from '../locales/languages.ts';
 
 /**
  * How lib.reviews language codes translate to Wikidata language codes.
@@ -43,10 +42,7 @@ interface WikidataResponse {
 export default class WikidataBackendAdapter extends AbstractBackendAdapter {
   constructor() {
     super();
-    this.supportedPattern = new RegExp(
-      '^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)(?:#.*)?$',
-      'i'
-    );
+    this.supportedPattern = /^http(s)*:\/\/(www.)*wikidata.org\/(entity|wiki)\/(Q\d+)(?:#.*)?$/i;
     this.supportedFields = ['label', 'description'];
     this.sourceID = 'wikidata';
     this.sourceURL = 'https://www.wikidata.org/';

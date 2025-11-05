@@ -1,7 +1,6 @@
 import type { Express, NextFunction, Request, Response } from 'express';
-
-import render from './helpers/render.ts';
 import debug from '../util/debug.ts';
+import render from './helpers/render.ts';
 
 type ErrorWithStatus = Error & { status?: number; type?: string };
 

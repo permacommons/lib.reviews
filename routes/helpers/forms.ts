@@ -1,9 +1,9 @@
-import type { Request } from 'express';
 import config from 'config';
 import escapeHTML from 'escape-html';
+import type { Request } from 'express';
+import languages from '../../locales/languages.ts';
 import md from '../../util/md.ts';
 import urlUtils from '../../util/url-utils.ts';
-import languages from '../../locales/languages.ts';
 
 // Used for field names in forms that support UUID wildcards
 const uuidRegex = '([a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89aAbB][a-f0-9]{3}-[a-f0-9]{12})';

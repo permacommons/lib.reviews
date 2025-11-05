@@ -1,10 +1,10 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
+import searchModule from '../search.ts';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
-import searchModule from '../search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 type ThingModel = typeof import('../models/thing.ts').default;
 type ReviewModel = typeof import('../models/review.ts').default;

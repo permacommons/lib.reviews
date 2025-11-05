@@ -2,14 +2,14 @@ import isUUID from 'is-uuid';
 
 import debug from '../../util/debug.ts';
 import { convertPostgreSQLError } from './errors.ts';
+import type Model from './model.ts';
+import type { ModelRuntime } from './model.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
-import type Model from './model.ts';
-import type { ModelRuntime } from './model.ts';
 
 type PredicateValue = unknown;
 
@@ -410,9 +410,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return new FieldExpression(builder, String(fieldName));
     };
 
-    const rowTarget = function (fieldName: string | symbol) {
-      return getFieldExpression(fieldName);
-    };
+    const rowTarget = (fieldName: string | symbol) => getFieldExpression(fieldName);
 
     return new Proxy(rowTarget, {
       apply(target, thisArg, args) {

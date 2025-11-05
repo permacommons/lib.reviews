@@ -1,11 +1,11 @@
+import type { PostgresConfig } from 'config';
 import { promises as fs } from 'fs';
 import path from 'path';
-
-import { Pool } from 'pg';
 import type { PoolClient, PoolConfig, QueryResult } from 'pg';
-import type { PostgresConfig } from 'config';
+import { Pool } from 'pg';
 
 import debug from '../../util/debug.ts';
+import type { ModelSchema } from './model.ts';
 import Model from './model.ts';
 import ModelRegistry from './model-registry.ts';
 import type {
@@ -13,7 +13,6 @@ import type {
   JsonObject,
   ModelConstructor,
 } from './model-types.ts';
-import type { ModelSchema } from './model.ts';
 
 type PoolLike = Pool | PoolClient;
 

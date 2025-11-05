@@ -3,9 +3,9 @@ import 'jquery-powertip';
 import 'jquery-modal';
 import './styles/vendor.css';
 import './styles/style.less';
+import type { EditorView } from 'prosemirror-view';
 import Autocomplete from './lib/ac.js';
 import initializeSisyphus from './lib/sisyphus.js';
-import type { EditorView } from 'prosemirror-view';
 
 /**
  * Options for message parameterization.
@@ -499,14 +499,14 @@ function initializePlugins(): void {
 
     $firstInput.focus();
 
-    $lastInput.on('keydown', function (e) {
+    $lastInput.on('keydown', e => {
       if (e.which === 9 && !e.shiftKey) {
         e.preventDefault();
         $firstInput.focus();
       }
     });
 
-    $firstInput.on('keydown', function (e) {
+    $firstInput.on('keydown', e => {
       if (e.which === 9 && e.shiftKey) {
         e.preventDefault();
         $lastInput.focus();
@@ -582,7 +582,7 @@ function initializeLibreviews(): LibreviewsAPI {
     let id = $(this).attr('data-suppress-notice');
     $.ajax({
       type: 'POST',
-      url: `/api/actions/suppress-notice`,
+      url: '/api/actions/suppress-notice',
       data: JSON.stringify({
         noticeType: id,
       }),
@@ -625,7 +625,7 @@ function initializeLibreviews(): LibreviewsAPI {
     }
   });
 
-  $('.expand-link').keyup(function (e) {
+  $('.expand-link').keyup(e => {
     if (e.which == 13) $('.expand-link').trigger('click');
   });
 

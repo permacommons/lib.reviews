@@ -1,11 +1,10 @@
 import test from 'ava';
-import supertest from 'supertest';
 import express from 'express';
 import session from 'express-session';
-
+import supertest from 'supertest';
+import flashMiddleware from '../routes/helpers/flash.ts';
 // Import the typed middleware implementations.
 import flashStore from '../util/flash-store.ts';
-import flashMiddleware from '../routes/helpers/flash.ts';
 import ReportedError from '../util/reported-error.ts';
 
 /**

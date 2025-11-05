@@ -2,8 +2,9 @@ import avaTest, { type TestFn } from 'ava';
 import supertest from 'supertest';
 import { extractCSRF } from './helpers/integration-helpers.ts';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
-import { requireIntegrationContext } from './types/integration.ts';
 import type { IntegrationTestContext } from './types/integration.ts';
+import { requireIntegrationContext } from './types/integration.ts';
+
 const loadAppModule = () => import('../app.ts');
 
 // Mock search before loading any modules that depend on it (e.g. bootstrap/dal).

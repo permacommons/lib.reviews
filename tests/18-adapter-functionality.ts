@@ -1,8 +1,8 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
-import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import type { AdapterLookupResult } from '../adapters/abstract-backend-adapter.ts';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 // Ensure the search mock is registered before the DAL bootstrap loads models.
 mockSearch();
@@ -143,15 +143,13 @@ test.serial('Thing model updateActiveSyncs with metadata handling', async t => {
 
   // Mock the Wikidata adapter lookup to avoid external API calls
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
-  WikidataBackendAdapter.prototype.lookup = async function (url): Promise<AdapterLookupResult> {
-    return {
-      data: {
-        label: { en: 'Test Item' },
-        description: { en: 'Mocked description from Wikidata' },
-      },
-      sourceID: 'wikidata',
-    };
-  };
+  WikidataBackendAdapter.prototype.lookup = async (url): Promise<AdapterLookupResult> => ({
+    data: {
+      label: { en: 'Test Item' },
+      description: { en: 'Mocked description from Wikidata' },
+    },
+    sourceID: 'wikidata',
+  });
 
   try {
     // Update active syncs

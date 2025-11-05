@@ -1,7 +1,7 @@
+import i18n from 'i18n';
 import MarkdownIt from 'markdown-it';
 import container from 'markdown-it-container';
 import { html5Media } from 'markdown-it-html5-media';
-import i18n from 'i18n';
 
 type MarkdownItWithMessages = MarkdownIt & { getMarkdownMessageKeys?: () => string[] };
 

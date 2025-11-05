@@ -1,6 +1,6 @@
+import type { LookupResult } from '../../types/frontend/adapters.js';
 import $ from '../lib/jquery.js';
 import AbstractLookupAdapter from './abstract-lookup-adapter.js';
-import type { LookupResult } from '../../types/frontend/adapters.js';
 
 interface OverpassElement {
   tags?: {
@@ -19,10 +19,7 @@ class OpenStreetMapLookupAdapter extends AbstractLookupAdapter {
   constructor(updateCallback?: Function | null) {
     super(updateCallback);
     this.sourceID = 'openstreetmap';
-    this.supportedPattern = new RegExp(
-      '^https://www.openstreetmap.org/(node|way)/(\\d+)(?:#.*)?$',
-      'i'
-    );
+    this.supportedPattern = /^https:\/\/www.openstreetmap.org\/(node|way)\/(\d+)(?:#.*)?$/i;
   }
 
   lookup(url: string): Promise<LookupResult> {

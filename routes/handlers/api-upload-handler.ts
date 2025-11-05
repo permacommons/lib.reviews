@@ -1,11 +1,11 @@
 import escapeHTML from 'escape-html';
 
 import languages from '../../locales/languages.ts';
-import { validateFiles, cleanupFiles, getFileRevs, completeUploads } from '../uploads.ts';
-import ReportedError from '../../util/reported-error.ts';
 import File from '../../models/file.ts';
-import api from '../helpers/api.ts';
 import type { HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
+import ReportedError from '../../util/reported-error.ts';
+import api from '../helpers/api.ts';
+import { cleanupFiles, completeUploads, getFileRevs, validateFiles } from '../uploads.ts';
 
 type UploadFile = {
   originalname: string;

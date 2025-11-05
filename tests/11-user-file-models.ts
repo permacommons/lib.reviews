@@ -2,9 +2,8 @@ import test from 'ava';
 import { randomUUID } from 'crypto';
 import passport from 'passport';
 import type { NewUserError } from '../models/user.ts';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
-
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 // Type describing passport's internal API for testing
 interface PassportInternalAPI {

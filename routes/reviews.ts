@@ -1,13 +1,12 @@
 import config from 'config';
-
-import render from './helpers/render.ts';
-import feeds from './helpers/feeds.ts';
-import Team from '../models/team.ts';
-import Review from '../models/review.ts';
-import ReviewProvider from './handlers/review-provider.ts';
-import reviewHandlers from './handlers/review-handlers.ts';
 import BlogPost from '../models/blog-post.ts';
+import Review from '../models/review.ts';
+import Team from '../models/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import reviewHandlers from './handlers/review-handlers.ts';
+import ReviewProvider from './handlers/review-provider.ts';
+import feeds from './helpers/feeds.ts';
+import render from './helpers/render.ts';
 
 type ReviewsRouteRequest = HandlerRequest;
 type ReviewsRouteResponse = HandlerResponse;
@@ -73,8 +72,8 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
     if (blogPosts) blogPosts.forEach(post => post.populateUserInfo(req.user));
 
     let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
-      atomURLPrefix: `/feed/atom`,
-      atomURLTitleKey: `atom feed of all reviews`,
+      atomURLPrefix: '/feed/atom',
+      atomURLTitleKey: 'atom feed of all reviews',
     });
 
     if (config.frontPageTeamBlog)

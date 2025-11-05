@@ -2,13 +2,12 @@
 import { resolve as resolveURL } from 'node:url';
 import config from 'config';
 import i18n from 'i18n';
-
-// Internal dependencies
-import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
-import Review from '../../models/review.ts';
-import render from '../helpers/render.ts';
-import feeds from '../helpers/feeds.ts';
 import languages from '../../locales/languages.ts';
+import Review from '../../models/review.ts';
+// Internal dependencies
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
+import feeds from '../helpers/feeds.ts';
+import render from '../helpers/render.ts';
 
 type ReviewThing = {
   populateUserInfo?: (user: HandlerRequest['user']) => void;
@@ -59,7 +58,7 @@ const reviewHandlers = {
       options
     );
 
-    return async function (req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
+    return async (req: HandlerRequest, res: HandlerResponse, next: HandlerNext) => {
       let language: string | undefined;
       let offsetDate: Date | null | undefined;
       if (typeof req.params.utcisodate === 'string') {

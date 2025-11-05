@@ -5,34 +5,33 @@
  * @namespace App
  */
 
-// External dependencies
-import type { Request, Response } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import bodyParser from 'body-parser';
 import compression from 'compression';
 import config from 'config';
 import connectPgSimple from 'connect-pg-simple';
 import cookieParser from 'cookie-parser';
+// External dependencies
+import type { Request, Response } from 'express';
 import express from 'express';
 import session from 'express-session';
-import favicon from 'serve-favicon';
-import fs from 'node:fs';
+import expressUserAgent from 'express-useragent';
 import hbs from 'hbs'; // handlebars templating
 import hbsUtilsFactory from 'hbs-utils';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import csp from 'helmet-csp'; // Content security policy
 import i18n from 'i18n';
 import logger from 'morgan';
 import passport from 'passport';
+import favicon from 'serve-favicon';
 import serveIndex from 'serve-index';
-import csp from 'helmet-csp'; // Content security policy
-import expressUserAgent from 'express-useragent';
-
-import { csrfSynchronisedProtection } from './util/csrf.ts';
 import { initializeDAL } from './bootstrap/dal.ts';
 import ErrorProvider from './routes/errors.ts';
 import apiHelper from './routes/helpers/api.ts';
 import flashHelper from './routes/helpers/flash.ts';
 import clientAssets from './util/client-assets.ts';
+import { csrfSynchronisedProtection } from './util/csrf.ts';
 import debug from './util/debug.ts';
 import flashStore from './util/flash-store.ts';
 import WebHookDispatcher from './util/webhooks.ts';

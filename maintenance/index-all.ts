@@ -1,11 +1,11 @@
 // Set up indices and update all reviews and review subjects (things)
 
+import promiseLimit from 'promise-limit';
 import { initializeDAL } from '../bootstrap/dal.ts';
+import Review from '../models/review.js';
+import Thing from '../models/thing.js';
 import search from '../search.ts';
 import debug from '../util/debug.ts';
-import promiseLimit from 'promise-limit';
-import Thing from '../models/thing.js';
-import Review from '../models/review.js';
 
 type IndexableThing = Parameters<typeof search.indexThing>[0];
 type IndexableReview = Parameters<typeof search.indexReview>[0];

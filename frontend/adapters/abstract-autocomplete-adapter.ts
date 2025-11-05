@@ -1,9 +1,10 @@
 /* global $ */
-import AbstractLookupAdapter from './abstract-lookup-adapter.js';
-import NativeLookupAdapter from './native-lookup-adapter.js';
-import { msg } from '../libreviews.js';
+
 import type { UpdateCallback, UpdateCallbackData } from '../../types/frontend/adapters.js';
 import type Autocomplete from '../lib/ac.js';
+import { msg } from '../libreviews.js';
+import AbstractLookupAdapter from './abstract-lookup-adapter.js';
+import NativeLookupAdapter from './native-lookup-adapter.js';
 
 const nativeLookupAdapter = new NativeLookupAdapter();
 

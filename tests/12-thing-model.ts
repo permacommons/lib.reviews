@@ -1,8 +1,7 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
-
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'thing_model',

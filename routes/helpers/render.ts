@@ -1,12 +1,12 @@
 // External dependencies
-import type { Request, Response } from 'express';
-import config from 'config';
-import { parse as parseURL } from 'node:url';
-import clientAssets from '../../util/client-assets.ts';
 
+import { parse as parseURL } from 'node:url';
+import config from 'config';
+import type { Request, Response } from 'express';
 // Internal dependencies
 import languages from '../../locales/languages.ts';
 import type { TemplateContext, TemplateLanguageName } from '../../types/http/locals.ts';
+import clientAssets from '../../util/client-assets.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 
@@ -94,7 +94,7 @@ const template = (
   vars.qualifiedURL = config.qualifiedURL;
   vars.urlPath = parseURL(req.originalUrl).pathname ?? undefined;
 
-  const registerRegex = new RegExp('^/register(/|$)');
+  const registerRegex = /^\/register(\/|$)/;
   if (req.query.returnTo) vars.returnTo = String(req.query.returnTo);
   else if (req.path === '/signin' || registerRegex.test(req.path)) vars.returnTo = '/';
   else vars.returnTo = vars.urlPath;

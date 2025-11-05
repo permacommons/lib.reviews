@@ -1,8 +1,8 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
-import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
-import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import type { AdapterLookupResult } from '../adapters/abstract-backend-adapter.ts';
+import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
+import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 
 type ThingModel = typeof import('../models/thing.ts').default;
 
@@ -101,15 +101,13 @@ test.serial('sync functionality works with metadata grouping', async t => {
     .default as WikidataBackendAdapterCtor;
   const originalLookup = WikidataBackendAdapter.prototype.lookup;
 
-  WikidataBackendAdapter.prototype.lookup = async function (url): Promise<AdapterLookupResult> {
-    return {
-      data: {
-        label: { en: 'Synced label from Wikidata' },
-        description: { en: 'Synced description from Wikidata' },
-      },
-      sourceID: 'wikidata',
-    };
-  };
+  WikidataBackendAdapter.prototype.lookup = async (url): Promise<AdapterLookupResult> => ({
+    data: {
+      label: { en: 'Synced label from Wikidata' },
+      description: { en: 'Synced description from Wikidata' },
+    },
+    sourceID: 'wikidata',
+  });
 
   try {
     // Test updateActiveSyncs (core sync functionality)

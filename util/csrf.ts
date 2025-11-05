@@ -5,9 +5,8 @@
  * @namespace CSRF
  */
 
-import type { Request } from 'express';
-
 import { csrfSync } from 'csrf-sync';
+import type { Request } from 'express';
 
 type CsrfToken = string | undefined;
 

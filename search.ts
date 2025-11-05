@@ -1,3 +1,4 @@
+import config from 'config';
 import type {
   ConfigOptions,
   DeleteDocumentParams,
@@ -6,11 +7,9 @@ import type {
   SearchResponse,
 } from 'elasticsearch';
 import elasticsearch from 'elasticsearch';
-import config from 'config';
-
-import debug from './util/debug.ts';
 import mlString from './dal/lib/ml-string.ts';
 import languages from './locales/languages.ts';
+import debug from './util/debug.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 

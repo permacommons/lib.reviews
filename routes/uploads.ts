@@ -4,32 +4,31 @@
  * @namespace Uploads
  */
 
-import { Router } from 'express';
-import multer from 'multer';
-import path from 'node:path';
 import fs from 'node:fs';
-import isSVG from 'is-svg';
-import config from 'config';
-import is from 'type-is';
-import { promisify } from 'node:util';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
+import { promisify } from 'node:util';
+import config from 'config';
+import { Router } from 'express';
+import isSVG from 'is-svg';
+import type { FileFilterCallback } from 'multer';
+import multer from 'multer';
+import is from 'type-is';
+import languages from '../locales/languages.ts';
+import File from '../models/file.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import {
   generateToken,
   getTokenFromRequest,
   getTokenFromState,
   invalidCsrfTokenError,
 } from '../util/csrf.ts';
-import File from '../models/file.ts';
-import getResourceErrorHandler from './handlers/resource-error-handler.ts';
-import render from './helpers/render.ts';
-import slugs from './helpers/slugs.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import languages from '../locales/languages.ts';
+import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import forms from './helpers/forms.ts';
-import type { FileFilterCallback } from 'multer';
-import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import render from './helpers/render.ts';
+import slugs from './helpers/slugs.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -138,7 +137,7 @@ const uploadFormDef = [
 
 stage1Router.post(
   '/:id/upload',
-  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
+  (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) => {
     // On to stage 2
     if (!is(req, ['multipart'])) return next();
 
@@ -174,7 +173,7 @@ stage1Router.post(
 
 stage2Router.post(
   '/:id/upload',
-  function (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) {
+  (req: UploadsRequest<{ id: string }>, res: UploadsResponse, next: HandlerNext) => {
     let id = req.params.id.trim();
     slugs
       .resolveAndLoadThing(req, res, id)
@@ -450,7 +449,7 @@ async function validateSVG(filePath: string): Promise<string> {
 // by the user who uploaded it.
 stage1Router.get(
   '/static/uploads/restricted/:name',
-  function (req: UploadsRequest<{ name: string }>, res: UploadsResponse, next: HandlerNext) {
+  (req: UploadsRequest<{ name: string }>, res: UploadsResponse, next: HandlerNext) => {
     if (!req.user) return next();
 
     const userIDValue = req.user.id;
@@ -548,7 +547,7 @@ async function processUploads(
 
     if (!upload.description || !upload.description[language])
       throw new ReportedError({
-        message: `Form data for upload %s lacks a description.`,
+        message: 'Form data for upload %s lacks a description.',
         messageParams: [upload.name],
         userMessage: 'upload needs description',
       });
@@ -556,7 +555,7 @@ async function processUploads(
     let by = getVal(formValues.creators);
     if (!by)
       throw new ReportedError({
-        message: `Form data for upload missing creator information.`,
+        message: 'Form data for upload missing creator information.',
         userMessage: 'data missing',
       });
 

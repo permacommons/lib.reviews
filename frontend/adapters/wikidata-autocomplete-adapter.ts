@@ -1,8 +1,9 @@
 /* global $, config */
-import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
-import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
+
 import type { LookupResult, UpdateCallback } from '../../types/frontend/adapters.js';
 import type Autocomplete from '../lib/ac.js';
+import { msg as libreviewsMsg, repaintFocusedHelp } from '../libreviews.js';
+import AbstractAutocompleteAdapter from './abstract-autocomplete-adapter.js';
 
 interface WikidataEntity {
   labels?: Record<string, { value: string }>;
@@ -63,10 +64,7 @@ class WikidataAutocompleteAdapter extends AbstractAutocompleteAdapter {
     super(updateCallback, searchBoxSelector);
     // Adapter settings
     this.sourceID = 'wikidata';
-    this.supportedPattern = new RegExp(
-      '^http(s)*://(www.)*wikidata.org/(entity|wiki)/(Q\\d+)(?:#.*)?$',
-      'i'
-    );
+    this.supportedPattern = /^http(s)*:\/\/(www.)*wikidata.org\/(entity|wiki)\/(Q\d+)(?:#.*)?$/i;
     this.apiBaseURL = 'https://www.wikidata.org/w/api.php';
     this.queryServiceBaseURL = 'https://query.wikidata.org/bigdata/namespace/wdq/sparql';
 

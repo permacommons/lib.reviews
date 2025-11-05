@@ -1,7 +1,6 @@
 import escapeHTML from 'escape-html';
-
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import render from '../helpers/render.ts';
-import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
 
 type ResourceError = {
   name?: string;
@@ -24,7 +23,7 @@ export default function getResourceErrorHandler(
 
   const escapedBodyParam = escapeHTML(bodyParam);
 
-  return function (error: ResourceError) {
+  return (error: ResourceError) => {
     switch (error?.name) {
       // In "not found" case, we also attempt to redirect any URL with trailing
       // whitespace (some number of '%20's at the end) to its canonical version.

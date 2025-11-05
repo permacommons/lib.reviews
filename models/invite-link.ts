@@ -1,12 +1,12 @@
-import config from 'config';
 import { randomUUID } from 'node:crypto';
+import config from 'config';
 import isUUID from 'is-uuid';
-import debug from '../util/debug.ts';
 import dal from '../dal/index.ts';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
+import { initializeModel } from '../dal/lib/model-initializer.ts';
 import { getPostgresDAL } from '../db-postgres.ts';
+import debug from '../util/debug.ts';
 
 const { types } = dal;
 let InviteLink = null;

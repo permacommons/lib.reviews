@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import config from 'config';
-import type { HTTPSConfig } from 'config';
 import fs from 'node:fs';
-import https from 'node:https';
 import type { Server as HttpsServer, ServerOptions as HttpsServerOptions } from 'node:https';
+import https from 'node:https';
+import type { HTTPSConfig } from 'config';
+import config from 'config';
 
 import getApp from '../app.ts';
 import dbPostgres from '../db-postgres.ts';

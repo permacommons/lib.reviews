@@ -192,7 +192,9 @@ export function createAutoModelHandle<
     return model as ModelConstructor<TRecord, TVirtual, TInstance>;
   }
 
-  const ModelHandle = function (...args: unknown[]) {
+  // Named function expression prevents Biome from converting to arrow function.
+  // Arrow functions cannot be used as constructors with `new`.
+  const ModelHandle = function ModelHandle(...args: unknown[]) {
     const model = getRegisteredModel();
     return new (model as new (...constructorArgs: unknown[]) => TInstance)(...args);
   } as unknown as ModelConstructor<TRecord, TVirtual, TInstance>;

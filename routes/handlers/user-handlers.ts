@@ -1,13 +1,12 @@
 import escapeHTML from 'escape-html';
-
-import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
-import render from '../helpers/render.ts';
-import feeds from '../helpers/feeds.ts';
-import User from '../../models/user.ts';
 import Review from '../../models/review.ts';
-import reviewHandlers from './review-handlers.ts';
-import md from '../../util/md.ts';
+import User from '../../models/user.ts';
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
+import md from '../../util/md.ts';
+import feeds from '../helpers/feeds.ts';
+import render from '../helpers/render.ts';
+import reviewHandlers from './review-handlers.ts';
 
 const UserModel = User as any;
 const ReviewModel = Review as any;
@@ -76,7 +75,7 @@ const userHandlers = {
       options
     );
 
-    return async function (req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
+    return async (req: HandlerRequest, res: HandlerResponse, next: HandlerNext) => {
       const { name } = req.params;
       try {
         const user = await UserModel.findByURLName(name, {
@@ -127,7 +126,7 @@ const userHandlers = {
 
         let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
           atomURLPrefix: `/user/${user.urlName}/feed/atom`,
-          atomURLTitleKey: `atom feed of reviews by this user`,
+          atomURLTitleKey: 'atom feed of reviews by this user',
         });
 
         let paginationURL;
@@ -176,7 +175,7 @@ const userHandlers = {
       options
     );
 
-    return async function (req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
+    return async (req: HandlerRequest, res: HandlerResponse, next: HandlerNext) => {
       const { name } = req.params;
       let offsetDate;
       if (req.params.utcisodate) {
@@ -202,7 +201,7 @@ const userHandlers = {
           paginationURL: `/user/${user.urlName}/feed/before/%isodate`,
           deferPageHeader: true,
           atomURLPrefix: `/user/${user.urlName}/feed/atom`,
-          atomURLTitleKey: `atom feed of reviews by this user`,
+          atomURLTitleKey: 'atom feed of reviews by this user',
           htmlURL: `/user/${user.urlName}/feed`,
           extraVars: {
             userURL: `/user/${user.urlName}`,
@@ -224,7 +223,7 @@ const userHandlers = {
   },
 
   getUserNotFoundHandler(req, res, next, name) {
-    return function (error) {
+    return error => {
       if (error.name == 'DocumentNotFound' || error.name == 'DocumentNotFoundError')
         userHandlers.sendUserNotFound(req, res, name);
       else return next(error);

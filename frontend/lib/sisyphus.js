@@ -1,5 +1,5 @@
-import $ from './jquery.js';
 import sisyphusSource from 'sisyphus.js/sisyphus.js?raw';
+import $ from './jquery.js';
 
 let sisyphusInitialized = false;
 

@@ -1,8 +1,7 @@
 import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
-
-import QueryBuilder from './query-builder.ts';
 import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.ts';
+import QueryBuilder from './query-builder.ts';
 import types from './type.ts';
 
 /**
@@ -354,7 +353,7 @@ const revision: RevisionHelpers = {
      *
      * @returns Query builder with revision filters applied
      */
-    const filterNotStaleOrDeleted = function () {
+    const filterNotStaleOrDeleted = () => {
       const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
       return query.filterNotStaleOrDeleted();
     };
@@ -375,7 +374,7 @@ const revision: RevisionHelpers = {
      * @param idArray - Array of record IDs
      * @returns Query builder for chaining
      */
-    const getMultipleNotStaleOrDeleted = function (idArray: string[]) {
+    const getMultipleNotStaleOrDeleted = (idArray: string[]) => {
       const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
 
       if (idArray.length > 0) {

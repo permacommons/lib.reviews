@@ -15,18 +15,18 @@
  */
 import test from 'ava';
 import isUUID from 'is-uuid';
-import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
 import {
-  getTestModelDefinitionsAVA,
-  getTestTableDefinitionsAVA,
-  getTestUserDataAVA,
-  createTestDocumentWithRevisionsAVA,
   assertRevisionEqualityAVA,
   countAllRevisionsAVA,
   countCurrentRevisionsAVA,
+  createTestDocumentWithRevisionsAVA,
+  getTestModelDefinitionsAVA,
+  getTestTableDefinitionsAVA,
+  getTestUserDataAVA,
   verifyTestIsolation,
 } from './helpers/dal-helpers-ava.ts';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
 const { dalFixture } = setupPostgresTest(test, {
   schemaNamespace: 'revision_system',

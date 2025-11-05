@@ -10,32 +10,26 @@ import $ from './lib/jquery.js';
 // data-markdown attribute set. The switcher between the two modes is rendered
 // server-side from the views/partial/editor-switcher.hbs template.
 
-// ProseMirror editor components
-import { EditorState } from 'prosemirror-state';
-import { EditorView } from 'prosemirror-view';
-import { keymap } from 'prosemirror-keymap';
 import { baseKeymap } from 'prosemirror-commands';
-import { menuBar } from 'prosemirror-menu';
-
 // For indicating the drop target when dragging a text selection
 import { dropCursor } from 'prosemirror-dropcursor';
 import { history } from 'prosemirror-history';
-
-// Custom input rules, e.g. # for headline
-import { buildInputRules } from './editor-inputrules.ts';
-
+import { keymap } from 'prosemirror-keymap';
+import { menuBar } from 'prosemirror-menu';
+// ProseMirror editor components
+import { EditorState } from 'prosemirror-state';
+import { EditorView } from 'prosemirror-view';
 // Custom keymap
 import { getExtendedKeymap } from './editor-extended-keymap.ts';
-
-// Custom menu
-import { buildMenuItems } from './editor-menu.ts';
-
-// For tracking contentEditable selection
-import { saveSelection, restoreSelection, type SavedSelectionRange } from './editor-selection.ts';
-
+// Custom input rules, e.g. # for headline
+import { buildInputRules } from './editor-inputrules.ts';
 // For parsing, serializing and tokenizing markdown including our custom
 // markup for spoiler/NSFW warnings
-import { markdownParser, markdownSerializer, markdownSchema } from './editor-markdown.ts';
+import { markdownParser, markdownSchema, markdownSerializer } from './editor-markdown.ts';
+// Custom menu
+import { buildMenuItems } from './editor-menu.ts';
+// For tracking contentEditable selection
+import { restoreSelection, type SavedSelectionRange, saveSelection } from './editor-selection.ts';
 import libreviews, { addHelpListeners, msg, type RichTextEditorHandle } from './libreviews.ts';
 
 declare module 'prosemirror-view' {
@@ -201,7 +195,7 @@ $(togglePreferenceSelector).on('click', function (this: HTMLElement) {
   }, 100);
   $.ajax({
     type: 'POST',
-    url: `/api/actions/toggle-preference/`,
+    url: '/api/actions/toggle-preference/',
     data: JSON.stringify({
       preferenceName: 'prefersRichTextEditor',
     }),
@@ -390,7 +384,7 @@ function addCustomFeatures({
   $(window).on('beforeunload', updateOnUnload);
 
   // Full remove this control and all associated event handlers
-  instance.nuke = function () {
+  instance.nuke = () => {
     $ce.off();
     $(window).off('resize', setRTEHeight);
     $(window).off('resize', setRTEHeightFullScreen);
@@ -401,7 +395,7 @@ function addCustomFeatures({
   };
 
   // Helper for external access to re-generate RTE
-  instance.reRender = function () {
+  instance.reRender = () => {
     instance.nuke();
     renderRTE($textarea);
   };

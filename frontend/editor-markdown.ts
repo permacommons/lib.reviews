@@ -1,16 +1,16 @@
 import MarkdownIt from 'markdown-it';
+import type Token from 'markdown-it/lib/token.mjs';
 import markdownItContainer from 'markdown-it-container';
 import { html5Media } from 'markdown-it-html5-media';
+import type { MarkdownSerializerState } from 'prosemirror-markdown';
 import {
-  MarkdownParser,
-  schema,
   defaultMarkdownParser,
   defaultMarkdownSerializer,
+  MarkdownParser,
+  schema,
 } from 'prosemirror-markdown';
-import type { MarkdownSerializerState } from 'prosemirror-markdown';
-import type { DOMOutputSpec, Node as ProseMirrorNode, NodeSpec } from 'prosemirror-model';
+import type { DOMOutputSpec, NodeSpec, Node as ProseMirrorNode } from 'prosemirror-model';
 import { Schema } from 'prosemirror-model';
-import type Token from 'markdown-it/lib/token.mjs';
 import { msg } from './libreviews.js';
 
 const md = new MarkdownIt('commonmark', { html: false });

@@ -48,7 +48,7 @@ export function uploadModal(
   // generic error message.
   //
   // Once the operation succeeds or fails, the respective callbacks are run.
-  $('#upload-modal-start-upload').click(function (event) {
+  $('#upload-modal-start-upload').click(event => {
     event.preventDefault();
     startUpload(successCallback, errorCallback);
   });
@@ -68,7 +68,7 @@ export function uploadModal(
   $modal.lockTab();
 
   // Clean up on each close
-  $('#upload-modal').on($.modal.BEFORE_CLOSE, function () {
+  $('#upload-modal').on($.modal.BEFORE_CLOSE, () => {
     $modal.remove();
   });
 }

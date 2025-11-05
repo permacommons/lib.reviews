@@ -1,21 +1,20 @@
 // External dependencies
 import config from 'config';
-
-// Internal dependencies
-import type { HandlerRequest, HandlerResponse, HandlerNext } from '../../types/http/handlers.ts';
+import mlString from '../../dal/lib/ml-string.ts';
+import File from '../../models/file.ts';
 import Review from '../../models/review.ts';
 import Team from '../../models/team.ts';
 import User from '../../models/user.ts';
-import File from '../../models/file.ts';
-import AbstractBREADProvider from './abstract-bread-provider.ts';
-import mlString from '../../dal/lib/ml-string.ts';
-import urlUtils from '../../util/url-utils.ts';
-import ReportedError from '../../util/reported-error.ts';
-import md, { getMarkdownMessageKeys } from '../../util/md.ts';
-import slugs from '../helpers/slugs.ts';
 import search from '../../search.ts';
-import getMessages from '../../util/get-messages.ts';
+// Internal dependencies
+import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
+import getMessages from '../../util/get-messages.ts';
+import md, { getMarkdownMessageKeys } from '../../util/md.ts';
+import ReportedError from '../../util/reported-error.ts';
+import urlUtils from '../../util/url-utils.ts';
+import slugs from '../helpers/slugs.ts';
+import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 const ReviewModel = Review as any;
 const TeamModel = Team as any;

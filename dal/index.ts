@@ -1,12 +1,12 @@
 import type { PostgresConfig } from 'config';
 
 import DataAccessLayer from './lib/data-access-layer.ts';
-import Model from './lib/model.ts';
-import QueryBuilder from './lib/query-builder.ts';
-import types from './lib/type.ts';
 import Errors from './lib/errors.ts';
 import mlString from './lib/ml-string.ts';
+import Model from './lib/model.ts';
+import QueryBuilder from './lib/query-builder.ts';
 import revision from './lib/revision.ts';
+import types from './lib/type.ts';
 
 /**
  * Data Access Layer (DAL) for PostgreSQL

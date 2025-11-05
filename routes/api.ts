@@ -1,12 +1,11 @@
 import { Router } from 'express';
-
-import User from '../models/user.ts';
-import Thing from '../models/thing.ts';
-import actionHandler from './handlers/action-handler.ts';
-import search from '../search.ts';
-import urlUtils from '../util/url-utils.ts';
 import languages from '../locales/languages.ts';
+import Thing from '../models/thing.ts';
+import User from '../models/user.ts';
+import search from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import urlUtils from '../util/url-utils.ts';
+import actionHandler from './handlers/action-handler.ts';
 
 type ApiRouteRequest = HandlerRequest;
 type ApiRouteResponse = HandlerResponse;
@@ -23,7 +22,7 @@ router.post('/actions/upload', actionHandler.upload);
 // Query existence/properties of a thing (review subject)
 // look up by canonical URL name via /thing/:label or use URL query parameter
 // e.g., ?url=http://yahoo.com
-router.get('/thing', function (req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
+router.get('/thing', (req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) => {
   const urlQuery = req.query.url;
   const urlParam =
     typeof urlQuery === 'string'
@@ -87,7 +86,7 @@ router.get('/thing', function (req: ApiRouteRequest, res: ApiRouteResponse, next
 // Search suggestions
 router.get(
   '/suggest/thing/:prefix',
-  function (req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) {
+  (req: ApiRouteRequest, res: ApiRouteResponse, next: HandlerNext) => {
     const prefix = req.params.prefix.trim();
     const localeCode: LibReviews.LocaleCode = languages.isValid(req.locale)
       ? (req.locale as LibReviews.LocaleCode)
@@ -121,7 +120,7 @@ router.get(
   }
 );
 
-router.get('/user/:name', function (req: ApiRouteRequest, res: ApiRouteResponse) {
+router.get('/user/:name', (req: ApiRouteRequest, res: ApiRouteResponse) => {
   const { name } = req.params;
   const rv: Record<string, unknown> = {};
   User.filter({

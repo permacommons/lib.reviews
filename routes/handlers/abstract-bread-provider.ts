@@ -1,16 +1,15 @@
 import express from 'express';
-
-// Internal dependencies
-import render from '../helpers/render.ts';
-import forms from '../helpers/forms.ts';
-import getResourceErrorHandler from './resource-error-handler.ts';
 import type {
+  BoundRenderFunction,
+  BoundTemplateRenderer,
+  HandlerNext,
   HandlerRequest,
   HandlerResponse,
-  HandlerNext,
-  BoundTemplateRenderer,
-  BoundRenderFunction,
 } from '../../types/http/handlers.ts';
+import forms from '../helpers/forms.ts';
+// Internal dependencies
+import render from '../helpers/render.ts';
+import getResourceErrorHandler from './resource-error-handler.ts';
 
 const router = express.Router();
 
@@ -385,7 +384,7 @@ class AbstractBREADProvider {
     const resolvedRoutes = routes ?? this.getDefaultRoutes(resource);
 
     function bakeRoute(action: string, method: string, idArray: string[]) {
-      return function (req: ProviderRequest, res: ProviderResponse, next: HandlerNext) {
+      return (req: ProviderRequest, res: ProviderResponse, next: HandlerNext) => {
         const options: ProviderOptions = {
           action,
           method,
