@@ -181,7 +181,7 @@ async function getApp(): Promise<express.Express> {
   }));
 
   app.use('/static', (req: Request, res: Response, next) => {
-    if (/.*\.(svg|jpg|webm|gif|png|ogg|tgz|zip|woff2)$/.test(req.path))
+    if (/.*\.(svg|jpg|webm|gif|png|ogg|tgz|zip|woff2|jpeg)$/i.test(req.path))
       res.set('Cache-Control', 'public, max-age=31536000');
     return next();
   });
