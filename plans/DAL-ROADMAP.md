@@ -121,6 +121,10 @@ export default User;
 - [x] Migrate `thing.ts` to manifest format
 - [x] Migrate `review.ts` to manifest format
 - [ ] Convert `file.ts` to TypeScript + manifest format
+  - Replace `initializeFileModel`/`createAutoModelHandle` with a manifest exported via `createModel()`.
+  - Carry over revision-aware static methods (`getStashedUpload`, `getValidLicenses`, `getFileFeed`) with equivalent SQL or typed query builder usage.
+  - Preserve `populateUserInfo` as an instance method that sets virtual permission flags.
+  - Encode `users` and `things` relations (including the `thing_files` join table) in manifest metadata.
 - [ ] Convert `blog-post.ts` to TypeScript + manifest format
 
 **Type system upgrade:**
@@ -131,6 +135,7 @@ export default User;
 - [ ] Define typed query builder interfaces for DAL helpers (`filter`, `get`, `first`, `run`, etc.)
 - [ ] Generate relation result types from manifest metadata
 - [ ] Provide a temporary escape hatch for legacy code paths (if needed) and remove `Record<string, any>` usage once migration completes
+- [ ] Simplify `tests/fixtures/dal-fixture-ava.ts` while keeping strict model constructor typings sourced from manifest handles
 
 **Bootstrap & cleanup:**
 - [ ] Update bootstrap to import models (auto-register) instead of explicit init
