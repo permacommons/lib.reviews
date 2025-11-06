@@ -13,33 +13,22 @@ import PostgresDAL from '../dal/index.ts';
 import { setBootstrapResolver } from '../dal/lib/model-handle.ts';
 
 import type { DataAccessLayer, JsonObject, ModelConstructor } from '../dal/lib/model-types.ts';
-import blogPostModule from '../models/blog-post.ts';
-import fileModule from '../models/file.ts';
-import inviteLinkModule from '../models/invite-link.ts';
-import reviewModule from '../models/review.ts';
-import teamModule from '../models/team.ts';
-import teamJoinRequestModule from '../models/team-join-request.ts';
-import teamSlugModule from '../models/team-slug.ts';
-import thingModule from '../models/thing.ts';
-import thingSlugModule from '../models/thing-slug.ts';
-import userModule from '../models/user.ts';
-import userMetaModule from '../models/user-meta.ts';
+import '../models/blog-post.ts';
+import '../models/file.ts';
+import '../models/invite-link.ts';
+import '../models/review.ts';
+import '../models/team.ts';
+import '../models/team-join-request.ts';
+import '../models/team-slug.ts';
+import '../models/thing.ts';
+import '../models/thing-slug.ts';
+import '../models/user.ts';
+import '../models/user-meta.ts';
 import debug from '../util/debug.ts';
 
-type ModelInitializer<TModel extends ModelConstructor = ModelConstructor> = (
-  dal: DataAccessLayer
-) => Promise<TModel> | TModel;
+type ModelInitializer = (dal: DataAccessLayer) => Promise<void>;
 
-type ModelInitializerDescriptor =
-  | ModelInitializer
-  | {
-      key?: string;
-      initializer?: ModelInitializer;
-      initialize?: ModelInitializer;
-      init?: ModelInitializer;
-      loader?: ModelInitializer;
-      name?: string;
-    };
+const DEFAULT_MODEL_INITIALIZERS: ModelInitializer[] = [];
 
 const PostgresDALFactoryValue =
   typeof PostgresDAL === 'function' ? PostgresDAL : (PostgresDAL as { default?: unknown }).default;
@@ -52,43 +41,7 @@ const PostgresDALFactory = PostgresDALFactoryValue as (
   config?: Partial<PostgresConfig> & JsonObject
 ) => DataAccessLayer;
 
-const DEFAULT_MODEL_INITIALIZERS: ModelInitializerDescriptor[] = [];
-
-/**
- * Collect a module-provided initializer so the bootstrap process can invoke it
- * later. Modules export `initializeModel` in slightly different shapes, so this
- * helper normalizes them before adding to the shared list.
- * @param key Canonical table or registry key for the initializer.
- * @param initializer Value to test for a callable initializer.
- */
-const maybeAddInitializer = (key: string, initializer: unknown) => {
-  if (typeof initializer === 'function') {
-    DEFAULT_MODEL_INITIALIZERS.push({ key, initializer: initializer as ModelInitializer });
-  }
-};
-
-// users now uses manifest-based initialization (force import side effect)
-void userModule;
-// user_metas now uses manifest-based initialization (force import side effect)
-void userMetaModule;
-// teams now uses manifest-based initialization (force import side effect)
-void teamModule;
-// team_join_requests now uses manifest-based initialization (force import side effect)
-void teamJoinRequestModule;
-// team_slugs now uses manifest-based initialization (force import side effect)
-void teamSlugModule;
-// things now uses manifest-based initialization (force import side effect)
-void thingModule;
-// thing_slugs now uses manifest-based initialization (force import side effect)
-void thingSlugModule;
-// reviews now uses manifest-based initialization (force import side effect)
-void reviewModule;
-// files now uses manifest-based initialization (force import side effect)
-void fileModule;
-// blog_posts now uses manifest-based initialization (force import side effect)
-void blogPostModule;
-// invite_links now uses manifest-based initialization (force import side effect)
-void inviteLinkModule;
+// Models now register themselves via manifest side effects on import.
 
 let globalDAL: DataAccessLayer | null = null;
 let initializationPromise: Promise<DataAccessLayer> | null = null;
@@ -129,49 +82,6 @@ async function tryReuseSharedDAL(): Promise<DataAccessLayer> {
   }
   const dal = await getPostgresDAL();
   return dal as DataAccessLayer;
-}
-
-/**
- * Normalize an initializer entry so downstream logic always receives a
- * canonical key and a model constructor when available.
- * @param entry Initializer descriptor from the bootstrap list.
- * @param dal Data access layer used to instantiate the model.
- * @returns The resolved registry key and constructor, or nulls when unavailable.
- */
-async function resolveInitializer(
-  entry: ModelInitializerDescriptor,
-  dal: DataAccessLayer
-): Promise<{ key: string | null; model: ModelConstructor | null }> {
-  if (!entry) {
-    return { key: null, model: null };
-  }
-
-  let initializer: ModelInitializer | null = null;
-  let key: string | null = null;
-
-  if (typeof entry === 'function') {
-    initializer = entry;
-    key =
-      (entry as ModelInitializer & { modelKey?: string; key?: string; name?: string }).modelKey ||
-      (entry as { key?: string }).key ||
-      (entry as { name?: string }).name ||
-      null;
-  } else if (typeof entry === 'object') {
-    initializer = entry.initializer || entry.initialize || entry.init || entry.loader || null;
-    key = entry.key ?? entry.name ?? null;
-  }
-
-  if (typeof initializer !== 'function') {
-    return { key: null, model: null };
-  }
-
-  const model = await initializer(dal);
-  if (!model) {
-    return { key: key ?? null, model: null };
-  }
-
-  const canonicalKey = key || model.tableName || initializer.name || null;
-  return { key: canonicalKey, model };
 }
 
 /**
@@ -277,35 +187,26 @@ export async function initializeDAL(
  */
 export async function registerAllModels(
   dal: DataAccessLayer,
-  initializers: ModelInitializerDescriptor[] = DEFAULT_MODEL_INITIALIZERS
+  initializers: ModelInitializer[] = DEFAULT_MODEL_INITIALIZERS
 ): Promise<Map<string, ModelConstructor>> {
-  debug.db('Registering all models...');
+  debug.db('Registering manifest-based models...');
 
-  const registered = new Map<string, ModelConstructor>();
-
-  for (const entry of initializers) {
+  for (const initializer of initializers) {
+    if (typeof initializer !== 'function') {
+      continue;
+    }
     try {
-      const { key, model } = await resolveInitializer(entry, dal);
-      if (!key || !model) {
-        continue;
-      }
-
-      registered.set(key, model);
-      debug.db(`Registered model: ${key}`);
+      await initializer(dal);
     } catch (error) {
-      const identifier =
-        (typeof entry === 'function' && (entry as { name?: string }).name) ||
-        (typeof entry === 'object' ? (entry?.key ?? entry?.name) : null) ||
-        'unknown';
-      const registerMessage = `Failed to register model ${identifier}: ${error instanceof Error ? error.message : String(error)}`;
-      debug.error(registerMessage);
+      const name = (initializer as { name?: string })?.name ?? '<anonymous>';
+      const message = `Model initializer "${name}" failed: ${error instanceof Error ? error.message : String(error)}`;
+      debug.error(message);
       if (error instanceof Error) {
         debug.error({ error });
       }
     }
   }
 
-  // Initialize manifest-based models
   try {
     const { initializeManifestModels } = await import('../dal/lib/create-model.ts');
     initializeManifestModels(dal);
@@ -317,7 +218,8 @@ export async function registerAllModels(
     }
   }
 
-  debug.db(`Successfully registered ${registered.size} models`);
+  const registered = dal.getRegisteredModels();
+  debug.db(`Manifest registry contains ${registered.size} models`);
   return registered;
 }
 
@@ -445,7 +347,7 @@ interface TestHarnessOptions {
   schemaNamespace?: string | null;
   autoMigrate?: boolean;
   registerModels?: boolean;
-  modelInitializers?: ModelInitializerDescriptor[];
+  modelInitializers?: ModelInitializer[];
 }
 
 /**

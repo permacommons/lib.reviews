@@ -134,7 +134,7 @@ export default User;
 - [ ] Simplify `tests/fixtures/dal-fixture-ava.ts` while keeping strict model constructor typings sourced from manifest handles
 
 **Bootstrap & cleanup:**
-- [ ] Update bootstrap to import models (auto-register) instead of explicit init
+- [x] Update bootstrap to import models (auto-register) instead of explicit init
 - [ ] Remove old `initializeModel` function from model-initializer.ts
 - [ ] Remove TODO comments added in Phase 3.5
 - [ ] Verify all `& Record<string, any>` workarounds removed
