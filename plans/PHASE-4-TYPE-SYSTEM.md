@@ -392,7 +392,7 @@ test('user creation', async (t) => {
 - Remove manual `initializeModel` calls
 - Remove `& Record<string, any>` workarounds
 - Verify types and tests for each
-- **Status:** In progress (user migrated; review, thing, file, blog-post pending)
+- **Status:** In progress (user, thing migrated; review, file, blog-post pending)
 
 ### Step 5: Core Type System Upgrade
 - Update `ModelInstance`/`VersionedModelInstance` to require CRUD/revision methods without an index signature
