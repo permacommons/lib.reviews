@@ -1,15 +1,27 @@
 import { ValidationError } from './errors.ts';
 
-export type ValidatorFunction = (value: unknown) => boolean | void;
+export type ValidatorFunction<TValue> = (value: TValue) => boolean | void;
+
+type TypeOutput<TBase, TRequired extends boolean> = TRequired extends true
+  ? TBase
+  : TBase | null | undefined;
+
+type SchemaFieldLike = { validate(value: unknown, fieldName?: string): unknown };
+
+export type InferFieldValue<Field extends SchemaFieldLike> = Field extends {
+  validate(value: unknown, fieldName?: string): infer TValue;
+}
+  ? TValue
+  : never;
 
 /**
- * Base type class
+ * Base type class used for declarative schema definitions.
  */
-export class Type {
+export class Type<TBase, TRequired extends boolean = false> {
   options: Record<string, unknown>;
-  validators: ValidatorFunction[];
+  validators: ValidatorFunction<TBase>[];
   protected _required: boolean;
-  defaultValue: unknown;
+  defaultValue?: TypeOutput<TBase, TRequired> | (() => TypeOutput<TBase, TRequired>);
   hasDefault: boolean;
   isSensitive: boolean;
   isVirtual: boolean;
@@ -25,11 +37,9 @@ export class Type {
   }
 
   /**
-   * Add a validator function
-   * @param validator - Validation function
-   * @returns This instance for chaining
+   * Add a validator function that will receive the normalized value.
    */
-  validator(validator: ValidatorFunction): this {
+  validator(validator: ValidatorFunction<TBase>): this {
     if (typeof validator === 'function') {
       this.validators.push(validator);
     }
@@ -37,56 +47,33 @@ export class Type {
   }
 
   /**
-   * Mark field as required
-   * @param isRequired - Whether field is required
-   * @returns This instance for chaining
+   * Mark the field as required or optional.
    */
-  required(isRequired = true): this {
-    this._required = isRequired;
-    return this;
+  required<T extends boolean = true>(isRequired = true as T): Type<TBase, T> {
+    this._required = Boolean(isRequired);
+    return this as unknown as Type<TBase, T>;
   }
 
   /**
-   * Set default value
-   * @param value - Default value or function
-   * @returns This instance for chaining
+   * Configure a default value (or factory) for the field.
    */
-  default(value: unknown): this {
+  default(
+    value: TypeOutput<TBase, TRequired> | (() => TypeOutput<TBase, TRequired>)
+  ): this {
     this.defaultValue = value;
     this.hasDefault = true;
     return this;
   }
 
   /**
-   * Mark field as sensitive (e.g., passwords, tokens)
-   * Sensitive fields are excluded from joins and other operations by default
-   * @param isSensitive - Whether field contains sensitive data
-   * @returns This instance for chaining
+   * Flag the field as sensitive so joins/exposures can omit it by default.
    */
   sensitive(isSensitive = true): this {
     this.isSensitive = isSensitive;
     return this;
   }
 
-  /**
-   * Validate a value against this type
-   * @param value - Value to validate
-   * @param fieldName - Field name for error messages
-   * @returns Validated value
-   * @throws ValidationError If validation fails
-   */
-  validate(value: unknown, fieldName = 'field'): unknown {
-    // Check required
-    if (this._required && (value === null || value === undefined)) {
-      throw new ValidationError(`${fieldName} is required`);
-    }
-
-    // Skip validation for null/undefined values if not required
-    if (value === null || value === undefined) {
-      return value;
-    }
-
-    // Run custom validators
+  protected runValidators(value: TBase, fieldName: string): void {
     for (const validator of this.validators) {
       try {
         const result = validator(value);
@@ -101,21 +88,34 @@ export class Type {
         throw new ValidationError(`Validation error for ${fieldName}: ${message}`);
       }
     }
-
-    return value;
   }
 
   /**
-   * Get the default value for this type
-   * @returns Default value
+   * Validate the supplied value and return the normalized result.
    */
-  getDefault(): unknown {
+  validate(value: unknown, fieldName = 'field'): TypeOutput<TBase, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
+    }
+
+    if (value === null || value === undefined) {
+      return value as TypeOutput<TBase, TRequired>;
+    }
+
+    this.runValidators(value as TBase, fieldName);
+    return value as TypeOutput<TBase, TRequired>;
+  }
+
+  /**
+   * Resolve a configured default for the field, if any.
+   */
+  getDefault(): TypeOutput<TBase, TRequired> | undefined {
     if (!this.hasDefault) {
       return undefined;
     }
 
     if (typeof this.defaultValue === 'function') {
-      return (this.defaultValue as () => unknown)();
+      return (this.defaultValue as () => TypeOutput<TBase, TRequired>)();
     }
 
     return this.defaultValue;
@@ -123,9 +123,9 @@ export class Type {
 }
 
 /**
- * String type
+ * String type definition with common helpers.
  */
-export class StringType extends Type {
+export class StringType<TRequired extends boolean = false> extends Type<string, TRequired> {
   maxLength: number | null;
   minLength: number | null;
   enumValues: string[] | null;
@@ -181,37 +181,45 @@ export class StringType extends Type {
     return this;
   }
 
-  override validate(value: unknown, fieldName = 'field'): string | null | undefined {
-    const validatedValue = super.validate(value, fieldName);
+  override required<T extends boolean = true>(isRequired = true as T): StringType<T> {
+    super.required(isRequired);
+    return this as unknown as StringType<T>;
+  }
 
-    if (validatedValue === null || validatedValue === undefined) {
-      return validatedValue as null | undefined;
+  override validate(value: unknown, fieldName = 'field'): TypeOutput<string, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
     }
 
-    if (typeof validatedValue !== 'string') {
+    if (value === null || value === undefined) {
+      return value as TypeOutput<string, TRequired>;
+    }
+
+    if (typeof value !== 'string') {
       throw new ValidationError(`${fieldName} must be a string`);
     }
 
-    if (this.maxLength !== null && validatedValue.length > this.maxLength) {
+    if (this.maxLength !== null && value.length > this.maxLength) {
       throw new ValidationError(`${fieldName} must be shorter than ${this.maxLength} characters`);
     }
 
-    if (this.minLength !== null && validatedValue.length < this.minLength) {
+    if (this.minLength !== null && value.length < this.minLength) {
       throw new ValidationError(`${fieldName} must be longer than ${this.minLength} characters`);
     }
 
-    if (this.enumValues && !this.enumValues.includes(validatedValue)) {
+    if (this.enumValues && !this.enumValues.includes(value)) {
       throw new ValidationError(`${fieldName} must be one of: ${this.enumValues.join(', ')}`);
     }
 
-    return validatedValue;
+    this.runValidators(value, fieldName);
+    return value as TypeOutput<string, TRequired>;
   }
 }
 
 /**
- * Number type
+ * Number type definition with optional range/integer constraints.
  */
-export class NumberType extends Type {
+export class NumberType<TRequired extends boolean = false> extends Type<number, TRequired> {
   minValue: number | null;
   maxValue: number | null;
   isInteger: boolean;
@@ -238,166 +246,241 @@ export class NumberType extends Type {
     return this;
   }
 
-  override validate(value: unknown, fieldName = 'field'): number | null | undefined {
-    const validatedValue = super.validate(value, fieldName);
+  override required<T extends boolean = true>(isRequired = true as T): NumberType<T> {
+    super.required(isRequired);
+    return this as unknown as NumberType<T>;
+  }
 
-    if (validatedValue === null || validatedValue === undefined) {
-      return validatedValue as null | undefined;
+  override validate(value: unknown, fieldName = 'field'): TypeOutput<number, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
     }
 
-    if (typeof validatedValue !== 'number' || !Number.isFinite(validatedValue)) {
+    if (value === null || value === undefined) {
+      return value as TypeOutput<number, TRequired>;
+    }
+
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
       throw new ValidationError(`${fieldName} must be a finite number`);
     }
 
-    if (this.isInteger && !Number.isInteger(validatedValue)) {
+    if (this.isInteger && !Number.isInteger(value)) {
       throw new ValidationError(`${fieldName} must be an integer`);
     }
 
-    if (this.minValue !== null && validatedValue < this.minValue) {
+    if (this.minValue !== null && value < this.minValue) {
       throw new ValidationError(`${fieldName} must be greater than or equal to ${this.minValue}`);
     }
 
-    if (this.maxValue !== null && validatedValue > this.maxValue) {
+    if (this.maxValue !== null && value > this.maxValue) {
       throw new ValidationError(`${fieldName} must be less than or equal to ${this.maxValue}`);
     }
 
-    return validatedValue;
+    this.runValidators(value, fieldName);
+    return value as TypeOutput<number, TRequired>;
   }
 }
 
 /**
- * Boolean type
+ * Boolean type definition.
  */
-export class BooleanType extends Type {
-  override validate(value: unknown, fieldName = 'field'): boolean | null | undefined {
-    const validatedValue = super.validate(value, fieldName);
+export class BooleanType<TRequired extends boolean = false> extends Type<boolean, TRequired> {
+  override required<T extends boolean = true>(isRequired = true as T): BooleanType<T> {
+    super.required(isRequired);
+    return this as unknown as BooleanType<T>;
+  }
 
-    if (validatedValue === null || validatedValue === undefined) {
-      return validatedValue as null | undefined;
+  override validate(value: unknown, fieldName = 'field'): TypeOutput<boolean, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
     }
 
-    if (typeof validatedValue !== 'boolean') {
+    if (value === null || value === undefined) {
+      return value as TypeOutput<boolean, TRequired>;
+    }
+
+    if (typeof value !== 'boolean') {
       throw new ValidationError(`${fieldName} must be a boolean`);
     }
 
-    return validatedValue;
+    this.runValidators(value, fieldName);
+    return value as TypeOutput<boolean, TRequired>;
   }
 }
 
 /**
- * Date type
+ * Date type definition with ISO parsing support.
  */
-export class DateType extends Type {
-  override validate(value: unknown, fieldName = 'field'): Date | null | undefined {
-    const validatedValue = super.validate(value, fieldName);
+export class DateType<TRequired extends boolean = false> extends Type<Date, TRequired> {
+  override required<T extends boolean = true>(isRequired = true as T): DateType<T> {
+    super.required(isRequired);
+    return this as unknown as DateType<T>;
+  }
 
-    if (validatedValue === null || validatedValue === undefined) {
-      return validatedValue as null | undefined;
+  override validate(value: unknown, fieldName = 'field'): TypeOutput<Date, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
     }
 
-    if (validatedValue instanceof Date) {
-      if (Number.isNaN(validatedValue.getTime())) {
-        throw new ValidationError(`${fieldName} must be a valid date`);
-      }
-      return validatedValue;
+    if (value === null || value === undefined) {
+      return value as TypeOutput<Date, TRequired>;
     }
 
-    if (typeof validatedValue === 'string') {
-      const date = new Date(validatedValue);
-      if (Number.isNaN(date.getTime())) {
-        throw new ValidationError(`${fieldName} must be a valid date`);
-      }
-      return date;
+    let normalized: Date;
+
+    if (value instanceof Date) {
+      normalized = value;
+    } else if (typeof value === 'string') {
+      normalized = new Date(value);
+    } else {
+      throw new ValidationError(`${fieldName} must be a Date object`);
     }
 
-    throw new ValidationError(`${fieldName} must be a Date object`);
+    if (Number.isNaN(normalized.getTime())) {
+      throw new ValidationError(`${fieldName} must be a valid date`);
+    }
+
+    this.runValidators(normalized, fieldName);
+    return normalized as TypeOutput<Date, TRequired>;
   }
 }
 
 /**
- * Array type
+ * Array type definition that can optionally enforce an element type.
  */
-export class ArrayType extends Type {
-  elementType: Type | null;
+export class ArrayType<
+  TElementField extends SchemaFieldLike = Type<unknown>,
+  TRequired extends boolean = false,
+> extends Type<Array<InferFieldValue<TElementField>>, TRequired> {
+  elementType: TElementField | null;
 
-  constructor(elementType: Type | null = null, options: Record<string, unknown> = {}) {
+  constructor(elementType: TElementField | null = null, options: Record<string, unknown> = {}) {
     super(options);
     this.elementType = elementType;
   }
 
-  override validate(value: unknown, fieldName = 'field'): unknown {
-    const validatedValue = super.validate(value, fieldName);
-
-    if (validatedValue === null || validatedValue === undefined) {
-      return validatedValue;
-    }
-
-    if (!Array.isArray(validatedValue)) {
-      throw new ValidationError(`${fieldName} must be an array`);
-    }
-
-    if (this.elementType) {
-      return validatedValue.map((item, index) =>
-        this.elementType!.validate(item, `${fieldName}[${index}]`)
-      );
-    }
-
-    return validatedValue;
+  override required<T extends boolean = true>(isRequired = true as T): ArrayType<TElementField, T> {
+    super.required(isRequired);
+    return this as unknown as ArrayType<TElementField, T>;
   }
-}
 
-/**
- * Object type (for JSONB fields)
- */
-export class ObjectType extends Type {
   override validate(
     value: unknown,
     fieldName = 'field'
-  ): Record<string, unknown> | null | undefined {
-    const validatedValue = super.validate(value, fieldName);
-
-    if (validatedValue === null || validatedValue === undefined) {
-      return validatedValue as null | undefined;
+  ): TypeOutput<Array<InferFieldValue<TElementField>>, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
     }
 
-    if (typeof validatedValue !== 'object' || Array.isArray(validatedValue)) {
-      throw new ValidationError(`${fieldName} must be an object`);
+    if (value === null || value === undefined) {
+      return value as TypeOutput<Array<InferFieldValue<TElementField>>, TRequired>;
     }
 
-    return validatedValue as Record<string, unknown>;
+    if (!Array.isArray(value)) {
+      throw new ValidationError(`${fieldName} must be an array`);
+    }
+
+    this.runValidators(value as Array<InferFieldValue<TElementField>>, fieldName);
+
+    if (!this.elementType) {
+      return value as TypeOutput<Array<InferFieldValue<TElementField>>, TRequired>;
+    }
+
+    const elementType = this.elementType;
+    const normalized = value.map((item, index) =>
+      elementType.validate(item, `${fieldName}[${index}]`)
+    );
+
+    return normalized as TypeOutput<Array<InferFieldValue<TElementField>>, TRequired>;
   }
 }
 
 /**
- * Virtual type (computed fields)
+ * Object/JSONB type definition.
  */
-export class VirtualType extends Type {
+export class ObjectType<TRequired extends boolean = false> extends Type<
+  Record<string, unknown>,
+  TRequired
+> {
+  override required<T extends boolean = true>(isRequired = true as T): ObjectType<T> {
+    super.required(isRequired);
+    return this as unknown as ObjectType<T>;
+  }
+
+  override validate(
+    value: unknown,
+    fieldName = 'field'
+  ): TypeOutput<Record<string, unknown>, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
+    }
+
+    if (value === null || value === undefined) {
+      return value as TypeOutput<Record<string, unknown>, TRequired>;
+    }
+
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      throw new ValidationError(`${fieldName} must be an object`);
+    }
+
+    this.runValidators(value as Record<string, unknown>, fieldName);
+    return value as TypeOutput<Record<string, unknown>, TRequired>;
+  }
+}
+
+/**
+ * Virtual/computed field type definition.
+ */
+export class VirtualType<TValue = unknown, TRequired extends boolean = false> extends Type<
+  TValue,
+  TRequired
+> {
   constructor(options: Record<string, unknown> = {}) {
     super(options);
     this.isVirtual = true;
   }
 
-  override validate(value: unknown, fieldName = 'field'): unknown {
-    // Virtual fields are not validated during save
-    return value;
+  override required<T extends boolean = true>(isRequired = true as T): VirtualType<TValue, T> {
+    super.required(isRequired);
+    return this as unknown as VirtualType<TValue, T>;
+  }
+
+  returns<TNewValue>(): VirtualType<TNewValue, TRequired> {
+    return this as unknown as VirtualType<TNewValue, TRequired>;
+  }
+
+  override validate(value: unknown, fieldName = 'field'): TypeOutput<TValue, TRequired> {
+    if (this._required && (value === null || value === undefined)) {
+      throw new ValidationError(`${fieldName} is required`);
+    }
+
+    if (value === null || value === undefined) {
+      return value as TypeOutput<TValue, TRequired>;
+    }
+
+    this.runValidators(value as TValue, fieldName);
+    return value as TypeOutput<TValue, TRequired>;
   }
 }
 
-// Factory functions for creating type instances
+// Factory helpers used by manifests.
 const types = {
   string: (options?: Record<string, unknown>) => new StringType(options),
   number: (options?: Record<string, unknown>) => new NumberType(options),
   boolean: (options?: Record<string, unknown>) => new BooleanType(options),
   date: (options?: Record<string, unknown>) => new DateType(options),
-  array: (elementType?: Type | null, options?: Record<string, unknown>) =>
-    new ArrayType(elementType ?? null, options),
+  array: <
+    TElementField extends SchemaFieldLike = Type<unknown>,
+  >(
+    elementType?: TElementField | null,
+    options?: Record<string, unknown>
+  ) => new ArrayType(elementType ?? null, options),
   object: (options?: Record<string, unknown>) => new ObjectType(options),
-  virtual: (options?: Record<string, unknown>) => new VirtualType(options),
+  virtual: <TValue = unknown>(options?: Record<string, unknown>) =>
+    new VirtualType<TValue>(options),
 
-  // Aliases for compatibility
-  any: (options?: Record<string, unknown>) => new Type(options),
+  // Compatibility alias for unconstrained fields.
+  any: (options?: Record<string, unknown>) => new Type<unknown>(options),
 } as const;
-
-export { types };
 
 export default types;

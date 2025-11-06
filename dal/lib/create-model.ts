@@ -1,5 +1,5 @@
 import type { InferConstructor, ModelManifest } from './model-manifest.ts';
-import { getAllManifests, getManifest, registerManifest } from './model-registry.ts';
+import { getAllManifests, registerManifest } from './model-registry.ts';
 import { initializeModel } from './model-initializer.ts';
 import type { DataAccessLayer } from './model-types.ts';
 

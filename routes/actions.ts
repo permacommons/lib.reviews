@@ -1,4 +1,5 @@
 import config from 'config';
+import type { Express } from 'express';
 import { Router } from 'express';
 import i18n from 'i18n';
 import passport from 'passport';
@@ -299,7 +300,7 @@ if (!config.requireInviteLinks) {
       });
 
       setSignupLanguage(req, res);
-      req.login(user, error => {
+      req.login(user as unknown as Express.User, error => {
         if (error) {
           debug.error({ req, error });
         }

@@ -16,11 +16,11 @@ type VerifyCallback = (
 ) => void;
 
 passport.serializeUser((user: Express.User, done: (err: unknown, id?: SerializedId) => void) => {
-  done(null, user.id as SerializedId);
+  done(null, String(user.id));
 });
 
 passport.deserializeUser(async (id: unknown, done: DeserializeCallback) => {
-  const userId = id as SerializedId;
+  const userId = String(id);
   try {
     const user = await User.getWithTeams(userId);
     return done(null, user as Express.User | null);
@@ -60,7 +60,7 @@ const verify: passportLocal.VerifyFunction = async (username, password, done: Ve
       });
     }
 
-    return done(null, user as Express.User);
+    return done(null, user as unknown as Express.User);
   } catch (error) {
     return done(error);
   }

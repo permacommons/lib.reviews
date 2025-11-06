@@ -45,33 +45,33 @@ router.get('/thing', (req: ApiRouteRequest, res: ApiRouteResponse, next: Handler
     }
 
     Thing.lookupByURL(urlUtils.normalize(urlParam), userID)
-      .then(result => {
-        if (!result.length) {
+      .then(things => {
+        const [thing] = things;
+        if (!thing) {
           res.status(404);
           rv.message = failureMsg;
           rv.errors = ['URL not found.'];
           res.type('json');
           res.send(JSON.stringify(rv, null, 2));
         } else {
-          result = result[0];
-          result
+          thing
             .populateReviewMetrics()
             .then(() => {
               res.status(200);
               rv.thing = {
-                id: result.id,
-                label: result.label,
-                aliases: result.aliases,
-                description: result.description,
-                originalLanguage: result.originalLanguage,
-                canonicalSlugName: result.canonicalSlugName,
-                urlID: result.urlID,
-                createdOn: result.createdOn,
-                createdBy: result.createdBy,
-                numberOfReviews: result.numberOfReviews,
-                averageStarRating: result.averageStarRating,
-                urls: result.urls,
-                reviews: result.reviews,
+                id: thing.id,
+                label: thing.label,
+                aliases: thing.aliases,
+                description: thing.description,
+                originalLanguage: thing.originalLanguage,
+                canonicalSlugName: thing.canonicalSlugName,
+                urlID: thing.urlID,
+                createdOn: thing.createdOn,
+                createdBy: thing.createdBy,
+                numberOfReviews: thing.numberOfReviews,
+                averageStarRating: thing.averageStarRating,
+                urls: thing.urls,
+                reviews: thing.reviews,
               };
               res.type('json');
               res.send(JSON.stringify(rv, null, 2));

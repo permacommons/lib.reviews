@@ -11,22 +11,12 @@ import adapters from '../adapters/adapters.ts';
 import mlString from '../dal/lib/ml-string.ts';
 import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import languages from '../locales/languages.ts';
-import thingModelHandle from '../models/thing.ts';
+import thingModelHandle, { type ThingInstance } from '../models/thing.ts';
 import type { TemplateContext } from '../types/http/locals.ts';
 import { formatLongDate, formatShortDate } from './date.ts';
 import debug from './debug.ts';
 import getLicenseURL from './get-license-url.ts';
 import urlUtils from './url-utils.ts';
-
-type ThingLike = {
-  label?: unknown;
-  urls?: string[];
-  urlID?: string;
-};
-
-type ThingModelHandle = {
-  getLabel?: (thing: ThingLike, locale: string) => string | undefined;
-};
 
 const getTemplateContext = (options: HelperOptions): TemplateContext =>
   (options?.data?.root ?? {}) as TemplateContext;
@@ -43,16 +33,16 @@ const resolveMultilingual = (locale: string, value: unknown) =>
  *  Active locale for rendering
  * @returns Localized label, prettified URL, or an empty string
  */
-function getThingLabel(thing: ThingLike | null | undefined, locale: string): string {
+function getThingLabel(thing: ThingInstance | null | undefined, locale: string): string {
   if (!thing) {
     return '';
   }
 
-  const modelGetLabel = (thingModelHandle as ThingModelHandle | null | undefined)?.getLabel;
+  const modelGetLabel = thingModelHandle?.getLabel;
 
   if (typeof modelGetLabel === 'function') {
     try {
-      const label = modelGetLabel(thing, locale);
+      const label = modelGetLabel(thing as ThingInstance, locale);
       if (label) {
         return label;
       }
@@ -155,7 +145,7 @@ hbs.registerHelper('getLang', (str: unknown, options: HelperOptions) => {
 
 hbs.registerHelper(
   'getThingLabel',
-  (thing: ThingLike | null | undefined, options: HelperOptions) => {
+  (thing: ThingInstance | null | undefined, options: HelperOptions) => {
     const context = getTemplateContext(options);
     return getThingLabel(thing, context.locale);
   }
@@ -176,7 +166,7 @@ hbs.registerHelper('substitute', (...args) => {
 
 hbs.registerHelper(
   'getThingLink',
-  (thing: ThingLike | null | undefined, options: HelperOptions) => {
+  (thing: ThingInstance | null | undefined, options: HelperOptions) => {
     if (!thing) {
       return '';
     }

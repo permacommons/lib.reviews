@@ -190,19 +190,10 @@ async function attachCreator(model: Record<string, any>, post: Record<string, an
   }
 
   try {
-    const dalInstance = model.dal;
-    const userTable = dalInstance.schemaNamespace ? `${dalInstance.schemaNamespace}users` : 'users';
-    const query = `
-      SELECT *
-      FROM ${userTable}
-      WHERE id = $1
-    `;
-    const result = await dalInstance.query(query, [post.createdBy]);
-    if (!result.rows.length) {
+    const user = await User.getWithTeams(post.createdBy);
+    if (!user) {
       return post;
     }
-
-    const user = User._createInstance(result.rows[0]);
     post.creator = {
       id: user.id,
       displayName: user.displayName,

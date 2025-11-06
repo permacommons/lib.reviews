@@ -4,12 +4,20 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance,
+  ModelInstanceCore,
+  RevisionActor,
+  RevisionMetadata,
 } from './model-types.ts';
 import QueryBuilder from './query-builder.ts';
 import type { ModelConstructorLike } from './revision.ts';
 import revision from './revision.ts';
 
-export interface ModelSchemaField<TValue = unknown> extends JsonObject {
+/**
+ * Shape each manifest schema entry must satisfy. The type system extracts the
+ * validated value via `validate`, while the other flags drive runtime behaviour
+ * (virtual fields, defaults, sensitivity, etc.).
+ */
+export interface ModelSchemaField<TValue = unknown> {
   validate(value: unknown, fieldName?: string): TValue;
   isVirtual?: boolean;
   isSensitive?: boolean;
@@ -22,11 +30,21 @@ type GetOptions = JsonObject & {
   includeSensitive?: string[];
 };
 
-export type ModelSchema<TRecord extends JsonObject, TVirtual extends JsonObject> = Record<
+/**
+ * Normalised schema map used by the DAL. Keys are camelCase property names,
+ * values are {@link ModelSchemaField} descriptors that may represent stored or
+ * virtual fields. Typing ensures the runtime schema remains compatible with
+ * the inferred `TData`/`TVirtual` shapes.
+ */
+export type ModelSchema<TData extends JsonObject, TVirtual extends JsonObject> = Record<
   string,
-  ModelSchemaField<TRecord[keyof TRecord] | TVirtual[keyof TVirtual] | unknown>
+  ModelSchemaField<(TData & TVirtual)[keyof (TData & TVirtual)] | unknown>
 >;
 
+/**
+ * Declarative description of a many-to-many through relation used when
+ * normalising relation metadata.
+ */
 export interface ThroughRelationConfig extends JsonObject {
   table: string;
   sourceColumn: string;
@@ -35,6 +53,11 @@ export interface ThroughRelationConfig extends JsonObject {
   targetCondition?: unknown;
 }
 
+/**
+ * Fully normalised relation definition stored on the runtime model. All
+ * optional shorthand fields are expanded so the query builder can rely on a
+ * consistent shape.
+ */
 export interface NormalizedRelationConfig extends JsonObject {
   targetTable: string;
   targetModelKey: string;
@@ -50,7 +73,7 @@ export interface NormalizedRelationConfig extends JsonObject {
 
 type RevisionHandlerName = 'newRevision' | 'deleteAllRevisions';
 
-type RevisionHandlerMap<TInstance extends ModelInstance> = Partial<
+type RevisionHandlerMap<TInstance extends ModelInstanceCore<JsonObject, JsonObject>> = Partial<
   Record<RevisionHandlerName, (this: TInstance, ...args: unknown[]) => unknown>
 >;
 
@@ -132,8 +155,7 @@ function deepClone<T>(value: T): T {
 /**
  * Base Model class
  */
-class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>
-  implements ModelInstance<TRecord, TVirtual>
+class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>
 {
   [key: string]: unknown;
   protected static _fieldMappings: Map<string, string> = new Map();
@@ -155,15 +177,15 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
     return this as unknown as ModelRuntime<JsonObject, JsonObject>;
   }
 
-  protected get runtime(): ModelRuntime<TRecord, TVirtual> {
-    return this.constructor as unknown as ModelRuntime<TRecord, TVirtual>;
+  protected get runtime(): ModelRuntime<TData, TVirtual> {
+    return this.constructor as unknown as ModelRuntime<TData, TVirtual>;
   }
 
   protected _setVirtualField(key: string, value: unknown): void {
     (this._virtualFields as Record<string, unknown>)[key] = value;
   }
 
-  constructor(data: Partial<TRecord & TVirtual> = {}, _options: JsonObject = {}) {
+  constructor(data: Partial<TData & TVirtual> = {}, _options: JsonObject = {}) {
     this._data = {};
     this._virtualFields = {};
     this._changed = new Set();
@@ -396,20 +418,19 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param schema - Model schema definition
    * @param options - Model options
    * @param dal - DAL instance
-   * @returns Model constructor
-   */
+  * @returns Model constructor
+  */
   static createModel<
-    TRecord extends JsonObject,
+    TData extends JsonObject,
     TVirtual extends JsonObject = JsonObject,
-    TInstance extends Model<TRecord, TVirtual> = Model<TRecord, TVirtual>,
   >(
     tableName: string,
-    schema: ModelSchema<TRecord, TVirtual>,
+    schema: ModelSchema<TData, TVirtual>,
     options: JsonObject,
     dal: DataAccessLayer
-  ): ModelConstructor<TRecord, TVirtual, TInstance> {
+  ): ModelConstructor<TData, TVirtual> {
     // Create the model constructor
-    class DynamicModel extends Model<TRecord, TVirtual> {
+    class DynamicModel extends Model<TData, TVirtual> {
       static override _fieldMappings = new Map<string, string>();
       static override _relations = new Map<string, NormalizedRelationConfig>();
       static get tableName() {
@@ -426,7 +447,7 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
       }
     }
 
-    return DynamicModel as unknown as ModelConstructor<TRecord, TVirtual, TInstance>;
+    return DynamicModel as unknown as ModelConstructor<TData, TVirtual>;
   }
 
   /**
@@ -439,13 +460,13 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Model instance
    */
   static async get<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
   >(
-    this: ModelRuntime<TRecord, TVirtual>,
+    this: ModelRuntime<TData, TVirtual>,
     id: string,
     options: GetOptions = {}
-  ): Promise<Model<TRecord, TVirtual>> {
+  ): Promise<Model<TData, TVirtual>> {
     const query = new QueryBuilder(this, this.dal);
 
     // Extract includeSensitive option, rest are join options
@@ -461,7 +482,7 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
       throw new DocumentNotFound(`${this.tableName} with id ${id} not found`);
     }
 
-    return this._createInstance(result) as Model<TRecord, TVirtual>;
+    return this._createInstance(result) as Model<TData, TVirtual>;
   }
 
   /**
@@ -470,12 +491,12 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Array of model instances
    */
   static async getAll<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
   >(
-    this: ModelRuntime<TRecord, TVirtual>,
+    this: ModelRuntime<TData, TVirtual>,
     ...ids: string[]
-  ): Promise<Array<Model<TRecord, TVirtual>>> {
+  ): Promise<Array<Model<TData, TVirtual>>> {
     if (ids.length === 0) {
       return [];
     }
@@ -488,7 +509,7 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
       })
       .run();
 
-    return results.map(result => this._createInstance(result) as Model<TRecord, TVirtual>);
+    return results.map(result => this._createInstance(result) as Model<TData, TVirtual>);
   }
 
   /**
@@ -496,8 +517,8 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param criteria - Filter criteria
    * @returns Query builder for chaining
    */
-  static filter<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TRecord, TVirtual>,
+  static filter<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    this: ModelRuntime<TData, TVirtual>,
     criteria: unknown
   ) {
     const query = new QueryBuilder(this, this.dal);
@@ -511,14 +532,14 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Created model instance
    */
   static async create<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
   >(
-    this: ModelRuntime<TRecord, TVirtual>,
-    data: Partial<TRecord>,
+    this: ModelRuntime<TData, TVirtual>,
+    data: Partial<TData>,
     options: JsonObject = {}
-  ): Promise<Model<TRecord, TVirtual>> {
-    const instance = new this(data) as Model<TRecord, TVirtual>;
+  ): Promise<ModelInstance<TData, TVirtual>> {
+    const instance = new this(data as Partial<TData & TVirtual>);
     await instance.save(options);
     return instance;
   }
@@ -531,13 +552,13 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Updated model instance
    */
   static async update<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
   >(
-    this: ModelRuntime<TRecord, TVirtual>,
+    this: ModelRuntime<TData, TVirtual>,
     id: string,
-    data: Partial<TRecord>
-  ): Promise<Model<TRecord, TVirtual>> {
+    data: Partial<TData>
+  ): Promise<ModelInstance<TData, TVirtual>> {
     const instance = await this.get(id);
     for (const [key, value] of Object.entries(data || {})) {
       instance.setValue(key, value);
@@ -552,9 +573,9 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Success status
    */
   static async delete<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TRecord, TVirtual>, id: string): Promise<boolean> {
+  >(this: ModelRuntime<TData, TVirtual>, id: string): Promise<boolean> {
     const query = new QueryBuilder(this, this.dal);
     const result = await query.deleteById(id);
     return result > 0;
@@ -566,8 +587,8 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param direction - Sort direction (ASC/DESC)
    * @returns Query builder
    */
-  static orderBy<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TRecord, TVirtual>,
+  static orderBy<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    this: ModelRuntime<TData, TVirtual>,
     field: string,
     direction = 'ASC'
   ) {
@@ -580,8 +601,8 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param count - Limit count
    * @returns Query builder
    */
-  static limit<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TRecord, TVirtual>,
+  static limit<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    this: ModelRuntime<TData, TVirtual>,
     count: number
   ) {
     const query = new QueryBuilder(this, this.dal);
@@ -593,8 +614,8 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param joinSpec - Join specification
    * @returns Query builder
    */
-  static getJoin<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TRecord, TVirtual>,
+  static getJoin<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    this: ModelRuntime<TData, TVirtual>,
     joinSpec: JsonObject
   ) {
     const query = new QueryBuilder(this, this.dal);
@@ -608,8 +629,8 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param options - Options for the range
    * @returns Query builder
    */
-  static between<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TRecord, TVirtual>,
+  static between<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    this: ModelRuntime<TData, TVirtual>,
     startDate: Date,
     endDate: Date,
     options: JsonObject = {}
@@ -625,9 +646,9 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Query builder
    */
   static contains<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TRecord, TVirtual>, field: string, value: unknown) {
+  >(this: ModelRuntime<TData, TVirtual>, field: string, value: unknown) {
     const query = new QueryBuilder(this, this.dal);
     return query.contains(field, value);
   }
@@ -637,9 +658,9 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Query builder with revision filters
    */
   static filterNotStaleOrDeleted<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TRecord, TVirtual>) {
+  >(this: ModelRuntime<TData, TVirtual>) {
     const query = new QueryBuilder(this, this.dal);
     return query.filterNotStaleOrDeleted();
   }
@@ -650,9 +671,9 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @returns Query builder for chaining
    */
   static getMultipleNotStaleOrDeleted<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TRecord, TVirtual>, ...ids: string[]) {
+  >(this: ModelRuntime<TData, TVirtual>, ids: string[]) {
     const query = new QueryBuilder(this, this.dal);
     return query
       .filter(row => {
@@ -669,22 +690,27 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @private
    */
   static _createInstance<
-    TRecord extends JsonObject = JsonObject,
+    TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
   >(
-    this: ModelRuntime<TRecord, TVirtual>,
-    data: JsonObject | Model<TRecord, TVirtual>
-  ): Model<TRecord, TVirtual> {
+    this: ModelRuntime<TData, TVirtual>,
+    data: JsonObject | Model<TData, TVirtual>
+  ): ModelInstance<TData, TVirtual> {
     // If data is already a Model instance, extract the raw database data
     const rawData = data instanceof this && typeof data._data === 'object' ? data._data : data;
 
-    const instance = new this(rawData) as Model<TRecord, TVirtual>;
-    instance._isNew = false;
-    instance._changed.clear();
-    instance._setupPropertyAccessors();
-    instance._trackOriginalValues();
+    const instance = new this(rawData as Partial<TData & TVirtual>);
+    // The public type is `ModelInstance`, but internally we still operate on the
+    // concrete `Model` subclass so we can reuse protected helpers like
+    // `_setupPropertyAccessors` and `_trackOriginalValues`. Casting through
+    // `unknown` keeps those internals hidden from the consumer-facing types.
+    const runtimeInstance = instance as unknown as Model<TData, TVirtual>;
+    runtimeInstance._isNew = false;
+    runtimeInstance._changed.clear();
+    runtimeInstance._setupPropertyAccessors();
+    runtimeInstance._trackOriginalValues();
 
-    return instance;
+    return runtimeInstance as unknown as ModelInstance<TData, TVirtual>;
   }
 
   /**
@@ -692,12 +718,12 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param name - Method name
    * @param method - Method function
    */
-  static define<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TRecord, TVirtual>,
+  static define<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    this: ModelRuntime<TData, TVirtual>,
     name: string,
     method: (...args: unknown[]) => unknown
   ) {
-    this.prototype[name] = method;
+    (this.prototype as unknown as Record<string, unknown>)[name] = method;
 
     if (name === 'newRevision' || name === 'deleteAllRevisions') {
       if (!this._revisionHandlers) {
@@ -892,7 +918,7 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
     return this._revisionHandlers[handlerName];
   }
 
-  async newRevision(user, options = {}) {
+  async newRevision(user: RevisionActor | null = null, options: RevisionMetadata = {}) {
     const handler = this.runtime._ensureRevisionHandler('newRevision');
     return handler.call(this, user, options);
   }
@@ -904,7 +930,7 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
    * @param options - Deletion options
    * @returns Deletion revision
    */
-  async deleteAllRevisions(user, options = {}) {
+  async deleteAllRevisions(user: RevisionActor | null = null, options: RevisionMetadata = {}) {
     const handler = this.runtime._ensureRevisionHandler('deleteAllRevisions');
     return handler.call(this, user, options);
   }
@@ -1210,13 +1236,19 @@ class Model<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject
   }
 }
 
+/**
+ * Internal helper type that describes the concrete class returned by
+ * {@link Model.createModel}. It combines the exported constructor surface with
+ * the actual `Model` subclass so DAL internals can safely access protected
+ * helpers while keeping the public typing limited to {@link ModelInstance}.
+ */
 type RuntimeModel<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends Model<TRecord, TVirtual>,
-> = ModelConstructor<TRecord, TVirtual, TInstance> &
+  TInstance extends Model<TData, TVirtual>,
+> = ModelConstructor<TData, TVirtual, ModelInstance<TData, TVirtual>> &
   typeof Model & {
-    schema: ModelSchema<TRecord, TVirtual>;
+    schema: ModelSchema<TData, TVirtual>;
     tableName: string;
     options?: JsonObject;
     dal: DataAccessLayer;
@@ -1225,12 +1257,18 @@ type RuntimeModel<
     _revisionHandlers?: RevisionHandlerMap<TInstance>;
   };
 
-type ModelRuntime<TRecord extends JsonObject, TVirtual extends JsonObject> = RuntimeModel<
-  TRecord,
+type ModelRuntime<TData extends JsonObject, TVirtual extends JsonObject> = RuntimeModel<
+  TData,
   TVirtual,
-  Model<TRecord, TVirtual>
+  Model<TData, TVirtual>
 >;
 
+/**
+ * Concrete runtime `Model` class used by the PostgreSQL DAL. Consumers should
+ * rarely reference this directly—model modules export handles created via
+ * {@link createModel}—but internal infrastructure relies on it for shared CRUD
+ * behaviour and change tracking.
+ */
 export type { ModelRuntime };
 export { Model };
 export default Model;

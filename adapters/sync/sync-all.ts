@@ -13,7 +13,7 @@ import debug from '../../util/debug.ts';
 type SyncableThing = {
   urls?: string[];
   setURLs(urls?: string[]): void;
-  updateActiveSyncs(): Promise<unknown>;
+  updateActiveSyncs(userId?: string): Promise<unknown>;
 };
 
 const limit = promiseLimit<unknown>(2); // Max 2 URL batch updates at a time

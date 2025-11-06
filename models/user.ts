@@ -2,7 +2,8 @@ import bcrypt from 'bcrypt';
 
 import { DocumentNotFound } from '../dal/lib/errors.ts';
 import { createModel } from '../dal/lib/create-model.ts';
-import type { ModelInstance } from '../dal/lib/model-types.ts';
+import type { ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import type { InferConstructor, InferInstance, InferData, InferVirtual } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
@@ -87,18 +88,24 @@ const userManifest = {
     isSuperUser: types.boolean().default(false),
     suppressedNotices: types.array(types.string()),
     prefersRichTextEditor: types.boolean().default(false),
-    urlName: types.virtual().default(function (this: ModelInstance) {
-      const displayName =
-        typeof this.getValue === 'function' ? this.getValue('displayName') : this.displayName;
-      return displayName ? encodeURIComponent(String(displayName).replace(/ /g, '_')) : undefined;
-    }),
-    userCanEditMetadata: types.virtual().default(false),
-    userCanUploadTempFiles: types.virtual().default(function (this: ModelInstance) {
-      const isTrusted =
-        typeof this.getValue === 'function' ? this.getValue('isTrusted') : this.isTrusted;
-      const isSuperUser =
-        typeof this.getValue === 'function' ? this.getValue('isSuperUser') : this.isSuperUser;
-      return Boolean(isTrusted || isSuperUser);
+    urlName: types
+      .virtual()
+      .returns<string | undefined>()
+      .default(function (this: ModelInstance) {
+        const displayName =
+          typeof this.getValue === 'function' ? this.getValue('displayName') : this.displayName;
+        return displayName ? encodeURIComponent(String(displayName).replace(/ /g, '_')) : undefined;
+      }),
+    userCanEditMetadata: types.virtual().returns<boolean>().default(false),
+    userCanUploadTempFiles: types
+      .virtual()
+      .returns<boolean>()
+      .default(function (this: ModelInstance) {
+        const isTrusted =
+          typeof this.getValue === 'function' ? this.getValue('isTrusted') : this.isTrusted;
+        const isSuperUser =
+          typeof this.getValue === 'function' ? this.getValue('isSuperUser') : this.isSuperUser;
+        return Boolean(isTrusted || isSuperUser);
     }),
   },
   camelToSnake: {
@@ -168,11 +175,22 @@ const userManifest = {
   },
 } as const;
 
+type UserData = InferData<typeof userManifest['schema']>;
+type UserVirtual = InferVirtual<typeof userManifest['schema']>;
+type UserInstance = InferInstance<typeof userManifest>;
+// Single static context keeps helpers type-safe without re-triggering manifest inference
+type UserStaticContext = ModelConstructor<UserData, UserVirtual, UserInstance> & {
+  ensureUnique: (this: UserStaticContext, name: string) => Promise<boolean>;
+};
+
+// Preserve manifest typing while layering on the extra static surface we expose
 const User = createModel(userManifest, {
   staticProperties: {
     options: userOptions,
   },
-}) as Record<string, any>;
+}) as InferConstructor<typeof userManifest> & {
+  options: typeof userOptions;
+};
 
 type NewUserErrorOptions = ReportedErrorOptions & {
   payload?: Record<string, any>;
@@ -186,20 +204,15 @@ type NewUserErrorOptions = ReportedErrorOptions & {
  * @param id - Unique identifier of the user
  * @returns Updated invite count
  */
-async function increaseInviteLinkCount(this: any, id: string): Promise<number> {
-  const model = this as {
-    dal: { query: (sql: string, params: unknown[]) => Promise<{ rows: Array<{ invite_link_count: number }> }> };
-    tableName: string;
-  };
-
+async function increaseInviteLinkCount(this: UserStaticContext, id: string): Promise<number> {
   const query = `
-    UPDATE ${model.tableName}
+    UPDATE ${this.tableName ?? 'users'}
     SET invite_link_count = invite_link_count + 1
     WHERE id = $1
     RETURNING invite_link_count
   `;
 
-  const result = await model.dal.query(query, [id]);
+  const result = await this.dal.query<{ invite_link_count: number }>(query, [id]);
   if (!result.rows.length) throw new Error(`User with id ${id} not found`);
 
   return result.rows[0].invite_link_count;
@@ -214,8 +227,8 @@ async function increaseInviteLinkCount(this: any, id: string): Promise<number> {
  * @returns The created user instance
  * @throws NewUserError if validation fails or the user already exists
  */
-async function createUser(this: any, userObj: Record<string, any>): Promise<Record<string, any>> {
-  const user = new this({}) as Record<string, any>;
+async function createUser(this: UserStaticContext, userObj: Record<string, any>): Promise<UserInstance> {
+  const user = new this({}) as UserInstance;
 
   if (!userObj || typeof userObj !== 'object') {
     throw new NewUserError({
@@ -227,9 +240,9 @@ async function createUser(this: any, userObj: Record<string, any>): Promise<Reco
     user.setName(userObj.name);
     if (userObj.email) user.email = userObj.email;
 
-    await (this as { ensureUnique(name: string): Promise<boolean> }).ensureUnique(userObj.name);
+    await this.ensureUnique(userObj.name);
     await user.setPassword(userObj.password);
-    await user.save?.();
+    await user.save();
     updateUploadPermission(user);
   } catch (error) {
     if (error instanceof NewUserError) throw error;
@@ -251,17 +264,11 @@ async function createUser(this: any, userObj: Record<string, any>): Promise<Reco
  * @returns True if the name is available
  * @throws NewUserError if a conflicting user already exists
  */
-async function ensureUnique(this: any, name: string): Promise<boolean> {
+async function ensureUnique(this: UserStaticContext, name: string): Promise<boolean> {
   if (typeof name !== 'string') throw new Error('Username to check must be a string.');
 
   const trimmed = name.trim();
-  const model = this as {
-    filter: (criteria: Record<string, unknown>) => {
-      run: () => Promise<Record<string, any>[]>;
-    };
-  };
-
-  const users = await model.filter({ canonicalName: canonicalize(trimmed) }).run();
+  const users = await this.filter({ canonicalName: canonicalize(trimmed) }).run();
   if (users.length) {
     throw new NewUserError({
       message: 'A user named %s already exists.',
@@ -281,14 +288,12 @@ async function ensureUnique(this: any, name: string): Promise<boolean> {
  * @returns The hydrated user instance or null if not found
  */
 async function getWithTeams(
-  this: any,
+  this: UserStaticContext,
   id: string,
   options: Record<string, any> = {}
-): Promise<Record<string, any> | null> {
-  const model = this as {
-    get: (userID: string, join?: Record<string, unknown>) => Promise<Record<string, any> | null>;
-  };
-  return model.get(id, { teams: true, ...options });
+): Promise<(UserInstance & Record<string, any>) | null> {
+  const user = await this.get(id, { teams: true, ...options });
+  return user as UserInstance & Record<string, any>;
 }
 
 /**
@@ -302,15 +307,13 @@ async function getWithTeams(
  * @throws DocumentNotFound if the user cannot be located
  */
 async function findByURLName(
-  this: any,
+  this: UserStaticContext,
   name: string,
   options: Record<string, any> = {}
-): Promise<Record<string, any>> {
+): Promise<UserInstance & Record<string, any>> {
   const trimmed = name.trim().replace(/_/g, ' ');
 
-  let query = (this as {
-    filter: (criteria: Record<string, unknown>) => any;
-  }).filter({ canonicalName: canonicalize(trimmed) });
+  let query = this.filter({ canonicalName: canonicalize(trimmed) });
 
   if (
     options.includeSensitive &&
@@ -324,7 +327,7 @@ async function findByURLName(
 
   const users = await query.run();
   if (users.length) {
-    const user = users[0] as Record<string, any>;
+    const user = users[0] as UserInstance & Record<string, any>;
 
     if (options.withTeams) await attachUserTeams(user);
 
@@ -347,27 +350,21 @@ async function findByURLName(
  * @returns The updated user instance
  */
 async function createBio(
-  this: any,
-  user: Record<string, any>,
+  user: UserInstance & Record<string, any>,
   bioObj: Record<string, any>
-): Promise<Record<string, any>> {
-  const metaRev = await (UserMeta as unknown as {
-    createFirstRevision: (
-      instance: Record<string, any>,
-      options?: { tags?: string[]; date?: Date }
-    ) => Promise<ModelInstance>;
-  }).createFirstRevision(user, {
+): Promise<UserInstance> {
+  const metaRev = await UserMeta.createFirstRevision(user, {
     tags: ['create-bio-via-user'],
   });
 
   metaRev.bio = bioObj.bio;
   metaRev.originalLanguage = bioObj.originalLanguage;
 
-  await metaRev.save?.();
+  await metaRev.save();
 
   user.userMetaID = metaRev.id as string;
   user.meta = metaRev;
-  await user.save?.();
+  await user.save();
   return user;
 }
 
@@ -462,7 +459,7 @@ function setName(this: Record<string, any>, displayName: string): void {
   const trimmed = displayName.trim();
   this.displayName = trimmed;
   this.canonicalName = canonicalize(trimmed);
-  this.generateVirtualValues?.();
+  this.generateVirtualValues();
 }
 
 /**

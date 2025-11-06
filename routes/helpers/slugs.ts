@@ -60,10 +60,18 @@ const resolveAndLoadTeam = (req: Request, res: Response, id: string, loadOptions
     basePath: '/team/',
     slugForeignKey: 'teamID',
     getDocumentModel: async () => Team as unknown as DocumentModel,
-    loadSlug: async slugName => {
+    loadSlug: async (slugName: string, _model: DocumentModel) => {
       const TeamSlugModel = await getTeamSlugModel();
       if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function') return null;
-      return await TeamSlugModel.getByName(slugName);
+      // TeamSlug returns model instances; convert to a plain object that exposes
+      // exactly the fields resolveAndLoad expects (notably `name`).
+      const slugRecord = await TeamSlugModel.getByName(slugName);
+      if (!slugRecord || typeof slugRecord !== 'object') {
+        return null;
+      }
+      const { name, ...rest } = slugRecord as Record<string, unknown>;
+      if (typeof name !== 'string') return null;
+      return { ...rest, name };
     },
     slugLabel: 'team',
   });
@@ -85,10 +93,17 @@ const resolveAndLoadThing = (req: Request, res: Response, id: string, loadOption
     basePath: '/',
     slugForeignKey: 'thingID',
     getDocumentModel: async () => Thing as unknown as DocumentModel,
-    loadSlug: async slugName => {
+    loadSlug: async (slugName: string, _model: DocumentModel) => {
       const ThingSlugModel = ThingSlug;
       if (!ThingSlugModel || typeof ThingSlugModel.getByName !== 'function') return null;
-      return await ThingSlugModel.getByName(slugName);
+      // ThingSlug also returns model instances; reshape to a plain object.
+      const slugRecord = await ThingSlugModel.getByName(slugName);
+      if (!slugRecord || typeof slugRecord !== 'object') {
+        return null;
+      }
+      const { name, ...rest } = slugRecord as Record<string, unknown>;
+      if (typeof name !== 'string') return null;
+      return { ...rest, name };
     },
     slugLabel: 'thing',
   });

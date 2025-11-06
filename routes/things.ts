@@ -19,7 +19,7 @@ import slugs from './helpers/slugs.ts';
 type ThingRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
 type ThingRouteResponse = HandlerResponse;
-type ThingInstance = Record<string, any>;
+type ThingPayload = Record<string, any>;
 type ReviewFeed = Record<string, any>;
 type ThingRevision = Record<string, any>;
 
@@ -31,11 +31,12 @@ interface ThingURLsFormParams {
   req: ThingRouteRequest<{ id: string }>;
   res: ThingRouteResponse;
   titleKey: string;
-  thing: ThingInstance;
+  thing: ThingPayload;
   formValues?: Record<string, any>;
 }
 
 const router = Router();
+const ThingModel = Thing as any;
 
 // For handling form fields
 const editableFields = ['description', 'label'];
@@ -240,7 +241,7 @@ async function loadThingAndReviews(
   req: ThingRouteRequest<{ id: string }>,
   res: ThingRouteResponse,
   next: HandlerNext,
-  thing: ThingInstance,
+  thing: ThingPayload,
   offsetDate?: Date | null
 ) {
   try {
@@ -363,7 +364,7 @@ function processTextFieldUpdate(
 function sendForm(
   req: ThingRouteRequest<{ id: string }>,
   res: ThingRouteResponse,
-  thing: ThingInstance,
+  thing: ThingPayload,
   edit: Record<string, boolean>,
   titleKey: string
 ) {
@@ -399,7 +400,7 @@ function sendForm(
 function sendThing(
   req: ThingRouteRequest<{ id: string }>,
   res: ThingRouteResponse,
-  thing: ThingInstance,
+  thing: ThingPayload,
   options: Partial<{ otherReviews: ReviewFeed; userReviews: ReviewFeed }> = {}
 ) {
   options = Object.assign(
@@ -439,7 +440,7 @@ function sendThing(
     'thing',
     {
       titleKey: 'reviews of',
-      titleParam: Thing.getLabel(thing, req.locale),
+      titleParam: Thing.getLabel(thing as any, req.locale),
       thing,
       pageErrors,
       pageMessages,
@@ -547,14 +548,12 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   );
 
   // Now we need to make sure that none of the URLs are currently in use.
-  let urlLookups: Promise<unknown>[] = [];
-  thingURLs.forEach(url => {
-    urlLookups.push(
-      Thing.filter(t => t('urls').contains(url))
-        .filter(t => t('id').ne(thing.id))
-        .filterNotStaleOrDeleted()
-    );
-  });
+  const urlLookups: Promise<unknown>[] = thingURLs.map(url =>
+    ThingModel.filter(t => t('urls').contains(url))
+      .filter(t => t('id').ne(thing.id))
+      .filterNotStaleOrDeleted()
+      .run()
+  );
 
   // Perform lookups
   Promise.all(urlLookups)

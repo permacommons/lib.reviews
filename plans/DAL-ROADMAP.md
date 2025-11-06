@@ -126,16 +126,23 @@ export default User;
 **Type system upgrade:**
 - [ ] Remove the fallback index signature from `ModelInstance` and require CRUD/revision methods
 - [ ] Reconcile duplicate `ModelInstance` definitions (delete the copy in `revision.ts`)
-- [ ] Tighten `types/` builders so schema inference yields concrete property types
-- [ ] Apply contextual typing (`ThisType`) for manifest `staticMethods` and `instanceMethods`
+- [x] Tighten `types/` builders so schema inference yields concrete property types
+- [x] Apply contextual typing (`ThisType`) for manifest `staticMethods` and `instanceMethods`
 - [ ] Define typed query builder interfaces for DAL helpers (`filter`, `get`, `first`, `run`, etc.)
 - [ ] Generate relation result types from manifest metadata
 - [ ] Provide a temporary escape hatch for legacy code paths (if needed) and remove `Record<string, any>` usage once migration completes
 - [ ] Simplify `tests/fixtures/dal-fixture-ava.ts` while keeping strict model constructor typings sourced from manifest handles
 
+Current focus: refactor `ModelInstance` so it remains the shared contract for DAL helpers without conflicting with the concrete `Model` class, then align the runtime class (or narrow tests) before tightening query-builder typing.
+
+[ ] Reconcile the duplicate `ModelInstance` definitions by teaching `revision.ts` to consume the shared contract and removing the local copy.
+[ ] Reshape consumer modules (auth flow, actions, blog-post) so they rely on the manifest-inferred `User` constructor/instance instead of ad-hoc casts, clearing out the remaining `Record<string, any>` scaffolding.
+[ ] Create a dry defineModel Typescript helper to create types for model and static context
+[ ] Tighten `forms` key/value handling so attachment IDs always arrive as a clean `string[]`; this keeps query-builder inputs well-typed and avoids malformed array literals.
+[ ] Define typed query builder interfaces (e.g., `filter`, `first`, `run`, relation joins) so that manifest metadata flows all the way through. Callers should only be able to filter on declared stored fields, only join on relations defined in the manifest, and get back instances with the correctly typed eager-loaded relations—no more silent typos or stray `any` in query code.
+
 **Bootstrap & cleanup:**
 - [x] Update bootstrap to import models (auto-register) instead of explicit init
-- [ ] Remove old `initializeModel` function from model-initializer.ts
 - [ ] Remove TODO comments added in Phase 3.5
 - [ ] Verify all `& Record<string, any>` workarounds removed
 - [ ] Properly type manifest schema field (currently uses structural typing workaround)

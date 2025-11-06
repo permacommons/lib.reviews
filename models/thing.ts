@@ -4,7 +4,12 @@ import isUUID from 'is-uuid';
 import adapters from '../adapters/adapters.ts';
 import dal from '../dal/index.ts';
 import { createModel } from '../dal/lib/create-model.ts';
-import type { JsonObject, ModelInstance } from '../dal/lib/model-types.ts';
+import type {
+  JsonObject,
+  VersionedModelConstructor,
+  VersionedModelInstance,
+} from '../dal/lib/model-types.ts';
+import type { InferConstructor, InferData, InferVirtual } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import search from '../search.ts';
@@ -15,8 +20,6 @@ import File from './file.ts';
 import Review from './review.ts';
 import ThingSlug from './thing-slug.ts';
 import User from './user.ts';
-
-type ThingInstance = ModelInstance & Record<string, any>;
 
 const { mlString } = dal as unknown as {
   mlString: Record<string, any>;
@@ -154,7 +157,18 @@ const thingManifest = {
   },
 } as const;
 
-const Thing = createModel(thingManifest) as Record<string, any>;
+type ThingData = InferData<typeof thingManifest['schema']>;
+type ThingVirtual = InferVirtual<typeof thingManifest['schema']>;
+export type ThingInstance = VersionedModelInstance<ThingData, ThingVirtual> & Record<string, any>;
+type ThingConstructorExtras = {
+  _createInstance?: (record: JsonObject) => ThingInstance;
+  _getDbFieldName?: (field: string) => string;
+};
+type ThingStaticContext = VersionedModelConstructor<ThingData, ThingVirtual, ThingInstance> &
+  ThingConstructorExtras;
+
+const Thing = createModel(thingManifest) as InferConstructor<typeof thingManifest> &
+  ThingConstructorExtras;
 
 // NOTE: STATIC METHODS --------------------------------------------------------
 
@@ -167,11 +181,11 @@ const Thing = createModel(thingManifest) as Record<string, any>;
  * @returns array of matching things
  */
 async function lookupByURL(
-  this: Record<string, any>,
+  this: ThingStaticContext,
   url: string,
   userID?: string | null
 ): Promise<ThingInstance[]> {
-  const model = (this ?? Thing) as Record<string, any>;
+  const model = (this ?? Thing) as ThingStaticContext;
   const tableName = model.tableName ?? 'things';
 
   const query = `
@@ -181,15 +195,12 @@ async function lookupByURL(
       AND (_rev_deleted IS NULL OR _rev_deleted = false)
   `;
 
-  const dalInstance = model.dal as
-    | { query: (text: string, params?: unknown[]) => Promise<{ rows: JsonObject[] }> }
-    | undefined;
-  if (!dalInstance) {
-    throw new Error('Thing DAL not initialized');
-  }
-
-  const result = await dalInstance.query(query, [url]);
-  const things = result.rows.map(row => model._createInstance(row)) as ThingInstance[];
+  const result = await model.dal.query(query, [url]);
+  const things = result.rows.map(row =>
+    model._createInstance
+      ? model._createInstance.call(model, row)
+      : (new model(row as Partial<ThingData & ThingVirtual>) as ThingInstance)
+  );
 
   if (typeof userID === 'string') {
     const lookupUserID = typeof userID.trim === 'function' ? userID.trim() : userID;
@@ -254,14 +265,14 @@ async function lookupByURL(
  * @returns the Thing object
  */
 async function getWithData(
-  this: Record<string, any>,
+  this: ThingStaticContext,
   id: string,
   {
     withFiles = true,
     withReviewMetrics = true,
   }: { withFiles?: boolean; withReviewMetrics?: boolean } = {}
 ): Promise<ThingInstance> {
-  const model = (this ?? Thing) as Record<string, any>;
+  const model = (this ?? Thing) as ThingStaticContext;
 
   const joinOptions: Record<string, any> = {};
   if (withFiles) {
@@ -270,9 +281,9 @@ async function getWithData(
     };
   }
 
-  const thing = Object.keys(joinOptions).length
+  const thing = (Object.keys(joinOptions).length
     ? await model.getNotStaleOrDeleted(id, joinOptions)
-    : await model.getNotStaleOrDeleted(id);
+    : await model.getNotStaleOrDeleted(id)) as ThingInstance;
 
   if (withFiles) {
     thing.files = Array.isArray(thing.files) ? thing.files : [];
@@ -283,7 +294,7 @@ async function getWithData(
     await thing.populateReviewMetrics();
   }
 
-  return thing as ThingInstance;
+  return thing;
 }
 
 /**
@@ -294,10 +305,7 @@ async function getWithData(
  * @param language - the language code of the preferred language
  * @returns the best available label
  */
-function getLabel(
-  thing: ThingInstance | JsonObject | null | undefined,
-  language: string
-): string | undefined {
+function getLabel(thing: ThingInstance | null | undefined, language: string): string | undefined {
   if (!thing || !thing.id) {
     return undefined;
   }
@@ -313,7 +321,7 @@ function getLabel(
   }
 
   // If we have no proper label, we can at least show the URL
-  if (thing.urls && thing.urls.length) {
+  if (Array.isArray(thing.urls) && thing.urls.length) {
     return urlUtils.prettify(thing.urls[0]);
   }
 
@@ -452,7 +460,7 @@ function setURLs(this: ThingInstance, urls: string[]): void {
  * @param userID - the user to associate with any slug changes
  * @returns the updated thing
  */
-async function updateActiveSyncs(this: ThingInstance, userID: string): Promise<ThingInstance> {
+async function updateActiveSyncs(this: ThingInstance, userID?: string): Promise<ThingInstance> {
   const thing = this as ThingInstance & Record<string, any>;
 
   if (!thing.urls || !thing.urls.length) {
@@ -535,7 +543,7 @@ async function updateActiveSyncs(this: ThingInstance, userID: string): Promise<T
     }
   });
 
-  if (needSlugUpdate) {
+  if (needSlugUpdate && userID) {
     try {
       await thing.updateSlug(userID, thing.originalLanguage || 'en');
     } catch (error) {
@@ -649,13 +657,9 @@ async function getReviewsByUser(
  */
 async function getAverageStarRating(this: ThingInstance): Promise<number> {
   try {
-    const model = Thing as unknown as { dal?: Record<string, any> };
-    const dalInstance = model.dal as Record<string, any> | undefined;
-    if (!dalInstance?.query) {
-      return 0;
-    }
-    const reviewTableName = dalInstance.schemaNamespace
-      ? `${dalInstance.schemaNamespace}reviews`
+    const dal = Thing.dal;
+    const reviewTableName = dal.schemaNamespace
+      ? `${dal.schemaNamespace}reviews`
       : 'reviews';
     const query = `
       SELECT AVG(star_rating) as avg_rating
@@ -665,8 +669,9 @@ async function getAverageStarRating(this: ThingInstance): Promise<number> {
         AND (_rev_deleted IS NULL OR _rev_deleted = false)
     `;
 
-    const result = await dalInstance.query(query, [this.id]);
-    return parseFloat(result.rows[0]?.avg_rating || 0);
+    const result = await dal.query(query, [String(this.id)]);
+    const avg = result.rows[0]?.avg_rating;
+    return typeof avg === 'number' ? avg : parseFloat(String(avg ?? 0));
   } catch (error) {
     const serializedError = error instanceof Error ? error : new Error(String(error));
     debug.error('Error calculating average star rating:');
@@ -682,13 +687,9 @@ async function getAverageStarRating(this: ThingInstance): Promise<number> {
  */
 async function getReviewCount(this: ThingInstance): Promise<number> {
   try {
-    const model = Thing as unknown as { dal?: Record<string, any> };
-    const dalInstance = model.dal as Record<string, any> | undefined;
-    if (!dalInstance?.query) {
-      return 0;
-    }
-    const reviewTableName = dalInstance.schemaNamespace
-      ? `${dalInstance.schemaNamespace}reviews`
+    const dal = Thing.dal;
+    const reviewTableName = dal.schemaNamespace
+      ? `${dal.schemaNamespace}reviews`
       : 'reviews';
     const query = `
       SELECT COUNT(*) as review_count
@@ -698,8 +699,9 @@ async function getReviewCount(this: ThingInstance): Promise<number> {
         AND (_rev_deleted IS NULL OR _rev_deleted = false)
     `;
 
-    const result = await dalInstance.query(query, [this.id]);
-    return parseInt(result.rows[0]?.review_count || 0, 10);
+    const result = await dal.query(query, [String(this.id)]);
+    const count = result.rows[0]?.review_count;
+    return parseInt(String(count ?? 0), 10);
   } catch (error) {
     const serializedError = error instanceof Error ? error : new Error(String(error));
     debug.error('Error counting reviews:');
@@ -775,10 +777,9 @@ async function updateSlug(
     const savedSlug = await (slug as Record<string, any>).qualifiedSave();
     if (savedSlug && savedSlug.name) {
       this.canonicalSlugName = savedSlug.name;
-      const model = Thing as unknown as { _getDbFieldName?: (field: string) => string };
       const changedSet = this._changed as Set<string> | undefined;
-      const dbFieldName = model._getDbFieldName
-        ? model._getDbFieldName('canonicalSlugName')
+      const dbFieldName = Thing._getDbFieldName
+        ? Thing._getDbFieldName('canonicalSlugName')
         : 'canonical_slug_name';
       changedSet?.add(dbFieldName);
     }
@@ -802,8 +803,6 @@ async function addFilesByIDsAndSave(
   fileIDs: string[],
   userID?: string
 ): Promise<ThingInstance> {
-  const thingModel = Thing as unknown as { dal?: Record<string, any> };
-
   if (!Array.isArray(fileIDs) || fileIDs.length === 0) {
     return this;
   }
@@ -834,7 +833,7 @@ async function addFilesByIDsAndSave(
       return this;
     }
 
-    const dalInstance = thingModel.dal as Record<string, any>;
+    const dalInstance = Thing.dal as Record<string, any>;
     const junctionTable = dalInstance.schemaNamespace
       ? `${dalInstance.schemaNamespace}thing_files`
       : 'thing_files';

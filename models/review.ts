@@ -248,7 +248,7 @@ async function createReview(
   review.originalLanguage = reviewObj.originalLanguage;
   review.socialImageID = reviewObj.socialImageID;
   revision.applyRevisionMetadata(review, {
-    userId: reviewObj.createdBy,
+    user: { id: reviewObj.createdBy },
     date: reviewObj.createdOn,
     tags,
   });
@@ -357,7 +357,7 @@ async function findOrCreateThing(reviewObj) {
 
   // Ensure revision metadata is aligned with the created review
   revision.applyRevisionMetadata(thing, {
-    userId: reviewObj.createdBy,
+    user: { id: reviewObj.createdBy },
     date,
     tags: ['create-via-review'],
   });

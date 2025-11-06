@@ -1,10 +1,12 @@
 import { getOrCreateModel } from './model-factory.ts';
 import type {
   DataAccessLayer,
+  InstanceMethod,
   JsonObject,
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
+import type { ModelSchemaField } from './model.ts';
 import type { ModelConstructorLike } from './revision.ts';
 import revision from './revision.ts';
 
@@ -61,18 +63,13 @@ export interface NormalizedRelationDefinition {
 
 type RelationDefinitionInput = NormalizedRelationDefinition | (RelationConfig & { name: string });
 
-type InstanceMethod<TInstance extends ModelInstance> = (
-  this: TInstance,
-  ...args: unknown[]
-) => unknown;
-
 type StaticMethod = (...args: unknown[]) => unknown;
 
 type RuntimeModel<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>,
-> = ModelConstructor<TRecord, TVirtual, TInstance> & {
+  TInstance extends ModelInstance<TData, TVirtual>,
+> = ModelConstructor<TData, TVirtual, TInstance> & {
   defineRelation?: (name: string, config: RelationConfig) => void;
   define?: (name: string, handler: InstanceMethod<TInstance>) => void;
   prototype: TInstance;
@@ -82,23 +79,23 @@ type RuntimeModel<
 };
 
 export interface InitializeModelResult<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>,
+  TInstance extends ModelInstance<TData, TVirtual>,
 > {
-  model: RuntimeModel<TRecord, TVirtual, TInstance>;
+  model: RuntimeModel<TData, TVirtual, TInstance>;
   isNew: boolean;
   tableName: string;
 }
 
 export interface InitializeModelOptions<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>,
+  TInstance extends ModelInstance<TData, TVirtual>,
 > {
   dal: DataAccessLayer;
   baseTable: string;
-  schema?: JsonObject;
+  schema?: Record<string, ModelSchemaField>;
   camelToSnake?: Record<string, string>;
   withRevision?: boolean | RevisionHandlerConfig | null;
   staticMethods?: Record<string, StaticMethod>;
@@ -153,11 +150,11 @@ function normalizeRevisionConfig(config: boolean | RevisionHandlerConfig | null 
  * @param config Normalized configuration from {@link normalizeRevisionConfig}.
  */
 function attachRevisionHandlers<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>,
+  TInstance extends ModelInstance<TData, TVirtual>,
 >(
-  model: RuntimeModel<TRecord, TVirtual, TInstance>,
+  model: RuntimeModel<TData, TVirtual, TInstance>,
   config: {
     static: readonly RevisionHandlerName[];
     instance: readonly RevisionHandlerName[];
@@ -171,7 +168,7 @@ function attachRevisionHandlers<
     const factory = REVISION_HANDLER_MAP[name];
     if (typeof factory === 'function') {
       const factoryTarget = model as unknown as ModelConstructorLike;
-      model[name] = factory(factoryTarget);
+      (model as unknown as Record<string, unknown>)[name] = factory(factoryTarget);
     }
   }
 
@@ -247,16 +244,16 @@ function normalizeRelationDefinitions(
  * @returns Descriptor containing the runtime model, whether it was newly created, and the table name.
  */
 export function initializeModel<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
+  TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
 >(
-  options: InitializeModelOptions<TRecord, TVirtual, TInstance>
-): InitializeModelResult<TRecord, TVirtual, TInstance> {
+  options: InitializeModelOptions<TData, TVirtual, TInstance>
+): InitializeModelResult<TData, TVirtual, TInstance> {
   const {
     dal,
     baseTable,
-    schema = {},
+    schema = {} as Record<string, ModelSchemaField>,
     camelToSnake = {},
     withRevision = false,
     staticMethods = {},
@@ -274,13 +271,13 @@ export function initializeModel<
   }
 
   const tableName = dal.schemaNamespace ? `${dal.schemaNamespace}${baseTable}` : baseTable;
-  const schemaDefinition: JsonObject = { ...schema };
+  const schemaDefinition: Record<string, ModelSchemaField> = { ...schema };
 
   if (withRevision) {
     Object.assign(schemaDefinition, revision.getSchema());
   }
 
-  const { model, isNew } = getOrCreateModel<TRecord, TVirtual, TInstance>(
+  const { model, isNew } = getOrCreateModel<TData, TVirtual, TInstance>(
     dal,
     tableName,
     schemaDefinition,
@@ -290,7 +287,7 @@ export function initializeModel<
   );
 
   // Debugging: ensure revision handlers are attached when expected
-  const runtimeModel = model as RuntimeModel<TRecord, TVirtual, TInstance>;
+  const runtimeModel = model as RuntimeModel<TData, TVirtual, TInstance>;
   const relationDefs = normalizeRelationDefinitions(relations);
 
   if (relationDefs.length > 0 && typeof runtimeModel.defineRelation === 'function') {

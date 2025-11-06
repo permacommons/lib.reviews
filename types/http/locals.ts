@@ -1,6 +1,6 @@
 import type { ViteDevServer } from 'vite';
 import type { DalContext } from '../../dal/index.ts';
-import type { DataAccessLayer } from '../../dal/lib/model-types.ts';
+import type { DataAccessLayer, ModelInstance } from '../../dal/lib/model-types.ts';
 import type WebHookDispatcher from '../../util/webhooks.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
@@ -38,7 +38,7 @@ export interface RequestUser {
   moderatorOf?: Array<Record<string, unknown>>;
   meta?: Record<string, unknown> & { newRevision?: (...args: unknown[]) => Promise<unknown> };
   populateUserInfo?: (...args: unknown[]) => unknown;
-  save?: () => Promise<RequestUser | void>;
+  save?: () => Promise<RequestUser | ModelInstance | void>;
   getValidPreferences: () => string[];
   [key: string]: unknown;
 }
