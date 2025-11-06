@@ -120,12 +120,8 @@ export default User;
 - [x] Migrate `user.ts` to manifest format
 - [x] Migrate `thing.ts` to manifest format
 - [x] Migrate `review.ts` to manifest format
-- [ ] Convert `file.ts` to TypeScript + manifest format
-  - Replace `initializeFileModel`/`createAutoModelHandle` with a manifest exported via `createModel()`.
-  - Carry over revision-aware static methods (`getStashedUpload`, `getValidLicenses`, `getFileFeed`) with equivalent SQL or typed query builder usage.
-  - Preserve `populateUserInfo` as an instance method that sets virtual permission flags.
-  - Encode `users` and `things` relations (including the `thing_files` join table) in manifest metadata.
-- [ ] Convert `blog-post.ts` to TypeScript + manifest format
+- [x] Convert `file.ts` to TypeScript + manifest format
+- [x] Convert `blog-post.ts` to TypeScript + manifest format
 
 **Type system upgrade:**
 - [ ] Remove the fallback index signature from `ModelInstance` and require CRUD/revision methods

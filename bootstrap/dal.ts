@@ -85,7 +85,8 @@ void thingSlugModule;
 void reviewModule;
 // files now uses manifest-based initialization (force import side effect)
 void fileModule;
-maybeAddInitializer('blog_posts', blogPostModule.initializeModel);
+// blog_posts now uses manifest-based initialization (force import side effect)
+void blogPostModule;
 // invite_links now uses manifest-based initialization (force import side effect)
 void inviteLinkModule;
 
