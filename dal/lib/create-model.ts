@@ -6,6 +6,10 @@ import type { DataAccessLayer } from './model-types.ts';
 // Cache for initialized models (populated by bootstrap)
 const initializedModels = new Map<string, unknown>();
 
+interface CreateModelOptions {
+  staticProperties?: Record<string, unknown>;
+}
+
 /**
  * Initialize a model from its manifest
  * Called by bootstrap after DAL is ready
@@ -82,18 +86,35 @@ function initializeFromManifest<Manifest extends ModelManifest>(
  * ```
  */
 export function createModel<Manifest extends ModelManifest>(
-  manifest: Manifest
+  manifest: Manifest,
+  options: CreateModelOptions = {}
 ): InferConstructor<Manifest> {
   // Register the manifest in the global registry
   registerManifest(manifest);
 
+  const staticProperties = options.staticProperties ?? {};
+  const staticPropertyKeys = new Set(Object.keys(staticProperties));
+
   // Create a function target so the proxy can be used as a constructor
   const target = function () {} as unknown as InferConstructor<Manifest>;
+
+  for (const [prop, value] of Object.entries(staticProperties)) {
+    Object.defineProperty(target, prop, {
+      value,
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    });
+  }
 
   // Return a proxy that forwards to the initialized model
   // Model will be initialized by bootstrap before any app code runs
   return new Proxy(target, {
     get(_target, prop: string | symbol) {
+      if (staticPropertyKeys.has(String(prop))) {
+        return Reflect.get(target, prop);
+      }
+
       const model = initializedModels.get(manifest.tableName) as
         | InferConstructor<Manifest>
         | undefined;

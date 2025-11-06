@@ -117,16 +117,24 @@ export default User;
 - [x] Migrate `thing-slug.ts` to manifest format
 - [x] Migrate `user-meta.ts` to manifest format
 - [x] Migrate `team.ts` to manifest format (first model with relations)
-- [ ] Migrate `user.ts` to manifest format
+- [x] Migrate `user.ts` to manifest format
 - [ ] Migrate `thing.ts` to manifest format
 - [ ] Migrate `review.ts` to manifest format
 - [ ] Convert `file.ts` to TypeScript + manifest format
 - [ ] Convert `blog-post.ts` to TypeScript + manifest format
 
+**Type system upgrade:**
+- [ ] Remove the fallback index signature from `ModelInstance` and require CRUD/revision methods
+- [ ] Reconcile duplicate `ModelInstance` definitions (delete the copy in `revision.ts`)
+- [ ] Tighten `types/` builders so schema inference yields concrete property types
+- [ ] Apply contextual typing (`ThisType`) for manifest `staticMethods` and `instanceMethods`
+- [ ] Define typed query builder interfaces for DAL helpers (`filter`, `get`, `first`, `run`, etc.)
+- [ ] Generate relation result types from manifest metadata
+- [ ] Provide a temporary escape hatch for legacy code paths (if needed) and remove `Record<string, any>` usage once migration completes
+
 **Bootstrap & cleanup:**
 - [ ] Update bootstrap to import models (auto-register) instead of explicit init
 - [ ] Remove old `initializeModel` function from model-initializer.ts
-- [ ] Remove duplicate `ModelInstance` interface from revision.ts
 - [ ] Remove TODO comments added in Phase 3.5
 - [ ] Verify all `& Record<string, any>` workarounds removed
 - [ ] Properly type manifest schema field (currently uses structural typing workaround)

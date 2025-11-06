@@ -67,7 +67,8 @@ const maybeAddInitializer = (key: string, initializer: unknown) => {
   }
 };
 
-maybeAddInitializer('users', userModule.initializeModel);
+// users now uses manifest-based initialization (force import side effect)
+void userModule;
 // user_metas now uses manifest-based initialization (force import side effect)
 void userMetaModule;
 // teams now uses manifest-based initialization (force import side effect)

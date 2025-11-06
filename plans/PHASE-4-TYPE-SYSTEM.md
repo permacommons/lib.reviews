@@ -161,12 +161,12 @@ Each model file defines its manifest and exports a typed handle:
 
 ```typescript
 // models/user.ts
-import { createModel } from '../dal/lib/model-handle.ts';
+import { createModel } from '../dal/lib/create-model.ts';
 import types from '../dal/lib/type.ts';
 
 const userManifest = {
   tableName: 'users',
-  hasRevisions: true,  // ← Drives type generation
+  hasRevisions: false,  // ← Drives type generation
   schema: {
     id: types.string().uuid(4),
     displayName: types.string().max(128).required(),
@@ -372,29 +372,42 @@ test('user creation', async (t) => {
 - Add `VersionedModelConstructor` to model-types.ts
 - Add proper option types (`SaveOptions`, `DeleteOptions`, etc.)
 - Update `ModelInstance` to extend `TRecord & TVirtual`
+- **Status:** Complete
 
 ### Step 2: Build Registry System
 - Create `dal/lib/model-registry.ts` for global registry
 - Implement type inference helpers (`InferRecord`, `InferVirtual`, etc.)
 - Update `createModel()` function to use manifest + registry
+- **Status:** Complete
 
 ### Step 3: Migrate One Model (Proof of Concept)
 - Choose simple model (e.g., `Team` - non-versioned)
 - Convert to manifest format
 - Verify types work correctly
 - Ensure tests pass
+- **Status:** Complete (`team.ts` migrated)
 
 ### Step 4: Migrate Remaining Models
 - Convert each model file to manifest format
 - Remove manual `initializeModel` calls
 - Remove `& Record<string, any>` workarounds
 - Verify types and tests for each
+- **Status:** In progress (user migrated; review, thing, file, blog-post pending)
 
-### Step 5: Cleanup
-- Remove duplicate `ModelInstance` from revision.ts
+### Step 5: Core Type System Upgrade
+- Update `ModelInstance`/`VersionedModelInstance` to require CRUD/revision methods without an index signature
+- Tighten type builders so schema definitions infer concrete property types
+- Apply contextual `ThisType` to manifest `staticMethods`/`instanceMethods`
+- Define typed query builder interfaces (`filter`, `first`, `run`, etc.) keyed by inferred schema types
+- Derive relation result types from manifest metadata
+- Provide transitional helpers (if necessary) for legacy code during rollout
+
+### Step 6: Cleanup
+- Remove duplicate `ModelInstance` from `revision.ts`
 - Remove old `initializeModel` function
 - Update bootstrap to just import models
 - Remove temporary compatibility code
+- Drop remaining `Record<string, any>` escapes once typed instances ship
 
 ## Benefits
 
@@ -484,6 +497,33 @@ await user.setPassword('newpass');  // custom method ✓
 
 const found = await User.findByEmail('test@example.com');  // custom static ✓
 ```
+
+### 3. Typed Method Contexts
+
+Manifests declare `staticMethods` and `instanceMethods` as plain object literals.
+The manifest helper layer is responsible for applying `ThisType` so TypeScript
+infers the correct `this` value automatically:
+
+- `instanceMethods` receive `this` typed as the inferred instance
+  (`ModelInstance<TRecord, TVirtual>` or `VersionedModelInstance`).
+- `staticMethods` receive `this` typed as the inferred constructor, including DAL helpers
+  such as `filter`, `get`, `create`, and relation-aware query builders.
+
+Model authors should not need to annotate `this: UserInstance` manually.
+
+### 4. Typed Query Builders and Relations
+
+The registry generates query builder types backed by the manifest metadata:
+
+- `filter(criteria)` expects a `Partial<TRecord>` and produces a builder whose
+  `first()`/`run()` methods resolve with the inferred instance type.
+- Relation metadata describes the shape of eager-loaded collections
+  (for example, `user.teams` resolves to `TeamInstance[]`).
+- Methods like `getWithTeams` can return fully typed instances without sprinkling
+  `Record<string, any>` fallbacks throughout the codebase.
+
+The DAL infrastructure exposes these helpers; model files continue to declare
+relations declaratively.
 
 ## Design Decisions
 
