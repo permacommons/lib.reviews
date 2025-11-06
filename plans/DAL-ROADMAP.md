@@ -119,7 +119,7 @@ export default User;
 - [x] Migrate `team.ts` to manifest format (first model with relations)
 - [x] Migrate `user.ts` to manifest format
 - [x] Migrate `thing.ts` to manifest format
-- [ ] Migrate `review.ts` to manifest format
+- [x] Migrate `review.ts` to manifest format
 - [ ] Convert `file.ts` to TypeScript + manifest format
 - [ ] Convert `blog-post.ts` to TypeScript + manifest format
 

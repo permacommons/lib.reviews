@@ -1,46 +1,21 @@
 import { randomUUID } from 'crypto';
 import adapters from '../adapters/adapters.ts';
 import dal from '../dal/index.ts';
-import { createModelModule } from '../dal/lib/model-handle.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import { createModel } from '../dal/lib/create-model.ts';
+import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import Team from './team.ts';
 import Thing from './thing.ts';
 
-type PostgresModule = typeof import('../db-postgres.ts');
-
-type ReviewRecord = JsonObject;
-type ReviewVirtual = JsonObject;
-type ReviewInstance = ModelInstance<ReviewRecord, ReviewVirtual> & Record<string, any>;
-type ReviewModel = ModelConstructor<ReviewRecord, ReviewVirtual, ReviewInstance> &
-  Record<string, any>;
-
-let postgresModulePromise: Promise<PostgresModule> | null = null;
-async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
-  return postgresModulePromise;
-}
-
-async function getPostgresDAL(): Promise<Record<string, any>> {
-  const module = await loadDbPostgres();
-  return module.getPostgresDAL();
-}
-
-const { proxy: reviewHandleProxy, register: registerReviewHandle } = createModelModule<
-  ReviewRecord,
-  ReviewVirtual,
-  ReviewInstance
->({
-  tableName: 'reviews',
-});
-
-const ReviewHandle = reviewHandleProxy as ReviewModel;
-
-const { types, mlString, revision } = dal;
-const { isValid: isValidLanguage } = languages;
+const { mlString, revision } = dal as {
+  mlString: Record<string, any>;
+  revision: Record<string, any>;
+};
+const { isValid: isValidLanguage } = languages as {
+  isValid: (code: string) => boolean;
+};
 
 const reviewOptions = {
   maxTitleLength: 255,
@@ -67,130 +42,97 @@ interface CreateReviewOptions {
   files?: string[];
 }
 
-let Review = null;
+const reviewManifest = {
+  tableName: 'reviews',
+  hasRevisions: true,
+  schema: {
+    id: types.string().uuid(4),
 
-/**
- * Initialize the PostgreSQL Review model
- * @param dal - Optional DAL instance for testing
- */
-async function initializeReviewModel(dal = null) {
-  const activeDAL = dal || (await getPostgresDAL());
+    // CamelCase schema fields that map to snake_case database columns
+    thingID: types.string().uuid(4).required(true),
 
-  if (!activeDAL) {
-    debug.db('PostgreSQL DAL not available, skipping Review model initialization');
-    return null;
-  }
+    // JSONB multilingual content fields
+    title: mlString.getSchema({ maxLength: reviewOptions.maxTitleLength }),
+    text: mlString.getSchema(),
+    html: mlString.getSchema(),
 
-  try {
-    // Create the schema with revision fields and JSONB columns
-    const reviewSchema = {
-      id: types.string().uuid(4),
+    // Relational fields
+    starRating: types.number().min(1).max(5).integer().required(true),
+    createdOn: types.date().required(true),
+    createdBy: types.string().uuid(4).required(true),
+    originalLanguage: types.string().max(4).validator(isValidLanguage),
+    socialImageID: types.string().uuid(4),
 
-      // CamelCase schema fields that map to snake_case database columns
-      thingID: types.string().uuid(4).required(true),
-
-      // JSONB multilingual content fields
-      title: mlString.getSchema({ maxLength: reviewOptions.maxTitleLength }),
-      text: mlString.getSchema(),
-      html: mlString.getSchema(),
-
-      // Relational fields
-      starRating: types.number().min(1).max(5).integer().required(true),
-      createdOn: types.date().required(true),
-      createdBy: types.string().uuid(4).required(true),
-      originalLanguage: types.string().max(4).validator(isValidLanguage),
-      socialImageID: types.string().uuid(4),
-
-      // Virtual permission fields
-      userCanDelete: types.virtual().default(false),
-      userCanEdit: types.virtual().default(false),
-      userIsAuthor: types.virtual().default(false),
-    };
-
-    const { model, isNew } = initializeModel({
-      dal: activeDAL,
-      baseTable: 'reviews',
-      schema: reviewSchema,
-      camelToSnake: {
-        thingID: 'thing_id',
-        starRating: 'star_rating',
-        createdOn: 'created_on',
-        createdBy: 'created_by',
-        originalLanguage: 'original_language',
-        socialImageID: 'social_image_id',
+    // Virtual permission fields
+    userCanDelete: types.virtual().default(false),
+    userCanEdit: types.virtual().default(false),
+    userIsAuthor: types.virtual().default(false),
+  },
+  camelToSnake: {
+    thingID: 'thing_id',
+    starRating: 'star_rating',
+    createdOn: 'created_on',
+    createdBy: 'created_by',
+    originalLanguage: 'original_language',
+    socialImageID: 'social_image_id',
+  },
+  relations: [
+    {
+      name: 'thing',
+      targetTable: 'things',
+      sourceKey: 'thing_id',
+      targetKey: 'id',
+      hasRevisions: true,
+      cardinality: 'one',
+    },
+    {
+      name: 'creator',
+      targetTable: 'users',
+      sourceKey: 'created_by',
+      targetKey: 'id',
+      hasRevisions: false,
+      cardinality: 'one',
+    },
+    {
+      name: 'socialImage',
+      targetTable: 'files',
+      sourceKey: 'social_image_id',
+      targetKey: 'id',
+      hasRevisions: true,
+      cardinality: 'one',
+    },
+    {
+      name: 'teams',
+      targetTable: 'teams',
+      sourceKey: 'id',
+      targetKey: 'id',
+      hasRevisions: true,
+      through: {
+        table: 'review_teams',
+        sourceForeignKey: 'review_id',
+        targetForeignKey: 'team_id',
       },
-      withRevision: true,
-      staticMethods: {
-        getWithData,
-        create: createReview,
-        validateSocialImage,
-        findOrCreateThing,
-        getFeed,
-      },
-      instanceMethods: {
-        populateUserInfo,
-        deleteAllRevisionsWithThing,
-      },
-      relations: [
-        {
-          name: 'thing',
-          targetTable: 'things',
-          sourceKey: 'thing_id',
-          targetKey: 'id',
-          hasRevisions: true,
-          cardinality: 'one',
-        },
-        {
-          name: 'creator',
-          targetTable: 'users',
-          sourceKey: 'created_by',
-          targetKey: 'id',
-          hasRevisions: false,
-          cardinality: 'one',
-        },
-        {
-          name: 'socialImage',
-          targetTable: 'files',
-          sourceKey: 'social_image_id',
-          targetKey: 'id',
-          hasRevisions: true,
-          cardinality: 'one',
-        },
-        {
-          name: 'teams',
-          targetTable: 'teams',
-          sourceKey: 'id',
-          targetKey: 'id',
-          hasRevisions: true,
-          through: {
-            table: 'review_teams',
-            sourceForeignKey: 'review_id',
-            targetForeignKey: 'team_id',
-          },
-          cardinality: 'many',
-        },
-      ],
-    });
-    Review = model;
+      cardinality: 'many',
+    },
+  ] as const,
+  staticMethods: {
+    getWithData,
+    create: createReview,
+    validateSocialImage,
+    findOrCreateThing,
+    getFeed,
+  },
+  instanceMethods: {
+    populateUserInfo,
+    deleteAllRevisionsWithThing,
+  },
+} as const;
 
-    if (!isNew) {
-      return Review;
-    }
-
-    Object.defineProperty(Review, 'options', {
-      value: reviewOptions,
-      writable: false,
-      enumerable: true,
-      configurable: false,
-    });
-
-    debug.db('PostgreSQL Review model initialized with all methods');
-    return Review;
-  } catch (error) {
-    debug.error('Failed to initialize PostgreSQL Review model:', error);
-    return null;
-  }
-}
+const Review = createModel(reviewManifest, {
+  staticProperties: {
+    options: reviewOptions,
+  },
+}) as Record<string, any>;
 
 // NOTE: STATIC METHODS --------------------------------------------------------
 
@@ -201,14 +143,14 @@ async function initializeReviewModel(dal = null) {
  * @param id - the unique ID to look up
  * @returns {Review} the review and associated data
  */
-async function getWithData(id) {
+async function getWithData(this: Record<string, any>, id: string) {
   // Get the review with socialImage and creator relations via joins
   const joinOptions = {
     socialImage: true,
     creator: true,
   };
 
-  const review = await Review.getNotStaleOrDeleted(id, joinOptions);
+  const review = await this.getNotStaleOrDeleted(id, joinOptions);
 
   if (!review) {
     return null;
@@ -251,12 +193,16 @@ async function getWithData(id) {
  * @param options.files - UUIDs of files to add to the Thing for this review
  * @returns {Review} the saved review
  */
-async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}) {
-  const thing = await Review.findOrCreateThing(reviewObj);
+async function createReview(
+  this: Record<string, any>,
+  reviewObj: Record<string, any>,
+  { tags, files }: CreateReviewOptions = {}
+) {
+  const thing = await this.findOrCreateThing(reviewObj);
 
   // Check for existing reviews by this user for this thing
   const existingQuery = `
-    SELECT id FROM ${Review.tableName}
+    SELECT id FROM ${this.tableName}
     WHERE thing_id = $1
       AND created_by = $2
       AND (_old_rev_of IS NULL)
@@ -264,7 +210,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
     LIMIT 1
   `;
 
-  const existingResult = await Review.dal.query(existingQuery, [thing.id, reviewObj.createdBy]);
+  const existingResult = await this.dal.query(existingQuery, [thing.id, reviewObj.createdBy]);
 
   if (existingResult.rows.length > 0) {
     throw new ReportedError({
@@ -278,7 +224,7 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
   }
 
   // Validate social image
-  Review.validateSocialImage({
+  this.validateSocialImage({
     socialImageID: reviewObj.socialImageID,
     newFileIDs: files,
     fileObjects: thing.files || [],
@@ -290,7 +236,8 @@ async function createReview(reviewObj, { tags, files }: CreateReviewOptions = {}
   }
 
   // Create new review instance
-  const review = new Review();
+  const ReviewConstructor = this as new () => Record<string, any>;
+  const review = new ReviewConstructor();
   review.thingID = thing.id;
   review.title = reviewObj.title;
   review.text = reviewObj.text;
@@ -467,8 +414,17 @@ async function getFeed({
   withoutCreator,
   limit = 10,
 }: ReviewFeedOptions = {}): Promise<ReviewFeedResult> {
+  const model = this as {
+    tableName: string;
+    dal: {
+      query: (sql: string, params?: unknown[]) => Promise<{ rows: Record<string, any>[] }>;
+      schemaNamespace?: string;
+    };
+    _createInstance: (row: unknown) => Record<string, any>;
+  };
+
   let query = `
-    SELECT r.* FROM ${Review.tableName} r
+    SELECT r.* FROM ${model.tableName} r
     WHERE (_old_rev_of IS NULL)
       AND (_rev_deleted IS NULL OR _rev_deleted = false)
   `;
@@ -514,8 +470,8 @@ async function getFeed({
   params.push(limit + 1); // Get one extra to check for pagination
 
   // Execute query
-  const result = await Review.dal.query(query, params);
-  const feedItems = result.rows.slice(0, limit).map(row => Review._createInstance(row));
+  const result = await model.dal.query(query, params);
+  const feedItems = result.rows.slice(0, limit).map(row => model._createInstance(row));
   const feedResult: ReviewFeedResult = { feedItems };
 
   // Check for pagination
@@ -547,7 +503,7 @@ async function getFeed({
           WHERE id = ANY($1)
         `;
 
-        const userResult = await Review.dal.query(userQuery, [userIds]);
+        const userResult = await model.dal.query(userQuery, [userIds]);
 
         // Create a map of user ID to user data for fast lookup
         const userMap = new Map();
@@ -595,6 +551,7 @@ async function getFeed({
           const thingMap = new Map();
 
           thingResult.rows.forEach(row => {
+            // TODO: drop _createInstance fallback once create-model exposes typed constructors
             const thingInstance = Thing._createInstance(row);
             thingMap.set(thingInstance.id, thingInstance);
           });
@@ -619,11 +576,12 @@ async function getFeed({
         if (reviewIds.length > 0) {
           debug.db(`Batch fetching teams for ${reviewIds.length} reviews in feed...`);
 
-          const reviewTeamTableName = Review.dal.schemaNamespace
-            ? `${Review.dal.schemaNamespace}review_teams`
+          const dalInstance = model.dal;
+          const reviewTeamTableName = dalInstance.schemaNamespace
+            ? `${dalInstance.schemaNamespace}review_teams`
             : 'review_teams';
-          const teamTableName = Review.dal.schemaNamespace
-            ? `${Review.dal.schemaNamespace}teams`
+          const teamTableName = dalInstance.schemaNamespace
+            ? `${dalInstance.schemaNamespace}teams`
             : 'teams';
 
           // Get all review-team associations
@@ -636,13 +594,20 @@ async function getFeed({
               AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
           `;
 
-          const teamResult = await Review.dal.query(teamQuery, reviewIds);
+          const teamResult = await dalInstance.query(teamQuery, reviewIds);
+          const teamModel = Team as unknown as {
+            _createInstance?: (row: unknown) => Record<string, any>;
+            new (...args: unknown[]): Record<string, any>;
+          };
 
           // Group teams by review ID
           const reviewTeamMap = new Map();
           teamResult.rows.forEach(row => {
             const reviewId = row.review_id;
-            const teamInstance = Team._createInstance(row);
+            const teamInstance =
+              typeof teamModel._createInstance === 'function'
+                ? teamModel._createInstance(row)
+                : new teamModel(row);
 
             if (!reviewTeamMap.has(reviewId)) {
               reviewTeamMap.set(reviewId, []);
@@ -728,11 +693,18 @@ async function deleteAllRevisionsWithThing(user) {
  */
 async function _getReviewTeams(reviewId) {
   try {
-    const reviewTeamTableName = Review.dal.schemaNamespace
-      ? `${Review.dal.schemaNamespace}review_teams`
+    const reviewModel = Review as {
+      dal: {
+        query: (sql: string, params?: unknown[]) => Promise<{ rows: Record<string, any>[] }>;
+        schemaNamespace?: string;
+      };
+      _createInstance?: (row: unknown) => Record<string, any>;
+    };
+    const reviewTeamTableName = reviewModel.dal.schemaNamespace
+      ? `${reviewModel.dal.schemaNamespace}review_teams`
       : 'review_teams';
-    const teamTableName = Review.dal.schemaNamespace
-      ? `${Review.dal.schemaNamespace}teams`
+    const teamTableName = reviewModel.dal.schemaNamespace
+      ? `${reviewModel.dal.schemaNamespace}teams`
       : 'teams';
 
     const query = `
@@ -743,9 +715,17 @@ async function _getReviewTeams(reviewId) {
         AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
     `;
 
-    const result = await Review.dal.query(query, [reviewId]);
+    const result = await reviewModel.dal.query(query, [reviewId]);
 
-    return result.rows.map(row => Team._createInstance(row));
+    const teamModel = Team as unknown as {
+      _createInstance?: (row: unknown) => Record<string, any>;
+      new (...args: unknown[]): Record<string, any>;
+    };
+
+    return result.rows.map(row =>
+      // TODO: drop _createInstance fallback once create-model exposes typed constructors
+      typeof teamModel._createInstance === 'function' ? teamModel._createInstance(row) : new teamModel(row)
+    );
   } catch (error) {
     debug.error('Failed to get teams for review:', error);
     return [];
@@ -793,18 +773,5 @@ class ReviewError extends ReportedError {
   }
 }
 
-registerReviewHandle({
-  initializeModel: initializeReviewModel,
-  handleOptions: {
-    staticProperties: {
-      options: reviewOptions,
-    },
-  },
-  additionalExports: {
-    initializeReviewModel,
-    ReviewError,
-  },
-});
-
-export default ReviewHandle;
-export { initializeReviewModel as initializeModel, initializeReviewModel, ReviewError };
+export default Review;
+export { ReviewError };
