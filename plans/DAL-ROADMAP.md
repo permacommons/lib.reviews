@@ -116,7 +116,7 @@ export default User;
 - [x] Migrate `invite-link.ts` to manifest format
 - [x] Migrate `thing-slug.ts` to manifest format
 - [x] Migrate `user-meta.ts` to manifest format
-- [ ] Migrate `team.ts` to manifest format
+- [x] Migrate `team.ts` to manifest format (first model with relations)
 - [ ] Migrate `user.ts` to manifest format
 - [ ] Migrate `thing.ts` to manifest format
 - [ ] Migrate `review.ts` to manifest format
@@ -130,6 +130,7 @@ export default User;
 - [ ] Remove TODO comments added in Phase 3.5
 - [ ] Verify all `& Record<string, any>` workarounds removed
 - [ ] Properly type manifest schema field (currently uses structural typing workaround)
+- [ ] Replace `any` types in create-model.ts options with proper types from model-initializer.ts (especially relations, staticMethods, instanceMethods)
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)
 

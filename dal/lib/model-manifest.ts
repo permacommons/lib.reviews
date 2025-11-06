@@ -18,7 +18,7 @@ export interface ModelManifest {
   // don't exactly match ModelSchemaField interface but are compatible at runtime
   schema: Record<string, { validate(value: unknown, fieldName?: string): unknown }>;
   camelToSnake?: Record<string, string>;
-  relations?: Array<{
+  relations?: readonly {
     name: string;
     targetTable: string;
     sourceKey?: string;
@@ -35,7 +35,7 @@ export interface ModelManifest {
       targetColumn?: string;
     };
     [key: string]: unknown;
-  }>;
+  }[];
   staticMethods?: Record<string, (...args: unknown[]) => unknown>;
   instanceMethods?: Record<string, (this: unknown, ...args: unknown[]) => unknown>;
 }

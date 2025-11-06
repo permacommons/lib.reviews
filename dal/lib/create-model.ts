@@ -26,7 +26,7 @@ function initializeFromManifest<Manifest extends ModelManifest>(
     camelToSnake?: Record<string, string>;
     staticMethods?: Record<string, any>;
     instanceMethods?: Record<string, any>;
-    relations?: any[];
+    relations?: readonly any[];
     withRevision?: {
       static?: ('createFirstRevision' | 'getNotStaleOrDeleted' | 'filterNotStaleOrDeleted' | 'getMultipleNotStaleOrDeleted')[];
       instance?: ('deleteAllRevisions')[];
