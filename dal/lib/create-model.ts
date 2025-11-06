@@ -28,7 +28,7 @@ function initializeFromManifest<Manifest extends ModelManifest>(
     instanceMethods?: Record<string, any>;
     relations?: any[];
     withRevision?: {
-      static?: ('createFirstRevision' | 'getNotStaleOrDeleted' | 'filterNotStaleOrDeleted')[];
+      static?: ('createFirstRevision' | 'getNotStaleOrDeleted' | 'filterNotStaleOrDeleted' | 'getMultipleNotStaleOrDeleted')[];
       instance?: ('deleteAllRevisions')[];
     };
   } = {
@@ -41,7 +41,12 @@ function initializeFromManifest<Manifest extends ModelManifest>(
     relations: manifest.relations || [],
     withRevision: manifest.hasRevisions
       ? {
-          static: ['createFirstRevision', 'getNotStaleOrDeleted', 'filterNotStaleOrDeleted'],
+          static: [
+            'createFirstRevision',
+            'getNotStaleOrDeleted',
+            'filterNotStaleOrDeleted',
+            'getMultipleNotStaleOrDeleted',
+          ],
           instance: ['deleteAllRevisions'],
         }
       : undefined,
