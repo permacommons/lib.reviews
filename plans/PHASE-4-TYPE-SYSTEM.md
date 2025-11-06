@@ -392,22 +392,22 @@ test('user creation', async (t) => {
 - Remove manual `initializeModel` calls
 - Remove `& Record<string, any>` workarounds
 - Verify types and tests for each
-- **Status:** In progress (user, thing, review migrated; file, blog-post pending)
+- **Status:** Complete (every model now exports the manifest-driven constructor)
 
 ### Step 5: Core Type System Upgrade
-- Update `ModelInstance`/`VersionedModelInstance` to require CRUD/revision methods without an index signature
-- Tighten type builders so schema definitions infer concrete property types
-- Apply contextual `ThisType` to manifest `staticMethods`/`instanceMethods`
-- Define typed query builder interfaces (`filter`, `first`, `run`, etc.) keyed by inferred schema types
-- Derive relation result types from manifest metadata
-- Provide transitional helpers (if necessary) for legacy code during rollout
+- Update `ModelInstance`/`VersionedModelInstance` to require CRUD/revision methods without relying on an index signature
+- Ensure the schema builders drive concrete `InferData`/`InferVirtual` types (done)
+- Apply contextual `ThisType` so manifest `staticMethods`/`instanceMethods` receive strongly typed `this` (done)
+- Introduce a typed query helper (`filterWhere`, plus helpers like `contains`, `neq`) that callers can use instead of the ReQL-style lambda proxy
+- Derive relation result types from manifest metadata so eager-loaded associations are typed
+- Provide a model helper (e.g. `defineModel`) that returns both the manifest constructor and the enriched static context, eliminating the repeated cast boilerplate
 
 ### Step 6: Cleanup
-- Remove duplicate `ModelInstance` from `revision.ts`
-- Remove old `initializeModel` function
-- Update bootstrap to just import models
-- Remove temporary compatibility code
-- Drop remaining `Record<string, any>` escapes once typed instances ship
+- Migrate call sites from the ReQL proxy to the new typed query helper and remove the proxy implementation
+- Replace temporary structural aliases (e.g. `ThingPayload`) with the exported manifest-derived instance types
+- Remove TODO breadcrumbs and compatibility shims added during Phase 3.5
+- Drop remaining `Record<string, any>` escapes once the new helpers are in place
+- Refresh the DAL fixtures/tests to take advantage of the typed constructors
 
 ## Benefits
 
