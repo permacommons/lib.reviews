@@ -1,7 +1,7 @@
-import type { InferConstructor, ModelManifest } from './model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from './model-manifest.ts';
 import { getAllManifests, registerManifest } from './model-registry.ts';
 import { initializeModel } from './model-initializer.ts';
-import type { DataAccessLayer } from './model-types.ts';
+import type { DataAccessLayer, InstanceMethod } from './model-types.ts';
 import { createFilterWhereStatics } from './filter-where.ts';
 
 // Cache for initialized models (populated by bootstrap)
@@ -10,6 +10,17 @@ const filterWhereStaticsByTable = new Map<string, { filterWhere: (...args: unkno
 
 interface CreateModelOptions {
   staticProperties?: Record<string, unknown>;
+}
+
+type EmptyRecord = Record<never, never>;
+
+type ModelConstructorWithStatics<
+  Manifest extends ModelManifest,
+  ExtraStatics extends Record<string, unknown> = EmptyRecord,
+> = InferConstructor<Manifest> & ExtraStatics;
+
+export interface DefineModelOptions<ExtraStatics extends Record<string, unknown>> {
+  statics?: ExtraStatics;
 }
 
 /**
@@ -190,4 +201,59 @@ export function initializeManifestModels(dal: DataAccessLayer): void {
  */
 export function clearModelCache(): void {
   initializedModels.clear();
+}
+
+export function defineModelManifest<Manifest extends ModelManifest>(manifest: Manifest): Manifest {
+  return manifest;
+}
+
+export function defineStaticMethods<
+  Manifest extends ModelManifest,
+  Methods extends Record<string, (...args: unknown[]) => unknown>,
+>(manifest: Manifest, methods: Methods & ThisType<InferConstructor<Manifest> & Methods>): Methods {
+  return methods;
+}
+
+export function defineInstanceMethods<
+  Manifest extends ModelManifest,
+  Methods extends Record<string, InstanceMethod>,
+>(manifest: Manifest, methods: Methods & ThisType<InferInstance<Manifest> & Methods>): Methods {
+  return methods;
+}
+
+/**
+ * Convenience wrapper around {@link createModel} that preserves manifest-derived
+ * typing while layering on additional statics in a type-safe manner.
+ *
+ * This is purely a TypeScript ergonomic helper. At runtime it forwards directly
+ * to {@link createModel}, ensuring the emitted JavaScript stays unchanged.
+ *
+ * @param manifest - Model manifest definition
+ * @param options - Additional statics to merge onto the constructor
+ * @returns Typed model constructor enriched with the provided statics
+ */
+export function defineModel<Manifest extends ModelManifest>(
+  manifest: Manifest
+): ModelConstructorWithStatics<Manifest>;
+export function defineModel<
+  Manifest extends ModelManifest,
+  ExtraStatics extends Record<string, unknown> = EmptyRecord,
+>(
+  manifest: Manifest,
+  options?: DefineModelOptions<ExtraStatics>
+): ModelConstructorWithStatics<Manifest, ExtraStatics>;
+export function defineModel<
+  Manifest extends ModelManifest,
+  ExtraStatics extends Record<string, unknown> = EmptyRecord,
+>(
+  manifest: Manifest,
+  options?: DefineModelOptions<ExtraStatics>
+): ModelConstructorWithStatics<Manifest, ExtraStatics> {
+  const extraStatics = options?.statics;
+
+  const model = createModel(manifest, {
+    staticProperties: extraStatics,
+  });
+
+  return model as ModelConstructorWithStatics<Manifest, ExtraStatics>;
 }
