@@ -116,7 +116,10 @@ test.serial('QueryBuilder handles revision-aware joins', async t => {
   await thing.save();
 
   // Test join with revision filtering
-  const query = Thing.filter({ id: thing.id }).getJoin({ reviews: true });
+  const { contains, neq } = Thing.ops;
+  const query = Thing.filterWhere({ id: thing.id })
+    .and({ id: neq(randomUUID()), urls: contains(thing.urls) })
+    .getJoin({ reviews: true });
   const things = await query.run();
 
   t.true(Array.isArray(things));
@@ -185,7 +188,11 @@ test.serial('QueryBuilder materializes hasMany relations using model metadata', 
   reviewDraft.createdBy = testUser.id;
   await reviewDraft.save();
 
-  const things = await Thing.filter({ id: thingDraft.id }).getJoin({ reviews: {} }).run();
+  const { contains: includesUrl } = Thing.ops;
+  const things = await Thing.filterWhere({ id: thingDraft.id })
+    .and({ urls: includesUrl(thingDraft.urls) })
+    .getJoin({ reviews: {} })
+    .run();
 
   t.is(things.length, 1);
   const loadedThing = things[0];

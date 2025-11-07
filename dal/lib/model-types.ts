@@ -7,6 +7,34 @@ export interface JsonObject {
   [key: string]: JsonValue;
 }
 
+export interface FilterWhereOperator<
+  K extends PropertyKey,
+  TValue,
+> {
+  readonly __allowedKeys: K;
+  readonly value: TValue;
+}
+
+type OperatorResultForKey<
+  TOps,
+  K extends PropertyKey,
+> = {
+  [P in keyof TOps]: TOps[P] extends (...args: unknown[]) => FilterWhereOperator<infer Keys, infer TValue>
+    ? K extends Keys
+      ? FilterWhereOperator<K, TValue>
+      : never
+    : never;
+}[keyof TOps];
+
+export type FilterWhereLiteral<
+  TRecord extends JsonObject,
+  TOps,
+> = Partial<{
+  [K in keyof TRecord]:
+    | TRecord[K]
+    | OperatorResultForKey<TOps, K & PropertyKey>;
+}>;
+
 export interface TransactionOptions {
   transaction?: Pool | PoolClient | null;
 }
@@ -70,6 +98,34 @@ export type ModelInstance<
   TData extends JsonObject = JsonObject,
   TVirtual extends JsonObject = JsonObject,
 > = TData & TVirtual & ModelInstanceCore<TData, TVirtual>;
+
+type ExtractArray<T> = Extract<T, readonly unknown[] | unknown[]>;
+
+type ArrayElement<T> = ExtractArray<T> extends readonly (infer U)[]
+  ? U
+  : ExtractArray<T> extends (infer U)[]
+    ? U
+    : never;
+
+type StringArrayKeys<T> = {
+  [K in keyof T]-?: ExtractArray<T[K]> extends never
+    ? never
+    : ArrayElement<T[K]> extends string
+      ? K
+      : never;
+}[keyof T];
+
+/**
+ * Helper bag exposed as `Model.ops`. Call helpers at the point where you build
+ * a predicate literal so TypeScript can associate the result with the
+ * corresponding field; caching helper *results* widens their allowed keys.
+ */
+export interface FilterWhereOperators<TRecord extends JsonObject> {
+  neq<K extends keyof TRecord>(value: TRecord[K]): FilterWhereOperator<K, TRecord[K]>;
+  contains<K extends StringArrayKeys<TRecord>>(
+    value: string | readonly string[] | string[]
+  ): FilterWhereOperator<K, TRecord[K]>;
+}
 
 /**
  * Extension of {@link ModelInstance} used by revision-enabled models.
@@ -136,6 +192,43 @@ export interface ModelQueryBuilder<
   [key: string]: unknown;
 }
 
+export interface FilterWhereQueryBuilder<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+> extends PromiseLike<TInstance[]> {
+  and(criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): FilterWhereQueryBuilder<
+    TData,
+    TVirtual,
+    TInstance
+  >;
+  or(criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): FilterWhereQueryBuilder<
+    TData,
+    TVirtual,
+    TInstance
+  >;
+  includeDeleted(): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  includeStale(): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  includeSensitive(fields: string | string[]): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  orderBy(
+    field: string,
+    direction?: 'ASC' | 'DESC'
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  limit(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  getJoin(joinSpec: JsonObject): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  whereIn(
+    field: string,
+    values: unknown[],
+    options?: { cast?: string }
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  run(): Promise<TInstance[]>;
+  first(): Promise<TInstance | null>;
+  count(): Promise<number>;
+  delete(): Promise<number>;
+  deleteById(id: string): Promise<number>;
+}
+
 /**
  * Runtime constructor exported by each manifest. It exposes the DAL's static
  * helpers (`create`, `get`, `filter`, etc.) while producing instances typed as
@@ -158,6 +251,9 @@ export interface ModelConstructor<
   filter(
     criteria: Partial<TData> | ((row: unknown) => unknown)
   ): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  filterWhere(
+    criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
   create(data: Partial<TData>, options?: JsonObject): Promise<TInstance>;
   update(id: string, data: Partial<TData>): Promise<TInstance>;
   delete(id: string): Promise<boolean>;
@@ -184,6 +280,8 @@ export interface ModelConstructor<
 
   define(name: string, handler: InstanceMethod<TInstance>): void;
   defineRelation(name: string, config: JsonObject): void;
+
+  readonly ops: FilterWhereOperators<TData>;
 
   [key: string]: unknown;
 }

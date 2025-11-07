@@ -2,9 +2,11 @@ import type { InferConstructor, ModelManifest } from './model-manifest.ts';
 import { getAllManifests, registerManifest } from './model-registry.ts';
 import { initializeModel } from './model-initializer.ts';
 import type { DataAccessLayer } from './model-types.ts';
+import { createFilterWhereStatics } from './filter-where.ts';
 
 // Cache for initialized models (populated by bootstrap)
 const initializedModels = new Map<string, unknown>();
+const filterWhereStaticsByTable = new Map<string, { filterWhere: (...args: unknown[]) => unknown; ops: unknown }>();
 
 interface CreateModelOptions {
   staticProperties?: Record<string, unknown>;
@@ -57,6 +59,12 @@ function initializeFromManifest<Manifest extends ModelManifest>(
   };
 
   const { model } = initializeModel(options as any);
+
+  const filterStatics = filterWhereStaticsByTable.get(manifest.tableName);
+  if (filterStatics) {
+    Object.assign(model as Record<string, unknown>, filterStatics);
+  }
+
   return model as InferConstructor<Manifest>;
 }
 
@@ -92,7 +100,11 @@ export function createModel<Manifest extends ModelManifest>(
   // Register the manifest in the global registry
   registerManifest(manifest);
 
-  const staticProperties = options.staticProperties ?? {};
+  const filterWhereStatics = createFilterWhereStatics(manifest);
+  filterWhereStaticsByTable.set(manifest.tableName, filterWhereStatics as { filterWhere: (...args: unknown[]) => unknown; ops: unknown });
+
+  const providedStatic = options.staticProperties ?? {};
+  const staticProperties = { ...filterWhereStatics, ...providedStatic };
   const staticPropertyKeys = new Set(Object.keys(staticProperties));
 
   // Create a function target so the proxy can be used as a constructor

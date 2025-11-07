@@ -63,7 +63,7 @@ Replace manual model initialization with declarative manifests that drive type g
 - ✅ Updated bootstrap to register models simply by importing them.
 
 **Next steps (in order)**
-- [ ] Introduce a typed query helper (e.g. `filterWhere`, with helpers like `contains`, `neq`) so modernised models can stop using the ReQL-style `filter(row => …)` proxy.
+- ✅ Introduce a typed query helper (e.g. `filterWhere`, with helpers like `contains`, `neq`) so modernised models can stop using the ReQL-style `filter(row => …)` proxy.
 - [ ] Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
 - [ ] Update the remaining models (file, blog-post, etc.) to the same constructor pattern used by `user`/`thing` once the typed query helper exists, removing legacy casts.
 - [ ] Export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.

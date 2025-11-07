@@ -1,59 +1,57 @@
 # Typed `filterWhere` MVP
 
-## Summary
+## Current Implementation Snapshot
 
-Introduce a typed `filterWhere` API for manifest-driven models that replaces the legacy `filter` proxy, keeps object-literal ergonomics, and produces fully typed query builders. The initial rollout targets the `Thing` model but the implementation must be generic so every manifest model can adopt it with minimal work.
+The typed `filterWhere` API has landed and is available on every manifest-based model. The shared wiring lives in `dal/lib/filter-where.ts` and is injected automatically by `createModel`, so each model now exposes:
 
-## Goals
+- `Model.filterWhere(literal)` – strongly typed entry point that replaces the untyped ReQL-style `filter` proxy for supported use cases.
+- `Model.ops` – helper bag containing the currently implemented operators (`neq`, `contains`). Helpers can be referenced inside any predicate literal passed to `filterWhere`, `and`, or `or`.
+- Default revision scoping – all filterWhere queries automatically scope to non-deleted, non-stale revisions until `.includeDeleted()` or `.includeStale()` opt out.
+- Fluent query builder – the returned builder mirrors the existing query surface (`and`, `or`, `orderBy`, `limit`, `getJoin`, `whereIn`, `run`, `first`, etc.) while preserving typed results.
 
-- **Typed equality filters** – `Model.filterWhere({ field: value })` is the default entry point. Field names must exist on the manifest-derived record/virtual types; values are type-checked against those definitions.
-- **Revision defaults** – Queries automatically scope to current, non-deleted revisions. Callers explicitly opt out via fluent methods (for example, `.includeDeleted()`, `.includeStale()`).
-- **Operator helpers** – Each model exposes a typed helper bag (`Model.ops`). Helpers such as `contains`, `inArray`, `between`, `neq`, and `jsonContains` can be used anywhere a value is accepted: in the initial literal or in chained predicates.
-- **Fluent composition** – `filterWhere` returns a typed query builder that supports `and`, `or`, `not`, `includeDeleted`, `includeStale`, `getJoin`, `orderBy`, `limit`, `whereIn`, `run`, `first`, etc. Additional predicates are composed via chaining rather than extra parameters.
-- **Typed results** – The builder resolves to `Promise<ModelInstance[]>` (and `ModelInstance | undefined` for `first()`), eliminating downstream `as Record<string, any>` casts. Relation joins refine the return type to include joined instances.
-- **Generic infrastructure** – Core logic (builder, helper descriptors, model bindings) lives alongside the manifest utilities so every model can expose `filterWhere`/`ops` consistently. `Thing` is the MVP adopter; other models only need lightweight wiring once the shared pieces land.
+The initial rollout migrated the `Thing` maintenance script and the query-builder join tests to `filterWhere`, proving the pattern with revision-aware joins and helper usage.
 
-## Non-Goals for the MVP
+## Capabilities & Limitations
 
-- Deep JSON-path typing beyond the manifest’s existing record/virtual metadata.
-- Removing the legacy `filter` implementation immediately (it can coexist during migration).
-- Raw SQL predicate escapes; these can follow later if needed.
+- **Typed literals.** The first argument to `filterWhere` (and any chained predicate) must reference manifest-declared fields. TypeScript rejects unknown keys or mismatched value types.
+- **Operator helpers.** `neq` works on any field. `contains` works on string-array-backed fields only and accepts a single element or an array. Additional helpers (`between`, `jsonContains`, etc.) are not implemented yet.
+- **Helper reuse.** Call helper *functions* inline (destructure `const { neq } = Thing.ops` if helpful) but avoid storing helper *results* before attaching them to a field; doing so loses the key-specific typing and TypeScript can no longer warn about mismatches.
+- **Logical combinators.** `and` mutates the underlying query; `or` builds grouped predicates. A dedicated `not` helper is not yet available.
+- **Revision defaults.** `_old_rev_of IS NULL` and `_rev_deleted = false` are automatically applied unless explicitly disabled.
+- **Fluent API parity.** Methods such as `includeSensitive`, `orderBy`, `limit`, `offset`, `getJoin`, `whereIn`, `run`, `first`, `count`, and deletion helpers behave identically to the legacy builder and preserve model instance typings.
+- **Promise-like behaviour.** The builder implements `then/catch/finally`, enabling `await Model.filterWhere({ ... })` without extra `.run()` if desired.
 
-## API Overview
+## Adoption Guidelines
 
-```ts
-const { contains, inArray, between, jsonContains, neq } = Thing.ops;
+### When to Use `filterWhere`
 
-const things = await Thing.filterWhere({
-  canonicalSlugName: slugParam,
-  urls: contains(primaryUrls),
-  createdBy: neq(blockedUser),
-})
-  .or({ metadata: jsonContains({ category: 'news' }) })
-  .and({ createdOn: between(start, end) })
-  .includeStale()
-  .orderBy('createdOn', 'DESC')
-  .limit(25)
-  .run();
-```
+- Equality or inequality-based predicates that only touch manifest-declared fields.
+- Array membership checks on string-array columns that can be expressed with the provided `contains` helper.
+- Queries that benefit from the automatic “current revision” guard (for example, fetching public-facing data).
+- New code paths where typed results remove the need for manual `as ModelInstance` casts.
 
-- **Literal first argument:** mandatory `Partial<Record & Virtual>`. Unknown keys or mismatched value types fail compilation.
-- **Helpers everywhere:** operator helpers from `Model.ops` may be used directly inside any predicate literal (base call or chained `and`/`or`/`not`).
-- **Chaining:** `and`, `or`, and `not` accept the same typed literal shape. They only execute when explicitly chained, keeping the simple cases trivial.
-- **Revision scope:** `includeDeleted()` removes the implicit `_rev_deleted IS NOT TRUE` constraint; `includeStale()` removes `_old_rev_of IS NULL`. (Names can be adjusted but the semantics are fixed.)
+### How to Use It Today
 
-## Acceptance Criteria
+1. Import the model and, if needed, destructure helpers from `Model.ops`:
+   ```ts
+   const { contains, neq } = Thing.ops;
+   const results = await Thing.filterWhere({ id: targetId })
+     .and({ urls: contains(targetUrls), createdBy: neq(blockedUser) })
+     .orderBy('createdOn', 'DESC')
+     .limit(25)
+     .run();
+   ```
+2. Start with the broadest predicate in the initial literal, then chain additional literals via `.and()` or `.or()` as the query evolves.
+3. Call `.includeDeleted()` or `.includeStale()` only when the caller truly needs those revisions; skipping the call keeps the default safety net.
+4. Keep using downstream builder methods (joins, pagination, `whereIn`, etc.) exactly as before—the fluent API was preserved to ease adoption.
 
-1. `Model.filterWhere` enforces manifest-derived field names and value types at compile time.
-2. `Model.ops` exposes typed helpers usable in any predicate literal; invalid combinations (for example, calling `contains` on a non-array field) fail compilation.
-3. The builder applies “current, not deleted” filters by default and provides chainable opt-outs (`includeDeleted`, `includeStale`). Unit tests cover combinations.
-4. Logical combinators (`and`, `or`, `not`) accept typed literals and correctly compose SQL predicates; tests cover conjunction, disjunction, and negation.
-5. The builder returned by `filterWhere` supports the existing fluent query methods (`getJoin`, `whereIn`, `orderBy`, `limit`, `run`, `first`, etc.) with result types narrowing to the model’s instance (and joined relations when applicable).
-6. `Thing` migrates to the new API (covering existing usages such as `maintenance/generate-thing-slugs.ts` and `tests/16-query-builder-joins.ts`) without behavioral regressions, demonstrating MVP readiness.
-7. Documentation in this file outlines how other models adopt the shared implementation (for example, exporting `filterWhere`/`ops` from `createModel` outputs) to avoid per-model bespoke wiring.
+### When to Defer Back to `filter()`
 
-## Rollout Notes
+Continue using the legacy `filter` proxy (or postpone migration) for call sites that require functionality we have not shipped yet:
 
-1. Land the shared infrastructure (typed predicate descriptors, builder enhancements, helper generation) in the DAL/lib layer.
-2. Wire the `Thing` model to expose `filterWhere` and `ops`, migrate its call sites, and add regression tests.
-3. Once validated, document the adoption checklist for other models (import helper mixin, expose `filterWhere`, update call sites). Full rollout can proceed in parallel tasks.
+- Predicates that rely on missing operators (`between`, `jsonContains`, `inArray`, deep JSON comparisons, negation, raw SQL fragments, etc.).
+- Queries that depend on function-style filters (`row => row('urls').contains(...)`) instead of literal/object composition.
+- Advanced boolean logic that requires `not`/`nor` style grouping beyond the current `and`/`or` support.
+- Scenarios that need bespoke casting or type coercion not yet exposed through the `filterWhere` helpers.
+
+Document these holdouts when you encounter them so we can prioritize the remaining helper work. Once the outstanding operators and logical helpers land, those `filter()` call sites should migrate to `filterWhere` to benefit from typing and shared revision defaults.

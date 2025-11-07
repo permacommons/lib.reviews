@@ -1,0 +1,352 @@
+import QueryBuilder from './query-builder.ts';
+import type { ModelRuntime } from './model.ts';
+import type {
+  FilterWhereLiteral,
+  FilterWhereOperators,
+  FilterWhereQueryBuilder,
+  JsonObject,
+  ModelConstructor,
+  ModelInstance,
+} from './model-types.ts';
+import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
+
+/**
+ * Shared implementation for the typed {@link ModelConstructor.filterWhere} surface.
+ *
+ * Every manifest-driven model mixes in the helpers defined here so calling
+ * `Model.filterWhere({ ... })` yields a typed builder with revision-aware
+ * defaults and a small bag of operator helpers (`Model.ops`).
+ *
+ * ⚠️ Helpers must be invoked inline where the target field is known:
+ * destructuring `const { neq } = Thing.ops` is fine, but avoid caching helper
+ * *results* (for example `const isBlocked = neq(id)`). Once detached from the
+ * literal, TypeScript can no longer narrow the operator to a specific field,
+ * so it will compile even if you later attach it to the wrong column.
+ */
+
+const FILTER_OPERATOR_TOKEN = Symbol('lib.reviews.filterWhere.operator');
+
+type Predicate = ReturnType<QueryBuilder['_addWhereCondition']>;
+
+type OperatorBuilderContext = {
+  builder: QueryBuilder;
+  field: string | number | symbol;
+  mutate: boolean;
+};
+
+interface InternalFilterOperator<K extends PropertyKey, TValue> {
+  readonly [FILTER_OPERATOR_TOKEN]: true;
+  readonly __allowedKeys: K;
+  readonly value: TValue;
+  build(context: OperatorBuilderContext): Predicate | null;
+}
+
+type ExtractArray<T> = Extract<T, readonly unknown[] | unknown[]>;
+
+type ArrayElement<T> = ExtractArray<T> extends readonly (infer U)[]
+  ? U
+  : ExtractArray<T> extends (infer U)[]
+    ? U
+    : never;
+
+type StringArrayKeys<T> = {
+  [K in keyof T]-?: ExtractArray<T[K]> extends never
+    ? never
+    : ArrayElement<T[K]> extends string
+      ? K
+      : never;
+}[keyof T];
+
+function isOperatorToken(value: unknown): value is InternalFilterOperator<PropertyKey, unknown> {
+  return Boolean(value && typeof value === 'object' && FILTER_OPERATOR_TOKEN in (value as object));
+}
+
+/**
+ * Normalizes string-or-array helper inputs so the SQL builder always receives a
+ * mutable `string[]`. Accepts readonly arrays because call sites often share
+ * literals (for example, `Thing.ops.contains(thing.urls)`).
+ *
+ * @param value Single string or readonly array supplied to an operator helper.
+ */
+function normalizeArrayValue(value: string | readonly string[]): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  return [...value];
+}
+
+/**
+ * Generates the operator helper bag exposed via `Model.ops`. The helpers are
+ * intentionally minimal for now: `neq` works on any field and `contains`
+ * targets string-array-backed columns only until we add richer casts.
+ */
+function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRecord> {
+  return {
+    neq<K extends keyof TRecord>(value: TRecord[K]) {
+      const operator: InternalFilterOperator<K, TRecord[K]> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value,
+        build({ builder, field, mutate }) {
+          return mutate
+            ? builder._addWhereCondition(field, '!=', value)
+            : builder._createPredicate(field, '!=', value);
+        },
+      };
+      return operator;
+    },
+    contains<K extends StringArrayKeys<TRecord>>(
+      value: string | readonly string[] | string[]
+    ): InternalFilterOperator<K, TRecord[K]> {
+      const normalized = normalizeArrayValue(value);
+      const operator: InternalFilterOperator<K, TRecord[K]> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value: normalized as unknown as TRecord[K],
+        build({ builder, field, mutate }) {
+          if (normalized.length === 0) {
+            return null;
+          }
+          return mutate
+            ? builder._addWhereCondition(field, '@>', normalized, { cast: 'text[]' })
+            : builder._createPredicate(field, '@>', normalized, { cast: 'text[]' });
+        },
+      };
+      return operator;
+    },
+  } satisfies FilterWhereOperators<TRecord>;
+}
+
+/**
+ * Typed facade around the legacy `QueryBuilder`. It injects default
+ * revision-aware predicates, exposes the fluent DAL surface, and keeps the
+ * `PromiseLike` contract so existing `await Model.filter()` call sites can
+ * switch over with minimal churn.
+ */
+class FilterWhereBuilder<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+> implements FilterWhereQueryBuilder<TData, TVirtual, TInstance>
+{
+  private readonly _builder: QueryBuilder;
+  private _includeDeleted = false;
+  private _includeStale = false;
+  private _revisionFiltersApplied = false;
+
+  constructor(builder: QueryBuilder) {
+    this._builder = builder;
+  }
+
+  private _ensureRevisionFilters(): void {
+    if (this._revisionFiltersApplied) {
+      return;
+    }
+
+    if (!this._includeStale) {
+      this._builder._addWhereCondition('_old_rev_of', 'IS', null);
+    }
+
+    if (!this._includeDeleted) {
+      this._builder._addWhereCondition('_rev_deleted', '=', false);
+    }
+
+    this._revisionFiltersApplied = true;
+  }
+
+  private _createFieldPredicate<K extends keyof TData>(
+    field: K,
+    value: FilterWhereLiteral<TData, FilterWhereOperators<TData>>[K],
+    mutate: boolean
+  ): Predicate | null {
+    if (value === undefined) {
+      return null;
+    }
+
+    const dbField = this._builder._resolveFieldName(field as string | symbol);
+
+    if (isOperatorToken(value)) {
+      return value.build({ builder: this._builder, field: dbField, mutate });
+    }
+
+    return mutate
+      ? this._builder._addWhereCondition(dbField, '=', value)
+      : this._builder._createPredicate(dbField, '=', value);
+  }
+
+  private _applyLiteral(
+    literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>> | undefined,
+    mutate: boolean,
+    conjunction: 'AND' | 'OR' = 'AND'
+  ): this {
+    if (!literal) {
+      return this;
+    }
+
+    if (conjunction === 'OR') {
+      const predicates: Predicate[] = [];
+      for (const [key, rawValue] of Object.entries(literal) as [keyof TData, unknown][]) {
+        const predicate = this._createFieldPredicate(key, rawValue as never, false);
+        if (predicate) {
+          predicates.push(predicate);
+        }
+      }
+
+      if (predicates.length > 0) {
+        this._builder._where.push({
+          type: 'group',
+          conjunction: 'OR',
+          predicates,
+        });
+      }
+
+      return this;
+    }
+
+    for (const [key, rawValue] of Object.entries(literal) as [keyof TData, unknown][]) {
+      this._createFieldPredicate(key, rawValue as never, mutate);
+    }
+
+    return this;
+  }
+
+  and(literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): this {
+    return this._applyLiteral(literal, true, 'AND');
+  }
+
+  or(literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): this {
+    return this._applyLiteral(literal, false, 'OR');
+  }
+
+  includeDeleted(): this {
+    this._includeDeleted = true;
+    return this;
+  }
+
+  includeStale(): this {
+    this._includeStale = true;
+    return this;
+  }
+
+  includeSensitive(fields: string | string[]): this {
+    this._builder.includeSensitive(fields);
+    return this;
+  }
+
+  orderBy(field: string, direction: 'ASC' | 'DESC' = 'ASC'): this {
+    this._builder.orderBy(field, direction);
+    return this;
+  }
+
+  limit(count: number): this {
+    this._builder.limit(count);
+    return this;
+  }
+
+  offset(count: number): this {
+    this._builder.offset(count);
+    return this;
+  }
+
+  getJoin(joinSpec: JsonObject): this {
+    this._builder.getJoin(joinSpec);
+    return this;
+  }
+
+  whereIn(field: string, values: unknown[], options: { cast?: string } = {}): this {
+    this._builder.whereIn(field, values, options);
+    return this;
+  }
+
+  async run(): Promise<TInstance[]> {
+    this._ensureRevisionFilters();
+    const results = await this._builder.run();
+    return results as unknown as TInstance[];
+  }
+
+  async first(): Promise<TInstance | null> {
+    this._ensureRevisionFilters();
+    const result = await this._builder.first();
+    return (result ?? null) as unknown as TInstance | null;
+  }
+
+  async count(): Promise<number> {
+    this._ensureRevisionFilters();
+    return this._builder.count();
+  }
+
+  async delete(): Promise<number> {
+    this._ensureRevisionFilters();
+    return this._builder.delete();
+  }
+
+  async deleteById(id: string): Promise<number> {
+    this._ensureRevisionFilters();
+    return this._builder.deleteById(id);
+  }
+
+  then<TResult1 = TInstance[], TResult2 = never>(
+    onFulfilled?: ((value: TInstance[]) => TResult1 | PromiseLike<TResult1>) | null,
+    onRejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    return this.run().then(onFulfilled, onRejected);
+  }
+
+  catch<TResult = never>(
+    onRejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
+  ): Promise<TInstance[] | TResult> {
+    return this.run().catch(onRejected);
+  }
+
+  finally(onFinally?: (() => void) | null): Promise<TInstance[]> {
+    return this.run().finally(onFinally ?? undefined);
+  }
+}
+
+/**
+ * Produces the concrete `filterWhere` static bound to a manifest-derived
+ * constructor. This stays lightweight so every model gets the same behaviour
+ * without bespoke wiring inside the manifest definition itself.
+ */
+function createFilterWhereMethod<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+>() {
+  /**
+   * Typed entry point for building a `filterWhere` query.
+   *
+   * @param this Model constructor the query should operate on.
+   * @param literal Initial predicate literal applied to the builder.
+   */
+  function filterWhere(
+    this: ModelConstructor<TData, TVirtual, TInstance> & ModelRuntime<TData, TVirtual>,
+    literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
+  ) {
+    const builder = new QueryBuilder(this, this.dal);
+    return new FilterWhereBuilder<TData, TVirtual, TInstance>(builder).and(literal);
+  };
+
+  return filterWhere;
+}
+
+/**
+ * Helper consumed by `createModel` so all manifest-based models expose the new
+ * statics even before the DAL bootstrap finishes initializing the underlying
+ * constructors.
+ *
+ * @param _manifest Manifest describing the model being registered.
+ */
+function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Manifest) {
+  type Data = InferData<Manifest['schema']>;
+  type Virtual = InferVirtual<Manifest['schema']>;
+  type Instance = InferInstance<Manifest>;
+
+  return {
+    ops: createOperators<Data>(),
+    filterWhere: createFilterWhereMethod<Data, Virtual, Instance>(),
+  } as const;
+}
+
+export { FILTER_OPERATOR_TOKEN, FilterWhereBuilder, createFilterWhereStatics, createOperators, createFilterWhereMethod };
+export type { InternalFilterOperator };
