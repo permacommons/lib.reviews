@@ -24,8 +24,8 @@ async function updateIndices(): Promise<void> {
   // Only get current revisions (not old or deleted)
   const createIndicesPromise = search.createIndices();
   const [things, reviews] = await Promise.all([
-    Thing.filterNotStaleOrDeleted().run() as Promise<IndexableThing[]>,
-    Review.filterNotStaleOrDeleted().run() as Promise<IndexableReview[]>,
+    Thing.filterWhere({}).run() as Promise<IndexableThing[]>,
+    Review.filterWhere({}).run() as Promise<IndexableReview[]>,
   ]);
   await createIndicesPromise;
 

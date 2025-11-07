@@ -24,7 +24,7 @@ debug.errorLog.enabled = true;
 
 async function syncAll(): Promise<void> {
   await initializeDAL();
-  const things = (await Thing.filterNotStaleOrDeleted().run()) as SyncableThing[];
+  const things = (await Thing.filterWhere({}).run()) as SyncableThing[];
 
   // Reset sync settings to ensure model-side mutations are applied consistently.
   for (const thing of things) {

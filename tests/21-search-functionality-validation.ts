@@ -199,7 +199,7 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
   const startTime = Date.now();
 
   // Query all current revisions (this would be used by search indexing)
-  const currentThings = await Thing.filterNotStaleOrDeleted().run();
+  const currentThings = await Thing.filterWhere({}).run();
 
   const endTime = Date.now();
   const queryTime = endTime - startTime;

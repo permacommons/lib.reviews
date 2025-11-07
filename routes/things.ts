@@ -548,11 +548,9 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   );
 
   // Now we need to make sure that none of the URLs are currently in use.
+  const { contains, neq } = ThingModel.ops;
   const urlLookups: Promise<unknown>[] = thingURLs.map(url =>
-    ThingModel.filter(t => t('urls').contains(url))
-      .filter(t => t('id').ne(thing.id))
-      .filterNotStaleOrDeleted()
-      .run()
+    ThingModel.filterWhere({ urls: contains(url), id: neq(thing.id) }).run()
   );
 
   // Perform lookups

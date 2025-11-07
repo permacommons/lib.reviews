@@ -144,7 +144,7 @@ test.serial('search indexing integration with PostgreSQL models', async t => {
   t.deepEqual(indexedReview.data.title, review.title, 'Indexed review should have correct title');
 });
 
-test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => {
+test.serial('bulk indexing simulation with filterWhere defaults', async t => {
   const { Thing, Review } = dalFixture;
   const search = searchModule;
 
@@ -183,8 +183,8 @@ test.serial('bulk indexing simulation with filterNotStaleOrDeleted', async t => 
   }
 
   // Simulate the maintenance script logic
-  const currentThings = await Thing.filterNotStaleOrDeleted().run();
-  const currentReviews = await Review.filterNotStaleOrDeleted().run();
+  const currentThings = await Thing.filterWhere({}).run();
+  const currentReviews = await Review.filterWhere({}).run();
 
   t.true(
     currentThings.length >= 5,
@@ -258,7 +258,7 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
   await updatedThing.save();
 
   // Now query for current revisions only
-  const currentThings = await Thing.filterNotStaleOrDeleted().run();
+  const currentThings = await Thing.filterWhere({}).run();
 
   // Should only get the current revision
   const matchingThings = currentThings.filter(

@@ -313,8 +313,8 @@ test.serial('QueryBuilder supports array contains operations', async t => {
   // Test that the contains method exists and can be called
   const testUrl = 'https://example.com/test';
 
-  // Test the query builder method
-  const things = await Thing.contains('urls', testUrl).run();
+  const { contains } = Thing.ops;
+  const things = await Thing.filterWhere({ urls: contains(testUrl) }).run();
 
   t.true(Array.isArray(things));
   // The query should execute without error, regardless of results
@@ -333,7 +333,7 @@ test.serial('QueryBuilder supports revision filtering', async t => {
   await thing.save();
 
   // Test revision filtering
-  const things = await Thing.filterNotStaleOrDeleted().run();
+  const things = await Thing.filterWhere({}).run();
 
   t.true(Array.isArray(things));
   t.true(things.length >= 1);
@@ -404,7 +404,7 @@ test.serial('QueryBuilder supports ordering and limiting', async t => {
   }
 
   // Test ordering and limiting
-  const orderedReviews = await Review.filterNotStaleOrDeleted()
+  const orderedReviews = await Review.filterWhere({})
     .orderBy('created_on', 'DESC')
     .limit(2)
     .run();
@@ -444,9 +444,9 @@ test.serial('QueryBuilder supports offset for pagination', async t => {
   }
 
   // Test pagination
-  const page1 = await Review.filterNotStaleOrDeleted().orderBy('created_on', 'DESC').limit(2).run();
+  const page1 = await Review.filterWhere({}).orderBy('created_on', 'DESC').limit(2).run();
 
-  const page2 = await Review.filterNotStaleOrDeleted()
+  const page2 = await Review.filterWhere({})
     .orderBy('created_on', 'DESC')
     .limit(2)
     .offset(2)
@@ -486,7 +486,7 @@ test.serial('QueryBuilder supports count operations', async t => {
   await review.save();
 
   // Test count
-  const count = await Review.filterNotStaleOrDeleted().count();
+  const count = await Review.filterWhere({}).count();
 
   t.is(typeof count, 'number');
   t.true(count >= 1);
