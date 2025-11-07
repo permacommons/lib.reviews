@@ -13,6 +13,7 @@
   "exclude": [
     "frontend/**/*",
     "types/frontend/**/*",
-    "tests/31-autocomplete.ts"
+    "tests/31-autocomplete.ts",
+    "tests/type-tests/**/*"
   ]
 }
