@@ -116,9 +116,9 @@ test.serial('QueryBuilder handles revision-aware joins', async t => {
   await thing.save();
 
   // Test join with revision filtering
-  const { contains, neq } = Thing.ops;
+  const { containsAll, neq } = Thing.ops;
   const query = Thing.filterWhere({ id: thing.id })
-    .and({ id: neq(randomUUID()), urls: contains(thing.urls) })
+    .and({ id: neq(randomUUID()), urls: containsAll(thing.urls) })
     .getJoin({ reviews: true });
   const things = await query.run();
 
@@ -188,7 +188,7 @@ test.serial('QueryBuilder materializes hasMany relations using model metadata', 
   reviewDraft.createdBy = testUser.id;
   await reviewDraft.save();
 
-  const { contains: includesUrl } = Thing.ops;
+  const { containsAll: includesUrl } = Thing.ops;
   const things = await Thing.filterWhere({ id: thingDraft.id })
     .and({ urls: includesUrl(thingDraft.urls) })
     .getJoin({ reviews: {} })
@@ -313,8 +313,8 @@ test.serial('QueryBuilder supports array contains operations', async t => {
   // Test that the contains method exists and can be called
   const testUrl = 'https://example.com/test';
 
-  const { contains } = Thing.ops;
-  const things = await Thing.filterWhere({ urls: contains(testUrl) }).run();
+  const { containsAll } = Thing.ops;
+  const things = await Thing.filterWhere({ urls: containsAll(testUrl) }).run();
 
   t.true(Array.isArray(things));
   // The query should execute without error, regardless of results
@@ -365,8 +365,10 @@ test.serial('QueryBuilder supports revision tag filtering', async t => {
   review.createdBy = testUser.id;
   await review.save();
 
-  // Test revision tag filtering
-  const reviews = await Review.filterNotStaleOrDeleted().filterByRevisionTags(['test-tag']).run();
+  const { containsAny } = Review.ops;
+  const reviews = await Review.filterWhere({})
+    .revisionData({ _revTags: containsAny(['test-tag']) })
+    .run();
 
   t.true(Array.isArray(reviews));
   t.true(reviews.length >= 1);

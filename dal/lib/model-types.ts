@@ -122,7 +122,10 @@ type StringArrayKeys<T> = {
  */
 export interface FilterWhereOperators<TRecord extends JsonObject> {
   neq<K extends keyof TRecord>(value: TRecord[K]): FilterWhereOperator<K, TRecord[K]>;
-  contains<K extends StringArrayKeys<TRecord>>(
+  containsAll<K extends StringArrayKeys<TRecord>>(
+    value: string | readonly string[] | string[]
+  ): FilterWhereOperator<K, TRecord[K]>;
+  containsAny<K extends StringArrayKeys<TRecord>>(
     value: string | readonly string[] | string[]
   ): FilterWhereOperator<K, TRecord[K]>;
 }
@@ -131,16 +134,19 @@ export interface FilterWhereOperators<TRecord extends JsonObject> {
  * Extension of {@link ModelInstance} used by revision-enabled models.
  * Adds revision metadata properties plus helpers such as `newRevision`.
  */
-export type VersionedModelInstance<
-  TData extends JsonObject = JsonObject,
-  TVirtual extends JsonObject = JsonObject,
-> = ModelInstance<TData, TVirtual> & {
+type RevisionFieldMap = {
   _revID?: string;
   _revUser?: string;
   _revDate?: Date;
   _revTags?: string[];
   _revDeleted?: boolean;
-  _oldRevOf?: string;
+  _oldRevOf?: string | null;
+};
+
+export type VersionedModelInstance<
+  TData extends JsonObject = JsonObject,
+  TVirtual extends JsonObject = JsonObject,
+> = ModelInstance<TData, TVirtual> & RevisionFieldMap & {
 
   newRevision(
     user: RevisionActor | null,
@@ -151,6 +157,8 @@ export type VersionedModelInstance<
     options?: RevisionMetadata
   ): Promise<VersionedModelInstance<TData, TVirtual>>;
 };
+
+export type RevisionDataRecord = JsonObject & RevisionFieldMap;
 
 export type InstanceMethod<TInstance extends ModelInstance = ModelInstance> = (
   this: TInstance,
@@ -221,6 +229,9 @@ export interface FilterWhereQueryBuilder<
     field: string,
     values: unknown[],
     options?: { cast?: string }
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  revisionData(
+    criteria: FilterWhereLiteral<RevisionDataRecord, FilterWhereOperators<RevisionDataRecord>>
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
   run(): Promise<TInstance[]>;
   first(): Promise<TInstance | null>;

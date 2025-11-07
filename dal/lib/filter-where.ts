@@ -7,6 +7,7 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance,
+  RevisionDataRecord,
 } from './model-types.ts';
 import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
 
@@ -57,6 +58,11 @@ type StringArrayKeys<T> = {
       : never;
 }[keyof T];
 
+type RevisionLiteral = FilterWhereLiteral<
+  RevisionDataRecord,
+  FilterWhereOperators<RevisionDataRecord>
+>;
+
 function isOperatorToken(value: unknown): value is InternalFilterOperator<PropertyKey, unknown> {
   return Boolean(value && typeof value === 'object' && FILTER_OPERATOR_TOKEN in (value as object));
 }
@@ -64,7 +70,7 @@ function isOperatorToken(value: unknown): value is InternalFilterOperator<Proper
 /**
  * Normalizes string-or-array helper inputs so the SQL builder always receives a
  * mutable `string[]`. Accepts readonly arrays because call sites often share
- * literals (for example, `Thing.ops.contains(thing.urls)`).
+ * literals (for example, `Thing.ops.containsAll(thing.urls)`).
  *
  * @param value Single string or readonly array supplied to an operator helper.
  */
@@ -77,8 +83,9 @@ function normalizeArrayValue(value: string | readonly string[]): string[] {
 
 /**
  * Generates the operator helper bag exposed via `Model.ops`. The helpers are
- * intentionally minimal for now: `neq` works on any field and `contains`
- * targets string-array-backed columns only until we add richer casts.
+ * intentionally minimal for now: `neq` works on any field, `containsAll`
+ * targets string-array-backed columns for “must include every element”, and
+ * `containsAny` uses the overlap operator until we add richer casts.
  */
 function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRecord> {
   return {
@@ -95,7 +102,7 @@ function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRe
       };
       return operator;
     },
-    contains<K extends StringArrayKeys<TRecord>>(
+    containsAll<K extends StringArrayKeys<TRecord>>(
       value: string | readonly string[] | string[]
     ): InternalFilterOperator<K, TRecord[K]> {
       const normalized = normalizeArrayValue(value);
@@ -110,6 +117,25 @@ function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRe
           return mutate
             ? builder._addWhereCondition(field, '@>', normalized, { cast: 'text[]' })
             : builder._createPredicate(field, '@>', normalized, { cast: 'text[]' });
+        },
+      };
+      return operator;
+    },
+    containsAny<K extends StringArrayKeys<TRecord>>(
+      value: string | readonly string[] | string[]
+    ): InternalFilterOperator<K, TRecord[K]> {
+      const normalized = normalizeArrayValue(value);
+      const operator: InternalFilterOperator<K, TRecord[K]> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value: normalized as unknown as TRecord[K],
+        build({ builder, field, mutate }) {
+          if (normalized.length === 0) {
+            return null;
+          }
+          return mutate
+            ? builder._addWhereCondition(field, '&&', normalized, { cast: 'text[]' })
+            : builder._createPredicate(field, '&&', normalized, { cast: 'text[]' });
         },
       };
       return operator;
@@ -210,6 +236,26 @@ class FilterWhereBuilder<
     return this;
   }
 
+  private _createRevisionFieldPredicate(
+    field: keyof RevisionDataRecord,
+    value: RevisionLiteral[keyof RevisionDataRecord],
+    mutate: boolean
+  ): Predicate | null {
+    if (value === undefined) {
+      return null;
+    }
+
+    const dbField = this._builder._resolveFieldName(field as string | symbol);
+
+    if (isOperatorToken(value)) {
+      return value.build({ builder: this._builder, field: dbField, mutate });
+    }
+
+    return mutate
+      ? this._builder._addWhereCondition(dbField, '=', value)
+      : this._builder._createPredicate(dbField, '=', value);
+  }
+
   and(literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): this {
     return this._applyLiteral(literal, true, 'AND');
   }
@@ -230,6 +276,21 @@ class FilterWhereBuilder<
 
   includeSensitive(fields: string | string[]): this {
     this._builder.includeSensitive(fields);
+    return this;
+  }
+
+  revisionData(literal: RevisionLiteral): this {
+    if (!literal) {
+      return this;
+    }
+
+    for (const [key, rawValue] of Object.entries(literal) as [
+      keyof RevisionDataRecord,
+      unknown,
+    ][]) {
+      this._createRevisionFieldPredicate(key, rawValue as never, true);
+    }
+
     return this;
   }
 
