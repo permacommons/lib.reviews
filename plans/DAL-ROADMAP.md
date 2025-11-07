@@ -47,106 +47,31 @@ target architecture for the Data Access Layer (DAL).
 - ✅ `getOrCreateModel` prevents duplicate registrations across production and
      test DALs.
 
-### Phase 3.5 – Type System Cleanup & Documentation (current)
+### Phase 4 – Declarative Model Registry & Typed Handles (current)
 
-Prepare the type system for Phase 4's registry-driven approach by addressing
-immediate inconsistencies and documenting the target architecture.
-
-**Immediate fixes:**
-- Remove double export of `revision` object in `dal/lib/revision.ts` (both named
-  and default export exist).
-- Add TODO comments marking duplicate `ModelInstance` interface in `revision.ts`
-  for consolidation in Phase 4.
-- Document type safety issues in `model-types.ts` where generic type parameters
-  are unused (prefixed with `_`), preventing proper type inference for model fields.
-
-**Design documentation:**
-- Document the distinction between base models and versioned models, clarifying
-  that `hasRevisions` flag should drive type generation in Phase 4.
-- Specify how the future registry should generate different instance types:
-  - `ModelInstance<TRecord, TVirtual>` for base models
-  - `VersionedModelInstance<TRecord, TVirtual>` for versioned models
-- Outline the target type hierarchy where `ModelInstance` extends `TRecord & TVirtual`
-  to provide proper type safety and autocomplete for model properties.
-- Define proper option types (`SaveOptions`, `DeleteOptions`, `RevisionOptions`)
-  to replace generic `JsonObject` parameters.
-
-**Validation:**
-- Audit all model files to ensure consistent use of `& Record<string, any>`
-  workaround pattern (accepted short-term solution).
-- Verify all models properly specify `hasRevisions` flag in initialization.
-- Ensure revision-specific methods are only called on revisioned models.
-
-**Outcomes:**
-This phase creates a clear blueprint for Phase 4's type generation system while
-maintaining stability. The current `ModelInstance` workarounds remain acceptable
-until the registry can generate proper types automatically.
-
-### Phase 4 – Declarative Model Registry & Typed Handles (next)
-
-Replace manual model initialization with declarative manifests that drive type
-generation. See `plans/PHASE-4-TYPE-SYSTEM.md` for detailed design.
+Replace manual model initialization with declarative manifests that drive type generation. See `plans/PHASE-4-TYPE-SYSTEM.md` for detailed design.
 
 **Goal:** Zero DAL exposure, full type safety, manifest as single source of truth.
 
-**Example transformation:**
-```typescript
-// Before: manual types, explicit initialization
-type UserInstance = ModelInstance<UserRecord, UserVirtual> & Record<string, any>;
-const { model } = initializeModel({ dal, schema, ... });
+**Completed milestones**
+- ✅ Added `VersionedModelInstance`/`VersionedModelConstructor` to the shared type definitions.
+- ✅ Introduced manifest inference helpers and the global registry.
+- ✅ Implemented `create-model.ts` so manifests return typed proxies.
+- ✅ Updated `ModelInstance` to merge record/virtual fields inferred from the schema builders.
+- ✅ Migrated every model (team, user, thing, review, file, blog-post, etc.) to the manifest format.
+- ✅ Applied contextual `ThisType` so manifest static/instance methods receive strongly typed `this`.
+- ✅ Updated bootstrap to register models simply by importing them.
 
-// After: manifest-driven with inferred types
-const manifest = { tableName: 'users', hasRevisions: true, schema: {...} } as const;
-const User = createModel(manifest);
-export default User;
-// Usage: import User from './models/user'; (fully typed, no DAL visible)
-```
-
-**Infrastructure (additive, no breaking changes):**
-- [x] Add `VersionedModelInstance<TRecord, TVirtual>` interface to model-types.ts
-- [x] Add `VersionedModelConstructor<TRecord, TVirtual, TInstance>` to model-types.ts
-- [x] Create `dal/lib/model-manifest.ts` with manifest type and inference helpers
-- [x] Create `dal/lib/model-registry.ts` for global manifest storage
-- [x] Create `dal/lib/create-model.ts` that returns typed proxy from manifest
-- [x] Update `ModelInstance` to use `TRecord` and `TVirtual` (kept compatibility layer)
-
-**Model migrations (each independent and deployable):**
-- [x] Migrate `team-slug.ts` to manifest format (proof of concept)
-- [x] Migrate `team-join-request.ts` to manifest format
-- [x] Migrate `invite-link.ts` to manifest format
-- [x] Migrate `thing-slug.ts` to manifest format
-- [x] Migrate `user-meta.ts` to manifest format
-- [x] Migrate `team.ts` to manifest format (first model with relations)
-- [x] Migrate `user.ts` to manifest format
-- [x] Migrate `thing.ts` to manifest format
-- [x] Migrate `review.ts` to manifest format
-- [x] Convert `file.ts` to TypeScript + manifest format
-- [x] Convert `blog-post.ts` to TypeScript + manifest format
-
-**Type system upgrade:**
-- [ ] Remove the fallback index signature from `ModelInstance` and require CRUD/revision methods
-- [ ] Reconcile duplicate `ModelInstance` definitions (delete the copy in `revision.ts`)
-- [x] Tighten `types/` builders so schema inference yields concrete property types
-- [x] Apply contextual typing (`ThisType`) for manifest `staticMethods` and `instanceMethods`
-- [ ] Define typed query builder interfaces for DAL helpers (`filter`, `get`, `first`, `run`, etc.)
-- [ ] Generate relation result types from manifest metadata
-- [ ] Provide a temporary escape hatch for legacy code paths (if needed) and remove `Record<string, any>` usage once migration completes
-- [ ] Simplify `tests/fixtures/dal-fixture-ava.ts` while keeping strict model constructor typings sourced from manifest handles
-
-Current focus: refactor `ModelInstance` so it remains the shared contract for DAL helpers without conflicting with the concrete `Model` class, then align the runtime class (or narrow tests) before tightening query-builder typing.
-
-[ ] Reconcile the duplicate `ModelInstance` definitions by teaching `revision.ts` to consume the shared contract and removing the local copy.
-[ ] Reshape consumer modules (auth flow, actions, blog-post) so they rely on the manifest-inferred `User` constructor/instance instead of ad-hoc casts, clearing out the remaining `Record<string, any>` scaffolding.
-[ ] Create a dry defineModel Typescript helper to create types for model and static context
-[ ] Tighten `forms` key/value handling so attachment IDs always arrive as a clean `string[]`; this keeps query-builder inputs well-typed and avoids malformed array literals.
-[ ] Define typed query builder interfaces (e.g., `filter`, `first`, `run`, relation joins) so that manifest metadata flows all the way through. Callers should only be able to filter on declared stored fields, only join on relations defined in the manifest, and get back instances with the correctly typed eager-loaded relations—no more silent typos or stray `any` in query code.
-
-**Bootstrap & cleanup:**
-- [x] Update bootstrap to import models (auto-register) instead of explicit init
-- [ ] Remove TODO comments added in Phase 3.5
-- [ ] Verify all `& Record<string, any>` workarounds removed
-- [ ] Properly type manifest schema field (currently uses structural typing workaround)
-- [ ] Replace `any` types in create-model.ts options with proper types from model-initializer.ts (especially relations, staticMethods, instanceMethods)
+**Next steps (in order)**
+- [ ] Introduce a typed query helper (e.g. `filterWhere`, with helpers like `contains`, `neq`) so modernised models can stop using the ReQL-style `filter(row => …)` proxy.
+- [ ] Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
+- [ ] Update the remaining models (file, blog-post, etc.) to the same constructor pattern used by `user`/`thing` once the typed query helper exists, removing legacy casts.
+- [ ] Export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
+- [ ] Reshape consumer modules (auth flow, actions, blog-post, thing routes) to rely on the typed constructors instead of local `Record<string, any>` placeholders.
+- [ ] After `filterWhere` lands, migrate call sites off the proxy and remove temporary shims such as `ThingPayload`/`as any`.
+- [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations.
+- [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`.
+- [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)
 
