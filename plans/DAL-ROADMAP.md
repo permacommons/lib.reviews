@@ -47,7 +47,7 @@ target architecture for the Data Access Layer (DAL).
 - ✅ `getOrCreateModel` prevents duplicate registrations across production and
      test DALs.
 
-### Phase 4 – Declarative Model Registry & Typed Handles (current)
+### Phase 4 – Declarative Model Registry, Typed Handles & Typed Filters
 
 Replace manual model initialization with declarative manifests that drive type generation. See `plans/PHASE-4-TYPE-SYSTEM.md` for detailed design.
 
@@ -64,14 +64,15 @@ Replace manual model initialization with declarative manifests that drive type g
 
 **Next steps (in order)**
 - ✅ Introduce a typed query helper (e.g. `filterWhere`, with helpers like `containsAll`, `containsAny`, `neq`) so modernised models can stop using the ReQL-style `filter(row => …)` proxy.
-- [ ] Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
-- [ ] Update the remaining models (file, blog-post, etc.) to the same constructor pattern used by `user`/`thing` once the typed query helper exists, removing legacy casts.
-- [ ] Export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
+- ✅  Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
+- [ ] Update the remaining models (thing, file, blog-post, etc.) to the same `defineModel` pattern used by `user`, removing legacy casts. As part of this, export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
 - [ ] Reshape consumer modules (auth flow, actions, blog-post, thing routes) to rely on the typed constructors instead of local `Record<string, any>` placeholders.
-- [ ] After `filterWhere` lands, migrate call sites off the proxy and remove temporary shims such as `ThingPayload`/`as any`.
-- [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations.
+- [ ] Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`
+- [ ] Migrate all `filter`, `filterNot*` call sites to new helpers and remove temporary shims such as `ThingPayload`/`as any`.
 - [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`.
+- [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations.
 - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
+- [ ] Audit remaining scattered raw SQL usage and design new targeted helpers where appropriate
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)
 
@@ -80,14 +81,3 @@ Replace manual model initialization with declarative manifests that drive type g
   reusable abstractions.
 - Explore lightweight secondary backends (for example, SQLite for tests) only
   if the primary Postgres path remains simple.
-
-## Outstanding Ergonomic Follow-ups
-
-- Replace legacy Thinky-style `filter(row => …)` usage with first-class
-  query-builder helpers (for example, `whereArrayOverlap`, `whereNotId`) so we
-  can drop the proxy/function parser and rely on declarative predicates only.
-- Introduce high-level conveniences for common lookups (for example,
-  `Thing.lookupByURLs(urls, { excludeId })`) to consolidate duplication checks
-  into one SQL call instead of scattering per-URL queries across routes.
-- Align fixtures with the model registry so seeded test data uses the same typed
-  constructors, paving the road for the optional backend generalisation phase.
