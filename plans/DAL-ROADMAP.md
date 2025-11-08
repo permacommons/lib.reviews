@@ -68,11 +68,14 @@ Replace manual model initialization with declarative manifests that drive type g
 - ✅ Update the remaining models (thing, file, blog-post, etc.) to the same `defineModel` pattern used by `user`, removing legacy casts. As part of this, export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
 - [ ] Explore splitting manifests/types from runtime implementations to eliminate cross-import helpers once remaining models are on defineModel.
 - [ ] Reshape consumer modules (auth flow, actions, blog-post, thing routes) to rely on the typed constructors instead of local `Record<string, any>` placeholders.
+- [ ] Extend `filterWhere` operator helpers to cover range/negation/JSON use cases (for example `between`, `in`, `jsonContains`, `not`) called out in the typed query MVP.
 - [ ] Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`
 - [ ] Migrate all `filter`, `filterNot*` call sites to new helpers and remove temporary shims such as `ThingPayload`/`as any`.
+- [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
 - [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`.
 - [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations.
 - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
+- [ ] Eliminate lingering `Record<string, any>` escapes in models/routes now that typed constructors are available.
 - [ ] Audit remaining scattered raw SQL usage and design new targeted helpers where appropriate
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)

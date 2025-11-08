@@ -1,123 +1,117 @@
-# PostgreSQL Data Access Layer (DAL)
+# PostgreSQL Data Access Layer
 
-The DAL provides the database interface for lib.reviews, featuring a Model-based system with camelCase accessors, revision tracking, and JSONB support for multilingual content.
+The lib.reviews DAL is a TypeScript-first PostgreSQL abstraction that exposes typed model constructors, revision helpers, and a fluent query builder. Application code imports models synchronously while bootstrap wires them to a live `pg` connection exactly once.
 
-## Architecture
+## Core Building Blocks
 
-The DAL is initialized once at application startup via `../db-postgres.js`. Models use a handle-based pattern that allows definitions to load synchronously while deferring actual initialization until the DAL is ready.
+- **DataAccessLayer (`dal/lib/data-access-layer.ts`)** – Owns the shared `pg.Pool`, manages migrations, and keeps a per-instance `ModelRegistry` so constructors are isolated between DALs (useful for fixtures/tests).
+- **Model runtime (`dal/lib/model.ts`)** – Implements camelCase ↔︎ snake_case mapping, validation/default handling, change tracking, and persistence primitives consumed by every manifest-driven model.
+- **Manifest system (`dal/lib/create-model.ts`, `dal/lib/model-manifest.ts`)** – Declarative manifests define schema, relations, revision support, and custom methods. `defineModel` returns a lazy proxy constructor whose types are inferred from the manifest.
+- **Query builder (`dal/lib/query-builder.ts`)** – Builds SQL fragments for filters, joins, ordering, pagination, and deletes. `filterWhere` wraps it with typed predicates, while the legacy `.filter()` path remains for holdouts.
+- **Revision helpers (`dal/lib/revision.ts`)** – Adds static/instance helpers (`createFirstRevision`, `newRevision`, `filterNotStaleOrDeleted`, etc.) to models flagged with `hasRevisions: true`.
+- **Type helpers (`dal/lib/type.ts`)** – Fluent schema builders that feed manifest inference, including virtual field descriptors and multilingual string support via `mlString`.
 
-### Core Components
+## Bootstrap & Lifecycle
 
-- **DataAccessLayer** (`lib/data-access-layer.js`) - Connection pooling, transactions, migrations
-- **Model** (`lib/model.js`) - Base model class with CRUD operations, virtual fields, schema validation
-- **QueryBuilder** (`lib/query-builder.js`) - Fluent query interface with filter, order, limit, join operations
-- **Type System** (`lib/type.js`) - Type definitions and validation
-- **Error Handling** (`lib/errors.js`) - Custom error classes and PostgreSQL error conversion
-- **Multilingual Strings** (`lib/ml-string.js`) - JSONB-based multilingual string handling with language validation and fallback resolution
-- **Revision System** (`lib/revision.js`) - Revision tracking and management
-- **Model Infrastructure** - `model-handle.js`, `model-factory.js`, `model-registry.js`, `model-initializer.js` for model lifecycle management
+```ts
+import createDataAccessLayer, { DataAccessLayer } from '../dal/index.ts';
+import { initializeManifestModels } from '../dal/lib/create-model.ts';
 
-## Database Schema
-
-Hybrid approach combining relational and JSONB columns:
-
-- **Relational columns** for: IDs, timestamps, booleans, integers, simple strings, foreign keys, revision fields
-- **JSONB columns** for: Multilingual strings, complex nested objects, flexible metadata
-
-Key features:
-- Revision system with partial indexes for performance
-- JSONB multilingual support with GIN indexes
-- Foreign key constraints and check constraints
-- CamelCase JavaScript properties that map to snake_case database columns
-
-## Usage
-
-Models are defined using `createModelModule()` which returns a synchronous handle:
-
-```javascript
-// In models/user.js
-import dal from '../dal/index.js';
-import { createModelModule } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-
-const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
-  tableName: 'users'
-});
-
-const { types } = dal;
-
-const schema = {
-  id: types.string().uuid(4),
-  displayName: types.string().max(128).required(),
-  email: types.string().email(),
-  isTrusted: types.boolean().default(false)
-};
-
-async function initializeUserModel(dalInstance) {
-  const { model } = initializeModel({
-    dal: dalInstance,
-    baseTable: 'users',
-    schema
-  });
-  return model;
-}
-
-// dalInstance is supplied by the DAL bootstrap when registering models.
-registerUserHandle({
-  initializeModel: initializeUserModel
-});
-
-export default UserHandle;
-
-// In routes or other code
-import User from './models/user.js';
-
-// Use the model
-const user = await User.create({
-  displayName: 'John Doe',
-  email: 'john@example.com'
-});
-
-const users = await User.filter({ isTrusted: false }).run();
+const dal = createDataAccessLayer();
+await dal.connect();
+initializeManifestModels(dal); // registers every manifest that was imported during bootstrap
 ```
 
-Multilingual strings:
+The DAL is initialised once at startup. Tests and fixtures may spin up isolated instances; disconnecting a DAL clears its registry so cached constructors do not leak across runs.
 
-```javascript
-import dal from './dal/index.js';
+## Defining Models
 
-const { mlString } = dal;
+Models live under `models/` and export the manifest-driven constructor:
 
-const titleSchema = mlString.getSchema({ maxLength: 200 });
-const multilingualTitle = {
-  en: 'English Title',
-  de: 'German Title'
-};
+```ts
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { ModelInstance } from '../dal/lib/model-types.ts';
+import types from '../dal/lib/type.ts';
 
-// Validate
-titleSchema.validate(multilingualTitle, 'title');
+const userManifest = defineModelManifest({
+  tableName: 'users',
+  hasRevisions: false,
+  schema: {
+    id: types.string().uuid(4),
+    displayName: types.string().max(128).required(),
+    suppressedNotices: types.array(types.string()),
+    urlName: types
+      .virtual()
+      .returns<string | undefined>()
+      .default(function (this: ModelInstance) {
+        const displayName = this.getValue('displayName');
+        return displayName ? encodeURIComponent(String(displayName).replace(/ /g, '_')) : undefined;
+      }),
+  },
+  camelToSnake: {
+    displayName: 'display_name',
+    suppressedNotices: 'suppressed_notices',
+  },
+  relations: [
+    {
+      name: 'meta',
+      targetTable: 'user_metas',
+      sourceKey: 'userMetaID',
+      targetKey: 'id',
+      hasRevisions: true,
+      cardinality: 'one',
+    },
+  ] as const,
+});
 
-// Resolve with fallbacks
-const resolved = mlString.resolve('es', multilingualTitle); // Falls back to English
-
-// Generate PostgreSQL queries
-const query = mlString.buildQuery('title', 'en', '%search%', 'ILIKE');
-// Result: "title->>'en' ILIKE $1"
+export default defineModel(userManifest);
 ```
 
-## Files
+Manifests drive all type inference:
 
-- `index.js` - Main entry point
-- `lib/data-access-layer.js` - Core DAL class
-- `lib/model.js` - Base model implementation
-- `lib/model-handle.js` - Model handle pattern for synchronous exports
-- `lib/model-factory.js` - Model creation and registration
-- `lib/model-registry.js` - Model registry for lookups
-- `lib/model-initializer.js` - Model initialization logic
-- `lib/query-builder.js` - Query building functionality
-- `lib/type.js` - Type system and validation
-- `lib/errors.js` - Error handling
-- `lib/ml-string.js` - Multilingual string handling
-- `lib/revision.js` - Revision tracking system
-- `setup-db-grants.sql` - Database permissions setup script
-- `../migrations/001_initial_schema.sql` - Database schema
+- `InferData` and `InferVirtual` extract stored and virtual fields from the schema builders.
+- `InferInstance` switches between `ModelInstance` and `VersionedModelInstance` based on `hasRevisions` and merges manifest-defined instance methods.
+- Static methods declared in the manifest receive the correctly typed constructor via contextual `ThisType`.
+
+## Querying Data
+
+Every manifest-based model ships two query entry points:
+
+- **`Model.filter(criteria)`** – Legacy ReQL-style proxy that accepts `Partial<TData>` or a predicate callback. It remains untyped and should be phased out.
+- **`Model.filterWhere(literal)`** – Typed builder defined in `dal/lib/filter-where.ts`. Features include:
+  - Typed predicate literals keyed by manifest fields.
+  - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `containsAll`, `containsAny`).
+  - Automatic revision guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) with opt-outs (`includeDeleted()`, `includeStale()`).
+  - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `limit`, `offset`, `getJoin`, `whereIn`, `delete`, `count`).
+  - Promise-like behaviour so `await Model.filterWhere({ ... })` works without `.run()`.
+
+Example:
+
+```ts
+const { containsAll, neq } = Thing.ops;
+const things = await Thing.filterWhere({ urls: containsAll(targetUrls) })
+  .and({ createdBy: neq(blockedUserId) })
+  .orderBy('created_on', 'DESC')
+  .limit(25)
+  .run();
+```
+
+## Revisions
+
+Models with `hasRevisions: true` gain revision metadata fields and helpers:
+
+- Static helpers (`createFirstRevision`, `getNotStaleOrDeleted`, `filterNotStaleOrDeleted`, etc.).
+- Instance helpers (`newRevision`, `deleteAllRevisions`).
+- `filterWhere.revisionData()` exposes typed predicates for `_rev*` columns when querying revision metadata.
+
+## Directory Reference
+
+- `dal/index.ts` – Public entry point that re-exports constructors, types, and helpers.
+- `dal/lib/` – Core implementation (connection management, manifests, query builder, filters, revision system, schema types).
+- `dal/setup-db-grants.sql` – Grants applied to shared environments.
+- `models/` – Declarative manifests and behaviour for each domain model.
+- `migrations/` – PostgreSQL schema migrations consumed by `DataAccessLayer.migrate()`.
+
+## Current Priorities
+
+See `plans/DAL-ROADMAP.md` for the live modernization backlog, including `filterWhere` adoption, richer operator coverage, and relation typing improvements.
