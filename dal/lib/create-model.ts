@@ -1,12 +1,19 @@
-import type { InferConstructor, InferInstance, ModelManifest } from './model-manifest.ts';
+import type {
+  InferConstructor,
+  InferData,
+  InferInstance,
+  InferVirtual,
+  ModelManifest,
+} from './model-manifest.ts';
 import { getAllManifests, registerManifest } from './model-registry.ts';
 import { initializeModel } from './model-initializer.ts';
+import type { InitializeModelOptions } from './model-initializer.ts';
 import type { DataAccessLayer, InstanceMethod, JsonObject } from './model-types.ts';
 import { createFilterWhereStatics } from './filter-where.ts';
 
 // Cache for initialized models (populated by bootstrap)
 const initializedModels = new Map<string, unknown>();
-const filterWhereStaticsByTable = new Map<string, { filterWhere: (...args: unknown[]) => unknown; ops: unknown }>();
+const filterWhereStaticsByTable = new Map<string, ReturnType<typeof createFilterWhereStatics>>();
 
 interface CreateModelOptions {
   staticProperties?: Record<string, unknown>;
@@ -35,27 +42,19 @@ function initializeFromManifest<Manifest extends ModelManifest>(
   manifest: Manifest,
   dal: DataAccessLayer
 ): InferConstructor<Manifest> {
+  type Data = InferData<Manifest['schema']>;
+  type Virtual = InferVirtual<Manifest['schema']>;
+  type Instance = InferInstance<Manifest>;
+
+  const relationDefinitions = manifest.relations
+    ? manifest.relations.map((relation) => ({ ...relation }))
+    : null;
+
   // Convert manifest to initializeModel options format
-  const options: {
-    dal: DataAccessLayer;
-    baseTable: string;
-    schema: Record<string, any>;
-    camelToSnake?: Record<string, string>;
-    staticMethods?: Record<string, any>;
-    instanceMethods?: Record<string, any>;
-    relations?: readonly any[];
-    withRevision?: {
-      static?: ('createFirstRevision' | 'getNotStaleOrDeleted' | 'filterNotStaleOrDeleted' | 'getMultipleNotStaleOrDeleted')[];
-      instance?: ('deleteAllRevisions')[];
-    };
-  } = {
+  const options: InitializeModelOptions<Data, Virtual, Instance> = {
     dal,
     baseTable: manifest.tableName,
     schema: manifest.schema,
-    camelToSnake: manifest.camelToSnake,
-    staticMethods: manifest.staticMethods || {},
-    instanceMethods: manifest.instanceMethods || {},
-    relations: manifest.relations || [],
     withRevision: manifest.hasRevisions
       ? {
           static: [
@@ -66,10 +65,27 @@ function initializeFromManifest<Manifest extends ModelManifest>(
           ],
           instance: ['deleteAllRevisions'],
         }
-      : undefined,
+      : false,
+    relations: relationDefinitions,
   };
 
-  const { model } = initializeModel(options as any);
+  if (manifest.camelToSnake) {
+    options.camelToSnake = manifest.camelToSnake;
+  }
+
+  if (manifest.staticMethods) {
+    options.staticMethods = manifest.staticMethods as InitializeModelOptions<
+      Data,
+      Virtual,
+      Instance
+    >['staticMethods'];
+  }
+
+  if (manifest.instanceMethods) {
+    options.instanceMethods = manifest.instanceMethods as Record<string, InstanceMethod<Instance>>;
+  }
+
+  const { model } = initializeModel<Data, Virtual, Instance>(options);
 
   const filterStatics = filterWhereStaticsByTable.get(manifest.tableName);
   if (filterStatics) {
@@ -131,7 +147,7 @@ export function createModel<Manifest extends ModelManifest>(
   registerManifest(manifest);
 
   const filterWhereStatics = createFilterWhereStatics(manifest);
-  filterWhereStaticsByTable.set(manifest.tableName, filterWhereStatics as { filterWhere: (...args: unknown[]) => unknown; ops: unknown });
+  filterWhereStaticsByTable.set(manifest.tableName, filterWhereStatics);
 
   const providedStatic = options.staticProperties ?? {};
 
