@@ -3,15 +3,21 @@ import isUUID from 'is-uuid';
 import unescapeHTML from 'unescape-html';
 
 import dal from '../dal/index.ts';
-import { createModel } from '../dal/lib/create-model.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
-import Review from './review.ts';
 import TeamJoinRequest from './team-join-request.ts';
 import TeamSlug from './team-slug.ts';
 import User from './user.ts';
+
+// TODO: Convert Team/Review to share manifest + type contracts to remove this lazy import.
+async function getReviewModel() {
+  const module = await import('./review.ts');
+  return module.default;
+}
 
 const { mlString } = dal;
 const { isValid: isValidLanguage } = languages;
@@ -83,8 +89,18 @@ function generateSlugName(str: string): string {
   return slugName;
 }
 
+interface GetWithDataOptions {
+  withMembers?: boolean;
+  withModerators?: boolean;
+  withJoinRequests?: boolean;
+  withJoinRequestDetails?: boolean;
+  withReviews?: boolean;
+  reviewLimit?: number;
+  reviewOffsetDate?: Date | null;
+}
+
 // Manifest-based model definition
-const teamManifest = {
+const teamManifest = defineModelManifest({
   tableName: 'teams',
   hasRevisions: true,
   schema: {
@@ -163,8 +179,8 @@ const teamManifest = {
      * @param options - Controls which associations are hydrated
      * @returns The team instance enriched with the requested data
      */
-    async getWithData(id: string, options: Record<string, unknown> = {}): Promise<ModelInstance> {
-      const team = await this.getNotStaleOrDeleted(id);
+    async getWithData(id: string, options: GetWithDataOptions = {}): Promise<TeamInstance> {
+      const team = (await this.getNotStaleOrDeleted(id)) as TeamInstance | null;
       if (!team) throw new Error(`Team ${id} not found`);
 
       const {
@@ -175,15 +191,7 @@ const teamManifest = {
         withReviews = false,
         reviewLimit = 1,
         reviewOffsetDate = null,
-      } = options as {
-        withMembers?: boolean;
-        withModerators?: boolean;
-        withJoinRequests?: boolean;
-        withJoinRequestDetails?: boolean;
-        withReviews?: boolean;
-        reviewLimit?: number;
-        reviewOffsetDate?: Date | null;
-      };
+      } = options;
 
       if (withMembers) {
         team.members = await getTeamMembers(this, id);
@@ -199,11 +207,12 @@ const teamManifest = {
 
       if (withReviews) {
         const reviewData = await getTeamReviews(this, id, reviewLimit, reviewOffsetDate);
-        team.reviews = reviewData.reviews;
+        const reviews = reviewData.reviews;
+        team.reviews = reviews;
         team.reviewCount = reviewData.totalCount;
 
-        if (reviewData.hasMore && team.reviews.length > 0) {
-          const lastReview = team.reviews[team.reviews.length - 1];
+        if (reviewData.hasMore && reviews.length > 0) {
+          const lastReview = reviews[reviews.length - 1];
           const offsetDate = (lastReview?.createdOn ?? lastReview?.created_on) as Date | undefined;
           if (offsetDate) {
             team.reviewOffsetDate = offsetDate;
@@ -212,7 +221,7 @@ const teamManifest = {
         }
       }
 
-      return team as ModelInstance;
+      return team;
     },
   },
   instanceMethods: {
@@ -310,9 +319,11 @@ const teamManifest = {
       return this;
     },
   },
-} as const;
+} as const);
 
-const Team = createModel(teamManifest);
+const Team = defineModel(teamManifest);
+
+export type TeamInstance = InferInstance<typeof teamManifest>;
 
 /**
  * Look up the active members for a team, omitting sensitive fields.
@@ -496,13 +507,16 @@ async function getTeamReviews(
     const reviews: ModelInstance[] = [];
     const hasMoreRows = reviewResult.rows.length > limit;
 
-    for (const reviewId of reviewIDs) {
-      try {
-        const review = await (Review as unknown as { getWithData(id: string): Promise<ModelInstance> }).getWithData(reviewId);
-        if (review) reviews.push(review);
-      } catch (error) {
-        debug.error('Error loading review for team');
-        debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
+    if (reviewIDs.length) {
+      const Review = await getReviewModel();
+      for (const reviewId of reviewIDs) {
+        try {
+          const review = await (Review as unknown as { getWithData(id: string): Promise<ModelInstance> }).getWithData(reviewId);
+          if (review) reviews.push(review);
+        } catch (error) {
+          debug.error('Error loading review for team');
+          debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
+        }
       }
     }
 
