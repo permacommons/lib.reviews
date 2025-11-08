@@ -183,35 +183,42 @@ export type InstanceMethod<TInstance extends ModelInstance = ModelInstance> = (
   ...args: unknown[]
 ) => unknown;
 
+export type FilterWhereJoinSpec<TRelations extends string> = Partial<
+  Record<TRelations, boolean | JsonObject>
+>;
+
 export interface ModelQueryBuilder<
   TData extends JsonObject,
   TVirtual extends JsonObject,
   TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
 > extends PromiseLike<TInstance[]> {
   run(): Promise<TInstance[]>;
   first(): Promise<TInstance | null>;
   includeSensitive(
     fields: string | string[]
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   filter(
     criteria: Partial<TData> | ((row: unknown) => unknown)
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
-  filterNotStaleOrDeleted(): ModelQueryBuilder<TData, TVirtual, TInstance>;
-  getJoin(joinSpec: JsonObject): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  filterNotStaleOrDeleted(): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  getJoin(
+    joinSpec: FilterWhereJoinSpec<TRelations>
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   orderBy(
     field: string,
     direction?: 'ASC' | 'DESC'
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
-  limit(count: number): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  limit(count: number): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   between(
     startDate: Date,
     endDate: Date,
     options?: JsonObject
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   contains(
     field: string,
     value: unknown
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
   count(): Promise<number>;
@@ -222,35 +229,42 @@ export interface FilterWhereQueryBuilder<
   TData extends JsonObject,
   TVirtual extends JsonObject,
   TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
 > extends PromiseLike<TInstance[]> {
   and(criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): FilterWhereQueryBuilder<
     TData,
     TVirtual,
-    TInstance
+    TInstance,
+    TRelations
   >;
   or(criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): FilterWhereQueryBuilder<
     TData,
     TVirtual,
-    TInstance
+    TInstance,
+    TRelations
   >;
-  includeDeleted(): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
-  includeStale(): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
-  includeSensitive(fields: string | string[]): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  includeDeleted(): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  includeStale(): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  includeSensitive(
+    fields: string | string[]
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   orderBy(
-    field: string,
+    field: Extract<keyof TData, string>,
     direction?: 'ASC' | 'DESC'
-  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
-  limit(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
-  offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
-  getJoin(joinSpec: JsonObject): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  limit(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  getJoin(
+    joinSpec: FilterWhereJoinSpec<TRelations>
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   whereIn(
-    field: string,
+    field: Extract<keyof TData, string>,
     values: unknown[],
     options?: { cast?: string }
-  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   revisionData(
     criteria: FilterWhereLiteral<RevisionDataRecord, FilterWhereOperators<RevisionDataRecord>>
-  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   run(): Promise<TInstance[]>;
   first(): Promise<TInstance | null>;
   count(): Promise<number>;
@@ -268,6 +282,7 @@ export interface ModelConstructor<
   TData extends JsonObject = JsonObject,
   TVirtual extends JsonObject = JsonObject,
   TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
 > {
   new (data?: Partial<TData & TVirtual>): TInstance;
   tableName: string;
@@ -281,10 +296,10 @@ export interface ModelConstructor<
   getAll(...ids: string[]): Promise<TInstance[]>;
   filter(
     criteria: Partial<TData> | ((row: unknown) => unknown)
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   filterWhere(
     criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
-  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance>;
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   create(data: Partial<TData>, options?: JsonObject): Promise<TInstance>;
   update(id: string, data: Partial<TData>): Promise<TInstance>;
   delete(id: string): Promise<boolean>;
@@ -292,22 +307,24 @@ export interface ModelConstructor<
   orderBy(
     field: string,
     direction?: 'ASC' | 'DESC'
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
-  limit(count: number): ModelQueryBuilder<TData, TVirtual, TInstance>;
-  getJoin(joinSpec: JsonObject): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  limit(count: number): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  getJoin(
+    joinSpec: FilterWhereJoinSpec<TRelations>
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   between(
     startDate: Date,
     endDate: Date,
     options?: JsonObject
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   contains(
     field: string,
     value: unknown
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
-  filterNotStaleOrDeleted(): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  filterNotStaleOrDeleted(): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   getMultipleNotStaleOrDeleted(
     ids: string[]
-  ): ModelQueryBuilder<TData, TVirtual, TInstance>;
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
 
   define(name: string, handler: InstanceMethod<TInstance>): void;
   defineRelation(name: string, config: JsonObject): void;
@@ -321,7 +338,8 @@ export interface VersionedModelConstructor<
   TData extends JsonObject = JsonObject,
   TVirtual extends JsonObject = JsonObject,
   TInstance extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<TData, TVirtual>,
-> extends ModelConstructor<TData, TVirtual, TInstance> {
+  TRelations extends string = string,
+> extends ModelConstructor<TData, TVirtual, TInstance, TRelations> {
   createFirstRevision(
     user: RevisionActor,
     options?: RevisionMetadata
@@ -339,9 +357,13 @@ export interface DataAccessLayer {
     params?: unknown[],
     client?: Pool | PoolClient | null
   ): Promise<QueryResult<TRecord>>;
-  getModel<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+  getModel<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TRelations extends string = string,
+  >(
     name: string
-  ): ModelConstructor<TData, TVirtual>;
+  ): ModelConstructor<TData, TVirtual, ModelInstance<TData, TVirtual>, TRelations>;
   createModel<
     TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,

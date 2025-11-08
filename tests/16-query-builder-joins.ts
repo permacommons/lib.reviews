@@ -407,7 +407,7 @@ test.serial('QueryBuilder supports ordering and limiting', async t => {
 
   // Test ordering and limiting
   const orderedReviews = await Review.filterWhere({})
-    .orderBy('created_on', 'DESC')
+    .orderBy('createdOn', 'DESC')
     .limit(2)
     .run();
 
@@ -446,10 +446,10 @@ test.serial('QueryBuilder supports offset for pagination', async t => {
   }
 
   // Test pagination
-  const page1 = await Review.filterWhere({}).orderBy('created_on', 'DESC').limit(2).run();
+  const page1 = await Review.filterWhere({}).orderBy('createdOn', 'DESC').limit(2).run();
 
   const page2 = await Review.filterWhere({})
-    .orderBy('created_on', 'DESC')
+    .orderBy('createdOn', 'DESC')
     .limit(2)
     .offset(2)
     .run();

@@ -4,6 +4,7 @@ import type {
   FilterWhereLiteral,
   FilterWhereOperators,
   FilterWhereQueryBuilder,
+  FilterWhereJoinSpec,
   JsonObject,
   ModelConstructor,
   ModelInstance,
@@ -211,7 +212,8 @@ class FilterWhereBuilder<
   TData extends JsonObject,
   TVirtual extends JsonObject,
   TInstance extends ModelInstance<TData, TVirtual>,
-> implements FilterWhereQueryBuilder<TData, TVirtual, TInstance>
+  TRelations extends string,
+> implements FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>
 {
   private readonly _builder: QueryBuilder;
   private readonly _hasRevisions: boolean;
@@ -254,6 +256,7 @@ class FilterWhereBuilder<
     }
 
     const dbField = this._builder._resolveFieldName(field as string | symbol);
+    this._builder._assertResolvedField(dbField);
 
     if (isOperatorToken(value)) {
       return value.build({ builder: this._builder, field: dbField, mutate });
@@ -310,6 +313,7 @@ class FilterWhereBuilder<
     }
 
     const dbField = this._builder._resolveFieldName(field as string | symbol);
+    this._builder._assertResolvedField(dbField);
 
     if (isOperatorToken(value)) {
       return value.build({ builder: this._builder, field: dbField, mutate });
@@ -358,8 +362,13 @@ class FilterWhereBuilder<
     return this;
   }
 
-  orderBy(field: string, direction: 'ASC' | 'DESC' = 'ASC'): this {
-    this._builder.orderBy(field, direction);
+  orderBy(field: Extract<keyof TData, string>, direction: 'ASC' | 'DESC' = 'ASC'): this {
+    const dbField = this._builder._resolveFieldName(field);
+    this._builder._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError('FilterWhereBuilder.orderBy requires a string column reference.');
+    }
+    this._builder.orderBy(dbField, direction);
     return this;
   }
 
@@ -373,13 +382,22 @@ class FilterWhereBuilder<
     return this;
   }
 
-  getJoin(joinSpec: JsonObject): this {
+  getJoin(joinSpec: FilterWhereJoinSpec<TRelations>): this {
     this._builder.getJoin(joinSpec);
     return this;
   }
 
-  whereIn(field: string, values: unknown[], options: { cast?: string } = {}): this {
-    this._builder.whereIn(field, values, options);
+  whereIn(
+    field: Extract<keyof TData, string>,
+    values: unknown[],
+    options: { cast?: string } = {}
+  ): this {
+    const dbField = this._builder._resolveFieldName(field);
+    this._builder._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError('FilterWhereBuilder.whereIn requires a string column reference.');
+    }
+    this._builder.whereIn(dbField, values, options);
     return this;
   }
 
@@ -437,6 +455,7 @@ function createFilterWhereMethod<
   TData extends JsonObject,
   TVirtual extends JsonObject,
   TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string,
 >(hasRevisions: boolean) {
   /**
    * Typed entry point for building a `filterWhere` query.
@@ -445,11 +464,14 @@ function createFilterWhereMethod<
    * @param literal Initial predicate literal applied to the builder.
    */
   function filterWhere(
-    this: ModelConstructor<TData, TVirtual, TInstance> & ModelRuntime<TData, TVirtual>,
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
   ) {
     const builder = new QueryBuilder(this, this.dal);
-    return new FilterWhereBuilder<TData, TVirtual, TInstance>(builder, hasRevisions).and(literal);
+    return new FilterWhereBuilder<TData, TVirtual, TInstance, TRelations>(
+      builder,
+      hasRevisions
+    ).and(literal);
   };
 
   return filterWhere;
@@ -462,14 +484,25 @@ function createFilterWhereMethod<
  *
  * @param _manifest Manifest describing the model being registered.
  */
+type RelationNames<Manifest extends ModelManifest> = Manifest['relations'] extends readonly (infer Relations)[]
+  ? Relations extends { name: infer Name }
+    ? Name extends string
+      ? Name
+      : never
+    : never
+  : never;
+
 function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Manifest) {
   type Data = InferData<Manifest['schema']>;
   type Virtual = InferVirtual<Manifest['schema']>;
   type Instance = InferInstance<Manifest>;
+  type Relations = RelationNames<Manifest>;
 
   return {
     ops: createOperators<Data>(),
-    filterWhere: createFilterWhereMethod<Data, Virtual, Instance>(Boolean(_manifest.hasRevisions)),
+    filterWhere: createFilterWhereMethod<Data, Virtual, Instance, Relations>(
+      Boolean(_manifest.hasRevisions)
+    ),
   } as const;
 }
 

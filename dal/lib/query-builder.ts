@@ -513,6 +513,25 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     return fieldName;
   }
 
+  _assertResolvedField(field: string | symbol): string | symbol {
+    if (typeof field !== 'string') {
+      return field;
+    }
+
+    if (field.includes('.') || field.includes('(')) {
+      return field;
+    }
+
+    const resolved = this._resolveFieldName(field);
+    if (resolved !== field) {
+      throw new Error(
+        `QueryBuilder expected a resolved database column name but received "${field}".`
+      );
+    }
+
+    return field;
+  }
+
   /**
    * Filter out stale (old) and deleted revisions
    * Uses PostgreSQL partial indexes for optimal performance

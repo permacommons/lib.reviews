@@ -3,9 +3,10 @@ import test from 'ava';
 import * as dalModule from '../dal/index.ts';
 import Model, { type ModelSchema } from '../dal/lib/model.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
-import type { JsonObject } from '../dal/lib/model-types.ts';
+import type { JsonObject, ModelInstance } from '../dal/lib/model-types.ts';
 import QueryBuilder from '../dal/lib/query-builder.ts';
 import typesLib from '../dal/lib/type.ts';
+import { FilterWhereBuilder } from '../dal/lib/filter-where.ts';
 import type { RuntimeModel } from './helpers/dal-mocks.ts';
 import {
   createMockDAL,
@@ -42,6 +43,30 @@ test('QueryBuilder supports orderBy method', t => {
   t.is(result, qb); // Should return self for chaining
   t.true(qb._orderBy.length > 0);
   t.is(qb._orderBy[0], 'created_on DESC');
+});
+
+test('FilterWhereBuilder resolves manifest keys before delegating', t => {
+  const schema = {
+    id: typesLib.string(),
+    createdOn: typesLib.string(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on' },
+  });
+
+  type Data = { id: string; createdOn: string };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+
+  builder.orderBy('createdOn', 'DESC').whereIn('id', ['a', 'b']);
+
+  t.deepEqual(qb._orderBy, ['created_on DESC']);
+  const predicate = qb._where[0] as { column: string } | undefined;
+  t.truthy(predicate);
+  t.is(predicate?.column, 'id');
 });
 
 test('QueryBuilder supports limit method', t => {

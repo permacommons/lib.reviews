@@ -64,6 +64,14 @@ type InferStaticMethods<Manifest extends ModelManifest> = {
   [K in keyof StaticMethodsOf<Manifest>]: StaticMethodsOf<Manifest>[K];
 };
 
+type InferRelationNames<Manifest extends ModelManifest> = Manifest['relations'] extends readonly (infer Relations)[]
+  ? Relations extends { name: infer Name }
+    ? Name extends string
+      ? Name
+      : never
+    : never
+  : never;
+
 /**
  * Infer persisted data fields from the schema definition.
  */
@@ -110,7 +118,8 @@ export type InferConstructor<Manifest extends ModelManifest> =
         InferData<Manifest['schema']>,
         InferVirtual<Manifest['schema']>,
         VersionedModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
-          InferInstanceMethods<Manifest>
+          InferInstanceMethods<Manifest>,
+        InferRelationNames<Manifest>
       > &
         InferStaticMethods<Manifest> &
         CreateFromRowStatic<Manifest>
@@ -118,7 +127,8 @@ export type InferConstructor<Manifest extends ModelManifest> =
         InferData<Manifest['schema']>,
         InferVirtual<Manifest['schema']>,
         ModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
-          InferInstanceMethods<Manifest>
+          InferInstanceMethods<Manifest>,
+        InferRelationNames<Manifest>
       > &
         InferStaticMethods<Manifest> &
         CreateFromRowStatic<Manifest>;
