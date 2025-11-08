@@ -2,6 +2,7 @@ import type { ViteDevServer } from 'vite';
 import type { DalContext } from '../../dal/index.ts';
 import type { DataAccessLayer, ModelInstance } from '../../dal/lib/model-types.ts';
 import type WebHookDispatcher from '../../util/webhooks.ts';
+import type { UserViewer } from '../../models/user.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 type LocaleCodeWithUndetermined = LibReviews.LocaleCodeWithUndetermined;
@@ -21,14 +22,10 @@ export interface SessionDataWithFlash {
   [key: string]: unknown;
 }
 
-export interface RequestUser {
-  id: string | number;
+export interface RequestUser extends UserViewer {
   displayName?: string;
   urlName?: string;
   email?: string;
-  isTrusted?: boolean;
-  isSuperUser?: boolean;
-  isSiteModerator?: boolean;
   userCanUploadTempFiles?: boolean;
   inviteLinkCount?: number;
   suppressedNotices?: string[];

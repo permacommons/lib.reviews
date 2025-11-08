@@ -5,7 +5,7 @@ import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
-import User from './user.ts';
+import User, { type UserViewer } from './user.ts';
 
 const { mlString } = dal as {
   mlString: typeof import('../dal/lib/ml-string.ts').default;
@@ -139,16 +139,20 @@ const blogPostManifest = defineModelManifest({
     },
   },
   instanceMethods: {
-    populateUserInfo(user: Record<string, any>) {
+    populateUserInfo(user: UserViewer | null | undefined) {
       if (!user) {
         return;
       }
 
-      if (user.isSuperUser || user.id === this.createdBy) {
+      const isSuperUser = Boolean(user.isSuperUser);
+      const isSiteModerator = Boolean(user.isSiteModerator);
+      const isCreator = user.id === this.createdBy;
+
+      if (isSuperUser || isCreator) {
         this.userCanEdit = true;
       }
 
-      if (user.isSuperUser || user.id === this.createdBy || user.isSiteModerator) {
+      if (isSuperUser || isCreator || isSiteModerator) {
         this.userCanDelete = true;
       }
     },

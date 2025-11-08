@@ -8,6 +8,7 @@ import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import Team from './team.ts';
+import type { UserViewer } from './user.ts';
 
 // TODO: Once we split manifest/types from runtime logic, drop this lazy import
 // and go back to a direct Thing constructor import. For now it keeps TypeScript
@@ -578,20 +579,24 @@ const reviewManifest = defineModelManifest({
      *
      * @param user - Viewer whose permissions should be reflected
      */
-    populateUserInfo(this: Record<string, any>, user: Record<string, any> | null | undefined) {
+    populateUserInfo(this: Record<string, any>, user: UserViewer | null | undefined) {
       if (!user) {
         return;
       }
 
-      if (user.isSuperUser || user.isSiteModerator || user.id === this.createdBy) {
+      const isSuperUser = Boolean(user.isSuperUser);
+      const isSiteModerator = Boolean(user.isSiteModerator);
+      const isAuthor = user.id === this.createdBy;
+
+      if (isSuperUser || isSiteModerator || isAuthor) {
         this.userCanDelete = true;
       }
 
-      if (user.isSuperUser || user.id === this.createdBy) {
+      if (isSuperUser || isAuthor) {
         this.userCanEdit = true;
       }
 
-      if (user.id === this.createdBy) {
+      if (isAuthor) {
         this.userIsAuthor = true;
       }
     },

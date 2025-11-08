@@ -21,7 +21,7 @@ async function getReviewModel() {
   return module.default;
 }
 import ThingSlug from './thing-slug.ts';
-import User from './user.ts';
+import User, { type UserViewer } from './user.ts';
 
 const { mlString } = dal as unknown as {
   mlString: Record<string, any>;
@@ -170,9 +170,11 @@ const thingManifest = defineModelManifest({
               .run();
 
             const reviewsByThing = new Map<string, any[]>();
+            const viewerForLookup: UserViewer = { id: lookupUserID };
+
             for (const review of reviews) {
               if (typeof review.populateUserInfo === 'function') {
-                review.populateUserInfo({ id: lookupUserID });
+                review.populateUserInfo(viewerForLookup);
               }
 
               const reviewThingID = review.thingID;
@@ -309,15 +311,20 @@ const thingManifest = defineModelManifest({
      *
      * @param user - Viewer whose permissions should be reflected on the instance
      */
-    populateUserInfo(user: Record<string, any> | null | undefined) {
+    populateUserInfo(user: UserViewer | null | undefined) {
       if (!user) {
         return;
       }
 
-      this.userCanDelete = user.isSuperUser || user.isSiteModerator || false;
-      this.userCanEdit = user.isSuperUser || user.isTrusted || user.id === this.createdBy;
-      this.userCanUpload = user.isSuperUser || user.isTrusted;
-      this.userIsCreator = user.id === this.createdBy;
+      const isSuperUser = Boolean(user.isSuperUser);
+      const isSiteModerator = Boolean(user.isSiteModerator);
+      const isTrusted = Boolean(user.isTrusted);
+      const isCreator = user.id === this.createdBy;
+
+      this.userCanDelete = isSuperUser || isSiteModerator;
+      this.userCanEdit = isSuperUser || isTrusted || isCreator;
+      this.userCanUpload = isSuperUser || isTrusted;
+      this.userIsCreator = isCreator;
     },
     /**
      * Resolve review metrics and populate the corresponding virtual fields.
@@ -516,7 +523,7 @@ const thingManifest = defineModelManifest({
      * @param user - Viewer requesting their own reviews
      * @returns Reviews authored by the user (if any)
      */
-    async getReviewsByUser(user: Record<string, any> | null | undefined) {
+    async getReviewsByUser(user: UserViewer | null | undefined) {
       if (!user || !user.id) {
         return [];
       }

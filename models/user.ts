@@ -127,7 +127,7 @@ const userManifest = defineModelManifest({
      *
      * @param user - Viewer whose rights should be reflected on the instance
      */
-    populateUserInfo(user: Record<string, any> | null | undefined) {
+    populateUserInfo(user: UserViewer | null | undefined) {
       if (!user) return;
       if (user.id === this.id) this.userCanEditMetadata = true;
     },
@@ -360,6 +360,12 @@ const User = defineModel(userManifest, {
 });
 
 export type UserInstance = InferInstance<typeof userManifest>;
+export type UserViewer = {
+  id: UserInstance['id'];
+  isSuperUser?: UserInstance['isSuperUser'];
+  isSiteModerator?: UserInstance['isSiteModerator'];
+  isTrusted?: UserInstance['isTrusted'];
+};
 export type UserModel = InferConstructor<typeof userManifest>;
 
 export default User;

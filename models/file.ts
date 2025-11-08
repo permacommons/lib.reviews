@@ -2,6 +2,7 @@ import dal from '../dal/index.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
 import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
+import type { UserViewer } from './user.ts';
 
 const { mlString } = dal as {
   mlString: Record<string, any>;
@@ -138,13 +139,16 @@ const fileManifest = defineModelManifest({
      *
      * @param user - User whose permissions should be evaluated
      */
-    populateUserInfo(user: Record<string, any>) {
+    populateUserInfo(user: UserViewer | null | undefined) {
       if (!user) {
         return;
       }
 
+      const isSuperUser = Boolean(user.isSuperUser);
+      const isSiteModerator = Boolean(user.isSiteModerator);
+
       this.userIsCreator = user.id === this.uploadedBy;
-      this.userCanDelete = this.userIsCreator || user.isSuperUser || user.isSiteModerator || false;
+      this.userCanDelete = this.userIsCreator || isSuperUser || isSiteModerator;
     },
   },
 } as const);
