@@ -551,8 +551,7 @@ async function getFeed({
           const thingMap = new Map();
 
           thingResult.rows.forEach(row => {
-            // TODO: drop _createInstance fallback once create-model exposes typed constructors
-            const thingInstance = Thing._createInstance(row);
+            const thingInstance = new Thing(row);
             thingMap.set(thingInstance.id, thingInstance);
           });
 

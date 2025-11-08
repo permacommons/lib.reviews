@@ -156,16 +156,24 @@ class FilterWhereBuilder<
 > implements FilterWhereQueryBuilder<TData, TVirtual, TInstance>
 {
   private readonly _builder: QueryBuilder;
+  private readonly _hasRevisions: boolean;
   private _includeDeleted = false;
   private _includeStale = false;
   private _revisionFiltersApplied = false;
 
-  constructor(builder: QueryBuilder) {
+  constructor(builder: QueryBuilder, hasRevisions: boolean) {
     this._builder = builder;
+    this._hasRevisions = hasRevisions;
   }
 
   private _ensureRevisionFilters(): void {
     if (this._revisionFiltersApplied) {
+      return;
+    }
+
+    this._revisionFiltersApplied = true;
+
+    if (!this._hasRevisions) {
       return;
     }
 
@@ -176,8 +184,6 @@ class FilterWhereBuilder<
     if (!this._includeDeleted) {
       this._builder._addWhereCondition('_rev_deleted', '=', false);
     }
-
-    this._revisionFiltersApplied = true;
   }
 
   private _createFieldPredicate<K extends keyof TData>(
@@ -373,7 +379,7 @@ function createFilterWhereMethod<
   TData extends JsonObject,
   TVirtual extends JsonObject,
   TInstance extends ModelInstance<TData, TVirtual>,
->() {
+>(hasRevisions: boolean) {
   /**
    * Typed entry point for building a `filterWhere` query.
    *
@@ -385,7 +391,7 @@ function createFilterWhereMethod<
     literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
   ) {
     const builder = new QueryBuilder(this, this.dal);
-    return new FilterWhereBuilder<TData, TVirtual, TInstance>(builder).and(literal);
+    return new FilterWhereBuilder<TData, TVirtual, TInstance>(builder, hasRevisions).and(literal);
   };
 
   return filterWhere;
@@ -405,7 +411,7 @@ function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Man
 
   return {
     ops: createOperators<Data>(),
-    filterWhere: createFilterWhereMethod<Data, Virtual, Instance>(),
+    filterWhere: createFilterWhereMethod<Data, Virtual, Instance>(Boolean(_manifest.hasRevisions)),
   } as const;
 }
 
