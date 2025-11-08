@@ -4,12 +4,12 @@ import unescapeHTML from 'unescape-html';
 
 import dal from '../dal/index.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { InferInstance } from '../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
-import TeamJoinRequest from './team-join-request.ts';
+import TeamJoinRequest, { type TeamJoinRequestInstance } from './team-join-request.ts';
 import TeamSlug from './team-slug.ts';
 import User from './user.ts';
 
@@ -324,6 +324,7 @@ const teamManifest = defineModelManifest({
 const Team = defineModel(teamManifest);
 
 export type TeamInstance = InferInstance<typeof teamManifest>;
+export type TeamModel = InferConstructor<typeof teamManifest>;
 
 /**
  * Look up the active members for a team, omitting sensitive fields.
@@ -332,12 +333,9 @@ export type TeamInstance = InferInstance<typeof teamManifest>;
  * @param teamId - Identifier of the team to query
  * @returns Array of member records
  */
-async function getTeamMembers(
-  model: typeof Team,
-  teamId: string
-): Promise<ModelInstance[]> {
+async function getTeamMembers(model: TeamModel, teamId: string): Promise<ModelInstance[]> {
   try {
-    const dal = (model as unknown as { dal: { query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>; schemaNamespace?: string } }).dal;
+    const dal = model.dal;
     const memberTableName = dal.schemaNamespace
       ? `${dal.schemaNamespace}team_members`
       : 'team_members';
@@ -350,11 +348,11 @@ async function getTeamMembers(
     `;
 
     const result = await dal.query(query, [teamId]);
-    return result.rows.map((row: unknown) => {
+    return result.rows.map(row => {
       const record = row as Record<string, unknown>;
       delete record.password;
       delete record.email;
-      return (User as unknown as { _createInstance(row: unknown): ModelInstance })._createInstance(row);
+      return User.createFromRow(record);
     });
   } catch (error) {
     debug.error('Error getting team members');
@@ -370,12 +368,9 @@ async function getTeamMembers(
  * @param teamId - Identifier of the team to query
  * @returns Array of moderator records
  */
-async function getTeamModerators(
-  model: typeof Team,
-  teamId: string
-): Promise<ModelInstance[]> {
+async function getTeamModerators(model: TeamModel, teamId: string): Promise<ModelInstance[]> {
   try {
-    const dal = (model as unknown as { dal: { query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>; schemaNamespace?: string } }).dal;
+    const dal = model.dal;
     const moderatorTableName = dal.schemaNamespace
       ? `${dal.schemaNamespace}team_moderators`
       : 'team_moderators';
@@ -388,11 +383,11 @@ async function getTeamModerators(
     `;
 
     const result = await dal.query(query, [teamId]);
-    return result.rows.map((row: unknown) => {
+    return result.rows.map(row => {
       const record = row as Record<string, unknown>;
       delete record.password;
       delete record.email;
-      return (User as unknown as { _createInstance(row: unknown): ModelInstance })._createInstance(row);
+      return User.createFromRow(record);
     });
   } catch (error) {
     debug.error('Error getting team moderators');
@@ -411,14 +406,14 @@ async function getTeamModerators(
  * @returns Array of join request records
  */
 async function getTeamJoinRequests(
-  model: typeof Team,
+  model: TeamModel,
   teamId: string,
   withDetails = false
 ): Promise<ModelInstance[]> {
   let query = '';
 
   try {
-    const dal = (model as unknown as { dal: { query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>; schemaNamespace?: string } }).dal;
+    const dal = model.dal;
     const joinRequestTableName = dal.schemaNamespace
       ? `${dal.schemaNamespace}team_join_requests`
       : 'team_join_requests';
@@ -426,12 +421,9 @@ async function getTeamJoinRequests(
     query = `SELECT * FROM ${joinRequestTableName} WHERE team_id = $1`;
     const result = await dal.query(query, [teamId]);
 
-    const requests = result.rows.map((row: unknown) => {
-      const createInstance = (TeamJoinRequest as unknown as { _createInstance?: (row: unknown) => ModelInstance });
-      return createInstance._createInstance
-        ? createInstance._createInstance(row)
-        : new (TeamJoinRequest as new (data: unknown) => ModelInstance)(row);
-    });
+    const requests: (TeamJoinRequestInstance & { user?: ModelInstance })[] = result.rows.map(row =>
+      TeamJoinRequest.createFromRow(row as Record<string, unknown>)
+    );
 
     if (withDetails) {
       for (const request of requests) {

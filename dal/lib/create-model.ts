@@ -1,7 +1,7 @@
 import type { InferConstructor, InferInstance, ModelManifest } from './model-manifest.ts';
 import { getAllManifests, registerManifest } from './model-registry.ts';
 import { initializeModel } from './model-initializer.ts';
-import type { DataAccessLayer, InstanceMethod } from './model-types.ts';
+import type { DataAccessLayer, InstanceMethod, JsonObject } from './model-types.ts';
 import { createFilterWhereStatics } from './filter-where.ts';
 
 // Cache for initialized models (populated by bootstrap)
@@ -76,6 +76,25 @@ function initializeFromManifest<Manifest extends ModelManifest>(
     Object.assign(model as Record<string, unknown>, filterStatics);
   }
 
+  Object.defineProperty(model, 'createFromRow', {
+    value(row: JsonObject) {
+      const runtime = model as InferConstructor<Manifest> & {
+        _createInstance?: (data: JsonObject) => InferInstance<Manifest>;
+      };
+
+      if (typeof runtime._createInstance !== 'function') {
+        throw new Error(
+          `Model "${manifest.tableName}" does not expose _createInstance; bootstrap may be incomplete.`
+        );
+      }
+
+      return runtime._createInstance(row);
+    },
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+
   return model as InferConstructor<Manifest>;
 }
 
@@ -115,7 +134,30 @@ export function createModel<Manifest extends ModelManifest>(
   filterWhereStaticsByTable.set(manifest.tableName, filterWhereStatics as { filterWhere: (...args: unknown[]) => unknown; ops: unknown });
 
   const providedStatic = options.staticProperties ?? {};
-  const staticProperties = { ...filterWhereStatics, ...providedStatic };
+
+  const getRuntime = () => {
+    const runtime = initializedModels.get(manifest.tableName) as
+      | (InferConstructor<Manifest> & {
+          _createInstance?: (row: JsonObject) => InferInstance<Manifest>;
+        })
+      | undefined;
+
+    if (!runtime || typeof runtime._createInstance !== 'function') {
+      throw new Error(
+        `Model "${manifest.tableName}" has not been initialized yet. ` +
+          'Ensure bootstrap has completed before accessing models.'
+      );
+    }
+
+    return runtime;
+  };
+
+  const createFromRow = (row: JsonObject): InferInstance<Manifest> => {
+    const runtime = getRuntime();
+    return runtime._createInstance(row);
+  };
+
+  const staticProperties = { ...filterWhereStatics, ...providedStatic, createFromRow };
   const staticPropertyKeys = new Set(Object.keys(staticProperties));
 
   // Create a function target so the proxy can be used as a constructor

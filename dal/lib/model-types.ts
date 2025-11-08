@@ -257,6 +257,8 @@ export interface ModelConstructor<
   dal: DataAccessLayer;
   prototype: TInstance;
 
+  createFromRow(row: JsonObject): TInstance;
+
   get(id: string, options?: GetOptions): Promise<TInstance>;
   getAll(...ids: string[]): Promise<TInstance[]>;
   filter(

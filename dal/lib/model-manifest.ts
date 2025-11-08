@@ -96,6 +96,10 @@ export type InferInstance<Manifest extends ModelManifest> =
     : ModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
         InferInstanceMethods<Manifest>;
 
+type CreateFromRowStatic<Manifest extends ModelManifest> = {
+  createFromRow(row: JsonObject): InferInstance<Manifest>;
+};
+
 /**
  * Infer constructor type from manifest
  * Returns VersionedModelConstructor if hasRevisions is true, otherwise ModelConstructor
@@ -108,11 +112,13 @@ export type InferConstructor<Manifest extends ModelManifest> =
         VersionedModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
           InferInstanceMethods<Manifest>
       > &
-        InferStaticMethods<Manifest>
+        InferStaticMethods<Manifest> &
+        CreateFromRowStatic<Manifest>
     : ModelConstructor<
         InferData<Manifest['schema']>,
         InferVirtual<Manifest['schema']>,
         ModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
           InferInstanceMethods<Manifest>
       > &
-        InferStaticMethods<Manifest>;
+        InferStaticMethods<Manifest> &
+        CreateFromRowStatic<Manifest>;

@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
-import type { InferInstance } from '../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
@@ -359,9 +359,10 @@ const User = defineModel(userManifest, {
   },
 });
 
-export default User;
-
 export type UserInstance = InferInstance<typeof userManifest>;
+export type UserModel = InferConstructor<typeof userManifest>;
+
+export default User;
 
 type NewUserErrorOptions = ReportedErrorOptions & {
   payload?: Record<string, any>;
@@ -417,13 +418,8 @@ async function _attachUserTeams(user: InferInstance<typeof userManifest>): Promi
   user.teams = [];
   user.moderatorOf = [];
 
-  const teamModel = Team as unknown as {
-    dal: { query: (sql: string, params: unknown[]) => Promise<{ rows: unknown[] }>; schemaNamespace?: string };
-    tableName: string;
-    _createInstance?: (record: unknown) => ModelInstance;
-  };
-  const dalInstance = teamModel.dal;
-  const teamTable = teamModel.tableName;
+  const dalInstance = Team.dal;
+  const teamTable = Team.tableName;
   const prefix = dalInstance.schemaNamespace || '';
   const memberTable = `${prefix}team_members`;
   const moderatorTable = `${prefix}team_moderators`;
@@ -434,11 +430,7 @@ async function _attachUserTeams(user: InferInstance<typeof userManifest>): Promi
   `;
 
   const mapRowsToTeams = (rows: any[]) =>
-    rows.map(row =>
-      teamModel._createInstance
-        ? teamModel._createInstance(row)
-        : new (Team as unknown as { new (...args: unknown[]): ModelInstance })(row)
-    );
+    rows.map(row => Team.createFromRow(row as Record<string, unknown>));
 
   try {
     const memberResult = await dalInstance.query(

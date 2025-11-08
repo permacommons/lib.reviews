@@ -1,6 +1,6 @@
 import { ConstraintError } from '../dal/lib/errors.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { InferInstance } from '../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import debug from '../util/debug.ts';
@@ -85,9 +85,7 @@ const thingSlugManifest = defineModelManifest({
           [name]
         );
         return existing.rows.length
-          ? ((Model as unknown as { _createInstance(row: unknown): ModelInstance })._createInstance(
-              existing.rows[0]
-            ) as ModelInstance)
+          ? (Model.createFromRow(existing.rows[0] as Record<string, unknown>) as ModelInstance)
           : null;
       };
 
@@ -127,9 +125,7 @@ const thingSlugManifest = defineModelManifest({
       `;
       let result = await dal.query(reuseQuery, [baseName, thingID]);
       if (result.rows.length) {
-        return (Model as unknown as { _createInstance(row: unknown): ModelInstance })._createInstance(
-          result.rows[0]
-        ) as ModelInstance;
+        return Model.createFromRow(result.rows[0] as Record<string, unknown>) as ModelInstance;
       }
 
       const latestQuery = `
@@ -173,6 +169,7 @@ const thingSlugManifest = defineModelManifest({
 } as const);
 
 export type ThingSlugInstance = InferInstance<typeof thingSlugManifest>;
+export type ThingSlugModel = InferConstructor<typeof thingSlugManifest>;
 
 const ThingSlug = defineModel(thingSlugManifest, {
   statics: {

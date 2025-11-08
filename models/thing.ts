@@ -5,7 +5,7 @@ import adapters from '../adapters/adapters.ts';
 import dal from '../dal/index.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
 import type { VersionedModelInstance } from '../dal/lib/model-types.ts';
-import type { InferInstance } from '../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import search from '../search.ts';
@@ -146,12 +146,7 @@ const thingManifest = defineModelManifest({
       `;
 
       const result = await this.dal.query(query, [url]);
-      const runtime = this as Record<string, any>;
-      const things = result.rows.map(row =>
-        typeof runtime._createInstance === 'function'
-          ? runtime._createInstance(row as Record<string, any>)
-          : new this(row as Record<string, any>)
-      );
+      const things = result.rows.map(row => this.createFromRow(row as Record<string, unknown>));
 
       if (typeof userID === 'string') {
         const lookupUserID = typeof userID.trim === 'function' ? userID.trim() : userID;
@@ -719,7 +714,7 @@ const thingManifest = defineModelManifest({
 
         const result = await File.dal.query(query, uniqueIDs);
         const validFiles = result.rows
-          .map(row => File._createInstance(row))
+          .map(row => File.createFromRow(row as Record<string, unknown>))
           .filter(file => !userID || file.uploadedBy === userID);
 
         if (!validFiles.length) {
@@ -772,6 +767,7 @@ const thingManifest = defineModelManifest({
 const Thing = defineModel(thingManifest);
 
 export type ThingInstance = InferInstance<typeof thingManifest>;
+export type ThingModel = InferConstructor<typeof thingManifest>;
 
 export default Thing;
 

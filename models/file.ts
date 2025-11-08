@@ -85,7 +85,9 @@ const fileManifest = defineModelManifest({
       `;
 
       const result = await this.dal.query(query, [name, userID]);
-      return result.rows.length > 0 ? this._createInstance(result.rows[0]) : undefined;
+      return result.rows.length > 0
+        ? this.createFromRow(result.rows[0] as Record<string, unknown>)
+        : undefined;
     },
 
     /**
@@ -148,14 +150,12 @@ const fileManifest = defineModelManifest({
 } as const);
 
 export type FileInstance = InferInstance<typeof fileManifest>;
-type FileModel = InferConstructor<typeof fileManifest> & {
-  _createInstance(row: unknown): FileInstance;
-};
+export type FileModel = InferConstructor<typeof fileManifest>;
 
 const File = defineModel(fileManifest, {
   statics: {
     validLicenses,
   },
-}) as unknown as FileModel;
+});
 
 export default File;

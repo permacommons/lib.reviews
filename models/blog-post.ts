@@ -1,7 +1,7 @@
 import dal from '../dal/index.ts';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { InferInstance } from '../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
@@ -106,7 +106,7 @@ const blogPostManifest = defineModelManifest({
 
       const blogPosts = await Promise.all(
         result.rows.map(async row => {
-          const post = this._createInstance(row) as BlogPostInstance;
+          const post = this.createFromRow(row as Record<string, unknown>);
           await attachCreator(this, post);
           return post;
         })
@@ -158,13 +158,14 @@ const blogPostManifest = defineModelManifest({
 const BlogPost = defineModel(blogPostManifest);
 
 export type BlogPostInstance = InferInstance<typeof blogPostManifest>;
+export type BlogPostModel = InferConstructor<typeof blogPostManifest>;
 /**
  * Attach creator metadata to a blog post instance.
  * @param model Blog post model used to access the DAL.
  * @param post Blog post instance to decorate.
  * @returns The decorated blog post instance.
  */
-async function attachCreator(model: typeof BlogPost, post: BlogPostInstance) {
+async function attachCreator(model: BlogPostModel, post: BlogPostInstance) {
   if (!post || !post.createdBy) {
     return post;
   }

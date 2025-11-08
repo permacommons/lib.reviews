@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import adapters from '../adapters/adapters.ts';
 import dal from '../dal/index.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
@@ -422,10 +423,9 @@ const reviewManifest = defineModelManifest({
       params.push(limit + 1);
 
       const result = await this.dal.query(query, params);
-      const runtime = this as Record<string, any> & {
-        _createInstance: (row: unknown) => Record<string, any>;
-      };
-      const feedItems = result.rows.slice(0, limit).map(row => runtime._createInstance(row));
+      const feedItems = result.rows
+        .slice(0, limit)
+        .map(row => this.createFromRow(row as Record<string, unknown>));
       const feedResult: ReviewFeedResult = { feedItems };
 
       if (result.rows.length === limit + 1 && feedItems.length > 0 && limit > 0) {
@@ -542,18 +542,11 @@ const reviewManifest = defineModelManifest({
               `;
 
               const teamResult = await dalInstance.query(teamQuery, reviewIds);
-              const teamModel = Team as unknown as {
-                _createInstance?: (row: unknown) => Record<string, any>;
-                new (...args: unknown[]): Record<string, any>;
-              };
 
               const reviewTeamMap = new Map<string, Record<string, any>[]>();
               teamResult.rows.forEach(row => {
                 const reviewId = row.review_id;
-                const teamInstance =
-                  typeof teamModel._createInstance === 'function'
-                    ? teamModel._createInstance(row)
-                    : new teamModel(row);
+                const teamInstance = Team.createFromRow(row as Record<string, unknown>);
 
                 if (!reviewTeamMap.has(reviewId)) {
                   reviewTeamMap.set(reviewId, []);
@@ -631,6 +624,9 @@ const Review = defineModel(reviewManifest, {
   },
 });
 
+export type ReviewInstance = InferInstance<typeof reviewManifest>;
+export type ReviewModel = InferConstructor<typeof reviewManifest>;
+
 // Helper functions for team associations
 
 /**
@@ -640,13 +636,7 @@ const Review = defineModel(reviewManifest, {
  */
 async function _getReviewTeams(reviewId) {
   try {
-    const reviewModel = Review as {
-      dal: {
-        query: (sql: string, params?: unknown[]) => Promise<{ rows: Record<string, any>[] }>;
-        schemaNamespace?: string;
-      };
-      _createInstance?: (row: unknown) => Record<string, any>;
-    };
+    const reviewModel = Review as ReviewModel;
     const reviewTeamTableName = reviewModel.dal.schemaNamespace
       ? `${reviewModel.dal.schemaNamespace}review_teams`
       : 'review_teams';
@@ -664,15 +654,7 @@ async function _getReviewTeams(reviewId) {
 
     const result = await reviewModel.dal.query(query, [reviewId]);
 
-    const teamModel = Team as unknown as {
-      _createInstance?: (row: unknown) => Record<string, any>;
-      new (...args: unknown[]): Record<string, any>;
-    };
-
-    return result.rows.map(row =>
-      // TODO: drop _createInstance fallback once create-model exposes typed constructors
-      typeof teamModel._createInstance === 'function' ? teamModel._createInstance(row) : new teamModel(row)
-    );
+    return result.rows.map(row => Team.createFromRow(row as Record<string, unknown>));
   } catch (error) {
     debug.error('Failed to get teams for review:', error);
     return [];

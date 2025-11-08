@@ -52,7 +52,7 @@ const inviteLinkManifest = defineModelManifest({
         `;
 
         const result = await this.dal.query(query, [user.id]);
-        return result.rows.map((row: unknown) => normalizeInviteInstance(this._createInstance(row)));
+        return result.rows.map(row => normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>)));
       } catch (error) {
         debug.error('Failed to fetch pending invite links:', error);
         return [];
@@ -80,7 +80,9 @@ const inviteLinkManifest = defineModelManifest({
         `;
 
         const result = await this.dal.query(query, [user.id]);
-        const invites = result.rows.map((row: unknown) => normalizeInviteInstance(this._createInstance(row)));
+        const invites = result.rows.map(row =>
+          normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>))
+        );
 
         const usedByIds = [...new Set(invites.map(invite => invite.usedBy).filter(Boolean))];
         if (usedByIds.length === 0) {
@@ -156,7 +158,7 @@ const inviteLinkManifest = defineModelManifest({
           throw error;
         }
 
-        return normalizeInviteInstance(this._createInstance(result.rows[0]));
+        return normalizeInviteInstance(this.createFromRow(result.rows[0] as Record<string, unknown>));
       } catch (error) {
         if (error instanceof DocumentNotFound || (error as Error).name === 'DocumentNotFoundError') {
           throw error;
@@ -169,11 +171,9 @@ const inviteLinkManifest = defineModelManifest({
 } as const);
 
 export type InviteLinkInstance = InferInstance<typeof inviteLinkManifest>;
-type InviteLinkModel = InferConstructor<typeof inviteLinkManifest> & {
-  _createInstance(row: unknown): InviteLinkInstance;
-};
+export type InviteLinkModel = InferConstructor<typeof inviteLinkManifest>;
 
-const InviteLink = defineModel(inviteLinkManifest) as InviteLinkModel;
+const InviteLink = defineModel(inviteLinkManifest);
 
 export default InviteLink;
 
