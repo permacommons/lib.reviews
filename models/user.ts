@@ -2,14 +2,25 @@ import bcrypt from 'bcrypt';
 
 import { DocumentNotFound } from '../dal/lib/errors.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { ModelInstance } from '../dal/lib/model-types.ts';
+import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
 import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import Team from './team.ts';
-import UserMeta from './user-meta.ts';
+import UserMeta, { type UserMetaInstance } from './user-meta.ts';
+
+type CreateUserPayload = {
+  name: string;
+  password: string;
+  email?: UserInstance['email'];
+};
+
+type FindByURLNameOptions = GetOptions & {
+  withData?: boolean;
+  withTeams?: boolean;
+};
 
 const userOptions = {
   maxChars: 128,
@@ -228,7 +239,7 @@ const userManifest = defineModelManifest({
      * @returns The created user instance
      * @throws NewUserError if validation fails or the user exists
      */
-    async create(userObj: Record<string, any>) {
+    async create(userObj: CreateUserPayload) {
       const user = new this({});
 
       if (!userObj || typeof userObj !== 'object') {
@@ -267,8 +278,10 @@ const userManifest = defineModelManifest({
       if (typeof name !== 'string') throw new Error('Username to check must be a string.');
 
       const trimmed = name.trim();
-      const users = await this.filter({ canonicalName: canonicalize(trimmed) }).run();
-      if (users.length) {
+      const existingUser = await this.filterWhere({
+        canonicalName: canonicalize(trimmed),
+      }).first();
+      if (existingUser) {
         throw new NewUserError({
           message: 'A user named %s already exists.',
           userMessage: 'username exists',
@@ -284,7 +297,7 @@ const userManifest = defineModelManifest({
      * @param options - Join options forwarded to the DAL
      * @returns The hydrated user instance or null if not found
      */
-    async getWithTeams(id: string, options: Record<string, any> = {}) {
+    async getWithTeams(id: string, options: GetOptions = {}) {
       const user = await this.get(id, { teams: true, ...options });
       return user;
     },
@@ -296,10 +309,10 @@ const userManifest = defineModelManifest({
      * @returns The matching user instance
      * @throws DocumentNotFound if the user cannot be located
      */
-    async findByURLName(name: string, options: Record<string, any> = {}) {
+    async findByURLName(name: string, options: FindByURLNameOptions = {}) {
       const trimmed = name.trim().replace(/_/g, ' ');
 
-      let query = this.filter({ canonicalName: canonicalize(trimmed) });
+      let query = this.filterWhere({ canonicalName: canonicalize(trimmed) });
 
       if (
         options.includeSensitive &&
@@ -313,9 +326,8 @@ const userManifest = defineModelManifest({
         query = query.getJoin({ meta: true });
       }
 
-      const users = await query.run();
-      if (users.length) {
-        const user = users[0] as InferInstance<typeof userManifest>;
+      const user = await query.first();
+      if (user) {
 
         if (options.withTeams) await _attachUserTeams(user);
 
@@ -334,7 +346,10 @@ const userManifest = defineModelManifest({
      * @param bioObj - Object containing multilingual bio data
      * @returns The updated user instance
      */
-    async createBio(user: InferInstance<typeof userManifest>, bioObj: Record<string, any>) {
+    async createBio(
+      user: UserInstance,
+      bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>
+    ) {
       const metaRev = await UserMeta.createFirstRevision(user, {
         tags: ['create-bio-via-user'],
       });
@@ -371,7 +386,7 @@ export type UserModel = InferConstructor<typeof userManifest>;
 export default User;
 
 type NewUserErrorOptions = ReportedErrorOptions & {
-  payload?: Record<string, any>;
+  payload?: { user?: UserInstance };
   parentError?: Error;
 };
 
@@ -410,7 +425,7 @@ function containsOnlyLegalCharacters(name: string): true {
  *
  * @param user - User instance to mutate
  */
-function updateUploadPermission(user: ModelInstance): void {
+function updateUploadPermission(user: UserInstance): void {
   user.userCanUploadTempFiles = Boolean(user.isTrusted || user.isSuperUser);
 }
 
@@ -420,7 +435,7 @@ function updateUploadPermission(user: ModelInstance): void {
  *
  * @param user - User instance to enrich with team data
  */
-async function _attachUserTeams(user: InferInstance<typeof userManifest>): Promise<void> {
+async function _attachUserTeams(user: UserInstance): Promise<void> {
   user.teams = [];
   user.moderatorOf = [];
 
@@ -435,11 +450,11 @@ async function _attachUserTeams(user: InferInstance<typeof userManifest>): Promi
     AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
   `;
 
-  const mapRowsToTeams = (rows: any[]) =>
-    rows.map(row => Team.createFromRow(row as Record<string, unknown>));
+  const mapRowsToTeams = (rows: Array<Record<string, unknown>>) =>
+    rows.map(row => Team.createFromRow(row));
 
   try {
-    const memberResult = await dalInstance.query(
+    const memberResult = await dalInstance.query<Record<string, unknown>>(
       `
         SELECT t.*
         FROM ${teamTable} t
@@ -456,7 +471,7 @@ async function _attachUserTeams(user: InferInstance<typeof userManifest>): Promi
   }
 
   try {
-    const moderatorResult = await dalInstance.query(
+    const moderatorResult = await dalInstance.query<Record<string, unknown>>(
       `
         SELECT t.*
         FROM ${teamTable} t

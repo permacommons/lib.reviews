@@ -294,9 +294,9 @@ if (!config.requireInviteLinks) {
 
     try {
       const user = await User.create({
-        name: req.body.username,
-        password: req.body.password,
-        email: req.body.email,
+        name: req.body.username as string,
+        password: req.body.password as string,
+        email: typeof req.body.email === 'string' ? req.body.email : undefined,
       });
 
       setSignupLanguage(req, res);
@@ -351,9 +351,9 @@ router.post(
 
       try {
         const user = await User.create({
-          name: req.body.username,
-          password: req.body.password,
-          email: req.body.email,
+          name: req.body.username as string,
+          password: req.body.password as string,
+          email: typeof req.body.email === 'string' ? req.body.email : undefined,
         });
 
         inviteLink.usedBy = user.id;
