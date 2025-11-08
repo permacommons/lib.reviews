@@ -121,6 +121,22 @@ type ComparableKeys<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends ComparablePrimitive ? K : never;
 }[keyof T];
 
+type EqualityComparablePrimitive = string | number | bigint | boolean | Date;
+
+type EqualityComparableKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends EqualityComparablePrimitive ? K : never;
+}[keyof T];
+
+type BooleanKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends boolean ? K : never;
+}[keyof T];
+
+type JsonObjectKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends JsonObject ? K : never;
+}[keyof T];
+
+type NonEmptyArray<T> = readonly [T, ...T[]] | [T, ...T[]];
+
 /**
  * Helper bag exposed as `Model.ops`. Call helpers at the point where you build
  * a predicate literal so TypeScript can associate the result with the
@@ -146,6 +162,50 @@ export interface FilterWhereOperators<TRecord extends JsonObject> {
   containsAny<K extends StringArrayKeys<TRecord>>(
     value: string | readonly string[] | string[]
   ): FilterWhereOperator<K, TRecord[K]>;
+  in<K extends EqualityComparableKeys<TRecord>, TValue extends TRecord[K]>(
+    values: NonEmptyArray<TValue>,
+    options?: { cast?: string }
+  ): FilterWhereOperator<K, TValue[]>;
+  not<K extends BooleanKeys<TRecord>>(): FilterWhereOperator<K, true>;
+  between<K extends ComparableKeys<TRecord>>(
+    lower: NonNullable<TRecord[K]>,
+    upper: NonNullable<TRecord[K]>,
+    options?: {
+      leftBound?: 'open' | 'closed';
+      rightBound?: 'open' | 'closed';
+    }
+  ): FilterWhereOperator<
+    K,
+    {
+      lower: NonNullable<TRecord[K]>;
+      upper: NonNullable<TRecord[K]>;
+      options: {
+        leftBound: 'open' | 'closed';
+        rightBound: 'open' | 'closed';
+      };
+    }
+  >;
+  notBetween<K extends ComparableKeys<TRecord>>(
+    lower: NonNullable<TRecord[K]>,
+    upper: NonNullable<TRecord[K]>,
+    options?: {
+      leftBound?: 'open' | 'closed';
+      rightBound?: 'open' | 'closed';
+    }
+  ): FilterWhereOperator<
+    K,
+    {
+      lower: NonNullable<TRecord[K]>;
+      upper: NonNullable<TRecord[K]>;
+      options: {
+        leftBound: 'open' | 'closed';
+        rightBound: 'open' | 'closed';
+      };
+    }
+  >;
+  jsonContains<K extends JsonObjectKeys<TRecord>>(
+    value: JsonObject
+  ): FilterWhereOperator<K, JsonObject>;
 }
 
 /**

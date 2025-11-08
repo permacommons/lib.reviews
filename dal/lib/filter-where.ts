@@ -28,7 +28,7 @@ import type { InferData, InferInstance, InferVirtual, ModelManifest } from './mo
 
 const FILTER_OPERATOR_TOKEN = Symbol('lib.reviews.filterWhere.operator');
 
-type Predicate = ReturnType<QueryBuilder['_addWhereCondition']>;
+type Predicate = QueryBuilder['_where'][number];
 
 type OperatorBuilderContext = {
   builder: QueryBuilder;
@@ -65,6 +65,20 @@ type ComparableKeys<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends ComparablePrimitive ? K : never;
 }[keyof T];
 
+type EqualityComparablePrimitive = string | number | bigint | boolean | Date;
+
+type EqualityComparableKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends EqualityComparablePrimitive ? K : never;
+}[keyof T];
+
+type BooleanKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends boolean ? K : never;
+}[keyof T];
+
+type JsonObjectKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends JsonObject ? K : never;
+}[keyof T];
+
 type RevisionLiteral = FilterWhereLiteral<
   RevisionDataRecord,
   FilterWhereOperators<RevisionDataRecord>
@@ -86,6 +100,37 @@ function normalizeArrayValue(value: string | readonly string[]): string[] {
     return [value];
   }
   return [...value];
+}
+
+function normalizeNonEmptyArrayValue<T>(value: readonly [T, ...T[]] | [T, ...T[]]): T[] {
+  const normalized = Array.from(value) as T[];
+  if (normalized.length === 0) {
+    throw new TypeError('FilterWhere ops.in requires at least one value.');
+  }
+  return normalized;
+}
+
+function createGroupedPredicate(
+  builder: QueryBuilder,
+  field: string | number | symbol,
+  mutate: boolean,
+  left: { operator: string; value: unknown; options?: Record<string, unknown> },
+  right: { operator: string; value: unknown; options?: Record<string, unknown> },
+  conjunction: 'AND' | 'OR'
+): Predicate {
+  const leftPredicate = builder._createPredicate(field, left.operator, left.value, left.options);
+  const rightPredicate = builder._createPredicate(field, right.operator, right.value, right.options);
+  const groupPredicate = {
+    type: 'group',
+    conjunction,
+    predicates: [leftPredicate, rightPredicate],
+  } as Predicate;
+
+  if (mutate) {
+    builder._where.push(groupPredicate);
+  }
+
+  return groupPredicate;
 }
 
 /**
@@ -195,6 +240,138 @@ function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRe
           return mutate
             ? builder._addWhereCondition(field, '&&', normalized, { cast: 'text[]' })
             : builder._createPredicate(field, '&&', normalized, { cast: 'text[]' });
+        },
+      };
+      return operator;
+    },
+    in<K extends EqualityComparableKeys<TRecord>, TValue extends TRecord[K]>(
+      values: readonly [TValue, ...TValue[]] | [TValue, ...TValue[]],
+      options: { cast?: string } = {}
+    ): InternalFilterOperator<K, TValue[]> {
+      const normalized = normalizeNonEmptyArrayValue(values);
+      const operator: InternalFilterOperator<K, TValue[]> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value: normalized,
+        build({ builder, field, mutate }) {
+          const predicateOptions = {
+            valueTransform: (placeholder: string) =>
+              `(${placeholder}${options.cast ? `::${options.cast}` : ''})`,
+          };
+          return mutate
+            ? builder._addWhereCondition(field, '= ANY', normalized, predicateOptions)
+            : builder._createPredicate(field, '= ANY', normalized, predicateOptions);
+        },
+      };
+      return operator;
+    },
+    not<K extends BooleanKeys<TRecord>>(): InternalFilterOperator<K, true> {
+      const operator: InternalFilterOperator<K, true> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value: true,
+        build({ builder, field, mutate }) {
+          return mutate
+            ? builder._addWhereCondition(field, 'IS NOT', true)
+            : builder._createPredicate(field, 'IS NOT', true);
+        },
+      };
+      return operator;
+    },
+    between<K extends ComparableKeys<TRecord>>(
+      lower: NonNullable<TRecord[K]>,
+      upper: NonNullable<TRecord[K]>,
+      options: { leftBound?: 'open' | 'closed'; rightBound?: 'open' | 'closed' } = {}
+    ): InternalFilterOperator<
+      K,
+      {
+        lower: NonNullable<TRecord[K]>;
+        upper: NonNullable<TRecord[K]>;
+        options: { leftBound: 'open' | 'closed'; rightBound: 'open' | 'closed' };
+      }
+    > {
+      const bounds = {
+        leftBound: options.leftBound ?? 'closed',
+        rightBound: options.rightBound ?? 'closed',
+      } as const;
+      const operator: InternalFilterOperator<
+        K,
+        {
+          lower: NonNullable<TRecord[K]>;
+          upper: NonNullable<TRecord[K]>;
+          options: typeof bounds;
+        }
+      > = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value: { lower, upper, options: bounds },
+        build({ builder, field, mutate }) {
+          const leftOp = bounds.leftBound === 'open' ? '>' : '>=';
+          const rightOp = bounds.rightBound === 'open' ? '<' : '<=';
+          return createGroupedPredicate(
+            builder,
+            field,
+            mutate,
+            { operator: leftOp, value: lower },
+            { operator: rightOp, value: upper },
+            'AND'
+          );
+        },
+      };
+      return operator;
+    },
+    notBetween<K extends ComparableKeys<TRecord>>(
+      lower: NonNullable<TRecord[K]>,
+      upper: NonNullable<TRecord[K]>,
+      options: { leftBound?: 'open' | 'closed'; rightBound?: 'open' | 'closed' } = {}
+    ): InternalFilterOperator<
+      K,
+      {
+        lower: NonNullable<TRecord[K]>;
+        upper: NonNullable<TRecord[K]>;
+        options: { leftBound: 'open' | 'closed'; rightBound: 'open' | 'closed' };
+      }
+    > {
+      const bounds = {
+        leftBound: options.leftBound ?? 'closed',
+        rightBound: options.rightBound ?? 'closed',
+      } as const;
+      const operator: InternalFilterOperator<
+        K,
+        {
+          lower: NonNullable<TRecord[K]>;
+          upper: NonNullable<TRecord[K]>;
+          options: typeof bounds;
+        }
+      > = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value: { lower, upper, options: bounds },
+        build({ builder, field, mutate }) {
+          const leftOp = bounds.leftBound === 'open' ? '<=' : '<';
+          const rightOp = bounds.rightBound === 'open' ? '>=' : '>';
+          return createGroupedPredicate(
+            builder,
+            field,
+            mutate,
+            { operator: leftOp, value: lower },
+            { operator: rightOp, value: upper },
+            'OR'
+          );
+        },
+      };
+      return operator;
+    },
+    jsonContains<K extends JsonObjectKeys<TRecord>>(value: JsonObject): InternalFilterOperator<K, JsonObject> {
+      const operator: InternalFilterOperator<K, JsonObject> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value,
+        build({ builder, field, mutate }) {
+          const options = { cast: 'jsonb', serializeValue: JSON.stringify };
+          return mutate
+            ? builder._addWhereCondition(field, '@>', value, options)
+            : builder._createPredicate(field, '@>', value, options);
         },
       };
       return operator;

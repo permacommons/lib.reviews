@@ -80,7 +80,7 @@ Every manifest-based model ships two query entry points:
 - **`Model.filter(criteria)`** – Legacy ReQL-style proxy that accepts `Partial<TData>` or a predicate callback. It remains untyped and should be phased out.
 - **`Model.filterWhere(literal)`** – Typed builder defined in `dal/lib/filter-where.ts`. Features include:
   - Typed predicate literals keyed by manifest fields.
-  - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `containsAll`, `containsAny`).
+  - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `in`, `between/notBetween`, `containsAll`, `containsAny`, `jsonContains`, `not`).
   - Automatic revision guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) with opt-outs (`includeDeleted()`, `includeStale()`).
   - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `limit`, `offset`, `getJoin`, `whereIn`, `delete`, `count`).
   - Promise-like behaviour so `await Model.filterWhere({ ... })` works without `.run()`.

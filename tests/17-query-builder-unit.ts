@@ -6,7 +6,7 @@ import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelInstance } from '../dal/lib/model-types.ts';
 import QueryBuilder from '../dal/lib/query-builder.ts';
 import typesLib from '../dal/lib/type.ts';
-import { FilterWhereBuilder } from '../dal/lib/filter-where.ts';
+import { FilterWhereBuilder, createOperators } from '../dal/lib/filter-where.ts';
 import type { RuntimeModel } from './helpers/dal-mocks.ts';
 import {
   createMockDAL,
@@ -67,6 +67,152 @@ test('FilterWhereBuilder resolves manifest keys before delegating', t => {
   const predicate = qb._where[0] as { column: string } | undefined;
   t.truthy(predicate);
   t.is(predicate?.column, 'id');
+});
+
+test('FilterWhere operator helpers build advanced predicates', t => {
+  type Data = {
+    id: string;
+    status: string;
+    score: number;
+    createdOn: Date;
+    isActive: boolean | null;
+    metadata: JsonObject;
+  };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const schema = {
+    id: typesLib.string(),
+    status: typesLib.string(),
+    score: typesLib.number(),
+    created_on: typesLib.date(),
+    is_active: typesLib.boolean(),
+    metadata: typesLib.object(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on', isActive: 'is_active' },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+  const ops = createOperators<Data>();
+
+  builder
+    .and({
+      status: ops.in(['draft', 'published']),
+      id: ops.in(['one'], { cast: 'uuid[]' }),
+    })
+    .and({ score: ops.between(10, 20, { leftBound: 'open', rightBound: 'closed' }) })
+    .and({ score: ops.notBetween(30, 40, { leftBound: 'open', rightBound: 'open' }) })
+    .and({ metadata: ops.jsonContains({ foo: 'bar' }) })
+    .and({ isActive: ops.not() });
+
+  t.is(qb._where.length, 6);
+
+  const [anyPredicate, castPredicate, betweenGroup, notBetweenGroup, jsonPredicate, booleanPredicate] = qb._where;
+
+  if (!anyPredicate || anyPredicate.type !== 'basic') {
+    t.fail('Expected first predicate to be basic');
+    return;
+  }
+  t.is(anyPredicate.operator, '= ANY');
+  t.deepEqual(anyPredicate.value, ['draft', 'published']);
+  t.truthy(anyPredicate.valueTransform);
+  t.is(anyPredicate.valueTransform?.('__value__'), '(__value__)');
+
+  if (!castPredicate || castPredicate.type !== 'basic') {
+    t.fail('Expected second predicate to be basic');
+    return;
+  }
+  t.is(castPredicate.operator, '= ANY');
+  t.deepEqual(castPredicate.value, ['one']);
+  t.is(castPredicate.valueTransform?.('__value__'), '(__value__::uuid[])');
+
+  if (!betweenGroup || betweenGroup.type !== 'group') {
+    t.fail('Expected third predicate to be a group');
+    return;
+  }
+  t.is(betweenGroup.conjunction, 'AND');
+  const [lowerBetween, upperBetween] = betweenGroup.predicates;
+  t.truthy(lowerBetween && upperBetween);
+  if (lowerBetween?.type === 'basic' && upperBetween?.type === 'basic') {
+    t.is(lowerBetween.operator, '>');
+    t.is(upperBetween.operator, '<=');
+    t.is(lowerBetween.value, 10);
+    t.is(upperBetween.value, 20);
+  } else {
+    t.fail('Between group predicates should be basic');
+  }
+
+  if (!notBetweenGroup || notBetweenGroup.type !== 'group') {
+    t.fail('Expected fourth predicate to be a group');
+    return;
+  }
+  t.is(notBetweenGroup.conjunction, 'OR');
+  const [lowerNotBetween, upperNotBetween] = notBetweenGroup.predicates;
+  t.truthy(lowerNotBetween && upperNotBetween);
+  if (lowerNotBetween?.type === 'basic' && upperNotBetween?.type === 'basic') {
+    t.is(lowerNotBetween.operator, '<=');
+    t.is(upperNotBetween.operator, '>=');
+    t.is(lowerNotBetween.value, 30);
+    t.is(upperNotBetween.value, 40);
+  } else {
+    t.fail('NotBetween group predicates should be basic');
+  }
+
+  if (!jsonPredicate || jsonPredicate.type !== 'basic') {
+    t.fail('Expected fifth predicate to be basic');
+    return;
+  }
+  t.is(jsonPredicate.operator, '@>');
+  t.is(jsonPredicate.value, JSON.stringify({ foo: 'bar' }));
+  t.is(jsonPredicate.valueTransform?.('__value__'), '__value__::jsonb');
+
+  if (!booleanPredicate || booleanPredicate.type !== 'basic') {
+    t.fail('Expected sixth predicate to be basic');
+    return;
+  }
+  t.is(booleanPredicate.operator, 'IS NOT');
+  t.true(booleanPredicate.value);
+  t.is(booleanPredicate.valueTransform?.('__value__'), '__value__');
+});
+
+test('FilterWhere operators enforce non-empty IN arrays at runtime', t => {
+  type MinimalRecord = JsonObject & { id: string };
+  const ops = createOperators<MinimalRecord>();
+  t.throws(() => ops.in([] as unknown as [string, ...string[]]), {
+    message: /requires at least one value/i,
+  });
+});
+
+test('FilterWhere between participates in OR groups', t => {
+  type Data = { value: number };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const schema = {
+    value: typesLib.number(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({ schema });
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+  const ops = createOperators<Data>();
+
+  builder.or({ value: ops.between(1, 5) });
+
+  t.is(qb._where.length, 1);
+  const groupPredicate = qb._where[0];
+  if (groupPredicate?.type !== 'group') {
+    t.fail('Expected OR predicate to be grouped');
+    return;
+  }
+  t.is(groupPredicate.conjunction, 'OR');
+  t.is(groupPredicate.predicates.length, 1);
+  const nested = groupPredicate.predicates[0];
+  if (nested?.type !== 'group') {
+    t.fail('Expected nested between group');
+    return;
+  }
+  t.is(nested.conjunction, 'AND');
 });
 
 test('QueryBuilder supports limit method', t => {
