@@ -66,6 +66,7 @@ Replace manual model initialization with declarative manifests that drive type g
 - ✅ Introduce a typed query helper (e.g. `filterWhere`, with helpers like `containsAll`, `containsAny`, `neq`) so modernised models can stop using the ReQL-style `filter(row => …)` proxy.
 - ✅  Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
 - [ ] Update the remaining models (thing, file, blog-post, etc.) to the same `defineModel` pattern used by `user`, removing legacy casts. As part of this, export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
+- [ ] Explore splitting manifests/types from runtime implementations to eliminate cross-import helpers once remaining models are on defineModel.
 - [ ] Reshape consumer modules (auth flow, actions, blog-post, thing routes) to rely on the typed constructors instead of local `Record<string, any>` placeholders.
 - [ ] Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`
 - [ ] Migrate all `filter`, `filterNot*` call sites to new helpers and remove temporary shims such as `ThingPayload`/`as any`.

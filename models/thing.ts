@@ -13,7 +13,13 @@ import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import urlUtils from '../util/url-utils.ts';
 import File from './file.ts';
-import Review from './review.ts';
+
+// TODO: Convert Thing/Review to share manifest + type contracts so we can drop
+// this lazy import and stick with direct constructor imports again.
+async function getReviewModel() {
+  const module = await import('./review.ts');
+  return module.default;
+}
 import ThingSlug from './thing-slug.ts';
 import User from './user.ts';
 
@@ -159,6 +165,7 @@ const thingManifest = defineModelManifest({
 
         if (thingIDs.length > 0) {
           try {
+            const Review = await getReviewModel();
             const reviews = await Review
               .filterNotStaleOrDeleted()
               .whereIn('thing_id', thingIDs, { cast: 'uuid[]' })
@@ -520,6 +527,7 @@ const thingManifest = defineModelManifest({
       }
 
       try {
+        const Review = await getReviewModel();
         const feed = await Review.getFeed({
           thingID: this.id,
           createdBy: user.id,
