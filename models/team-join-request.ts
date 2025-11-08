@@ -1,8 +1,9 @@
-import { createModel } from '../dal/lib/create-model.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 
 // Manifest-based model definition
-const teamJoinRequestManifest = {
+const teamJoinRequestManifest = defineModelManifest({
   tableName: 'team_join_requests',
   hasRevisions: false,
   schema: {
@@ -27,8 +28,10 @@ const teamJoinRequestManifest = {
     rejectionMessage: 'rejection_message',
     rejectedUntil: 'rejected_until',
   },
-} as const;
+});
 
-const TeamJoinRequest = createModel(teamJoinRequestManifest);
+const TeamJoinRequest = defineModel(teamJoinRequestManifest);
+
+export type TeamJoinRequestInstance = InferInstance<typeof teamJoinRequestManifest>;
 
 export default TeamJoinRequest;

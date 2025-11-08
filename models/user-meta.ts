@@ -1,5 +1,6 @@
 import { ValidationError } from '../dal/lib/errors.ts';
-import { createModel } from '../dal/lib/create-model.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import dal from '../dal/index.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
@@ -8,7 +9,7 @@ const { mlString } = dal;
 const { isValid: isValidLanguage } = languages;
 
 // Manifest-based model definition
-const userMetaManifest = {
+const userMetaManifest = defineModelManifest({
   tableName: 'user_metas',
   hasRevisions: true,
   schema: {
@@ -39,8 +40,10 @@ const userMetaManifest = {
   camelToSnake: {
     originalLanguage: 'original_language',
   },
-} as const;
+});
 
-const UserMeta = createModel(userMetaManifest);
+const UserMeta = defineModel(userMetaManifest);
+
+export type UserMetaInstance = InferInstance<typeof userMetaManifest>;
 
 export default UserMeta;

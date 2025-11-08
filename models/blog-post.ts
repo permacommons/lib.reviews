@@ -1,8 +1,8 @@
 import dal from '../dal/index.ts';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
-import { createModel } from '../dal/lib/create-model.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
-import type { VersionedModelConstructor } from '../dal/lib/model-types.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import User from './user.ts';
@@ -30,7 +30,7 @@ interface BlogPostFeedOptions {
   offsetDate?: Date;
 }
 
-const blogPostManifest = {
+const blogPostManifest = defineModelManifest({
   tableName: 'blog_posts',
   hasRevisions: true,
   schema: {
@@ -52,139 +52,119 @@ const blogPostManifest = {
     originalLanguage: 'original_language',
   },
   staticMethods: {
-    getWithCreator,
-    getMostRecentBlogPosts,
-    getMostRecentBlogPostsBySlug,
+    /**
+     * Retrieve a blog post along with the creator metadata.
+     *
+     * @param id - Blog post identifier to look up.
+     * @returns Blog post instance or null when not found.
+     */
+    async getWithCreator(id: string) {
+      const post = (await this.getNotStaleOrDeleted(id)) as BlogPostInstance | null;
+      if (!post) {
+        return null;
+      }
+
+      await attachCreator(this, post);
+      return post;
+    },
+    /**
+     * Fetch a paginated feed of the most recent blog posts for a team.
+     *
+     * @param teamID - Team identifier to scope the feed.
+     * @param options - Pagination options controlling the feed.
+     * @returns Feed payload containing posts plus a next-offset marker.
+     */
+    async getMostRecentBlogPosts(
+      teamID: string,
+      { limit = 10, offsetDate }: BlogPostFeedOptions = {}
+    ) {
+      if (!teamID) {
+        throw new Error('We require a team ID to fetch blog posts.');
+      }
+
+      const params: unknown[] = [teamID];
+      let paramIndex = 2;
+
+      let query = `
+        SELECT *
+        FROM ${this.tableName}
+        WHERE team_id = $1
+          AND (_rev_deleted IS NULL OR _rev_deleted = false)
+          AND (_old_rev_of IS NULL)
+      `;
+
+      if (offsetDate) {
+        query += ` AND created_on < $${paramIndex}`;
+        params.push(offsetDate);
+        paramIndex++;
+      }
+
+      query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
+      params.push(limit + 1);
+
+      const result = await this.dal.query(query, params);
+
+      const blogPosts = await Promise.all(
+        result.rows.map(async row => {
+          const post = this._createInstance(row) as BlogPostInstance;
+          await attachCreator(this, post);
+          return post;
+        })
+      );
+
+      const response: { blogPosts: BlogPostInstance[]; offsetDate?: Date } = { blogPosts };
+
+      if (blogPosts.length === limit + 1 && limit > 0) {
+        const offsetPost = blogPosts[limit - 1];
+        response.offsetDate = offsetPost.createdOn;
+        blogPosts.pop();
+      }
+
+      return response;
+    },
+    /**
+     * Fetch a paginated feed of the most recent blog posts for a team slug.
+     *
+     * @param teamSlugName - Slug identifier used to resolve the team.
+     * @param options - Pagination options forwarded to the team-based fetch.
+     * @returns Feed payload for the resolved team.
+     */
+    async getMostRecentBlogPostsBySlug(teamSlugName: string, options?: BlogPostFeedOptions) {
+      const TeamSlug = await loadTeamSlugHandle();
+      const slug = await TeamSlug.getByName(teamSlugName);
+      if (!slug || !slug.teamID) {
+        throw new DocumentNotFound(`Slug '${teamSlugName}' not found for team`);
+      }
+      return this.getMostRecentBlogPosts(slug.teamID, options);
+    },
   },
   instanceMethods: {
-    populateUserInfo,
+    populateUserInfo(user: Record<string, any>) {
+      if (!user) {
+        return;
+      }
+
+      if (user.isSuperUser || user.id === this.createdBy) {
+        this.userCanEdit = true;
+      }
+
+      if (user.isSuperUser || user.id === this.createdBy || user.isSiteModerator) {
+        this.userCanDelete = true;
+      }
+    },
   },
-} as const;
+});
 
-const BlogPost = createModel(blogPostManifest) as VersionedModelConstructor & Record<string, any>;
+const BlogPost = defineModel(blogPostManifest);
 
-/**
- * Retrieve a blog post along with the creator metadata.
- * @param id Blog post identifier to look up.
- * @returns Blog post instance or null when not found.
- */
-async function getWithCreator(this: Record<string, any>, id: string) {
-  const model = (this ?? BlogPost) as Record<string, any>;
-  const post = await model.getNotStaleOrDeleted(id);
-  if (!post) {
-    return null;
-  }
-  await attachCreator(model, post);
-  return post;
-}
-
-/**
- * Fetch a paginated feed of the most recent blog posts for a team.
- * @param teamID Team identifier to scope the feed.
- * @param options Pagination options.
- * @param options.limit Maximum number of entries to return.
- * @param options.offsetDate Optional upper bound for creation date.
- * @returns Feed payload containing posts plus a next-offset marker.
- */
-async function getMostRecentBlogPosts(
-  this: Record<string, any>,
-  teamID: string,
-  { limit = 10, offsetDate }: BlogPostFeedOptions = {}
-) {
-  if (!teamID) {
-    throw new Error('We require a team ID to fetch blog posts.');
-  }
-
-  const model = (this ?? BlogPost) as Record<string, any>;
-  const dalInstance = model.dal;
-  const postsTable = model.tableName;
-  const params: unknown[] = [teamID];
-  let paramIndex = 2;
-
-  let query = `
-    SELECT *
-    FROM ${postsTable}
-    WHERE team_id = $1
-      AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      AND (_old_rev_of IS NULL)
-  `;
-
-  if (offsetDate) {
-    query += ` AND created_on < $${paramIndex}`;
-    params.push(offsetDate);
-    paramIndex++;
-  }
-
-  query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
-  params.push(limit + 1);
-
-  const result = await dalInstance.query(query, params);
-
-  const posts = await Promise.all(
-    result.rows.map(async row => {
-      const post = model._createInstance(row);
-      await attachCreator(model, post);
-      return post;
-    })
-  );
-
-  const blogPosts = posts.filter(Boolean);
-
-  const response: { blogPosts: typeof blogPosts; offsetDate?: Date } = { blogPosts };
-
-  if (blogPosts.length === limit + 1 && limit > 0) {
-    const offsetPost = blogPosts[limit - 1];
-    response.offsetDate = offsetPost.createdOn;
-    blogPosts.pop();
-  }
-
-  return response;
-}
-
-/**
- * Fetch a paginated feed of the most recent blog posts for a team slug.
- * @param teamSlugName Slug identifier used to resolve the team.
- * @param options Pagination options forwarded to the team-based fetch.
- * @returns Feed payload for the resolved team.
- */
-async function getMostRecentBlogPostsBySlug(
-  this: Record<string, any>,
-  teamSlugName: string,
-  options?: BlogPostFeedOptions
-) {
-  const TeamSlug = await loadTeamSlugHandle();
-  const slug = await TeamSlug.getByName(teamSlugName);
-  if (!slug || !slug.teamID) {
-    throw new DocumentNotFound(`Slug '${teamSlugName}' not found for team`);
-  }
-  return getMostRecentBlogPosts.call(this, slug.teamID, options);
-}
-
-/**
- * Populate virtual permission flags for the given user on this blog post.
- * @param user User whose permissions should be evaluated.
- */
-function populateUserInfo(this: Record<string, any>, user: Record<string, any>) {
-  if (!user) {
-    return;
-  }
-
-  if (user.isSuperUser || user.id === this.createdBy) {
-    this.userCanEdit = true;
-  }
-
-  if (user.isSuperUser || user.id === this.createdBy || user.isSiteModerator) {
-    this.userCanDelete = true;
-  }
-}
-
+export type BlogPostInstance = InferInstance<typeof blogPostManifest>;
 /**
  * Attach creator metadata to a blog post instance.
  * @param model Blog post model used to access the DAL.
  * @param post Blog post instance to decorate.
  * @returns The decorated blog post instance.
  */
-async function attachCreator(model: Record<string, any>, post: Record<string, any>) {
+async function attachCreator(model: typeof BlogPost, post: BlogPostInstance) {
   if (!post || !post.createdBy) {
     return post;
   }
