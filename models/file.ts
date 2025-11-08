@@ -109,13 +109,12 @@ const fileManifest = defineModelManifest({
      * @returns Feed payload containing items and optional offset marker
      */
     async getFileFeed({ offsetDate, limit = 10 }: FileFeedOptions = {}) {
-      let query = this.filter({ completed: true })
-        .filterNotStaleOrDeleted()
+      let query = this.filterWhere({ completed: true })
         .getJoin({ uploader: true })
         .orderBy('uploadedOn', 'DESC');
 
-      if (offsetDate && offsetDate.valueOf) {
-        query = query.filter(row => row('uploadedOn').lt(offsetDate));
+      if (offsetDate?.valueOf) {
+        query = query.and({ uploadedOn: this.ops.lt(offsetDate) });
       }
 
       const items = await query.limit(limit + 1).run();

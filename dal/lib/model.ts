@@ -1,3 +1,5 @@
+import isUUID from 'is-uuid';
+
 import { convertPostgreSQLError, DocumentNotFound } from './errors.ts';
 import type {
   DataAccessLayer,
@@ -502,12 +504,8 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     }
 
     const query = new QueryBuilder(this, this.dal);
-    const results = await query
-      .filter(row => {
-        const identifier = (row as { id?: string }).id;
-        return Boolean(identifier && ids.includes(identifier));
-      })
-      .run();
+    const cast = ids.length > 0 && ids.every(id => isUUID.v4(id)) ? 'uuid[]' : undefined;
+    const results = await query.whereIn('id', ids, cast ? { cast } : undefined).run();
 
     return results.map(result => this._createInstance(result) as Model<TData, TVirtual>);
   }
@@ -675,12 +673,13 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     TVirtual extends JsonObject = JsonObject,
   >(this: ModelRuntime<TData, TVirtual>, ids: string[]) {
     const query = new QueryBuilder(this, this.dal);
-    return query
-      .filter(row => {
-        const identifier = (row as { id?: string }).id;
-        return Boolean(identifier && ids.includes(identifier));
-      })
-      .filterNotStaleOrDeleted();
+
+    if (ids.length === 0) {
+      return query.limit(0).filterNotStaleOrDeleted();
+    }
+
+    const cast = ids.every(id => isUUID.v4(id)) ? 'uuid[]' : undefined;
+    return query.whereIn('id', ids, cast ? { cast } : undefined).filterNotStaleOrDeleted();
   }
 
   /**

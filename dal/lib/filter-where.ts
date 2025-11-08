@@ -58,6 +58,12 @@ type StringArrayKeys<T> = {
       : never;
 }[keyof T];
 
+type ComparablePrimitive = string | number | bigint | Date;
+
+type ComparableKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends ComparablePrimitive ? K : never;
+}[keyof T];
+
 type RevisionLiteral = FilterWhereLiteral<
   RevisionDataRecord,
   FilterWhereOperators<RevisionDataRecord>
@@ -98,6 +104,58 @@ function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRe
           return mutate
             ? builder._addWhereCondition(field, '!=', value)
             : builder._createPredicate(field, '!=', value);
+        },
+      };
+      return operator;
+    },
+    lt<K extends ComparableKeys<TRecord>>(value: NonNullable<TRecord[K]>) {
+      const operator: InternalFilterOperator<K, NonNullable<TRecord[K]>> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value,
+        build({ builder, field, mutate }) {
+          return mutate
+            ? builder._addWhereCondition(field, '<', value)
+            : builder._createPredicate(field, '<', value);
+        },
+      };
+      return operator;
+    },
+    lte<K extends ComparableKeys<TRecord>>(value: NonNullable<TRecord[K]>) {
+      const operator: InternalFilterOperator<K, NonNullable<TRecord[K]>> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value,
+        build({ builder, field, mutate }) {
+          return mutate
+            ? builder._addWhereCondition(field, '<=', value)
+            : builder._createPredicate(field, '<=', value);
+        },
+      };
+      return operator;
+    },
+    gt<K extends ComparableKeys<TRecord>>(value: NonNullable<TRecord[K]>) {
+      const operator: InternalFilterOperator<K, NonNullable<TRecord[K]>> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value,
+        build({ builder, field, mutate }) {
+          return mutate
+            ? builder._addWhereCondition(field, '>', value)
+            : builder._createPredicate(field, '>', value);
+        },
+      };
+      return operator;
+    },
+    gte<K extends ComparableKeys<TRecord>>(value: NonNullable<TRecord[K]>) {
+      const operator: InternalFilterOperator<K, NonNullable<TRecord[K]>> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value,
+        build({ builder, field, mutate }) {
+          return mutate
+            ? builder._addWhereCondition(field, '>=', value)
+            : builder._createPredicate(field, '>=', value);
         },
       };
       return operator;

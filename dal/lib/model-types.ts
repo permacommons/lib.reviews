@@ -115,6 +115,12 @@ type StringArrayKeys<T> = {
       : never;
 }[keyof T];
 
+type ComparablePrimitive = string | number | bigint | Date;
+
+type ComparableKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends ComparablePrimitive ? K : never;
+}[keyof T];
+
 /**
  * Helper bag exposed as `Model.ops`. Call helpers at the point where you build
  * a predicate literal so TypeScript can associate the result with the
@@ -122,6 +128,18 @@ type StringArrayKeys<T> = {
  */
 export interface FilterWhereOperators<TRecord extends JsonObject> {
   neq<K extends keyof TRecord>(value: TRecord[K]): FilterWhereOperator<K, TRecord[K]>;
+  lt<K extends ComparableKeys<TRecord>>(
+    value: NonNullable<TRecord[K]>
+  ): FilterWhereOperator<K, NonNullable<TRecord[K]>>;
+  lte<K extends ComparableKeys<TRecord>>(
+    value: NonNullable<TRecord[K]>
+  ): FilterWhereOperator<K, NonNullable<TRecord[K]>>;
+  gt<K extends ComparableKeys<TRecord>>(
+    value: NonNullable<TRecord[K]>
+  ): FilterWhereOperator<K, NonNullable<TRecord[K]>>;
+  gte<K extends ComparableKeys<TRecord>>(
+    value: NonNullable<TRecord[K]>
+  ): FilterWhereOperator<K, NonNullable<TRecord[K]>>;
   containsAll<K extends StringArrayKeys<TRecord>>(
     value: string | readonly string[] | string[]
   ): FilterWhereOperator<K, TRecord[K]>;
