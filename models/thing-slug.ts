@@ -1,5 +1,6 @@
 import { ConstraintError } from '../dal/lib/errors.ts';
-import { createModel } from '../dal/lib/create-model.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import debug from '../util/debug.ts';
@@ -22,7 +23,7 @@ const reservedSlugs = [
 ] as const;
 
 // Manifest-based model definition
-const thingSlugManifest = {
+const thingSlugManifest = defineModelManifest({
   tableName: 'thing_slugs',
   hasRevisions: false,
   schema: {
@@ -49,7 +50,7 @@ const thingSlugManifest = {
      * @param name - The slug name to look up
      * @returns The thing slug instance or null if not found
      */
-    async getByName(name: string): Promise<ModelInstance | null> {
+    async getByName(name: string) {
       try {
         return (await this.filter({ name }).first()) as ModelInstance | null;
       } catch (error) {
@@ -169,12 +170,15 @@ const thingSlugManifest = {
       }
     },
   },
-} as const;
+} as const);
 
-const ThingSlug = createModel(thingSlugManifest);
+export type ThingSlugInstance = InferInstance<typeof thingSlugManifest>;
 
-// Attach reserved slugs as a static property
-(ThingSlug as typeof ThingSlug & { reservedSlugs: readonly string[] }).reservedSlugs = reservedSlugs;
+const ThingSlug = defineModel(thingSlugManifest, {
+  statics: {
+    reservedSlugs,
+  },
+});
 
 export default ThingSlug;
 export { reservedSlugs };

@@ -1,11 +1,12 @@
 import { ConstraintError, DuplicateSlugNameError } from '../dal/lib/errors.ts';
-import { createModel } from '../dal/lib/create-model.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import debug from '../util/debug.ts';
 
 // Manifest-based model definition
-const teamSlugManifest = {
+const teamSlugManifest = defineModelManifest({
   tableName: 'team_slugs',
   hasRevisions: false,
   schema: {
@@ -28,7 +29,7 @@ const teamSlugManifest = {
      * @param name - The slug name to retrieve
      * @returns The matching slug instance or null if none exists
      */
-    async getByName(name: string): Promise<ModelInstance | null> {
+    async getByName(name: string) {
       try {
         return (await this.filter({ name }).first()) as ModelInstance | null;
       } catch (error) {
@@ -63,8 +64,10 @@ const teamSlugManifest = {
       }
     },
   },
-} as const;
+} as const);
 
-const TeamSlug = createModel(teamSlugManifest);
+export type TeamSlugInstance = InferInstance<typeof teamSlugManifest>;
+
+const TeamSlug = defineModel(teamSlugManifest);
 
 export default TeamSlug;

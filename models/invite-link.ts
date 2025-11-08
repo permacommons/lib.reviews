@@ -2,41 +2,14 @@ import { randomUUID } from 'node:crypto';
 import config from 'config';
 import isUUID from 'is-uuid';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
-import { createModel } from '../dal/lib/create-model.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import debug from '../util/debug.ts';
 
-/**
- * Build the canonical registration URL for an invite link instance.
- *
- * @param invite - Invite link instance or plain object
- * @returns Fully qualified invite URL
- */
-function buildInviteURL(invite: ModelInstance): string | undefined {
-  if (!invite) {
-    return undefined;
-  }
-  const identifier = invite.id;
-  return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
-}
-
-/**
- * Normalize fields on a hydrated invite link instance.
- *
- * @param invite - Invite link instance
- * @returns The normalized invite instance
- */
-function normalizeInviteInstance(invite: ModelInstance): ModelInstance {
-  if (!invite) {
-    return invite;
-  }
-  invite.url = buildInviteURL(invite);
-  return invite;
-}
-
 // Manifest-based model definition
-const inviteLinkManifest = {
+const inviteLinkManifest = defineModelManifest({
   tableName: 'invite_links',
   hasRevisions: false,
   schema: {
@@ -64,7 +37,7 @@ const inviteLinkManifest = {
      * @param user - User whose pending invites to load
      * @returns Pending invite links, newest first
      */
-    async getAvailable(user: { id?: string }): Promise<ModelInstance[]> {
+    async getAvailable(user: { id?: string }) {
       if (!user || !user.id) {
         return [];
       }
@@ -79,9 +52,7 @@ const inviteLinkManifest = {
         `;
 
         const result = await this.dal.query(query, [user.id]);
-        return result.rows.map((row: unknown) =>
-          normalizeInviteInstance(this._createInstance(row))
-        );
+        return result.rows.map((row: unknown) => normalizeInviteInstance(this._createInstance(row)));
       } catch (error) {
         debug.error('Failed to fetch pending invite links:', error);
         return [];
@@ -94,7 +65,7 @@ const inviteLinkManifest = {
      * @param user - User whose redeemed invites to load
      * @returns Redeemed invite links, newest first
      */
-    async getUsed(user: { id?: string }): Promise<ModelInstance[]> {
+    async getUsed(user: { id?: string }) {
       if (!user || !user.id) {
         return [];
       }
@@ -109,9 +80,7 @@ const inviteLinkManifest = {
         `;
 
         const result = await this.dal.query(query, [user.id]);
-        const invites = result.rows.map((row: unknown) =>
-          normalizeInviteInstance(this._createInstance(row))
-        );
+        const invites = result.rows.map((row: unknown) => normalizeInviteInstance(this._createInstance(row)));
 
         const usedByIds = [...new Set(invites.map(invite => invite.usedBy).filter(Boolean))];
         if (usedByIds.length === 0) {
@@ -159,7 +128,7 @@ const inviteLinkManifest = {
      * @returns Invite link instance
      * @throws DocumentNotFound when no invite with the provided id exists
      */
-    async get(id: string): Promise<ModelInstance> {
+    async get(id: string) {
       if (!id) {
         const error = new DocumentNotFound('Invite link not found');
         error.name = 'DocumentNotFoundError';
@@ -197,8 +166,41 @@ const inviteLinkManifest = {
       }
     },
   },
-} as const;
+} as const);
 
-const InviteLink = createModel(inviteLinkManifest);
+export type InviteLinkInstance = InferInstance<typeof inviteLinkManifest>;
+type InviteLinkModel = InferConstructor<typeof inviteLinkManifest> & {
+  _createInstance(row: unknown): InviteLinkInstance;
+};
+
+const InviteLink = defineModel(inviteLinkManifest) as InviteLinkModel;
 
 export default InviteLink;
+
+/**
+ * Build the canonical registration URL for an invite link instance.
+ *
+ * @param invite - Invite link instance or plain object
+ * @returns Fully qualified invite URL
+ */
+function buildInviteURL(invite: InviteLinkInstance | ModelInstance | null | undefined): string | undefined {
+  if (!invite) {
+    return undefined;
+  }
+  const identifier = invite.id;
+  return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
+}
+
+/**
+ * Normalize fields on a hydrated invite link instance.
+ *
+ * @param invite - Invite link instance
+ * @returns The normalized invite instance
+ */
+function normalizeInviteInstance(invite: InviteLinkInstance): InviteLinkInstance {
+  if (!invite) {
+    return invite;
+  }
+  invite.url = buildInviteURL(invite);
+  return invite;
+}
