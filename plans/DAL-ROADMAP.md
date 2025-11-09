@@ -61,22 +61,21 @@ Replace manual model initialization with declarative manifests that drive type g
 - ✅ Migrated every model (team, user, thing, review, file, blog-post, etc.) to the manifest format.
 - ✅ Applied contextual `ThisType` so manifest static/instance methods receive strongly typed `this`.
 - ✅ Updated bootstrap to register models simply by importing them.
-
-**Next steps (in order)**
 - ✅ Introduce a typed query helper (e.g. `filterWhere`, with helpers like `containsAll`, `containsAny`, `neq`) so modernised models can stop using the ReQL-style `filter(row => …)` proxy.
-- ✅  Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
+- ✅ Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
 - ✅ Update the remaining models (thing, file, blog-post, etc.) to the same `defineModel` pattern used by `user`, removing legacy casts. As part of this, export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
-- [ ] Explore splitting manifests/types from runtime implementations to eliminate cross-import helpers once remaining models are on defineModel.
-- [ ] Reshape consumer modules (auth flow, actions, blog-post, thing routes) to rely on the typed constructors instead of local `Record<string, any>` placeholders.
-- [ ] Extend `filterWhere` operator helpers to cover range/negation/JSON use cases (for example `between`, `in`, `jsonContains`, `not`) called out in the typed query MVP.
-- [ ] Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`
-- [ ] Migrate all `filter`, `filterNot*` call sites to new helpers and remove temporary shims such as `ThingPayload`/`as any`.
+- ✅ Extend `filterWhere` operator helpers to cover range/negation/JSON use cases (for example `between`, `in`, `jsonContains`, `not`).
+- ✅ Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`.
+
+**Next steps (prioritised)**
+- [ ] Reshape consumer modules (auth flow, actions, blog-post, thing routes) to rely on the typed constructors instead of local `Record<string, any>` placeholders; migrate helpers such as `ThingPayload`/`as any` and remaining `filter*` shims in the process.
+- [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations, and cascade the stricter payloads into upload/action handlers.
+- [ ] Eliminate lingering `Record<string, any>` escapes in complex models (`review`, `thing`, `blog-post`) by threading manifest-derived instance types through their statics/instance helpers.
+- [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`, closing escape hatches around manifest initialisation.
 - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
-- [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`.
-- [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations.
 - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
-- [ ] Eliminate lingering `Record<string, any>` escapes in models/routes now that typed constructors are available.
-- [ ] Audit remaining scattered raw SQL usage and design new targeted helpers where appropriate
+- [ ] Audit remaining scattered raw SQL usage and design new targeted helpers where appropriate.
+- [ ] Explore splitting manifests/types from runtime implementations to eliminate cross-import helpers once remaining consumers are on typed handles.
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)
 
