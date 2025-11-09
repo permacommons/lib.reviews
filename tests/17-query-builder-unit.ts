@@ -1,12 +1,12 @@
 import test from 'ava';
 
 import * as dalModule from '../dal/index.ts';
+import { createOperators, FilterWhereBuilder } from '../dal/lib/filter-where.ts';
 import Model, { type ModelSchema } from '../dal/lib/model.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
 import type { JsonObject, ModelInstance } from '../dal/lib/model-types.ts';
 import QueryBuilder from '../dal/lib/query-builder.ts';
 import typesLib from '../dal/lib/type.ts';
-import { FilterWhereBuilder, createOperators } from '../dal/lib/filter-where.ts';
 import type { RuntimeModel } from './helpers/dal-mocks.ts';
 import {
   createMockDAL,

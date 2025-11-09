@@ -9,8 +9,8 @@
  * 4. Method return types are sufficiently narrow for type safety
  */
 import { expectTypeOf } from 'expect-type';
-import User, { type UserInstance } from '../../models/user.ts';
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
+import User, { type UserInstance } from '../../models/user.ts';
 
 // Test instance property types from schema
 // We declare a const of the inferred type to test its properties without needing a real instance

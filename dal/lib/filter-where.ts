@@ -1,16 +1,16 @@
-import QueryBuilder from './query-builder.ts';
 import type { ModelRuntime } from './model.ts';
+import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
 import type {
+  FilterWhereJoinSpec,
   FilterWhereLiteral,
   FilterWhereOperators,
   FilterWhereQueryBuilder,
-  FilterWhereJoinSpec,
   JsonObject,
   ModelConstructor,
   ModelInstance,
   RevisionDataRecord,
 } from './model-types.ts';
-import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
+import QueryBuilder from './query-builder.ts';
 
 /**
  * Shared implementation for the typed {@link ModelConstructor.filterWhere} surface.

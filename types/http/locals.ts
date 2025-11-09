@@ -1,8 +1,8 @@
 import type { ViteDevServer } from 'vite';
 import type { DalContext } from '../../dal/index.ts';
 import type { DataAccessLayer, ModelInstance } from '../../dal/lib/model-types.ts';
-import type WebHookDispatcher from '../../util/webhooks.ts';
 import type { UserViewer } from '../../models/user.ts';
+import type WebHookDispatcher from '../../util/webhooks.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 type LocaleCodeWithUndetermined = LibReviews.LocaleCodeWithUndetermined;

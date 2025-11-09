@@ -1,6 +1,6 @@
 import dal from '../dal/index.ts';
-import { DocumentNotFound } from '../dal/lib/errors.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import { DocumentNotFound } from '../dal/lib/errors.ts';
 import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';

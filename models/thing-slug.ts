@@ -1,5 +1,5 @@
-import { ConstraintError } from '../dal/lib/errors.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import { ConstraintError } from '../dal/lib/errors.ts';
 import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';

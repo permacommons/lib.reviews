@@ -1,10 +1,10 @@
+import type { ModelManifest } from './model-manifest.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
-import type { ModelManifest } from './model-manifest.ts';
 
 export interface RegisterModelOptions extends JsonObject {
   key?: string;

@@ -1,10 +1,10 @@
+import type { ModelSchemaField } from './model.ts';
 import type {
   DataAccessLayer,
   JsonObject,
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
-import type { ModelSchemaField } from './model.ts';
 
 export interface GetOrCreateModelOptions extends JsonObject {
   registryKey?: string;

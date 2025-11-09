@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
+import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.ts';
 import type {
   FilterWhereQueryBuilder,
   JsonObject,
@@ -7,7 +8,6 @@ import type {
   VersionedModelConstructor,
   VersionedModelInstance,
 } from './model-types.ts';
-import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.ts';
 import types from './type.ts';
 
 /**
@@ -309,10 +309,7 @@ const revision: RevisionHelpers = {
      * @returns Model instance
      * @throws If revision is deleted or stale
      */
-    const getNotStaleOrDeleted = async function (
-      id: string,
-      joinOptions: Record<string, unknown> = {}
-    ) {
+    const getNotStaleOrDeleted = async (id: string, joinOptions: Record<string, unknown> = {}) => {
       // Validate UUID format before querying database to avoid PostgreSQL syntax errors
       if (!isUUID.v4(id)) {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);

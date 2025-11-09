@@ -1,7 +1,7 @@
-import { ValidationError } from '../dal/lib/errors.ts';
-import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import dal from '../dal/index.ts';
+import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
+import { ValidationError } from '../dal/lib/errors.ts';
+import type { InferInstance } from '../dal/lib/model-manifest.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 

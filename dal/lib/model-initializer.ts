@@ -1,3 +1,4 @@
+import type { ModelSchemaField } from './model.ts';
 import { getOrCreateModel } from './model-factory.ts';
 import type {
   DataAccessLayer,
@@ -6,7 +7,6 @@ import type {
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
-import type { ModelSchemaField } from './model.ts';
 import type { ModelConstructorLike } from './revision.ts';
 import revision from './revision.ts';
 

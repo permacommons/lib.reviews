@@ -43,23 +43,23 @@ type BooleanKeys<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends boolean ? K : never;
 }[keyof T];
 
-const eqStatus: EqualityComparableKeys<ExampleRecord> = 'status';
-const eqScore: EqualityComparableKeys<ExampleRecord> = 'score';
+const _eqStatus: EqualityComparableKeys<ExampleRecord> = 'status';
+const _eqScore: EqualityComparableKeys<ExampleRecord> = 'score';
 // @ts-expect-error metadata is not equality comparable
-const eqMetadata: EqualityComparableKeys<ExampleRecord> = 'metadata';
+const _eqMetadata: EqualityComparableKeys<ExampleRecord> = 'metadata';
 
-const cmpCreatedOn: ComparableKeys<ExampleRecord> = 'createdOn';
+const _cmpCreatedOn: ComparableKeys<ExampleRecord> = 'createdOn';
 // @ts-expect-error tags array is not comparable
-const cmpTags: ComparableKeys<ExampleRecord> = 'tags';
+const _cmpTags: ComparableKeys<ExampleRecord> = 'tags';
 
-const jsonMetadata: JsonObjectKeys<ExampleRecord> = 'metadata';
+const _jsonMetadata: JsonObjectKeys<ExampleRecord> = 'metadata';
 // @ts-expect-error status is scalar, not JSON
-const jsonStatus: JsonObjectKeys<ExampleRecord> = 'status';
+const _jsonStatus: JsonObjectKeys<ExampleRecord> = 'status';
 
-const arrayTags: StringArrayKeys<ExampleRecord> = 'tags';
+const _arrayTags: StringArrayKeys<ExampleRecord> = 'tags';
 // @ts-expect-error score is not a string array
-const arrayScore: StringArrayKeys<ExampleRecord> = 'score';
+const _arrayScore: StringArrayKeys<ExampleRecord> = 'score';
 
-const boolKey: BooleanKeys<ExampleRecord> = 'isActive';
+const _boolKey: BooleanKeys<ExampleRecord> = 'isActive';
 // @ts-expect-error status is not boolean-compatible
-const boolStatus: BooleanKeys<ExampleRecord> = 'status';
+const _boolStatus: BooleanKeys<ExampleRecord> = 'status';

@@ -1,9 +1,9 @@
 import bcrypt from 'bcrypt';
 
-import { DocumentNotFound } from '../dal/lib/errors.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
+import { DocumentNotFound } from '../dal/lib/errors.ts';
 import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
+import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';

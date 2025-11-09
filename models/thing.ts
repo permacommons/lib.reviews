@@ -4,8 +4,8 @@ import isUUID from 'is-uuid';
 import adapters from '../adapters/adapters.ts';
 import dal from '../dal/index.ts';
 import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { VersionedModelInstance } from '../dal/lib/model-types.ts';
 import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
+import type { VersionedModelInstance } from '../dal/lib/model-types.ts';
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import search from '../search.ts';
@@ -20,6 +20,7 @@ async function getReviewModel() {
   const module = await import('./review.ts');
   return module.default;
 }
+
 import ThingSlug from './thing-slug.ts';
 import User, { type UserViewer } from './user.ts';
 

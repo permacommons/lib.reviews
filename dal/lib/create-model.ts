@@ -1,3 +1,6 @@
+import { createFilterWhereStatics } from './filter-where.ts';
+import type { InitializeModelOptions } from './model-initializer.ts';
+import { initializeModel } from './model-initializer.ts';
 import type {
   InferConstructor,
   InferData,
@@ -6,10 +9,7 @@ import type {
   ModelManifest,
 } from './model-manifest.ts';
 import { getAllManifests, registerManifest } from './model-registry.ts';
-import { initializeModel } from './model-initializer.ts';
-import type { InitializeModelOptions } from './model-initializer.ts';
 import type { DataAccessLayer, InstanceMethod, JsonObject } from './model-types.ts';
-import { createFilterWhereStatics } from './filter-where.ts';
 
 // Cache for initialized models (populated by bootstrap)
 const initializedModels = new Map<string, unknown>();
@@ -174,7 +174,11 @@ export function createModel<Manifest extends ModelManifest>(
   const staticPropertyKeys = new Set(Object.keys(staticProperties));
 
   // Create a function target so the proxy can be used as a constructor
-  const target = function () {} as unknown as InferConstructor<Manifest>;
+  function TargetConstructor(this: unknown) {
+    // Intentionally empty: runtime constructor is provided by initialized model.
+  }
+
+  const target = TargetConstructor as unknown as InferConstructor<Manifest>;
 
   for (const [prop, value] of Object.entries(staticProperties)) {
     Object.defineProperty(target, prop, {

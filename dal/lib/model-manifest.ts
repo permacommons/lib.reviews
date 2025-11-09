@@ -1,3 +1,4 @@
+import type { ModelSchemaField } from './model.ts';
 import type {
   InstanceMethod,
   JsonObject,
@@ -6,7 +7,6 @@ import type {
   VersionedModelConstructor,
   VersionedModelInstance,
 } from './model-types.ts';
-import type { ModelSchemaField } from './model.ts';
 
 /**
  * Model manifest definition - declarative model configuration
