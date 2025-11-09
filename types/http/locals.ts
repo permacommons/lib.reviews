@@ -8,6 +8,10 @@ type LocaleCode = LibReviews.LocaleCode;
 type LocaleCodeWithUndetermined = LibReviews.LocaleCodeWithUndetermined;
 type PermissionFlag = LibReviews.PermissionFlag;
 
+/**
+ * Buckets used by `flashStore` and `routes/helpers/render.ts` to surface site
+ * and page-level flash messages.
+ */
 export interface FlashBuckets {
   pageErrors?: string[];
   pageMessages?: string[];
@@ -16,12 +20,17 @@ export interface FlashBuckets {
   [key: string]: string[] | undefined;
 }
 
+/** Session data augmented with the flash buckets created by `flashStore`. */
 export interface SessionDataWithFlash {
   flash?: FlashBuckets;
   returnTo?: string;
   [key: string]: unknown;
 }
 
+/**
+ * Extension of `UserViewer` that includes web-only fields exposed on
+ * `req.user` by authentication middleware (see `app.ts` and `models/user.ts`).
+ */
 export interface RequestUser extends UserViewer {
   displayName?: string;
   urlName?: string;
@@ -40,6 +49,11 @@ export interface RequestUser extends UserViewer {
   [key: string]: unknown;
 }
 
+/**
+ * Shared locals attached to both Express responses and Handlebars templates.
+ * `app.ts` populates these entries so render helpers can reach the DAL, Vite,
+ * and webhook dispatcher instances.
+ */
 export interface AppLocals {
   dal?: DalContext | DataAccessLayer;
   webHooks?: WebHookDispatcher;
@@ -50,12 +64,21 @@ export interface AppLocals {
   [key: string]: unknown;
 }
 
+/**
+ * Language metadata injected into templates so the language picker can display
+ * localized names (see `routes/helpers/render.ts`).
+ */
 export interface TemplateLanguageName {
   langKey: LocaleCode;
   name: string;
   isCurrentLanguage?: boolean;
 }
 
+/**
+ * Full template context produced by `routes/helpers/render.ts` when rendering
+ * views. Extends `AppLocals` with request-scoped data like the current user,
+ * CSRF token, and asset lists.
+ */
 export interface TemplateContext extends AppLocals {
   user?: RequestUser | null;
   configScript?: string;

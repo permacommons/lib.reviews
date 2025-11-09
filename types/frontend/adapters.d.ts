@@ -1,11 +1,14 @@
 /**
- * Type definitions for frontend lookup and autocomplete adapters
+ * Type definitions for frontend lookup and autocomplete adapters implemented
+ * under `frontend/adapters/`.
  */
 
 import type { MLString } from '../../frontend/libreviews';
 
 /**
- * Thing data structure returned by native adapter
+ * Thing data structure returned by the native lookup adapter when the
+ * backend provides review subject metadata
+ * (see `frontend/adapters/native-lookup-adapter.ts`).
  */
 export interface Thing {
   urlID: string;
@@ -16,7 +19,8 @@ export interface Thing {
 }
 
 /**
- * Result from a lookup adapter
+ * Result from a lookup adapter. Consumers like the review editor expect this
+ * shape when populating the subject picker (see `frontend/review.ts`).
  */
 export interface LookupResult {
   data: {
@@ -29,14 +33,15 @@ export interface LookupResult {
 }
 
 /**
- * Error result from a failed lookup
+ * Error result from a failed lookup operation.
  */
 export interface LookupError {
   error: Error;
 }
 
 /**
- * Data passed to update callbacks
+ * Data passed to update callbacks, mirroring the payload built inside the
+ * abstract autocomplete adapter.
  */
 export interface UpdateCallbackData {
   url: string;
@@ -46,13 +51,11 @@ export interface UpdateCallbackData {
   thing?: Thing;
 }
 
-/**
- * Update callback function type
- */
+/** Function signature invoked when adapters deliver new data. */
 export type UpdateCallback = (data: UpdateCallbackData) => void;
 
 /**
- * Abstract lookup adapter interface
+ * Abstract lookup adapter interface implemented by `AbstractLookupAdapter`.
  */
 export interface ILookupAdapter {
   sourceID?: string;
@@ -65,7 +68,8 @@ export interface ILookupAdapter {
 }
 
 /**
- * Abstract autocomplete adapter interface
+ * Abstract autocomplete adapter interface built on top of the lookup adapter
+ * contract (see `frontend/adapters/abstract-autocomplete-adapter.ts`).
  */
 export interface IAutocompleteAdapter extends ILookupAdapter {
   setupAutocomplete?(): void;

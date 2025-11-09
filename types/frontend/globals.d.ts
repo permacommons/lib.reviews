@@ -1,9 +1,10 @@
 /**
- * Global type definitions for frontend code
+ * Global type definitions for browser code compiled out of `frontend/`.
  */
 
 /**
- * Frontend config object structure
+ * Shape of the `window.config` object emitted by `routes/helpers/render.ts` and
+ * consumed by entry points like `frontend/review.ts`.
  */
 export interface FrontendConfig {
   editing?: boolean;
@@ -16,13 +17,16 @@ export interface FrontendConfig {
 }
 
 declare global {
+  /**
+   * Globals injected into the browser runtime.
+   */
   interface Window {
     config: FrontendConfig;
     libreviews?: import('../../frontend/libreviews').LibreviewsAPI;
   }
 
   /**
-   * Global config object passed from server
+   * Global config object passed from the server render pipeline.
    */
   const config: FrontendConfig;
 }

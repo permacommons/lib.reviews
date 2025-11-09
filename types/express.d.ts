@@ -1,7 +1,12 @@
 import type { AppLocals, RequestUser, SessionDataWithFlash } from './http/locals.ts';
 
+/**
+ * Express augmentations wiring our custom request user and locals into the
+ * framework types.
+ */
 declare global {
   namespace Express {
+    /** Authenticated user object exposed by Passport. */
     interface User extends RequestUser {}
 
     interface Request {
@@ -20,6 +25,7 @@ declare global {
       permissions?: Record<LibReviews.PermissionFlag | string, boolean>;
     }
 
+    /** Response locals used by templates and render helpers. */
     interface Response {
       locals: Locals;
     }
@@ -29,5 +35,6 @@ declare global {
 }
 
 declare module 'express-session' {
+  /** Session data extended with our flash buckets. */
   interface SessionData extends SessionDataWithFlash {}
 }
