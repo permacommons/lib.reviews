@@ -533,19 +533,6 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   }
 
   /**
-   * Filter out stale (old) and deleted revisions
-   * Uses PostgreSQL partial indexes for optimal performance
-   * @returns {QueryBuilder} This instance for chaining
-   */
-  filterNotStaleOrDeleted() {
-    // Add conditions to filter current, non-deleted revisions
-    // This leverages the partial indexes created in the schema
-    this._addWhereCondition('_old_rev_of', 'IS', null);
-    this._addWhereCondition('_rev_deleted', '=', false);
-    return this;
-  }
-
-  /**
    * Filter by revision user
    * @param userId - User ID who created the revision
    * @returns {QueryBuilder} This instance for chaining

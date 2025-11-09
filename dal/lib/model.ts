@@ -670,18 +670,6 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
-   * Filter records to exclude stale and deleted revisions
-   * @returns Query builder with revision filters
-   */
-  static filterNotStaleOrDeleted<
-    TData extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TData, TVirtual>) {
-    const query = new QueryBuilder(this, this.dal);
-    return query.filterNotStaleOrDeleted();
-  }
-
-  /**
    * Get multiple records by IDs, excluding stale and deleted revisions
    * @param ids - Record IDs
    * @returns Query builder for chaining

@@ -93,11 +93,6 @@ export interface RevisionHelpers {
     user: RevisionActor | null,
     options?: { tags?: string[]; date?: Date }
   ) => Promise<VersionedModelInstance<TData, TVirtual>>;
-  getNotStaleOrDeletedFilterHandler<
-    TData extends JsonObject,
-    TVirtual extends JsonObject,
-    TInstance extends VersionedModelInstance<TData, TVirtual>,
-  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>): () => unknown;
   getMultipleNotStaleOrDeletedHandler<
     TData extends JsonObject,
     TVirtual extends JsonObject,
@@ -390,37 +385,6 @@ const revision: RevisionHelpers = {
     };
 
     return createFirstRevision;
-  },
-
-  /**
-   * Get a function that filters records to exclude stale and deleted revisions
-   *
-   * @param ModelClass - The model class
-   * @returns Filter function for current revisions
-   */
-  getNotStaleOrDeletedFilterHandler<
-    TData extends JsonObject,
-    TVirtual extends JsonObject,
-    TInstance extends VersionedModelInstance<TData, TVirtual>,
-  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>) {
-    /**
-     * Filter records to exclude stale and deleted revisions
-     *
-     * @returns Query builder with revision filters applied
-     */
-    const filterNotStaleOrDeleted = () => {
-      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>).filterWhere;
-
-      if (typeof filterWhere !== 'function') {
-        throw new Error(
-          `Model "${ModelClass.tableName}" must expose filterWhere. Ensure defineModel() initialized this constructor.`
-        );
-      }
-
-      return filterWhere.call(ModelClass, {} as JsonObject);
-    };
-
-    return filterNotStaleOrDeleted;
   },
 
   /**

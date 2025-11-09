@@ -60,7 +60,6 @@ function initializeFromManifest<Manifest extends ModelManifest>(
           static: [
             'createFirstRevision',
             'getNotStaleOrDeleted',
-            'filterNotStaleOrDeleted',
             'getMultipleNotStaleOrDeleted',
           ],
           instance: ['deleteAllRevisions'],

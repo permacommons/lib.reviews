@@ -49,7 +49,6 @@ const CORE_METHODS = [
   'run',
   'createFirstRevision',
   'getNotStaleOrDeleted',
-  'filterNotStaleOrDeleted',
   'getMultipleNotStaleOrDeleted',
 ] as const;
 

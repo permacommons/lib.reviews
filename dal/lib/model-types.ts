@@ -261,7 +261,6 @@ export interface ModelQueryBuilder<
   filter(
     criteria: Partial<TData> | ((row: unknown) => unknown)
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
-  filterNotStaleOrDeleted(): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
@@ -385,7 +384,6 @@ export interface ModelConstructor<
     field: string,
     value: unknown
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
-  filterNotStaleOrDeleted(): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   getMultipleNotStaleOrDeleted(
     ids: string[]
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;

@@ -13,7 +13,6 @@ import revision from './revision.ts';
 const DEFAULT_REVISION_STATIC = [
   'createFirstRevision',
   'getNotStaleOrDeleted',
-  'filterNotStaleOrDeleted',
 ] as const;
 
 const DEFAULT_REVISION_INSTANCE = ['deleteAllRevisions'] as const;
@@ -21,7 +20,6 @@ const DEFAULT_REVISION_INSTANCE = ['deleteAllRevisions'] as const;
 const REVISION_HANDLER_MAP = {
   createFirstRevision: revision.getFirstRevisionHandler,
   getNotStaleOrDeleted: revision.getNotStaleOrDeletedGetHandler,
-  filterNotStaleOrDeleted: revision.getNotStaleOrDeletedFilterHandler,
   getMultipleNotStaleOrDeleted: revision.getMultipleNotStaleOrDeletedHandler,
   newRevision: revision.getNewRevisionHandler,
   deleteAllRevisions: revision.getDeleteAllRevisionsHandler,
