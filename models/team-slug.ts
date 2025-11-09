@@ -31,7 +31,7 @@ const teamSlugManifest = defineModelManifest({
      */
     async getByName(name: string) {
       try {
-        return (await this.filter({ name }).first()) as ModelInstance | null;
+        return (await this.filterWhere({ name }).first()) as ModelInstance | null;
       } catch (error) {
         debug.error(`Error getting team slug by name '${name}'`);
         debug.error({ error: error instanceof Error ? error : new Error(String(error)) });

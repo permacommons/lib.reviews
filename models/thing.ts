@@ -161,10 +161,8 @@ const thingManifest = defineModelManifest({
         if (thingIDs.length > 0) {
           try {
             const Review = await getReviewModel();
-            const reviews = await Review
-              .filterNotStaleOrDeleted()
-              .whereIn('thing_id', thingIDs, { cast: 'uuid[]' })
-              .filter({ createdBy: lookupUserID })
+            const reviews = await Review.filterWhere({ createdBy: lookupUserID })
+              .whereIn('thingID', thingIDs, { cast: 'uuid[]' })
               .orderBy('created_on', 'DESC')
               .limit(50)
               .run();
@@ -219,7 +217,7 @@ const thingManifest = defineModelManifest({
       const joinOptions: Record<string, any> = {};
       if (withFiles) {
         joinOptions.files = {
-          _apply: (seq: any) => seq.filter({ completed: true }),
+          _apply: (seq: any) => seq.filterWhere({ completed: true }),
         };
       }
 

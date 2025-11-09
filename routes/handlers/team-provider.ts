@@ -73,7 +73,7 @@ class TeamProvider extends AbstractBREADProvider {
   }
 
   browse_GET(): void {
-    TeamModel.filterNotStaleOrDeleted()
+    TeamModel.filterWhere({})
       .run()
       .then(teams => {
         this.renderTemplate('teams', {

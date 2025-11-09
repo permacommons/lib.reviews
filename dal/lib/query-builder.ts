@@ -1339,7 +1339,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       analysis.order = { field: orderByMatch[1], direction: 'ASC' };
     }
 
-    const filterMatch = source.match(/filter\(\{([^}]*)\}\)/);
+    const filterMatch = source.match(/filter(?:Where)?\(\{([^}]*)\}\)/);
     if (filterMatch) {
       const parts = filterMatch[1].split(',');
       for (const part of parts) {

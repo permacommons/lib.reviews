@@ -123,7 +123,7 @@ router.get(
 router.get('/user/:name', (req: ApiRouteRequest, res: ApiRouteResponse) => {
   const { name } = req.params;
   const rv: Record<string, unknown> = {};
-  User.filter({
+  User.filterWhere({
     canonicalName: User.canonicalize(name),
   }).then(result => {
     if (result.length) {

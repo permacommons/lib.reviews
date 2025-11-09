@@ -52,7 +52,7 @@ const thingSlugManifest = defineModelManifest({
      */
     async getByName(name: string) {
       try {
-        return (await this.filter({ name }).first()) as ModelInstance | null;
+        return (await this.filterWhere({ name }).first()) as ModelInstance | null;
       } catch (error) {
         const serializedError = error instanceof Error ? error : new Error(String(error));
         debug.error(`Error getting thing slug by name '${name}':`);

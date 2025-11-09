@@ -31,7 +31,7 @@ passport.deserializeUser(async (id: unknown, done: DeserializeCallback) => {
 
 const verify: passportLocal.VerifyFunction = async (username, password, done: VerifyCallback) => {
   try {
-    const users = await User.filter({
+    const users = await User.filterWhere({
       canonicalName: User.canonicalize(username),
     })
       .includeSensitive(['password'])
