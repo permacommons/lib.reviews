@@ -11,7 +11,9 @@ import render from './helpers/render.ts';
 type ReviewsRouteRequest = HandlerRequest;
 type ReviewsRouteResponse = HandlerResponse;
 type ReviewModelType = { getFeed(options?: Record<string, unknown>): Promise<Record<string, any>> };
-type TeamModelType = { filterNotStaleOrDeleted(): { sample: (count: number) => Promise<any> } };
+type TeamModelType = {
+  filterWhere(criteria: Record<string, never>): { sample: (count?: number) => Promise<any> };
+};
 type BlogPostModelType = {
   getMostRecentBlogPostsBySlug(
     slug: string,
@@ -43,7 +45,7 @@ const router = ReviewProvider.bakeRoutes(null, routes);
 router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next: HandlerNext) => {
   const queries = [
     ReviewModel.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
-    TeamModel.filterNotStaleOrDeleted().sample(3), // Random example teams
+    TeamModel.filterWhere({}).sample(3), // Random example teams
   ];
 
   if (config.frontPageTeamBlog) {

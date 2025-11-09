@@ -313,6 +313,7 @@ export interface FilterWhereQueryBuilder<
     direction?: 'ASC' | 'DESC'
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   limit(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  sample(count?: number): Promise<TInstance[]>;
   offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>

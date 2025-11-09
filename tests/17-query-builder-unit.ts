@@ -247,6 +247,39 @@ test('QueryBuilder supports revision filtering', t => {
   t.false(deletedPredicate.value);
 });
 
+test('FilterWhereBuilder sample enforces revision guards before delegating', async t => {
+  type Data = JsonObject & { id: string };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness();
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
+
+  const sampleRows = [{ id: 'example' }];
+  let delegatedCount: number | undefined;
+
+  const originalSample = qb.sample.bind(qb);
+  type SampleReturn = Awaited<ReturnType<typeof originalSample>>;
+
+  qb.sample = (async (count = 1) => {
+    delegatedCount = count;
+    return sampleRows as unknown as SampleReturn;
+  }) as typeof qb.sample;
+
+  const results = await builder.sample(2);
+
+  t.is(delegatedCount, 2);
+  t.is(results, sampleRows as unknown as Instance[]);
+
+  const oldRevisionPredicate = qb._where.find(predicate => predicate.column === '_old_rev_of');
+  t.truthy(oldRevisionPredicate);
+  t.is(oldRevisionPredicate.operator, 'IS');
+
+  const deletedPredicate = qb._where.find(predicate => predicate.column === '_rev_deleted');
+  t.truthy(deletedPredicate);
+  t.is(deletedPredicate.operator, '=');
+  t.false(deletedPredicate.value);
+});
+
 test('QueryBuilder supports revision tag filtering', t => {
   const { qb } = createQueryBuilderHarness();
   const result = qb.filterByRevisionTags(['test-tag']);

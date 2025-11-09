@@ -554,6 +554,12 @@ class FilterWhereBuilder<
     return this;
   }
 
+  async sample(count = 1): Promise<TInstance[]> {
+    this._ensureRevisionFilters();
+    const results = await this._builder.sample(count);
+    return results as unknown as TInstance[];
+  }
+
   offset(count: number): this {
     this._builder.offset(count);
     return this;
