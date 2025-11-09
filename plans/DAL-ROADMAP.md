@@ -68,14 +68,14 @@ Replace manual model initialization with declarative manifests that drive type g
 - ✅ Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`.
 
 **Next steps (prioritised)**
-- [ ] Reshape consumer modules (auth flow, actions, blog-post, thing routes) to rely on the typed constructors instead of local `Record<string, any>` placeholders; migrate helpers such as `ThingPayload`/`as any` and remaining `filter*` shims in the process.
+- [ ] Replace `Record<string, any>` fallbacks in core models (`review`, `thing`, `blog-post`, `team`) and their callers (`routes/things.ts`, `routes/uploads.ts`, action handlers) by threading manifest-derived types through statics/instance helpers and exposing typed payload shims where unavoidable.
+- [ ] Expose DAL helper namespaces (`mlString`, `revision`, `QueryBuilder`) with concrete typings so model modules can drop casts like `const { mlString } = dal as { ... }`.
 - [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations, and cascade the stricter payloads into upload/action handlers.
-- [ ] Eliminate lingering `Record<string, any>` escapes in complex models (`review`, `thing`, `blog-post`) by threading manifest-derived instance types through their statics/instance helpers.
 - [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`, closing escape hatches around manifest initialisation.
 - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
+- [ ] Split manifest/type declarations from runtime implementations to eliminate circular lazy imports (`Thing`/`Review`, `Team`/`Review`) once consumers are on typed handles.
 - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
-- [ ] Audit remaining scattered raw SQL usage and design new targeted helpers where appropriate.
-- [ ] Explore splitting manifests/types from runtime implementations to eliminate cross-import helpers once remaining consumers are on typed handles.
+- [ ] Audit remaining scattered raw SQL usage and design targeted query helpers that build on `filterWhere`.
 
 ### Phase 5 – Optional Backend Generalisation (future, only if needed)
 
