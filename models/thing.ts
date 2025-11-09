@@ -29,6 +29,12 @@ const { mlString } = dal as unknown as {
 };
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
 
+interface ThingLabelSource extends Record<string, unknown> {
+  id?: string;
+  label?: unknown;
+  urls?: unknown;
+}
+
 const thingManifest = defineModelManifest({
   tableName: 'things',
   hasRevisions: true,
@@ -249,7 +255,7 @@ const thingManifest = defineModelManifest({
      * @param language - Preferred language code
      * @returns The resolved label or undefined when unavailable
      */
-    getLabel(thing: Record<string, any> | null | undefined, language: string) {
+    getLabel(thing: ThingLabelSource | null | undefined, language: string) {
       if (!thing || !thing.id) {
         return undefined;
       }

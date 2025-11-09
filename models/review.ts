@@ -30,7 +30,7 @@ const reviewOptions = {
   maxTitleLength: 255,
 };
 
-interface ReviewFeedOptions {
+export interface ReviewFeedOptions {
   createdBy?: string;
   offsetDate?: Date;
   onlyTrusted?: boolean;
@@ -41,8 +41,8 @@ interface ReviewFeedOptions {
   limit?: number;
 }
 
-interface ReviewFeedResult {
-  feedItems: unknown[];
+export interface ReviewFeedResult {
+  feedItems: ReviewInstance[];
   offsetDate?: Date;
 }
 

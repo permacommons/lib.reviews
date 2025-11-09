@@ -3,8 +3,12 @@ import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
 import languages from '../locales/languages.ts';
-import Review from '../models/review.ts';
-import Thing from '../models/thing.ts';
+import Review, {
+  type ReviewFeedResult,
+  type ReviewInstance,
+  type ReviewModel,
+} from '../models/review.ts';
+import Thing, { type ThingInstance } from '../models/thing.ts';
 import search from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import getMessages from '../util/get-messages.ts';
@@ -19,24 +23,15 @@ import slugs from './helpers/slugs.ts';
 type ThingRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
 type ThingRouteResponse = HandlerResponse;
-type ThingPayload = Record<string, any>;
-type ReviewFeed = Record<string, any>;
-type ThingRevision = Record<string, any>;
-
-type ReviewModelType = {
-  getFeed: (options: Record<string, unknown>) => Promise<ReviewFeed>;
-} & Record<string, unknown>;
-
 interface ThingURLsFormParams {
   req: ThingRouteRequest<{ id: string }>;
   res: ThingRouteResponse;
   titleKey: string;
-  thing: ThingPayload;
+  thing: ThingInstance;
   formValues?: Record<string, any>;
 }
 
 const router = Router();
-const ThingModel = Thing as any;
 
 // For handling form fields
 const editableFields = ['description', 'label'];
@@ -230,10 +225,9 @@ router.get(
   }
 );
 
-let reviewModelPromise: Promise<ReviewModelType> | undefined;
-function getReviewModel(): Promise<ReviewModelType> {
-  if (!reviewModelPromise)
-    reviewModelPromise = Promise.resolve(Review as unknown as ReviewModelType);
+let reviewModelPromise: Promise<ReviewModel> | undefined;
+function getReviewModel(): Promise<ReviewModel> {
+  if (!reviewModelPromise) reviewModelPromise = Promise.resolve(Review);
   return reviewModelPromise;
 }
 
@@ -241,7 +235,7 @@ async function loadThingAndReviews(
   req: ThingRouteRequest<{ id: string }>,
   res: ThingRouteResponse,
   next: HandlerNext,
-  thing: ThingPayload,
+  thing: ThingInstance,
   offsetDate?: Date | null
 ) {
   try {
@@ -256,7 +250,7 @@ async function loadThingAndReviews(
       thingID: thing.id,
       withThing: false,
       withTeams: true,
-      withoutCreator: req.user ? req.user.id : false,
+      withoutCreator: req.user?.id,
       offsetDate,
     });
 
@@ -308,8 +302,7 @@ function processTextFieldUpdate(
           detailsKey: 'cannot edit synced field',
         });
 
-      thing.newRevision(req.user).then(newRev => {
-        const revision = newRev as ThingRevision;
+      thing.newRevision(req.user).then(revision => {
         const languageInput = req.body['thing-language'];
         const language = typeof languageInput === 'string' ? languageInput : '';
         languages.validate(language);
@@ -319,14 +312,24 @@ function processTextFieldUpdate(
         // Handle metadata fields (description, subtitle, authors) differently
         const metadataFields = ['description', 'subtitle', 'authors'];
         if (metadataFields.includes(field)) {
-          if (!revision.metadata) revision.metadata = {};
-          const metadata = revision.metadata as ThingRevision;
-          if (!metadata[field]) metadata[field] = {};
-          (metadata[field] as Record<string, any>)[language] = escapeHTML(text);
+          const metadata = (revision.metadata ??= {} as Record<string, unknown>);
+          const fieldMetadata = (metadata[field] ??= {}) as Record<string, string>;
+          fieldMetadata[language] = escapeHTML(text);
         } else {
           // Handle direct fields like label
-          if (!revision[field]) revision[field] = {};
-          (revision[field] as Record<string, any>)[language] = escapeHTML(text);
+          switch (field) {
+            case 'label': {
+              const label = (revision.label ??= {} as Record<string, string>);
+              label[language] = escapeHTML(text);
+              break;
+            }
+            default: {
+              const revisionRecord = revision as Record<string, unknown>;
+              const fieldValue = (revisionRecord[field] ??= {}) as Record<string, string>;
+              fieldValue[language] = escapeHTML(text);
+              break;
+            }
+          }
         }
 
         if (!revision.originalLanguage) revision.originalLanguage = language;
@@ -364,7 +367,7 @@ function processTextFieldUpdate(
 function sendForm(
   req: ThingRouteRequest<{ id: string }>,
   res: ThingRouteResponse,
-  thing: ThingPayload,
+  thing: ThingInstance,
   edit: Record<string, boolean>,
   titleKey: string
 ) {
@@ -400,18 +403,16 @@ function sendForm(
 function sendThing(
   req: ThingRouteRequest<{ id: string }>,
   res: ThingRouteResponse,
-  thing: ThingPayload,
-  options: Partial<{ otherReviews: ReviewFeed; userReviews: ReviewFeed }> = {}
+  thing: ThingInstance,
+  options: Partial<{ otherReviews: ReviewFeedResult; userReviews: ReviewInstance[] }> = {}
 ) {
-  options = Object.assign(
-    {
-      // Set to a feed of reviews not written by the currently logged in user
-      otherReviews: [],
-      // Set to a feed of reviews written by the currently logged in user.
-      userReviews: [],
-    },
-    options
-  );
+  const resolvedOptions: {
+    otherReviews?: ReviewFeedResult;
+    userReviews: ReviewInstance[];
+  } = {
+    otherReviews: options.otherReviews,
+    userReviews: options.userReviews ?? [],
+  };
 
   let pageErrors = req.flash('pageErrors');
   let pageMessages = req.flash('pageMessages');
@@ -421,8 +422,8 @@ function sendThing(
   });
 
   let offsetDate =
-    options.otherReviews && options.otherReviews.offsetDate
-      ? options.otherReviews.offsetDate
+    resolvedOptions.otherReviews && resolvedOptions.otherReviews.offsetDate
+      ? resolvedOptions.otherReviews.offsetDate
       : undefined;
 
   let paginationURL;
@@ -440,16 +441,19 @@ function sendThing(
     'thing',
     {
       titleKey: 'reviews of',
-      titleParam: Thing.getLabel(thing as any, req.locale),
+      titleParam: Thing.getLabel(thing, req.locale),
       thing,
       pageErrors,
       pageMessages,
       embeddedFeeds,
       deferPageHeader: true,
-      userReviews: options.userReviews,
+      userReviews: resolvedOptions.userReviews,
       paginationURL,
-      hasMoreThanOneReview: thing.numberOfReviews > 1,
-      otherReviews: options.otherReviews ? options.otherReviews.feedItems : undefined,
+      hasMoreThanOneReview:
+        typeof thing.numberOfReviews === 'number' ? thing.numberOfReviews > 1 : false,
+      otherReviews: resolvedOptions.otherReviews
+        ? resolvedOptions.otherReviews.feedItems
+        : undefined,
       taggedURLs,
       activeSourceIDs: thing.getSourceIDsOfActiveSyncs(),
       scripts: ['upload'],
@@ -501,7 +505,12 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
 // Handle data from a POST request for the "manage URLs" route
 function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   const { req, res, titleKey, thing } = paramsObj;
-  const formDef: Array<Record<string, unknown>> = [
+  const formDef: Array<{
+    name: string;
+    type?: string;
+    required?: boolean;
+    keyValueMap?: string;
+  }> = [
     {
       name: 'primary',
       type: 'number',
@@ -519,7 +528,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
       });
   }
 
-  let parsed = forms.parseSubmission(req, { formDef: formDef as any, formKey: 'thing-urls' });
+  const parsed = forms.parseSubmission(req, { formDef, formKey: 'thing-urls' });
 
   // Process errors handled by form parser
   if (parsed.hasUnknownFields || !parsed.hasRequiredFields)
@@ -548,21 +557,22 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   );
 
   // Now we need to make sure that none of the URLs are currently in use.
-  const { contains, neq } = ThingModel.ops;
-  const urlLookups: Promise<unknown>[] = thingURLs.map(url =>
-    ThingModel.filterWhere({ urls: contains(url), id: neq(thing.id) }).run()
+  const urlLookups = thingURLs.map(url =>
+    Thing.filterWhere({
+      urls: Thing.ops.containsAll(url),
+      id: Thing.ops.neq(thing.id),
+    }).run()
   );
 
   // Perform lookups
   Promise.all(urlLookups)
-    .then(resultSet => {
-      const results = resultSet as Array<any>;
+    .then(results => {
       let hasDuplicate = false;
-      results.forEach((r, index) => {
-        if (r.length) {
+      results.forEach((matches, index) => {
+        if (matches.length) {
           req.flash(
             'pageErrors',
-            req.__('web address already in use', thingURLs[index], `/${r[0].urlID}`)
+            req.__('web address already in use', thingURLs[index], `/${matches[0].urlID}`)
           );
           hasDuplicate = true;
         }
@@ -572,15 +582,17 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
         return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
 
       // No dupes -- continue!
-      thing.newRevision(req.user).then(newRev => {
+      thing.newRevision(req.user).then((revision: ThingInstance) => {
         // Reset sync settings for adapters
-        newRev.setURLs(thingURLs);
+        revision.setURLs(thingURLs);
         // Fetch external data for any URLs that support it and update thing, search index
-        newRev
-          .updateActiveSyncs(req.user.id)
-          .then(savedRev => {
+        const userID = req.user?.id;
+        if (!userID) throw new Error('Missing signed-in user ID while updating thing URLs.');
+        revision
+          .updateActiveSyncs(userID)
+          .then(() => {
             req.flash('pageMessages', req.__('links updated'));
-            sendThingURLsForm({ req, res, titleKey, thing: savedRev });
+            sendThingURLsForm({ req, res, titleKey, thing: revision });
           })
           .catch(error => {
             // Problem with syncs
