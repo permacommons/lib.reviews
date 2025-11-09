@@ -39,7 +39,10 @@ test('QueryBuilder can be instantiated', t => {
 
 test('FilterWhereBuilder applies literal predicates to QueryBuilder', t => {
   const { qb } = createQueryBuilderHarness();
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
 
   const result = builder.and({ id: 'test-id' });
 
@@ -128,7 +131,14 @@ test('FilterWhere operator helpers build advanced predicates', t => {
 
   t.is(qb._where.length, 6);
 
-  const [anyPredicate, castPredicate, betweenGroup, notBetweenGroup, jsonPredicate, booleanPredicate] = qb._where;
+  const [
+    anyPredicate,
+    castPredicate,
+    betweenGroup,
+    notBetweenGroup,
+    jsonPredicate,
+    booleanPredicate,
+  ] = qb._where;
 
   if (!anyPredicate || anyPredicate.type !== 'basic') {
     t.fail('Expected first predicate to be basic');
@@ -252,7 +262,10 @@ test('QueryBuilder supports offset method', t => {
 
 test('FilterWhereBuilder enforces revision guards before execution', async t => {
   const { qb } = createQueryBuilderHarness();
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, true);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    true
+  );
 
   await builder.run();
 
@@ -268,7 +281,10 @@ test('FilterWhereBuilder enforces revision guards before execution', async t => 
 
 test('FilterWhereBuilder can include deleted and stale revisions on demand', async t => {
   const { qb } = createQueryBuilderHarness();
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, true);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    true
+  );
 
   await builder.includeDeleted().includeStale().run();
 
@@ -325,7 +341,10 @@ test('FilterWhereBuilder.revisionData applies revision predicates', t => {
     camelToSnake: { createdOn: 'created_on', _revID: '_rev_id' },
   });
 
-  const builder = new FilterWhereBuilder<RevisionRecord, JsonObject, RevisionInstance, string>(qb, true);
+  const builder = new FilterWhereBuilder<RevisionRecord, JsonObject, RevisionInstance, string>(
+    qb,
+    true
+  );
 
   const revId = 'rev-123';
   builder.revisionData({ _revID: revId });
@@ -435,7 +454,10 @@ test('QueryBuilder supports complex joins with _apply', t => {
 
 test('QueryBuilder builds SELECT queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
   builder.and({ id: 'test-id' });
   qb.orderBy('created_on', 'DESC');
   qb.limit(10);
@@ -454,7 +476,10 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 
 test('QueryBuilder builds COUNT queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
   builder.and({ id: 'test-id' });
 
   const { sql: countSql, params: countParams } = qb._buildCountQuery();
@@ -467,7 +492,10 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 
 test('QueryBuilder builds DELETE queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
   builder.and({ id: 'test-id' });
 
   const { sql: deleteSql, params: deleteParams } = qb._buildDeleteQuery();
@@ -537,7 +565,10 @@ test('QueryBuilder handles schema namespace prefixing', t => {
 
 test('FilterWhereBuilder method chaining works correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, true);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    true
+  );
 
   const result = builder
     .and({ id: 'active-record' })
@@ -689,7 +720,10 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
   TestModel._registerFieldMapping('email', 'email');
 
   const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
   builder.and({ id: 'test-id' });
 
   const { sql } = qb._buildSelectQuery();
@@ -717,7 +751,10 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
   TestModel._registerFieldMapping('email', 'email');
 
   const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
-  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
   builder.and({ id: 'test-id' });
   qb.includeSensitive(['password']);
 

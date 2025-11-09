@@ -234,7 +234,11 @@ const teamManifest = defineModelManifest({
     populateUserInfo(this: ModelInstance, user: ModelInstance | null | undefined): void {
       if (!user) return;
 
-      if (this.members && Array.isArray(this.members) && this.members.some((member: ModelInstance) => member.id === user.id))
+      if (
+        this.members &&
+        Array.isArray(this.members) &&
+        this.members.some((member: ModelInstance) => member.id === user.id)
+      )
         this.userIsMember = true;
 
       if (
@@ -252,9 +256,12 @@ const teamManifest = defineModelManifest({
       if (
         !this.userIsMember &&
         (!this.joinRequests ||
-          !(Array.isArray(this.joinRequests) && this.joinRequests.some(
-            (request: ModelInstance) => request.userID === user.id && request.status === 'pending'
-          )))
+          !(
+            Array.isArray(this.joinRequests) &&
+            this.joinRequests.some(
+              (request: ModelInstance) => request.userID === user.id && request.status === 'pending'
+            )
+          ))
       )
         this.userCanJoin = true;
 
@@ -307,7 +314,9 @@ const teamManifest = defineModelManifest({
       slug.createdOn = new Date();
       slug.createdBy = userID;
 
-      const savedSlug = await (slug as ModelInstance & { qualifiedSave(): Promise<ModelInstance> }).qualifiedSave();
+      const savedSlug = await (
+        slug as ModelInstance & { qualifiedSave(): Promise<ModelInstance> }
+      ).qualifiedSave();
       if (savedSlug && savedSlug.name) {
         this.canonicalSlugName = savedSlug.name;
         const changedSet = this._changed as Set<string> | undefined;
@@ -430,7 +439,9 @@ async function getTeamJoinRequests(
         const userID = request.userID as string | undefined;
         if (userID) {
           try {
-            const user = await (User as unknown as { get(id: string): Promise<ModelInstance> }).get(userID);
+            const user = await (User as unknown as { get(id: string): Promise<ModelInstance> }).get(
+              userID
+            );
             if (user) {
               delete (user as Record<string, unknown>).password;
               request.user = user;
@@ -469,7 +480,14 @@ async function getTeamReviews(
   offsetDate?: Date | null
 ): Promise<{ reviews: ModelInstance[]; totalCount: number; hasMore: boolean }> {
   try {
-    const dal = (model as unknown as { dal: { query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>; schemaNamespace?: string } }).dal;
+    const dal = (
+      model as unknown as {
+        dal: {
+          query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
+          schemaNamespace?: string;
+        };
+      }
+    ).dal;
     const reviewTeamTableName = dal.schemaNamespace
       ? `${dal.schemaNamespace}review_teams`
       : 'review_teams';
@@ -503,7 +521,9 @@ async function getTeamReviews(
       const Review = await getReviewModel();
       for (const reviewId of reviewIDs) {
         try {
-          const review = await (Review as unknown as { getWithData(id: string): Promise<ModelInstance> }).getWithData(reviewId);
+          const review = await (
+            Review as unknown as { getWithData(id: string): Promise<ModelInstance> }
+          ).getWithData(reviewId);
           if (review) reviews.push(review);
         } catch (error) {
           debug.error('Error loading review for team');

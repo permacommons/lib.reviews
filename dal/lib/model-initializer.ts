@@ -10,10 +10,7 @@ import type { ModelSchemaField } from './model.ts';
 import type { ModelConstructorLike } from './revision.ts';
 import revision from './revision.ts';
 
-const DEFAULT_REVISION_STATIC = [
-  'createFirstRevision',
-  'getNotStaleOrDeleted',
-] as const;
+const DEFAULT_REVISION_STATIC = ['createFirstRevision', 'getNotStaleOrDeleted'] as const;
 
 const DEFAULT_REVISION_INSTANCE = ['deleteAllRevisions'] as const;
 

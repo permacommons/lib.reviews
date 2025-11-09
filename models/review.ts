@@ -319,7 +319,9 @@ const reviewManifest = defineModelManifest({
         { id: reviewObj.createdBy },
         { tags: ['create-via-review'], date }
       );
-      debug.db('Review.findOrCreateThing: created first revision', { provisionalThingID: thing.id });
+      debug.db('Review.findOrCreateThing: created first revision', {
+        provisionalThingID: thing.id,
+      });
 
       if (!thing.id) {
         thing.id = randomUUID();

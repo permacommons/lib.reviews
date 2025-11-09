@@ -52,7 +52,9 @@ const inviteLinkManifest = defineModelManifest({
         `;
 
         const result = await this.dal.query(query, [user.id]);
-        return result.rows.map(row => normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>)));
+        return result.rows.map(row =>
+          normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>))
+        );
       } catch (error) {
         debug.error('Failed to fetch pending invite links:', error);
         return [];
@@ -158,9 +160,14 @@ const inviteLinkManifest = defineModelManifest({
           throw error;
         }
 
-        return normalizeInviteInstance(this.createFromRow(result.rows[0] as Record<string, unknown>));
+        return normalizeInviteInstance(
+          this.createFromRow(result.rows[0] as Record<string, unknown>)
+        );
       } catch (error) {
-        if (error instanceof DocumentNotFound || (error as Error).name === 'DocumentNotFoundError') {
+        if (
+          error instanceof DocumentNotFound ||
+          (error as Error).name === 'DocumentNotFoundError'
+        ) {
           throw error;
         }
         debug.error('Failed to fetch invite link by id:', error);
@@ -183,7 +190,9 @@ export default InviteLink;
  * @param invite - Invite link instance or plain object
  * @returns Fully qualified invite URL
  */
-function buildInviteURL(invite: InviteLinkInstance | ModelInstance | null | undefined): string | undefined {
+function buildInviteURL(
+  invite: InviteLinkInstance | ModelInstance | null | undefined
+): string | undefined {
   if (!invite) {
     return undefined;
   }

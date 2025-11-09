@@ -52,7 +52,9 @@ expectTypeOf(user.moderatorOf).toEqualTypeOf<ModelInstance[] | undefined>();
 
 // Test instance methods - these come from the manifest's instanceMethods
 expectTypeOf(user.populateUserInfo).toBeFunction();
-expectTypeOf(user.populateUserInfo).parameters.toMatchTypeOf<[Record<string, any> | null | undefined]>();
+expectTypeOf(user.populateUserInfo).parameters.toMatchTypeOf<
+  [Record<string, any> | null | undefined]
+>();
 expectTypeOf(user.populateUserInfo).returns.toEqualTypeOf<void>();
 
 expectTypeOf(user.setName).toBeFunction();

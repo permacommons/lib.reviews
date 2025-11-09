@@ -57,9 +57,7 @@ export class Type<TBase, TRequired extends boolean = false> {
   /**
    * Configure a default value (or factory) for the field.
    */
-  default(
-    value: TypeOutput<TBase, TRequired> | (() => TypeOutput<TBase, TRequired>)
-  ): this {
+  default(value: TypeOutput<TBase, TRequired> | (() => TypeOutput<TBase, TRequired>)): this {
     this.defaultValue = value;
     this.hasDefault = true;
     return this;
@@ -469,9 +467,7 @@ const types = {
   number: (options?: Record<string, unknown>) => new NumberType(options),
   boolean: (options?: Record<string, unknown>) => new BooleanType(options),
   date: (options?: Record<string, unknown>) => new DateType(options),
-  array: <
-    TElementField extends SchemaFieldLike = Type<unknown>,
-  >(
+  array: <TElementField extends SchemaFieldLike = Type<unknown>>(
     elementType?: TElementField | null,
     options?: Record<string, unknown>
   ) => new ArrayType(elementType ?? null, options),

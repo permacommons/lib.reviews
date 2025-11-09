@@ -47,7 +47,7 @@ function initializeFromManifest<Manifest extends ModelManifest>(
   type Instance = InferInstance<Manifest>;
 
   const relationDefinitions = manifest.relations
-    ? manifest.relations.map((relation) => ({ ...relation }))
+    ? manifest.relations.map(relation => ({ ...relation }))
     : null;
 
   // Convert manifest to initializeModel options format
@@ -57,11 +57,7 @@ function initializeFromManifest<Manifest extends ModelManifest>(
     schema: manifest.schema,
     withRevision: manifest.hasRevisions
       ? {
-          static: [
-            'createFirstRevision',
-            'getNotStaleOrDeleted',
-            'getMultipleNotStaleOrDeleted',
-          ],
+          static: ['createFirstRevision', 'getNotStaleOrDeleted', 'getMultipleNotStaleOrDeleted'],
           instance: ['deleteAllRevisions'],
         }
       : false,

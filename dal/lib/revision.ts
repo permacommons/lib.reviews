@@ -20,7 +20,10 @@ import types from './type.ts';
 export interface ModelConstructorLike<
   TData extends JsonObject = JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<TData, TVirtual>,
+  TInstance extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
+    TData,
+    TVirtual
+  >,
 > extends VersionedModelConstructor<TData, TVirtual, TInstance> {
   _createInstance(row: JsonObject): TInstance;
   _registerFieldMapping?(camel: string, snake: string): void;
@@ -78,10 +81,7 @@ export interface RevisionHelpers {
     TInstance extends VersionedModelInstance<TData, TVirtual>,
   >(
     ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>
-  ): (
-    id: string,
-    joinOptions?: JsonObject
-  ) => Promise<VersionedModelInstance<TData, TVirtual>>;
+  ): (id: string, joinOptions?: JsonObject) => Promise<VersionedModelInstance<TData, TVirtual>>;
   getFirstRevisionHandler<
     TData extends JsonObject,
     TVirtual extends JsonObject,
@@ -97,9 +97,7 @@ export interface RevisionHelpers {
     TData extends JsonObject,
     TVirtual extends JsonObject,
     TInstance extends VersionedModelInstance<TData, TVirtual>,
-  >(
-    ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>
-  ): (idArray: string[]) => unknown;
+  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>): (idArray: string[]) => unknown;
   getSchema(): Record<string, unknown>;
   registerFieldMappings(ModelClass: ModelConstructorLike): void;
   deletedError: Error;
@@ -232,7 +230,11 @@ const revision: RevisionHelpers = {
       await ModelClass.dal.query(insertQuery, insertValues);
 
       const metadataDate = new Date();
-      applyRevisionMetadata<TData, TVirtual, TInstance>(currentRev, { user, date: metadataDate, tags });
+      applyRevisionMetadata<TData, TVirtual, TInstance>(currentRev, {
+        user,
+        date: metadataDate,
+        tags,
+      });
 
       return currentRev;
     };
@@ -316,7 +318,8 @@ const revision: RevisionHelpers = {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);
       }
 
-      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>).filterWhere;
+      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>)
+        .filterWhere;
       if (typeof filterWhere !== 'function') {
         throw new Error(
           `Model "${ModelClass.tableName}" must expose filterWhere. Ensure defineModel() initialized this constructor.`
@@ -405,7 +408,8 @@ const revision: RevisionHelpers = {
      * @returns Query builder for chaining
      */
     const getMultipleNotStaleOrDeleted = (ids: string[]) => {
-      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>).filterWhere;
+      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>)
+        .filterWhere;
 
       if (typeof filterWhere !== 'function') {
         throw new Error(

@@ -7,32 +7,23 @@ export interface JsonObject {
   [key: string]: JsonValue;
 }
 
-export interface FilterWhereOperator<
-  K extends PropertyKey,
-  TValue,
-> {
+export interface FilterWhereOperator<K extends PropertyKey, TValue> {
   readonly __allowedKeys: K;
   readonly value: TValue;
 }
 
-type OperatorResultForKey<
-  TOps,
-  K extends PropertyKey,
-> = {
-  [P in keyof TOps]: TOps[P] extends (...args: unknown[]) => FilterWhereOperator<infer Keys, infer TValue>
+type OperatorResultForKey<TOps, K extends PropertyKey> = {
+  [P in keyof TOps]: TOps[P] extends (
+    ...args: unknown[]
+  ) => FilterWhereOperator<infer Keys, infer TValue>
     ? K extends Keys
       ? FilterWhereOperator<K, TValue>
       : never
     : never;
 }[keyof TOps];
 
-export type FilterWhereLiteral<
-  TRecord extends JsonObject,
-  TOps,
-> = Partial<{
-  [K in keyof TRecord]:
-    | TRecord[K]
-    | OperatorResultForKey<TOps, K & PropertyKey>;
+export type FilterWhereLiteral<TRecord extends JsonObject, TOps> = Partial<{
+  [K in keyof TRecord]: TRecord[K] | OperatorResultForKey<TOps, K & PropertyKey>;
 }>;
 
 export interface TransactionOptions {
@@ -69,10 +60,7 @@ export interface GetOptions extends JsonObject {
  * {@link ModelInstance} instead, which intersects these behaviours with the
  * inferred data fields.
  */
-export interface ModelInstanceCore<
-  TData extends JsonObject,
-  TVirtual extends JsonObject,
-> {
+export interface ModelInstanceCore<TData extends JsonObject, TVirtual extends JsonObject> {
   _data: Record<string, unknown>;
   _changed: Set<string>;
   _isNew: boolean;
@@ -224,17 +212,17 @@ type RevisionFieldMap = {
 export type VersionedModelInstance<
   TData extends JsonObject = JsonObject,
   TVirtual extends JsonObject = JsonObject,
-> = ModelInstance<TData, TVirtual> & RevisionFieldMap & {
-
-  newRevision(
-    user: RevisionActor | null,
-    options?: RevisionMetadata
-  ): Promise<VersionedModelInstance<TData, TVirtual>>;
-  deleteAllRevisions(
-    user?: RevisionActor | null,
-    options?: RevisionMetadata
-  ): Promise<VersionedModelInstance<TData, TVirtual>>;
-};
+> = ModelInstance<TData, TVirtual> &
+  RevisionFieldMap & {
+    newRevision(
+      user: RevisionActor | null,
+      options?: RevisionMetadata
+    ): Promise<VersionedModelInstance<TData, TVirtual>>;
+    deleteAllRevisions(
+      user?: RevisionActor | null,
+      options?: RevisionMetadata
+    ): Promise<VersionedModelInstance<TData, TVirtual>>;
+  };
 
 export type RevisionDataRecord = JsonObject & RevisionFieldMap;
 
@@ -290,18 +278,12 @@ export interface FilterWhereQueryBuilder<
   TInstance extends ModelInstance<TData, TVirtual>,
   TRelations extends string = string,
 > extends PromiseLike<TInstance[]> {
-  and(criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): FilterWhereQueryBuilder<
-    TData,
-    TVirtual,
-    TInstance,
-    TRelations
-  >;
-  or(criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>): FilterWhereQueryBuilder<
-    TData,
-    TVirtual,
-    TInstance,
-    TRelations
-  >;
+  and(
+    criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  or(
+    criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   includeDeleted(): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   includeStale(): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   includeSensitive(
@@ -399,13 +381,13 @@ export interface ModelConstructor<
 export interface VersionedModelConstructor<
   TData extends JsonObject = JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<TData, TVirtual>,
+  TInstance extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
+    TData,
+    TVirtual
+  >,
   TRelations extends string = string,
 > extends ModelConstructor<TData, TVirtual, TInstance, TRelations> {
-  createFirstRevision(
-    user: RevisionActor,
-    options?: RevisionMetadata
-  ): Promise<TInstance>;
+  createFirstRevision(user: RevisionActor, options?: RevisionMetadata): Promise<TInstance>;
   getNotStaleOrDeleted(id: string, joinOptions?: JsonObject): Promise<TInstance>;
 }
 
@@ -423,13 +405,8 @@ export interface DataAccessLayer {
     TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
     TRelations extends string = string,
-  >(
-    name: string
-  ): ModelConstructor<TData, TVirtual, ModelInstance<TData, TVirtual>, TRelations>;
-  createModel<
-    TData extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject,
-  >(
+  >(name: string): ModelConstructor<TData, TVirtual, ModelInstance<TData, TVirtual>, TRelations>;
+  createModel<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     name: string,
     schema: Record<string, ModelSchemaField>,
     options?: JsonObject

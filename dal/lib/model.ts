@@ -157,8 +157,7 @@ function deepClone<T>(value: T): T {
 /**
  * Base Model class
  */
-class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>
-{
+class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject> {
   [key: string]: unknown;
   protected static _fieldMappings: Map<string, string> = new Map();
   protected static _relations: Map<string, NormalizedRelationConfig> = new Map();
@@ -420,12 +419,9 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param schema - Model schema definition
    * @param options - Model options
    * @param dal - DAL instance
-  * @returns Model constructor
-  */
-  static createModel<
-    TData extends JsonObject,
-    TVirtual extends JsonObject = JsonObject,
-  >(
+   * @returns Model constructor
+   */
+  static createModel<TData extends JsonObject, TVirtual extends JsonObject = JsonObject>(
     tableName: string,
     schema: ModelSchema<TData, TVirtual>,
     options: JsonObject,
@@ -461,10 +457,7 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param options (other properties) - Join options for related data (e.g., {teams: true})
    * @returns Model instance
    */
-  static async get<
-    TData extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject,
-  >(
+  static async get<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     this: ModelRuntime<TData, TVirtual>,
     id: string,
     options: GetOptions = {}
@@ -505,10 +498,7 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   static async getAll<
     TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
-  >(
-    this: ModelRuntime<TData, TVirtual>,
-    ...ids: string[]
-  ): Promise<Array<Model<TData, TVirtual>>> {
+  >(this: ModelRuntime<TData, TVirtual>, ...ids: string[]): Promise<Array<Model<TData, TVirtual>>> {
     if (ids.length === 0) {
       return [];
     }
@@ -661,10 +651,11 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param value - Value to check for
    * @returns Query builder
    */
-  static contains<
-    TData extends JsonObject = JsonObject,
-    TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TData, TVirtual>, field: string, value: unknown) {
+  static contains<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+    this: ModelRuntime<TData, TVirtual>,
+    field: string,
+    value: unknown
+  ) {
     const query = new QueryBuilder(this, this.dal);
     return query.contains(field, value);
   }

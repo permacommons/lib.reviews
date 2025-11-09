@@ -212,7 +212,10 @@ const thingManifest = defineModelManifest({
      */
     async getWithData(
       id: string,
-      { withFiles = true, withReviewMetrics = true }: { withFiles?: boolean; withReviewMetrics?: boolean } = {}
+      {
+        withFiles = true,
+        withReviewMetrics = true,
+      }: { withFiles?: boolean; withReviewMetrics?: boolean } = {}
     ) {
       const joinOptions: Record<string, any> = {};
       if (withFiles) {
@@ -221,9 +224,11 @@ const thingManifest = defineModelManifest({
         };
       }
 
-      const thing = (Object.keys(joinOptions).length
-        ? await this.getNotStaleOrDeleted(id, joinOptions)
-        : await this.getNotStaleOrDeleted(id)) as Record<string, any>;
+      const thing = (
+        Object.keys(joinOptions).length
+          ? await this.getNotStaleOrDeleted(id, joinOptions)
+          : await this.getNotStaleOrDeleted(id)
+      ) as Record<string, any>;
 
       if (withFiles) {
         thing.files = Array.isArray(thing.files) ? thing.files : [];
@@ -276,7 +281,10 @@ const thingManifest = defineModelManifest({
         return;
       }
 
-      const responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID) as Record<string, any>;
+      const responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID) as Record<
+        string,
+        any
+      >;
       const supportedFields = Array.isArray(responsibleAdapter?.getSupportedFields?.())
         ? responsibleAdapter.getSupportedFields()
         : [];
@@ -425,7 +433,8 @@ const thingManifest = defineModelManifest({
 
       if (allURLs.length) {
         debug.app(
-          `Retrieving item metadata for ${thing.id} from the following URL(s):\n` + allURLs.join(', ')
+          `Retrieving item metadata for ${thing.id} from the following URL(s):\n` +
+            allURLs.join(', ')
         );
       }
 
@@ -437,7 +446,11 @@ const thingManifest = defineModelManifest({
       sources.forEach(source => {
         for (const field in thing.sync as Record<string, any>) {
           const syncEntry = (thing.sync as Record<string, any>)[field];
-          if (syncEntry?.active && syncEntry.source === source && Array.isArray(dataBySource[source])) {
+          if (
+            syncEntry?.active &&
+            syncEntry.source === source &&
+            Array.isArray(dataBySource[source])
+          ) {
             for (const data of dataBySource[source]) {
               if (data[field] !== undefined) {
                 const newSync = { ...(thing.sync as Record<string, any>) };
@@ -478,7 +491,9 @@ const thingManifest = defineModelManifest({
 
       return thing;
 
-      function _organizeDataBySource(results: Array<Record<string, any> | undefined>): Record<string, any[]> {
+      function _organizeDataBySource(
+        results: Array<Record<string, any> | undefined>
+      ): Record<string, any[]> {
         const rv: Record<string, any[]> = {};
         results.forEach(result => {
           if (
@@ -676,9 +691,10 @@ const thingManifest = defineModelManifest({
           this.canonicalSlugName = savedSlug.name;
           const changedSet = this._changed as Set<string> | undefined;
           const runtime = this.constructor as Record<string, any>;
-          const dbFieldName = typeof runtime._getDbFieldName === 'function'
-            ? runtime._getDbFieldName('canonicalSlugName')
-            : 'canonical_slug_name';
+          const dbFieldName =
+            typeof runtime._getDbFieldName === 'function'
+              ? runtime._getDbFieldName('canonicalSlugName')
+              : 'canonical_slug_name';
           changedSet?.add(dbFieldName);
         }
       } catch (error) {

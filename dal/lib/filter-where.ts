@@ -119,7 +119,12 @@ function createGroupedPredicate(
   conjunction: 'AND' | 'OR'
 ): Predicate {
   const leftPredicate = builder._createPredicate(field, left.operator, left.value, left.options);
-  const rightPredicate = builder._createPredicate(field, right.operator, right.value, right.options);
+  const rightPredicate = builder._createPredicate(
+    field,
+    right.operator,
+    right.value,
+    right.options
+  );
   const groupPredicate = {
     type: 'group',
     conjunction,
@@ -362,7 +367,9 @@ function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRe
       };
       return operator;
     },
-    jsonContains<K extends JsonObjectKeys<TRecord>>(value: JsonObject): InternalFilterOperator<K, JsonObject> {
+    jsonContains<K extends JsonObjectKeys<TRecord>>(
+      value: JsonObject
+    ): InternalFilterOperator<K, JsonObject> {
       const operator: InternalFilterOperator<K, JsonObject> = {
         [FILTER_OPERATOR_TOKEN]: true,
         __allowedKeys: null as unknown as K,
@@ -660,7 +667,7 @@ function createFilterWhereMethod<
       builder,
       hasRevisions
     ).and(literal);
-  };
+  }
 
   return filterWhere;
 }
@@ -672,13 +679,14 @@ function createFilterWhereMethod<
  *
  * @param _manifest Manifest describing the model being registered.
  */
-type RelationNames<Manifest extends ModelManifest> = Manifest['relations'] extends readonly (infer Relations)[]
-  ? Relations extends { name: infer Name }
-    ? Name extends string
-      ? Name
+type RelationNames<Manifest extends ModelManifest> =
+  Manifest['relations'] extends readonly (infer Relations)[]
+    ? Relations extends { name: infer Name }
+      ? Name extends string
+        ? Name
+        : never
       : never
-    : never
-  : never;
+    : never;
 
 function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Manifest) {
   type Data = InferData<Manifest['schema']>;
@@ -694,5 +702,11 @@ function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Man
   } as const;
 }
 
-export { FILTER_OPERATOR_TOKEN, FilterWhereBuilder, createFilterWhereStatics, createOperators, createFilterWhereMethod };
+export {
+  FILTER_OPERATOR_TOKEN,
+  FilterWhereBuilder,
+  createFilterWhereStatics,
+  createOperators,
+  createFilterWhereMethod,
+};
 export type { InternalFilterOperator };

@@ -64,7 +64,9 @@ const thingSlugManifest = defineModelManifest({
   instanceMethods: {
     async qualifiedSave(this: ModelInstance): Promise<ModelInstance | null> {
       const Model = this.constructor as typeof ThingSlug;
-      const dal = Model.dal as { query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }> };
+      const dal = Model.dal as {
+        query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
+      };
 
       if (!this.baseName) {
         this.baseName = this.name;

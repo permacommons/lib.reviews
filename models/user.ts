@@ -328,7 +328,6 @@ const userManifest = defineModelManifest({
 
       const user = await query.first();
       if (user) {
-
         if (options.withTeams) await _attachUserTeams(user);
 
         updateUploadPermission(user);
@@ -429,7 +428,6 @@ function updateUploadPermission(user: UserInstance): void {
   user.userCanUploadTempFiles = Boolean(user.isTrusted || user.isSuperUser);
 }
 
-
 /**
  * Populate the user's team memberships and moderator assignments.
  *
@@ -487,7 +485,6 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
   }
 }
-
 
 /**
  * Error class for reporting user registration failures with translated

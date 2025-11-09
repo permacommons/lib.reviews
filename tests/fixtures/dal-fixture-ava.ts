@@ -1,7 +1,11 @@
 import { randomUUID } from 'crypto';
 import pgModule from 'pg';
 import { createTestHarness } from '../../bootstrap/dal.ts';
-import { defineModel, defineModelManifest, initializeManifestModels } from '../../dal/lib/create-model.ts';
+import {
+  defineModel,
+  defineModelManifest,
+  initializeManifestModels,
+} from '../../dal/lib/create-model.ts';
 import type { ModelSchemaField } from '../../dal/lib/model.ts';
 import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
 import { logNotice, logOK } from '../helpers/test-helpers.ts';
@@ -230,7 +234,8 @@ class DALFixtureAVA {
         }
 
         const modelDef = rawDef as CustomModelDefinition;
-        const baseName = typeof modelDef.name === 'string' && modelDef.name.length > 0 ? modelDef.name : null;
+        const baseName =
+          typeof modelDef.name === 'string' && modelDef.name.length > 0 ? modelDef.name : null;
         if (!baseName || !this.dal) {
           continue;
         }
@@ -263,7 +268,8 @@ class DALFixtureAVA {
           }
           this.cacheKnownModelByBase(baseName, model);
 
-          const registry = typeof this.dal.getModelRegistry === 'function' ? this.dal.getModelRegistry() : null;
+          const registry =
+            typeof this.dal.getModelRegistry === 'function' ? this.dal.getModelRegistry() : null;
 
           if (registry && aliasKey !== baseName) {
             try {
