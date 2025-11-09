@@ -1,7 +1,7 @@
 import type { ViteDevServer } from 'vite';
 import type { DalContext } from '../../dal/index.ts';
-import type { DataAccessLayer, ModelInstance } from '../../dal/lib/model-types.ts';
-import type { UserViewer } from '../../models/user.ts';
+import type { DataAccessLayer } from '../../dal/lib/model-types.ts';
+import type { UserInstance } from '../../models/user.ts';
 import type WebHookDispatcher from '../../util/webhooks.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
@@ -27,27 +27,16 @@ export interface SessionDataWithFlash {
   [key: string]: unknown;
 }
 
+type RequestUserWebFields = Partial<Pick<UserInstance, 'teams' | 'moderatorOf' | 'meta'>> & {
+  permissions?: Record<PermissionFlag | string, boolean>;
+};
+
 /**
- * Extension of `UserViewer` that includes web-only fields exposed on
- * `req.user` by authentication middleware (see `app.ts` and `models/user.ts`).
+ * Authenticated user object exposed by Passport. Combines the DAL-derived
+ * `UserInstance` shape with web-only enrichments populated during request
+ * handling.
  */
-export interface RequestUser extends UserViewer {
-  displayName?: string;
-  urlName?: string;
-  email?: string;
-  userCanUploadTempFiles?: boolean;
-  inviteLinkCount?: number;
-  suppressedNotices?: string[];
-  prefersRichTextEditor?: boolean;
-  showErrorDetails?: boolean;
-  teams?: Array<Record<string, unknown>>;
-  moderatorOf?: Array<Record<string, unknown>>;
-  meta?: Record<string, unknown> & { newRevision?: (...args: unknown[]) => Promise<unknown> };
-  populateUserInfo?: (...args: unknown[]) => unknown;
-  save?: () => Promise<RequestUser | ModelInstance | void>;
-  getValidPreferences: () => string[];
-  [key: string]: unknown;
-}
+export type RequestUser = UserInstance & RequestUserWebFields;
 
 /**
  * Shared locals attached to both Express responses and Handlebars templates.

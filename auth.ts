@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import passport from 'passport';
 import passportLocal from 'passport-local';
-import User from './models/user.ts';
+import User, { type UserInstance } from './models/user.ts';
 
 const { Strategy: LocalStrategy } = passportLocal;
 
@@ -23,7 +23,7 @@ passport.deserializeUser(async (id: unknown, done: DeserializeCallback) => {
   const userId = String(id);
   try {
     const user = await User.getWithTeams(userId);
-    return done(null, user as Express.User | null);
+    return done(null, user);
   } catch (error) {
     return done(error);
   }
@@ -31,7 +31,7 @@ passport.deserializeUser(async (id: unknown, done: DeserializeCallback) => {
 
 const verify: passportLocal.VerifyFunction = async (username, password, done: VerifyCallback) => {
   try {
-    const users = await User.filterWhere({
+    const users: UserInstance[] = await User.filterWhere({
       canonicalName: User.canonicalize(username),
     })
       .includeSensitive(['password'])
@@ -60,7 +60,7 @@ const verify: passportLocal.VerifyFunction = async (username, password, done: Ve
       });
     }
 
-    return done(null, user as unknown as Express.User);
+    return done(null, user);
   } catch (error) {
     return done(error);
   }

@@ -6,7 +6,7 @@ import type { AppLocals, RequestUser, SessionDataWithFlash } from './http/locals
  */
 declare global {
   namespace Express {
-    /** Authenticated user object exposed by Passport. */
+    /** Authenticated user object exposed by Passport (UserInstance + web fields). */
     interface User extends RequestUser {}
 
     interface Request {
