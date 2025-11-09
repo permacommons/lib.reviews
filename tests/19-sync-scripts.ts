@@ -1,7 +1,7 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import type { AdapterLookupResult } from '../adapters/abstract-backend-adapter.ts';
-import type { ThingInstance } from '../models/thing.ts';
+import type { ThingInstance } from '../models/manifests/thing.ts';
 import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import {
@@ -121,19 +121,23 @@ test.serial('sync functionality works with metadata grouping', async t => {
 
   try {
     // Test updateActiveSyncs (core sync functionality)
-    const updatedThing = await thing.updateActiveSyncs(testUserId);
+    const updatedThing = (await thing.updateActiveSyncs(testUserId)) as ThingInstance &
+      Record<string, any>;
+
+    const metadata = updatedThing.metadata as Record<string, any> | undefined;
 
     // Verify description was synced to metadata
-    t.truthy(updatedThing.metadata, 'Metadata should be created');
-    t.truthy(updatedThing.metadata.description, 'Description should be in metadata');
+    t.truthy(metadata, 'Metadata should be created');
+    t.truthy(metadata?.description, 'Description should be in metadata');
     t.deepEqual(
-      updatedThing.metadata.description,
+      metadata?.description,
       { en: 'Synced description from Wikidata' },
       'Description should be synced'
     );
 
     // Verify sync timestamp was updated
-    t.truthy(updatedThing.sync.description.updated, 'Sync timestamp should be updated');
+    const sync = updatedThing.sync as Record<string, any> | undefined;
+    t.truthy(sync?.description?.updated, 'Sync timestamp should be updated');
   } finally {
     // Restore original lookup method
     WikidataBackendAdapter.prototype.lookup = originalLookup;

@@ -239,51 +239,67 @@ lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL). See `dal/READ
 
 ### Model Pattern
 
-Models use a handle-based pattern that allows synchronous imports:
+Models use a manifest-based pattern with lazy-loaded proxies:
 
-```javascript
-// models/user.js
-import dal from '../dal/index.js';
-import { createModelModule } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
+```typescript
+// models/manifests/user.ts
+import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import types from '../../dal/lib/type.ts';
 
-const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
-  tableName: 'users'
+export const userManifest = defineModelManifest({
+  tableName: 'users',
+  hasRevisions: false,
+  schema: {
+    id: types.string().uuid(4),
+    displayName: types.string().max(128).required(),
+    email: types.string().email(),
+  },
 });
 
-const { types } = dal;
+export type UserInstance = InferInstance<typeof userManifest>;
+export type UserModel = InferConstructor<typeof userManifest>;
 
-const schema = {
-  id: types.string().uuid(4),
-  displayName: types.string().max(128).required(),
-  email: types.string().email()
-};
+// models/user.ts
+import { defineModel } from '../dal/lib/create-model.ts';
+import userManifest from './manifests/user.ts';
 
-async function initializeUserModel(dalInstance) {
-  const { model } = initializeModel({
-    dal: dalInstance,
-    baseTable: 'users',
-    schema
-  });
-  return model;
-}
+const User = defineModel(userManifest);
 
-// dalInstance is provided by the DAL bootstrap when registering models.
-
-registerUserHandle({
-  initializeModel: initializeUserModel
-});
-
-export default UserHandle;
+export default User;
 ```
 
 Usage in application code:
 
-```javascript
-import User from './models/user.js';
+```typescript
+import User from './models/user.ts';
 
 const user = await User.create({ displayName: 'Jane', email: 'jane@example.com' });
 const users = await User.filterWhere({ isTrusted: false }).run();
+```
+
+Models with custom methods separate the manifest (schema) from behavior:
+
+```typescript
+// Define static methods with proper typing
+const userStaticMethods = defineStaticMethods(userManifest, {
+  async findByEmail(email: string) {
+    return this.filterWhere({ email }).run();
+  }
+});
+
+// Combine manifest with methods
+const User = defineModel(userManifest, { staticMethods: userStaticMethods });
+```
+
+Cross-model references avoid circular imports by referencing manifests:
+
+```typescript
+// models/thing.ts - needs to call Review methods
+import { referenceModel } from '../dal/lib/model-handle.ts';
+import reviewManifest, { type ReviewModel } from './manifests/review.ts';
+
+const Review = referenceModel(reviewManifest) as ReviewModel;
+// Can now call Review.getFeed() etc. without importing review.ts
 ```
 
 ### Historical Note

@@ -1,4 +1,5 @@
 import { createFilterWhereStatics } from './filter-where.ts';
+import { getRegisteredModel } from './model-handle.ts';
 import type { InitializeModelOptions } from './model-initializer.ts';
 import { initializeModel } from './model-initializer.ts';
 import type {
@@ -11,8 +12,6 @@ import type {
 import { getAllManifests, registerManifest } from './model-registry.ts';
 import type { DataAccessLayer, InstanceMethod, JsonObject } from './model-types.ts';
 
-// Cache for initialized models (populated by bootstrap)
-const initializedModels = new Map<string, unknown>();
 const filterWhereStaticsByTable = new Map<string, ReturnType<typeof createFilterWhereStatics>>();
 
 interface CreateModelOptions {
@@ -20,14 +19,40 @@ interface CreateModelOptions {
 }
 
 type EmptyRecord = Record<never, never>;
+type EmptyStaticMethods = Record<never, (...args: unknown[]) => unknown>;
+type EmptyInstanceMethods = Record<never, InstanceMethod>;
 
 type ModelConstructorWithStatics<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
 > = InferConstructor<Manifest> & ExtraStatics;
 
-export interface DefineModelOptions<ExtraStatics extends Record<string, unknown>> {
+type MergeManifestMethods<
+  Manifest extends ModelManifest,
+  StaticMethods extends Record<string, (...args: unknown[]) => unknown>,
+  InstanceMethods extends Record<string, InstanceMethod>,
+> = Manifest extends ModelManifest<
+  infer Schema,
+  infer HasRevisions,
+  infer ExistingStaticMethods,
+  infer ExistingInstanceMethods
+>
+  ? ModelManifest<
+      Schema,
+      HasRevisions,
+      keyof StaticMethods extends never ? ExistingStaticMethods : StaticMethods,
+      keyof InstanceMethods extends never ? ExistingInstanceMethods : InstanceMethods
+    >
+  : Manifest;
+
+export interface DefineModelOptions<
+  ExtraStatics extends Record<string, unknown>,
+  StaticMethods extends Record<string, (...args: unknown[]) => unknown>,
+  InstanceMethods extends Record<string, InstanceMethod>,
+> {
   statics?: ExtraStatics;
+  staticMethods?: StaticMethods;
+  instanceMethods?: InstanceMethods;
 }
 
 /**
@@ -112,31 +137,17 @@ function initializeFromManifest<Manifest extends ModelManifest>(
 }
 
 /**
- * Create a typed model handle from a manifest
- *
- * This is the main entry point for manifest-based models.
- * Returns a lazy proxy that initializes the model on first access.
+ * Create a lazy proxy for a model manifest. This is the internal implementation
+ * used by defineModel(). The proxy forwards all property access to the initialized
+ * model from the DAL registry.
  *
  * @param manifest - Model manifest definition
- * @returns Typed model constructor
+ * @param options - Optional static properties to attach
+ * @returns Typed model proxy constructor
  *
- * @example
- * ```typescript
- * const userManifest = {
- *   tableName: 'users',
- *   hasRevisions: true,
- *   schema: { id: types.string().uuid(4), ... },
- * } as const;
- *
- * const User = createModel(userManifest);
- * export default User;
- *
- * // Usage (fully typed):
- * const user = await User.get('123');
- * user.displayName; // Type: string
- * ```
+ * @internal Most code should use defineModel() instead
  */
-export function createModel<Manifest extends ModelManifest>(
+export function createModelProxy<Manifest extends ModelManifest>(
   manifest: Manifest,
   options: CreateModelOptions = {}
 ): InferConstructor<Manifest> {
@@ -148,26 +159,23 @@ export function createModel<Manifest extends ModelManifest>(
 
   const providedStatic = options.staticProperties ?? {};
 
-  const getRuntime = () => {
-    const runtime = initializedModels.get(manifest.tableName) as
-      | (InferConstructor<Manifest> & {
-          _createInstance?: (row: JsonObject) => InferInstance<Manifest>;
-        })
-      | undefined;
+  type Data = InferData<Manifest['schema']>;
+  type Virtual = InferVirtual<Manifest['schema']>;
 
-    if (!runtime || typeof runtime._createInstance !== 'function') {
-      throw new Error(
-        `Model "${manifest.tableName}" has not been initialized yet. ` +
-          'Ensure bootstrap has completed before accessing models.'
-      );
-    }
-
-    return runtime;
+  const getModel = () => {
+    return getRegisteredModel<Data, Virtual>(manifest.tableName) as InferConstructor<Manifest> & {
+      _createInstance?: (row: JsonObject) => InferInstance<Manifest>;
+    };
   };
 
   const createFromRow = (row: JsonObject): InferInstance<Manifest> => {
-    const runtime = getRuntime();
-    return runtime._createInstance(row);
+    const model = getModel();
+    if (typeof model._createInstance !== 'function') {
+      throw new Error(
+        `Model "${manifest.tableName}" does not expose _createInstance; bootstrap may be incomplete.`
+      );
+    }
+    return model._createInstance(row);
   };
 
   const staticProperties = { ...filterWhereStatics, ...providedStatic, createFromRow };
@@ -197,16 +205,7 @@ export function createModel<Manifest extends ModelManifest>(
         return Reflect.get(target, prop);
       }
 
-      const model = initializedModels.get(manifest.tableName) as
-        | InferConstructor<Manifest>
-        | undefined;
-
-      if (!model) {
-        throw new Error(
-          `Model "${manifest.tableName}" has not been initialized yet. ` +
-            'Ensure bootstrap has completed before accessing models.'
-        );
-      }
+      const model = getModel();
 
       // Access the property on the model
       const value = (model as unknown as Record<string | symbol, unknown>)[prop];
@@ -221,17 +220,7 @@ export function createModel<Manifest extends ModelManifest>(
 
     // Support for 'new' operator
     construct(_target, args): object {
-      const model = initializedModels.get(manifest.tableName) as
-        | InferConstructor<Manifest>
-        | undefined;
-
-      if (!model) {
-        throw new Error(
-          `Model "${manifest.tableName}" has not been initialized yet. ` +
-            'Ensure bootstrap has completed before accessing models.'
-        );
-      }
-
+      const model = getModel();
       return new (model as new (...args: unknown[]) => unknown)(...args) as object;
     },
   });
@@ -247,19 +236,17 @@ export function initializeManifestModels(dal: DataAccessLayer): void {
   const manifests = getAllManifests();
 
   for (const [tableName, manifest] of manifests) {
-    if (!initializedModels.has(tableName)) {
-      const model = initializeFromManifest(manifest, dal);
-      initializedModels.set(tableName, model);
+    // Check if already initialized by checking DAL registry
+    try {
+      dal.getModel(tableName);
+      // Already initialized, skip
+      continue;
+    } catch {
+      // Not initialized yet, proceed
     }
-  }
-}
 
-/**
- * Clear the initialized model cache
- * Used primarily for testing to ensure clean state
- */
-export function clearModelCache(): void {
-  initializedModels.clear();
+    initializeFromManifest(manifest, dal);
+  }
 }
 
 export function defineModelManifest<Manifest extends ModelManifest>(manifest: Manifest): Manifest {
@@ -297,22 +284,41 @@ export function defineModel<Manifest extends ModelManifest>(
 export function defineModel<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
+  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = EmptyStaticMethods,
+  InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
 >(
   manifest: Manifest,
-  options?: DefineModelOptions<ExtraStatics>
-): ModelConstructorWithStatics<Manifest, ExtraStatics>;
+  options?: DefineModelOptions<ExtraStatics, StaticMethods, InstanceMethods>
+): ModelConstructorWithStatics<
+  MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>,
+  ExtraStatics
+>;
 export function defineModel<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
+  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = EmptyStaticMethods,
+  InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
 >(
   manifest: Manifest,
-  options?: DefineModelOptions<ExtraStatics>
-): ModelConstructorWithStatics<Manifest, ExtraStatics> {
+  options?: DefineModelOptions<ExtraStatics, StaticMethods, InstanceMethods>
+): ModelConstructorWithStatics<
+  MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>,
+  ExtraStatics
+> {
   const extraStatics = options?.statics;
 
-  const model = createModel(manifest, {
+  const manifestWithMethods = {
+    ...manifest,
+    ...(options?.staticMethods ? { staticMethods: options.staticMethods } : {}),
+    ...(options?.instanceMethods ? { instanceMethods: options.instanceMethods } : {}),
+  } as MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>;
+
+  const model = createModelProxy(manifestWithMethods, {
     staticProperties: extraStatics,
   });
 
-  return model as ModelConstructorWithStatics<Manifest, ExtraStatics>;
+  return model as ModelConstructorWithStatics<
+    MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>,
+    ExtraStatics
+  >;
 }

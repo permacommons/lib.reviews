@@ -8,8 +8,10 @@ import types from '../dal/lib/type.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import Team from './team.ts';
+import { referenceTeam } from './manifests/team.ts';
 import UserMeta, { type UserMetaInstance } from './user-meta.ts';
+
+const Team = referenceTeam();
 
 type CreateUserPayload = {
   name: string;
@@ -439,8 +441,10 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
   user.teams = [];
   user.moderatorOf = [];
 
-  const dalInstance = Team.dal;
+  const teamDal = Team.dal;
   const teamTable = Team.tableName;
+  const createFromRow = Team.createFromRow;
+  const dalInstance = teamDal;
   const prefix = dalInstance.schemaNamespace || '';
   const memberTable = `${prefix}team_members`;
   const moderatorTable = `${prefix}team_moderators`;
@@ -451,7 +455,7 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
   `;
 
   const mapRowsToTeams = (rows: Array<Record<string, unknown>>) =>
-    rows.map(row => Team.createFromRow(row));
+    rows.map(row => createFromRow(row));
 
   try {
     const memberResult = await dalInstance.query<Record<string, unknown>>(

@@ -5,6 +5,10 @@ import escapeHTML from 'escape-html';
 import i18n from 'i18n';
 import mlString from '../../dal/lib/ml-string.ts';
 import BlogPost from '../../models/blog-post.ts';
+import type {
+  TeamInstance as TeamManifestInstance,
+  TeamModel as TeamModelType,
+} from '../../models/manifests/team.ts';
 import Team from '../../models/team.ts';
 import TeamJoinRequest from '../../models/team-join-request.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
@@ -16,11 +20,29 @@ import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 const { getEditorMessages } = frontendMessages;
 
-const TeamModel = Team as any;
+const TeamModel = Team as TeamModelType;
 const _TeamJoinRequestModel = TeamJoinRequest as any;
 const BlogPostModel = BlogPost as any;
 
-type TeamInstance = Record<string, any>;
+type TeamInstance = Omit<
+  TeamManifestInstance,
+  | 'members'
+  | 'moderators'
+  | 'joinRequests'
+  | 'reviews'
+  | 'reviewCount'
+  | 'reviewOffsetDate'
+  | 'review_offset_date'
+> &
+  Record<string, any> & {
+    members?: Array<Record<string, any>>;
+    moderators?: Array<Record<string, any>>;
+    joinRequests?: Array<Record<string, any>>;
+    reviews?: Array<Record<string, any>>;
+    reviewCount?: number;
+    reviewOffsetDate?: Date | null;
+    review_offset_date?: Date | null;
+  };
 type TeamFormValues = Record<string, any>;
 
 class TeamProvider extends AbstractBREADProvider {
@@ -101,7 +123,7 @@ class TeamProvider extends AbstractBREADProvider {
       titleKey: this.actions.members.titleKey,
       titleParam: mlString.resolve(
         typeof this.req.locale === 'string' ? this.req.locale : 'en',
-        team.name
+        team.name as Record<string, string>
       ).str,
       deferPageHeader: true, // embedded link
     });
@@ -127,7 +149,7 @@ class TeamProvider extends AbstractBREADProvider {
       teamURL: `/team/${team.urlID}`,
       teamName: mlString.resolve(
         typeof this.req.locale === 'string' ? this.req.locale : 'en',
-        team.name
+        team.name as Record<string, string>
       ).str,
       titleKey: 'manage join requests',
       pageErrors,
@@ -272,7 +294,7 @@ class TeamProvider extends AbstractBREADProvider {
       team.reviews.forEach(review => review.populateUserInfo(this.req.user));
 
     const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
-    let titleParam = mlString.resolve(currentLocale, team.name).str;
+    let titleParam = mlString.resolve(currentLocale, team.name as Record<string, string>).str;
 
     // Error messages from any join attempts
     let joinErrors = this.req.flash('joinErrors');
@@ -311,7 +333,10 @@ class TeamProvider extends AbstractBREADProvider {
       if (joinRequestCount == 1)
         this.req.flash('pageMessages', this.req.__('pending join request', url));
       else if (joinRequestCount > 1)
-        this.req.flash('pageMessages', this.req.__('pending join requests', url, joinRequestCount));
+        this.req.flash(
+          'pageMessages',
+          this.req.__('pending join requests', url, String(joinRequestCount))
+        );
     }
 
     // Used for "welcome to the team" messages
@@ -343,8 +368,9 @@ class TeamProvider extends AbstractBREADProvider {
       );
 
       let paginationURL;
-      if (team.reviewOffsetDate)
-        paginationURL = `/team/${team.urlID}/feed/before/${team.reviewOffsetDate.toISOString()}`;
+      const reviewOffsetDate = team.reviewOffsetDate as Date | null | undefined;
+      if (reviewOffsetDate)
+        paginationURL = `/team/${team.urlID}/feed/before/${reviewOffsetDate.toISOString()}`;
 
       this.renderTemplate('team', {
         team,
@@ -378,7 +404,7 @@ class TeamProvider extends AbstractBREADProvider {
     });
 
     const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
-    let titleParam = mlString.resolve(currentLocale, team.name).str;
+    let titleParam = mlString.resolve(currentLocale, team.name as Record<string, string>).str;
 
     // Atom feed metadata for <link> tags in HTML version
     let atomURLPrefix = `/team/${team.urlID}/feed/atom`;
@@ -388,8 +414,9 @@ class TeamProvider extends AbstractBREADProvider {
     });
 
     let paginationURL;
-    if (team.reviewOffsetDate)
-      paginationURL = `/team/${team.urlID}/feed/before/${team.reviewOffsetDate.toISOString()}`;
+    const feedOffsetDate = team.reviewOffsetDate as Date | null | undefined;
+    if (feedOffsetDate)
+      paginationURL = `/team/${team.urlID}/feed/before/${feedOffsetDate.toISOString()}`;
 
     let vars = {
       team,
@@ -436,13 +463,15 @@ class TeamProvider extends AbstractBREADProvider {
 
     this.isPreview = this.req.body?.['team-action'] === 'preview';
 
-    if (this.req.flashHas?.('pageErrors') || this.isPreview) return this.edit_GET(formValues);
+    if (this.req.flashHas?.('pageErrors') || this.isPreview)
+      return this.edit_GET(formValues as TeamInstance);
 
     team
       .newRevision(this.req.user, {
         tags: ['edit-via-form'],
       })
-      .then(newRev => {
+      .then(revision => {
+        const newRev = revision as TeamInstance;
         const source = formValues;
         const motto = newRev.motto as Record<string, string>;
         const name = newRev.name as Record<string, string>;
@@ -489,7 +518,7 @@ class TeamProvider extends AbstractBREADProvider {
                 'pageErrors',
                 this.req.__('duplicate team name', `/team/${error.payload.slug.name}`)
               );
-              return this.edit_GET(formValues);
+              return this.edit_GET(formValues as TeamInstance);
             } else return this.next(error);
           });
       })
@@ -515,29 +544,31 @@ class TeamProvider extends AbstractBREADProvider {
     TeamModel.createFirstRevision(this.req.user, {
       tags: ['create-via-form'],
     })
-      .then(team => {
+      .then(teamRevision => {
+        const newTeam = teamRevision as TeamInstance;
         // Associate parsed form data with revision
-        Object.assign(team, formValues);
+        Object.assign(newTeam, formValues);
 
         // Ensure team has an ID before proceeding
-        if (!team.id) {
-          team.id = randomUUID();
+        if (!newTeam.id) {
+          newTeam.id = randomUUID();
         }
 
         // Creator is first moderator
-        team.moderators = [this.req.user];
+        newTeam.moderators = [this.req.user as Record<string, any>];
 
         // Creator is first member
-        team.members = [this.req.user];
+        newTeam.members = [this.req.user as Record<string, any>];
 
         // Founder warrants special recognition
-        team.createdBy = this.req.user.id;
-        team.createdOn = new Date();
+        newTeam.createdBy = this.req.user.id;
+        newTeam.createdOn = new Date();
 
         // Save team first to satisfy foreign key constraints
-        team
+        newTeam
           .save()
-          .then(savedTeam => {
+          .then(saved => {
+            const savedTeam = saved as TeamInstance;
             // Then update slug (after team exists in DB)
             return savedTeam.updateSlug(this.req.user.id, savedTeam.originalLanguage);
           })

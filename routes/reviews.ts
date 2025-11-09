@@ -1,5 +1,7 @@
 import config from 'config';
 import BlogPost from '../models/blog-post.ts';
+import type { ReviewFeedResult } from '../models/manifests/review.ts';
+import type { TeamModel as TeamModelType } from '../models/manifests/team.ts';
 import Review from '../models/review.ts';
 import Team from '../models/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
@@ -11,9 +13,6 @@ import render from './helpers/render.ts';
 type ReviewsRouteRequest = HandlerRequest;
 type ReviewsRouteResponse = HandlerResponse;
 type ReviewModelType = { getFeed(options?: Record<string, unknown>): Promise<Record<string, any>> };
-type TeamModelType = {
-  filterWhere(criteria: Record<string, never>): { sample: (count?: number) => Promise<any> };
-};
 type BlogPostModelType = {
   getMostRecentBlogPostsBySlug(
     slug: string,
@@ -21,9 +20,13 @@ type BlogPostModelType = {
   ): Promise<Record<string, any>>;
 };
 
+type TeamModelHandle = TeamModelType & {
+  filterWhere(criteria: Record<string, never>): { sample: (count?: number) => Promise<any> };
+};
+
 const routes = ReviewProvider.getDefaultRoutes('review');
 const ReviewModel = Review as unknown as ReviewModelType;
-const TeamModel = Team as unknown as TeamModelType;
+const TeamModel = Team as unknown as TeamModelHandle;
 const BlogPostModel = BlogPost as unknown as BlogPostModelType;
 
 routes.addFromThing = {
@@ -43,31 +46,39 @@ const router = ReviewProvider.bakeRoutes(null, routes);
 // We show two query results on the front-page, the team developers blog
 // and a feed of recent reviews, filtered to include only trusted ones.
 router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next: HandlerNext) => {
-  const queries = [
-    ReviewModel.getFeed({ onlyTrusted: true, withThing: true, withTeams: true }),
-    TeamModel.filterWhere({}).sample(3), // Random example teams
-  ];
-
-  if (config.frontPageTeamBlog) {
-    queries.push(
-      BlogPostModel.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
-    );
-  }
+  const feedPromise = ReviewModel.getFeed({
+    onlyTrusted: true,
+    withThing: true,
+    withTeams: true,
+  }) as Promise<ReviewFeedResult>;
+  const sampleTeamsPromise = TeamModel.filterWhere({}).sample(3);
+  const blogPromise = config.frontPageTeamBlog
+    ? BlogPostModel.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
+    : Promise.resolve<{ blogPosts: Record<string, any>[]; offsetDate?: Date } | undefined>(
+        undefined
+      );
 
   try {
-    const queryResults = await Promise.all(queries);
+    const [feedResult, sampleTeams, blogResult] = await Promise.all([
+      feedPromise,
+      sampleTeamsPromise,
+      blogPromise,
+    ]);
 
-    // Promise.all keeps order in which promises were passed
-    const feedItems = queryResults[0].feedItems;
-    const offsetDate = queryResults[0].offsetDate;
-    const sampleTeams = queryResults[1]; // ignored if undefined
-    const blogPosts = config.frontPageTeamBlog ? queryResults[2].blogPosts : undefined;
-    const blogPostsOffsetDate = config.frontPageTeamBlog ? queryResults[2].offsetDate : undefined;
+    const feedItems = feedResult.feedItems;
+    const offsetDate = feedResult.offsetDate;
+    const blogPosts = blogResult?.blogPosts;
+    const blogPostsOffsetDate = blogResult?.offsetDate;
 
     // Set review permissions
     feedItems.forEach(item => {
       item.populateUserInfo(req.user);
-      if (item.thing) item.thing.populateUserInfo(req.user);
+      const reviewThing = item.thing as
+        | { populateUserInfo?: (user: HandlerRequest['user']) => void }
+        | undefined;
+      if (reviewThing && typeof reviewThing.populateUserInfo === 'function') {
+        reviewThing.populateUserInfo(req.user);
+      }
     });
 
     // Set post permissions

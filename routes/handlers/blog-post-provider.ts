@@ -6,7 +6,7 @@ import i18n from 'i18n';
 import type { LocaleCodeWithUndetermined } from '../../locales/languages.ts';
 import languages from '../../locales/languages.ts';
 import BlogPostModel, { type BlogPostInstance } from '../../models/blog-post.ts';
-import type { TeamInstance } from '../../models/team.ts';
+import type { TeamInstance } from '../../models/manifests/team.ts';
 // Internal dependencies
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';

@@ -1,4 +1,4 @@
-import type { ThingInstance } from '../../models/thing.ts';
+import type { ThingInstance, ThingModel } from '../../models/manifests/thing.ts';
 
 export type MultilingualString = Record<string, string>;
 
@@ -54,9 +54,6 @@ export function hasSyncDescription(
   return true;
 }
 
-export function isThingInstance(
-  value: unknown,
-  ctor: new (...args: unknown[]) => ThingInstance
-): value is ThingInstance {
+export function isThingInstance(value: unknown, ctor: ThingModel): value is ThingInstance {
   return typeof ctor === 'function' && value instanceof ctor;
 }

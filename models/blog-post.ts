@@ -5,6 +5,7 @@ import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.
 import types from '../dal/lib/type.ts';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
+import { referenceTeamSlug } from './manifests/team-slug.ts';
 import User, { type UserViewer } from './user.ts';
 
 const { mlString } = dal as {
@@ -14,16 +15,7 @@ const { isValid: isValidLanguage } = languages as {
   isValid: (code: string) => boolean;
 };
 
-// TODO(dal-phase-4): Replace loose TeamSlug typing once manifest handles expose exact constructors.
-let teamSlugHandlePromise: Promise<Record<string, any>> | null = null;
-async function loadTeamSlugHandle(): Promise<Record<string, any>> {
-  if (!teamSlugHandlePromise) {
-    teamSlugHandlePromise = import('./team-slug.ts').then(
-      module => module.default as Record<string, any>
-    );
-  }
-  return teamSlugHandlePromise;
-}
+const TeamSlug = referenceTeamSlug();
 
 interface BlogPostFeedOptions {
   limit?: number;
@@ -130,7 +122,6 @@ const blogPostManifest = defineModelManifest({
      * @returns Feed payload for the resolved team.
      */
     async getMostRecentBlogPostsBySlug(teamSlugName: string, options?: BlogPostFeedOptions) {
-      const TeamSlug = await loadTeamSlugHandle();
       const slug = await TeamSlug.getByName(teamSlugName);
       if (!slug || !slug.teamID) {
         throw new DocumentNotFound(`Slug '${teamSlugName}' not found for team`);

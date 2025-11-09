@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import languages from '../locales/languages.ts';
+import { type ThingModel } from '../models/manifests/thing.ts';
 import Thing from '../models/thing.ts';
 import User from '../models/user.ts';
 import search from '../search.ts';
@@ -11,6 +12,7 @@ type ApiRouteRequest = HandlerRequest;
 type ApiRouteResponse = HandlerResponse;
 
 const router = Router();
+const ThingHandle = Thing as ThingModel;
 
 // For true/false user preferences.
 router.post('/actions/:modify-preference', actionHandler.modifyPreference);
@@ -44,7 +46,7 @@ router.get('/thing', (req: ApiRouteRequest, res: ApiRouteResponse, next: Handler
       return;
     }
 
-    Thing.lookupByURL(urlUtils.normalize(urlParam), userID)
+    ThingHandle.lookupByURL(urlUtils.normalize(urlParam), userID)
       .then(things => {
         const [thing] = things;
         if (!thing) {

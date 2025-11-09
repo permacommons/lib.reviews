@@ -11,7 +11,8 @@ import adapters from '../adapters/adapters.ts';
 import mlString from '../dal/lib/ml-string.ts';
 import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import languages from '../locales/languages.ts';
-import thingModelHandle, { type ThingInstance } from '../models/thing.ts';
+import type { ThingInstance } from '../models/manifests/thing.ts';
+import thingModelHandle from '../models/thing.ts';
 import type { TemplateContext } from '../types/http/locals.ts';
 import { formatLongDate, formatShortDate } from './date.ts';
 import debug from './debug.ts';
@@ -42,7 +43,7 @@ function getThingLabel(thing: ThingInstance | null | undefined, locale: string):
 
   if (typeof modelGetLabel === 'function') {
     try {
-      const label = modelGetLabel(thing as ThingInstance, locale);
+      const label = modelGetLabel.call(thingModelHandle, thing as ThingInstance, locale);
       if (label) {
         return label;
       }

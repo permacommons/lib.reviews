@@ -2,19 +2,14 @@
 // (review subjects) in the database.
 
 import { initializeDAL } from '../bootstrap/dal.ts';
+import type { ThingInstance } from '../models/manifests/thing.ts';
 import Thing from '../models/thing.js';
-
-type SluggableThing = {
-  label?: unknown;
-  updateSlug(userID: string | undefined, language?: string): Promise<SluggableThing>;
-  save(): Promise<unknown>;
-};
 
 async function generateSlugs(): Promise<void> {
   await initializeDAL();
-  const things = (await Thing.filterWhere({}).run()) as SluggableThing[];
+  const things = (await Thing.filterWhere({}).run()) as ThingInstance[];
 
-  const updates: Array<Promise<SluggableThing>> = [];
+  const updates: Array<Promise<ThingInstance>> = [];
   for (const thing of things) {
     if (!thing.label) {
       continue;

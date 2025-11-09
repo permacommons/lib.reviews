@@ -3,12 +3,14 @@ import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
 import languages from '../locales/languages.ts';
-import Review, {
+import {
   type ReviewFeedResult,
   type ReviewInstance,
   type ReviewModel,
-} from '../models/review.ts';
-import Thing, { type ThingInstance } from '../models/thing.ts';
+} from '../models/manifests/review.ts';
+import { type ThingInstance } from '../models/manifests/thing.ts';
+import Review from '../models/review.ts';
+import Thing from '../models/thing.ts';
 import search from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import getMessages from '../util/get-messages.ts';
@@ -19,6 +21,8 @@ import feeds from './helpers/feeds.ts';
 import forms from './helpers/forms.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
+
+const ReviewHandle = Review as ReviewModel;
 
 type ThingRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
@@ -166,8 +170,7 @@ router.get(
         if (!languages.isValid(language)) return res.redirect(`/${id}/atom/en`);
 
         try {
-          const ReviewModel = await getReviewModel();
-          const result = await ReviewModel.getFeed({
+          const result = await ReviewHandle.getFeed({
             thingID: thing.id,
             withThing: false,
             withTeams: true,
@@ -225,12 +228,6 @@ router.get(
   }
 );
 
-let reviewModelPromise: Promise<ReviewModel> | undefined;
-function getReviewModel(): Promise<ReviewModel> {
-  if (!reviewModelPromise) reviewModelPromise = Promise.resolve(Review);
-  return reviewModelPromise;
-}
-
 async function loadThingAndReviews(
   req: ThingRouteRequest<{ id: string }>,
   res: ThingRouteResponse,
@@ -239,14 +236,12 @@ async function loadThingAndReviews(
   offsetDate?: Date | null
 ) {
   try {
-    const ReviewModel = await getReviewModel();
-
     thing.populateUserInfo(req.user);
     if (Array.isArray(thing.files)) {
       thing.files.forEach(file => file.populateUserInfo(req.user));
     }
 
-    const otherReviewsPromise = ReviewModel.getFeed({
+    const otherReviewsPromise = ReviewHandle.getFeed({
       thingID: thing.id,
       withThing: false,
       withTeams: true,

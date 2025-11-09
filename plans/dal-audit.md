@@ -34,7 +34,7 @@
 ## Model Behaviours & Relations
 - `model.ts` defines property accessors that translate camelCase to snake_case, handles validation/defaults via schema descriptors, and performs diffing (including deep equality for JSONB).
 - Relations are normalised via `model-initializer.ts` but relation results are still surfaced through manually-declared virtual fields in manifests; inference of relation payload types is not automated.
-- Model handles (`dal/lib/model-handle.ts`) provide lazy proxies for modules that need synchronous exports before bootstrap. `createAutoModelHandle` and `setBootstrapResolver` bridge runtime constructors.
+- Model handles (`dal/lib/model-handle.ts`) provide lazy proxies for cross-model references. `createModelHandle`/`createTypedModelHandle` and `setBootstrapResolver` enable models to reference each other without circular imports, while `createModel`/`defineModel` provide the main manifest-based model definition API.
 
 ## Observations & Gaps
 - Relation typings depend on manual `types.virtual().returns<...>()` declarations in manifests; there is no manifest-driven inference for relation payloads yet (`models/user.ts`, `models/blog-post.ts`).

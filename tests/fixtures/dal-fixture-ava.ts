@@ -9,6 +9,7 @@ import {
 import type { ModelSchemaField } from '../../dal/lib/model.ts';
 import ModelRegistry from '../../dal/lib/model-registry.ts';
 import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
+import type { TeamModel } from '../../models/manifests/team.ts';
 import { logNotice, logOK } from '../helpers/test-helpers.ts';
 
 type ThingModel = typeof import('../../models/thing.ts').default;
@@ -16,7 +17,6 @@ type ThingSlugModel = typeof import('../../models/thing-slug.ts').default;
 type ReviewModel = typeof import('../../models/review.ts').default;
 type UserModel = typeof import('../../models/user.ts').default;
 type FileModel = typeof import('../../models/file.ts').default;
-type TeamModel = typeof import('../../models/team.ts').default;
 type TeamSlugModel = typeof import('../../models/team-slug.ts').default;
 type TeamJoinRequestModel = typeof import('../../models/team-join-request.ts').default;
 
@@ -133,7 +133,7 @@ class DALFixtureAVA {
   bootstrapError: unknown;
   skipReason: string | null;
   managedTables: string[];
-  private knownModels: Partial<KnownModels>;
+  private knownModels: Partial<Record<KnownModelAlias, ModelConstructor>>;
 
   constructor(testInstance: string = 'testing-2', options: { schemaNamespace?: string } = {}) {
     const { schemaNamespace } = options;
@@ -477,7 +477,7 @@ class DALFixtureAVA {
     if (!alias || !model || !this.isKnownAlias(alias)) {
       return;
     }
-    this.knownModels[alias] = model as KnownModels[KnownModelAlias];
+    this.knownModels[alias] = model;
   }
 
   private cacheKnownModelByBase(
@@ -496,15 +496,15 @@ class DALFixtureAVA {
   private requireKnownModel<A extends KnownModelAlias>(alias: A): KnownModels[A] {
     const cached = this.knownModels[alias];
     if (cached) {
-      return cached;
+      return cached as unknown as KnownModels[A];
     }
     const baseName = KNOWN_MODEL_BASE_NAMES[alias];
     const model = this.getModel(baseName);
     if (!model) {
       throw new Error(`Model '${baseName}' has not been initialized in the DAL fixture.`);
     }
-    const typedModel = model as KnownModels[A];
-    this.knownModels[alias] = typedModel;
+    const typedModel = model as unknown as KnownModels[A];
+    this.knownModels[alias] = model;
     return typedModel;
   }
 

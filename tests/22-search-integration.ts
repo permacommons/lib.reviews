@@ -5,7 +5,7 @@ type ReviewModel = typeof import('../models/review.ts').default;
 
 import { randomUUID } from 'crypto';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
-import type { ThingInstance } from '../models/thing.ts';
+import type { ThingInstance } from '../models/manifests/thing.ts';
 import searchModule from '../search.ts';
 import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import {

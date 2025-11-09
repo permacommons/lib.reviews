@@ -3,65 +3,29 @@ import isUUID from 'is-uuid';
 import unescapeHTML from 'unescape-html';
 
 import dal from '../dal/index.ts';
-import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import type { InferConstructor, InferInstance } from '../dal/lib/model-manifest.ts';
+import {
+  defineInstanceMethods,
+  defineModel,
+  defineStaticMethods,
+} from '../dal/lib/create-model.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
-import types from '../dal/lib/type.ts';
-import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
-import TeamJoinRequest, { type TeamJoinRequestInstance } from './team-join-request.ts';
+import { referenceReview } from './manifests/review.ts';
+import teamManifest, {
+  type TeamGetWithDataOptions,
+  type TeamInstance,
+  type TeamInstanceMethods,
+  type TeamModel,
+  type TeamStaticMethods,
+} from './manifests/team.ts';
+import { type TeamJoinRequestInstance } from './manifests/team-join-request.ts';
+import TeamJoinRequest from './team-join-request.ts';
 import TeamSlug from './team-slug.ts';
 import User, { type UserViewer } from './user.ts';
 
-// TODO: Convert Team/Review to share manifest + type contracts to remove this lazy import.
-async function getReviewModel() {
-  const module = await import('./review.ts');
-  return module.default;
-}
+const Review = referenceReview();
 
 const { mlString } = dal;
-const { isValid: isValidLanguage } = languages;
-
-/**
- * Validate the structure of multilingual text/HTML objects stored on the team.
- *
- * @param value - Value to validate
- * @returns True if the value matches the expected structure
- */
-function validateTextHtmlObject(value: unknown): boolean {
-  if (value === null || value === undefined) return true;
-
-  if (typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Description/rules must be an object with text and html properties');
-
-  const record = value as Record<string, unknown>;
-  if (record.text !== undefined) mlString.validate(record.text);
-
-  if (record.html !== undefined) mlString.validate(record.html);
-
-  return true;
-}
-
-/**
- * Validate the permissions configuration stored on the team record.
- *
- * @param value - Value to validate
- * @returns True if the permissions object is valid
- */
-function validateConfersPermissions(value: unknown): boolean {
-  if (value === null || value === undefined) return true;
-
-  if (typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Confers permissions must be an object');
-
-  const validPermissions = ['show_error_details', 'translate'];
-  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-    if (validPermissions.includes(key) && typeof val !== 'boolean')
-      throw new Error(`Permission ${key} must be a boolean`);
-  }
-
-  return true;
-}
 
 /**
  * Normalize a string into a slug-safe representation.
@@ -89,254 +53,173 @@ function generateSlugName(str: string): string {
   return slugName;
 }
 
-interface GetWithDataOptions {
-  withMembers?: boolean;
-  withModerators?: boolean;
-  withJoinRequests?: boolean;
-  withJoinRequestDetails?: boolean;
-  withReviews?: boolean;
-  reviewLimit?: number;
-  reviewOffsetDate?: Date | null;
-}
+type GetWithDataOptions = TeamGetWithDataOptions;
 
-// Manifest-based model definition
-const teamManifest = defineModelManifest({
-  tableName: 'teams',
-  hasRevisions: true,
-  schema: {
-    id: types.string().uuid(4),
-    name: mlString.getSchema({ maxLength: 100 }),
-    motto: mlString.getSchema({ maxLength: 200 }),
-    description: types.object().validator(validateTextHtmlObject),
-    rules: types.object().validator(validateTextHtmlObject),
-    modApprovalToJoin: types.boolean().default(false),
-    onlyModsCanBlog: types.boolean().default(false),
-    createdBy: types.string().uuid(4).required(true),
-    createdOn: types.date().required(true),
-    canonicalSlugName: types.string(),
-    originalLanguage: types.string().max(4).validator(isValidLanguage),
-    confersPermissions: types.object().validator(validateConfersPermissions),
-    reviewOffsetDate: types.virtual().default(null),
-    userIsFounder: types.virtual().default(false),
-    userIsMember: types.virtual().default(false),
-    userIsModerator: types.virtual().default(false),
-    userCanBlog: types.virtual().default(false),
-    userCanJoin: types.virtual().default(false),
-    userCanLeave: types.virtual().default(false),
-    userCanEdit: types.virtual().default(false),
-    userCanDelete: types.virtual().default(false),
-    urlID: types.virtual().default(function (this: ModelInstance) {
-      const slugName =
-        typeof this.getValue === 'function'
-          ? this.getValue('canonicalSlugName')
-          : this.canonicalSlugName;
-      return slugName ? encodeURIComponent(String(slugName)) : this.id;
-    }),
-  },
-  camelToSnake: {
-    modApprovalToJoin: 'mod_approval_to_join',
-    onlyModsCanBlog: 'only_mods_can_blog',
-    createdBy: 'created_by',
-    createdOn: 'created_on',
-    canonicalSlugName: 'canonical_slug_name',
-    originalLanguage: 'original_language',
-    confersPermissions: 'confers_permissions',
-  },
-  relations: [
-    {
-      name: 'members',
-      targetTable: 'users',
-      sourceKey: 'id',
-      targetKey: 'id',
-      hasRevisions: false,
-      through: {
-        table: 'team_members',
-        sourceForeignKey: 'team_id',
-        targetForeignKey: 'user_id',
-      },
-      cardinality: 'many',
-    },
-    {
-      name: 'moderators',
-      targetTable: 'users',
-      sourceKey: 'id',
-      targetKey: 'id',
-      hasRevisions: false,
-      through: {
-        table: 'team_moderators',
-        sourceForeignKey: 'team_id',
-        targetForeignKey: 'user_id',
-      },
-      cardinality: 'many',
-    },
-  ],
-  staticMethods: {
-    /**
-     * Retrieve a team and optionally include membership, moderation, join
-     * request, and review data.
-     *
-     * @param id - Team identifier to look up
-     * @param options - Controls which associations are hydrated
-     * @returns The team instance enriched with the requested data
-     */
-    async getWithData(id: string, options: GetWithDataOptions = {}): Promise<TeamInstance> {
-      const team = (await this.getNotStaleOrDeleted(id)) as TeamInstance | null;
-      if (!team) throw new Error(`Team ${id} not found`);
+const teamStatics = {} as const;
 
-      const {
-        withMembers = true,
-        withModerators = true,
-        withJoinRequests = true,
-        withJoinRequestDetails = false,
-        withReviews = false,
-        reviewLimit = 1,
-        reviewOffsetDate = null,
-      } = options;
+const teamStaticMethods = defineStaticMethods(teamManifest, {
+  /**
+   * Retrieve a team and optionally include membership, moderation, join
+   * request, and review data.
+   *
+   * @param id - Team identifier to look up
+   * @param options - Controls which associations are hydrated
+   * @returns The team instance enriched with the requested data
+   */
+  async getWithData(this: TeamModel, id: string, options: GetWithDataOptions = {}) {
+    const team = (await this.getNotStaleOrDeleted(id)) as
+      | (TeamInstance & Record<string, any>)
+      | null;
+    if (!team) throw new Error(`Team ${id} not found`);
 
-      if (withMembers) {
-        team.members = await getTeamMembers(this, id);
-      }
+    const {
+      withMembers = true,
+      withModerators = true,
+      withJoinRequests = true,
+      withJoinRequestDetails = false,
+      withReviews = false,
+      reviewLimit = 1,
+      reviewOffsetDate = null,
+    } = options;
 
-      if (withModerators) {
-        team.moderators = await getTeamModerators(this, id);
-      }
+    if (withMembers) {
+      team.members = await getTeamMembers(this, id);
+    }
 
-      if (withJoinRequests) {
-        team.joinRequests = await getTeamJoinRequests(this, id, withJoinRequestDetails);
-      }
+    if (withModerators) {
+      team.moderators = await getTeamModerators(this, id);
+    }
 
-      if (withReviews) {
-        const reviewData = await getTeamReviews(this, id, reviewLimit, reviewOffsetDate);
-        const reviews = reviewData.reviews;
-        team.reviews = reviews;
-        team.reviewCount = reviewData.totalCount;
+    if (withJoinRequests) {
+      team.joinRequests = await getTeamJoinRequests(this, id, withJoinRequestDetails);
+    }
 
-        if (reviewData.hasMore && reviews.length > 0) {
-          const lastReview = reviews[reviews.length - 1];
-          const offsetDate = (lastReview?.createdOn ?? lastReview?.created_on) as Date | undefined;
-          if (offsetDate) {
-            team.reviewOffsetDate = offsetDate;
-            team.review_offset_date = offsetDate;
-          }
+    if (withReviews) {
+      const reviewData = await getTeamReviews(this, id, reviewLimit, reviewOffsetDate);
+      const reviews = reviewData.reviews;
+      team.reviews = reviews;
+      team.reviewCount = reviewData.totalCount;
+
+      if (reviewData.hasMore && reviews.length > 0) {
+        const lastReview = reviews[reviews.length - 1];
+        const offsetDate = (lastReview?.createdOn ?? lastReview?.created_on) as Date | undefined;
+        if (offsetDate) {
+          team.reviewOffsetDate = offsetDate;
+          team.review_offset_date = offsetDate;
         }
       }
+    }
 
-      return team;
-    },
+    return team;
   },
-  instanceMethods: {
-    /**
-     * Populate permission flags on this team instance relative to the provided
-     * viewer.
-     *
-     * @param user - Viewer whose relationship determines permissions
-     */
-    populateUserInfo(
-      this: ModelInstance,
-      user: ModelInstance | UserViewer | null | undefined
-    ): void {
-      if (!user) return;
+}) satisfies TeamStaticMethods;
 
-      if (
-        this.members &&
-        Array.isArray(this.members) &&
-        this.members.some((member: ModelInstance) => member.id === user.id)
-      )
-        this.userIsMember = true;
+const teamInstanceMethods = defineInstanceMethods(teamManifest, {
+  /**
+   * Populate permission flags on this team instance relative to the provided
+   * viewer.
+   *
+   * @param user - Viewer whose relationship determines permissions
+   */
+  populateUserInfo(this: TeamInstance, user: ModelInstance | UserViewer | null | undefined) {
+    if (!user) return;
 
-      if (
-        this.moderators &&
-        Array.isArray(this.moderators) &&
-        this.moderators.some((moderator: ModelInstance) => moderator.id === user.id)
-      )
-        this.userIsModerator = true;
+    if (
+      this.members &&
+      Array.isArray(this.members) &&
+      this.members.some((member: ModelInstance) => member.id === user.id)
+    )
+      this.userIsMember = true;
 
-      if (user.id === this.createdBy) this.userIsFounder = true;
+    if (
+      this.moderators &&
+      Array.isArray(this.moderators) &&
+      this.moderators.some((moderator: ModelInstance) => moderator.id === user.id)
+    )
+      this.userIsModerator = true;
 
-      if (this.userIsMember && (!this.onlyModsCanBlog || this.userIsModerator))
-        this.userCanBlog = true;
+    if (user.id === this.createdBy) this.userIsFounder = true;
 
-      if (
-        !this.userIsMember &&
-        (!this.joinRequests ||
-          !(
-            Array.isArray(this.joinRequests) &&
-            this.joinRequests.some(
-              (request: ModelInstance) => request.userID === user.id && request.status === 'pending'
-            )
-          ))
-      )
-        this.userCanJoin = true;
+    if (this.userIsMember && (!this.onlyModsCanBlog || this.userIsModerator))
+      this.userCanBlog = true;
 
-      if (this.userIsFounder || this.userIsModerator || user.isSuperUser) this.userCanEdit = true;
+    if (
+      !this.userIsMember &&
+      (!this.joinRequests ||
+        !(
+          Array.isArray(this.joinRequests) &&
+          this.joinRequests.some(
+            (request: ModelInstance) => request.userID === user.id && request.status === 'pending'
+          )
+        ))
+    )
+      this.userCanJoin = true;
 
-      if (user.isSuperUser || user.isSiteModerator) this.userCanDelete = true;
+    if (this.userIsFounder || this.userIsModerator || user.isSuperUser) this.userCanEdit = true;
 
-      if (!this.userIsFounder && this.userIsMember) this.userCanLeave = true;
-    },
+    if (user.isSuperUser || user.isSiteModerator) this.userCanDelete = true;
 
-    /**
-     * Create or update the canonical slug for the team when the label changes.
-     *
-     * @param userID - Identifier of the user responsible for the change
-     * @param language - Preferred language for slug generation
-     * @returns The updated team instance
-     */
-    async updateSlug(
-      this: ModelInstance,
-      userID: string,
-      language?: string | null
-    ): Promise<ModelInstance> {
-      const originalLanguage = (this.originalLanguage as string | undefined) || 'en';
-      const slugLanguage = language || originalLanguage;
+    if (!this.userIsFounder && this.userIsMember) this.userCanLeave = true;
+  },
 
-      if (slugLanguage !== originalLanguage) return this;
+  /**
+   * Create or update the canonical slug for the team when the label changes.
+   *
+   * @param userID - Identifier of the user responsible for the change
+   * @param language - Preferred language for slug generation
+   * @returns The updated team instance
+   */
+  async updateSlug(this: TeamInstance, userID: string, language?: string | null) {
+    const originalLanguage = (this.originalLanguage as string | undefined) || 'en';
+    const slugLanguage = language || originalLanguage;
 
-      if (!this.name) return this;
+    if (slugLanguage !== originalLanguage) return this;
 
-      const resolved = mlString.resolve(slugLanguage, this.name as Record<string, string>);
-      if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) return this;
+    if (!this.name) return this;
 
-      let baseSlug: string;
-      try {
-        baseSlug = generateSlugName(resolved.str);
-      } catch (error) {
-        debug.error('Error generating slug');
-        debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
-        return this;
-      }
+    const resolved = mlString.resolve(slugLanguage, this.name as Record<string, string>);
+    if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) return this;
 
-      if (!baseSlug || baseSlug === this.canonicalSlugName) return this;
-
-      if (!this.id) this.id = randomUUID();
-
-      const slug = new (TeamSlug as new (data: Record<string, unknown>) => ModelInstance)({});
-      slug.slug = baseSlug;
-      slug.name = baseSlug;
-      slug.teamID = this.id;
-      slug.createdOn = new Date();
-      slug.createdBy = userID;
-
-      const savedSlug = await (
-        slug as ModelInstance & { qualifiedSave(): Promise<ModelInstance> }
-      ).qualifiedSave();
-      if (savedSlug && savedSlug.name) {
-        this.canonicalSlugName = savedSlug.name;
-        const changedSet = this._changed as Set<string> | undefined;
-        if (typeof Team._getDbFieldName === 'function' && changedSet) {
-          changedSet.add(Team._getDbFieldName('canonicalSlugName') as string);
-        }
-      }
-
+    let baseSlug: string;
+    try {
+      baseSlug = generateSlugName(resolved.str);
+    } catch (error) {
+      debug.error('Error generating slug');
+      debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
       return this;
-    },
+    }
+
+    if (!baseSlug || baseSlug === this.canonicalSlugName) return this;
+
+    if (!this.id) this.id = randomUUID();
+
+    const slug = new (TeamSlug as new (data: Record<string, unknown>) => ModelInstance)({});
+    slug.slug = baseSlug;
+    slug.name = baseSlug;
+    slug.teamID = this.id;
+    slug.createdOn = new Date();
+    slug.createdBy = userID;
+
+    const savedSlug = await (
+      slug as ModelInstance & { qualifiedSave(): Promise<ModelInstance> }
+    ).qualifiedSave();
+    if (savedSlug && savedSlug.name) {
+      this.canonicalSlugName = savedSlug.name as string;
+      const changedSet = this._changed as Set<string> | undefined;
+      if (typeof Team._getDbFieldName === 'function' && changedSet) {
+        changedSet.add(Team._getDbFieldName('canonicalSlugName') as string);
+      }
+    }
+
+    return this;
   },
-} as const);
+}) satisfies TeamInstanceMethods;
 
-const Team = defineModel(teamManifest);
-
-export type TeamInstance = InferInstance<typeof teamManifest>;
-export type TeamModel = InferConstructor<typeof teamManifest>;
+const Team = defineModel(teamManifest, {
+  statics: teamStatics,
+  staticMethods: teamStaticMethods,
+  instanceMethods: teamInstanceMethods,
+}) as TeamModel;
 
 /**
  * Look up the active members for a team, omitting sensitive fields.
@@ -477,7 +360,7 @@ async function getTeamJoinRequests(
  * @returns Reviews, total count, and pagination metadata
  */
 async function getTeamReviews(
-  model: typeof Team,
+  model: TeamModel,
   teamId: string,
   limit: number,
   offsetDate?: Date | null
@@ -521,7 +404,6 @@ async function getTeamReviews(
     const hasMoreRows = reviewResult.rows.length > limit;
 
     if (reviewIDs.length) {
-      const Review = await getReviewModel();
       for (const reviewId of reviewIDs) {
         try {
           const review = await (
@@ -558,5 +440,13 @@ async function getTeamReviews(
     return { reviews: [], totalCount: 0, hasMore: false };
   }
 }
+
+export type {
+  TeamGetWithDataOptions,
+  TeamInstance,
+  TeamInstanceMethods,
+  TeamModel,
+  TeamStaticMethods,
+} from './manifests/team.ts';
 
 export default Team;
