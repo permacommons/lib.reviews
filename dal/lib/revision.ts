@@ -1,13 +1,13 @@
 import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
 import type {
+  FilterWhereQueryBuilder,
   JsonObject,
   RevisionActor,
   VersionedModelConstructor,
   VersionedModelInstance,
 } from './model-types.ts';
 import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.ts';
-import QueryBuilder from './query-builder.ts';
 import types from './type.ts';
 
 /**
@@ -25,6 +25,16 @@ export interface ModelConstructorLike<
   _createInstance(row: JsonObject): TInstance;
   _registerFieldMapping?(camel: string, snake: string): void;
 }
+
+type FilterWhereCapable<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends VersionedModelInstance<TData, TVirtual>,
+> = {
+  filterWhere?: (
+    literal: JsonObject
+  ) => FilterWhereQueryBuilder<TData, TVirtual, TInstance, string>;
+};
 
 export interface RevisionHelpers {
   applyRevisionMetadata<
@@ -311,19 +321,25 @@ const revision: RevisionHelpers = {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);
       }
 
-      let data: TInstance | null = null;
+      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>).filterWhere;
+      if (typeof filterWhere !== 'function') {
+        throw new Error(
+          `Model "${ModelClass.tableName}" must expose filterWhere. Ensure defineModel() initialized this constructor.`
+        );
+      }
+
+      const builder = filterWhere
+        .call(ModelClass, {} as JsonObject)
+        .includeDeleted()
+        .includeStale();
+      const idField = 'id' as Extract<keyof TData, string>;
+      builder.whereIn(idField, [id], { cast: 'uuid[]' });
 
       if (Object.keys(joinOptions).length > 0) {
-        const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
-        data = (await query.filter({ id }).getJoin(joinOptions).first()) as TInstance;
-      } else {
-        const queryText = `
-          SELECT * FROM ${ModelClass.tableName}
-          WHERE id = $1
-        `;
-        const result = await ModelClass.dal.query(queryText, [id]);
-        data = result.rows[0] ? ModelClass._createInstance(result.rows[0]) : null;
+        builder.getJoin(joinOptions as never);
       }
+
+      const data = (await builder.first()) as TInstance | null;
 
       if (!data) {
         throw new DocumentNotFound(`${ModelClass.tableName} with id ${id} not found`);
@@ -393,8 +409,15 @@ const revision: RevisionHelpers = {
      * @returns Query builder with revision filters applied
      */
     const filterNotStaleOrDeleted = () => {
-      const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
-      return query.filterNotStaleOrDeleted();
+      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>).filterWhere;
+
+      if (typeof filterWhere !== 'function') {
+        throw new Error(
+          `Model "${ModelClass.tableName}" must expose filterWhere. Ensure defineModel() initialized this constructor.`
+        );
+      }
+
+      return filterWhere.call(ModelClass, {} as JsonObject);
     };
 
     return filterNotStaleOrDeleted;
@@ -418,13 +441,24 @@ const revision: RevisionHelpers = {
      * @returns Query builder for chaining
      */
     const getMultipleNotStaleOrDeleted = (ids: string[]) => {
-      const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
+      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>).filterWhere;
 
-      if (ids.length > 0) {
-        query.whereIn('id', ids, { cast: 'uuid[]' });
+      if (typeof filterWhere !== 'function') {
+        throw new Error(
+          `Model "${ModelClass.tableName}" must expose filterWhere. Ensure defineModel() initialized this constructor.`
+        );
       }
 
-      return query.filterNotStaleOrDeleted();
+      const builder = filterWhere.call(ModelClass, {} as JsonObject);
+      const idField = 'id' as Extract<keyof TData, string>;
+
+      if (ids.length > 0) {
+        builder.whereIn(idField, ids, { cast: 'uuid[]' });
+      } else {
+        builder.limit(0);
+      }
+
+      return builder;
     };
 
     return getMultipleNotStaleOrDeleted;

@@ -469,22 +469,32 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     id: string,
     options: GetOptions = {}
   ): Promise<Model<TData, TVirtual>> {
-    const query = new QueryBuilder(this, this.dal);
-
     // Extract includeSensitive option, rest are join options
     const { includeSensitive, ...joinOptions } = options;
+    const builder = this.filterWhere({}).includeDeleted().includeStale();
+    const idField = 'id' as Extract<keyof TData, string>;
 
-    if (includeSensitive && includeSensitive.length > 0) {
-      query.includeSensitive(includeSensitive);
+    if (isUUID.v4(id)) {
+      builder.whereIn(idField, [id], { cast: 'uuid[]' });
+    } else {
+      builder.whereIn(idField, [id]);
     }
 
-    const result = await query.filter({ id }).getJoin(joinOptions).first();
+    if (includeSensitive && includeSensitive.length > 0) {
+      builder.includeSensitive(includeSensitive);
+    }
+
+    if (Object.keys(joinOptions).length > 0) {
+      builder.getJoin(joinOptions as never);
+    }
+
+    const result = await builder.first();
 
     if (!result) {
       throw new DocumentNotFound(`${this.tableName} with id ${id} not found`);
     }
 
-    return this._createInstance(result) as Model<TData, TVirtual>;
+    return result as unknown as Model<TData, TVirtual>;
   }
 
   /**
@@ -503,11 +513,19 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
       return [];
     }
 
-    const query = new QueryBuilder(this, this.dal);
+    const builder = this.filterWhere({}).includeDeleted().includeStale();
+    const idField = 'id' as Extract<keyof TData, string>;
     const cast = ids.length > 0 && ids.every(id => isUUID.v4(id)) ? 'uuid[]' : undefined;
-    const results = await query.whereIn('id', ids, cast ? { cast } : undefined).run();
 
-    return results.map(result => this._createInstance(result) as Model<TData, TVirtual>);
+    if (cast) {
+      builder.whereIn(idField, ids, { cast });
+    } else {
+      builder.whereIn(idField, ids);
+    }
+
+    const results = await builder.run();
+
+    return results as unknown as Array<Model<TData, TVirtual>>;
   }
 
   /**
@@ -672,14 +690,20 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
   >(this: ModelRuntime<TData, TVirtual>, ids: string[]) {
-    const query = new QueryBuilder(this, this.dal);
+    const builder = this.filterWhere({});
+    const idField = 'id' as Extract<keyof TData, string>;
 
     if (ids.length === 0) {
-      return query.limit(0).filterNotStaleOrDeleted();
+      return builder.limit(0);
     }
 
     const cast = ids.every(id => isUUID.v4(id)) ? 'uuid[]' : undefined;
-    return query.whereIn('id', ids, cast ? { cast } : undefined).filterNotStaleOrDeleted();
+
+    if (cast) {
+      return builder.whereIn(idField, ids, { cast });
+    }
+
+    return builder.whereIn(idField, ids);
   }
 
   /**

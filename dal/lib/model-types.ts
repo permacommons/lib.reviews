@@ -308,6 +308,9 @@ export interface FilterWhereQueryBuilder<
   includeSensitive(
     fields: string | string[]
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  filter(
+    criteria: Partial<TData> | ((row: unknown) => unknown)
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   orderBy(
     field: Extract<keyof TData, string>,
     direction?: 'ASC' | 'DESC'

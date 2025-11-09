@@ -524,6 +524,11 @@ class FilterWhereBuilder<
     return this;
   }
 
+  filter(criteria: Record<string, unknown> | ((row: unknown) => unknown)): this {
+    this._builder.filter(criteria);
+    return this;
+  }
+
   revisionData(literal: RevisionLiteral): this {
     if (!literal) {
       return this;

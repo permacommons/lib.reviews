@@ -92,24 +92,26 @@ function initializeFromManifest<Manifest extends ModelManifest>(
     Object.assign(model as Record<string, unknown>, filterStatics);
   }
 
-  Object.defineProperty(model, 'createFromRow', {
-    value(row: JsonObject) {
-      const runtime = model as InferConstructor<Manifest> & {
-        _createInstance?: (data: JsonObject) => InferInstance<Manifest>;
-      };
+  if (!Object.prototype.hasOwnProperty.call(model, 'createFromRow')) {
+    Object.defineProperty(model, 'createFromRow', {
+      value(row: JsonObject) {
+        const runtime = model as InferConstructor<Manifest> & {
+          _createInstance?: (data: JsonObject) => InferInstance<Manifest>;
+        };
 
-      if (typeof runtime._createInstance !== 'function') {
-        throw new Error(
-          `Model "${manifest.tableName}" does not expose _createInstance; bootstrap may be incomplete.`
-        );
-      }
+        if (typeof runtime._createInstance !== 'function') {
+          throw new Error(
+            `Model "${manifest.tableName}" does not expose _createInstance; bootstrap may be incomplete.`
+          );
+        }
 
-      return runtime._createInstance(row);
-    },
-    enumerable: false,
-    writable: false,
-    configurable: false,
-  });
+        return runtime._createInstance(row);
+      },
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  }
 
   return model as InferConstructor<Manifest>;
 }
