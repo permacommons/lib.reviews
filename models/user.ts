@@ -327,16 +327,18 @@ const userManifest = defineModelManifest({
       }
 
       const user = await query.first();
-      if (user) {
-        if (options.withTeams) await _attachUserTeams(user);
-
-        updateUploadPermission(user);
-        return user;
+      if (!user) {
+        const notFoundError = new DocumentNotFound('User not found');
+        notFoundError.name = 'DocumentNotFoundError';
+        throw notFoundError;
       }
 
-      const notFoundError = new DocumentNotFound('User not found');
-      notFoundError.name = 'DocumentNotFoundError';
-      throw notFoundError;
+      if (options.withTeams) {
+        await _attachUserTeams(user);
+      }
+
+      updateUploadPermission(user);
+      return user;
     },
     /**
      * Create or update the biography associated with a user and persist both entities.

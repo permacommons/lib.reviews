@@ -5,9 +5,9 @@ type ReviewModel = typeof import('../models/review.ts').default;
 
 import { randomUUID } from 'crypto';
 import { initializeDAL, isInitialized } from '../bootstrap/dal.ts';
+import type { ThingInstance } from '../models/thing.ts';
 import searchModule from '../search.ts';
 import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
-
 import {
   isReviewItem,
   isThingItem,
@@ -16,6 +16,7 @@ import {
   unmockSearch,
 } from './helpers/mock-search.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
+import { isMultilingualString, isThingInstance } from './helpers/type-guards.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_integration',
@@ -185,7 +186,9 @@ test.serial('bulk indexing simulation with filterWhere defaults', async t => {
   }
 
   // Simulate the maintenance script logic
-  const currentThings = await Thing.filterWhere({}).run();
+  const currentThings = (await Thing.filterWhere({}).run()).filter(
+    (candidate): candidate is ThingInstance => isThingInstance(candidate, Thing)
+  );
   const currentReviews = await Review.filterWhere({}).run();
 
   t.true(
@@ -264,11 +267,21 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
 
   // Should only get the current revision
   const matchingThings = currentThings.filter(
-    t => t.urls && t.urls.includes('https://example.com/revision-test')
+    thing => Array.isArray(thing.urls) && thing.urls.includes('https://example.com/revision-test')
   );
 
   t.is(matchingThings.length, 1, 'Should only find one current revision');
-  t.is(matchingThings[0].label.en, 'Updated Version', 'Should find the updated version');
+  const [matchingThing] = matchingThings;
+  t.truthy(matchingThing, 'Expected to find a matching thing');
+  t.true(
+    matchingThing && isMultilingualString(matchingThing.label),
+    'Matching thing should expose multilingual label'
+  );
+  if (!matchingThing || !isMultilingualString(matchingThing.label)) {
+    t.fail('Matching thing lacks a multilingual label');
+    return;
+  }
+  t.is(matchingThing.label.en, 'Updated Version', 'Should find the updated version');
 
   // Index all current things
   for (const thing of currentThings) {
@@ -283,7 +296,17 @@ test.serial('search indexing skips old and deleted revisions in bulk operations'
     );
 
   t.is(indexedThings.length, 1, 'Should only index one revision');
-  t.is(indexedThings[0].data.label!.en, 'Updated Version', 'Should index the updated version');
+  const [indexedThing] = indexedThings;
+  t.truthy(indexedThing, 'Expected a thing to be indexed');
+  t.true(
+    indexedThing && isMultilingualString(indexedThing.data.label),
+    'Indexed thing should expose multilingual label'
+  );
+  if (!indexedThing || !isMultilingualString(indexedThing.data.label)) {
+    t.fail('Indexed thing lacks a multilingual label');
+    return;
+  }
+  t.is(indexedThing.data.label.en, 'Updated Version', 'Should index the updated version');
 });
 
 test.after.always(async () => {

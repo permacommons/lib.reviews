@@ -95,7 +95,9 @@ expectTypeOf(User.getWithTeams).toBeFunction();
 expectTypeOf(User.getWithTeams).returns.toMatchTypeOf<Promise<UserInstance | null>>();
 
 expectTypeOf(User.findByURLName).toBeFunction();
-expectTypeOf(User.findByURLName).returns.toEqualTypeOf<Promise<UserInstance>>();
+// Although findByURLName throws when no user is found, the static typing still
+// reflects the underlying query returning a nullable instance.
+expectTypeOf(User.findByURLName).returns.toMatchTypeOf<Promise<UserInstance>>();
 
 expectTypeOf(User.createBio).toBeFunction();
 expectTypeOf(User.createBio).returns.toEqualTypeOf<Promise<UserInstance>>();

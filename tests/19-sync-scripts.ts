@@ -1,8 +1,14 @@
 import test from 'ava';
 import { randomUUID } from 'crypto';
 import type { AdapterLookupResult } from '../adapters/abstract-backend-adapter.ts';
+import type { ThingInstance } from '../models/thing.ts';
 import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
+import {
+  hasSyncDescription,
+  isThingInstance,
+  type ThingSyncConfiguration,
+} from './helpers/type-guards.ts';
 
 type ThingModel = typeof import('../models/thing.ts').default;
 
@@ -53,7 +59,9 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
   await thing.save();
 
   // Test that filterWhere defaults work (used by sync scripts)
-  const things = await Thing.filterWhere({}).run();
+  const things = (await Thing.filterWhere({}).run()).filter(
+    (candidate): candidate is ThingInstance => isThingInstance(candidate, Thing)
+  );
   t.true(Array.isArray(things), 'Should return an array of things');
   t.true(things.length >= 1, 'Should find at least our test thing');
 
@@ -65,13 +73,15 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
   // Test that setURLs works (used by sync scripts)
   foundThing.setURLs(foundThing.urls);
   t.truthy(foundThing.sync, 'Sync settings should be configured');
-  t.truthy(foundThing.sync.description, 'Description sync should be configured');
-  t.is(foundThing.sync.description.active, true, 'Description sync should be active');
-  t.is(
-    foundThing.sync.description.source,
-    'wikidata',
-    'Description sync source should be wikidata'
-  );
+  const syncConfig: ThingSyncConfiguration | undefined = foundThing.sync || undefined;
+  t.truthy(syncConfig && hasSyncDescription(syncConfig), 'Description sync should be configured');
+  if (!syncConfig || !hasSyncDescription(syncConfig)) {
+    t.fail('Sync configuration is missing required description settings');
+    return;
+  }
+
+  t.is(syncConfig.description.active, true, 'Description sync should be active');
+  t.is(syncConfig.description.source, 'wikidata', 'Description sync source should be wikidata');
 });
 
 test.serial('sync functionality works with metadata grouping', async t => {

@@ -7,6 +7,7 @@ import {
   initializeManifestModels,
 } from '../../dal/lib/create-model.ts';
 import type { ModelSchemaField } from '../../dal/lib/model.ts';
+import ModelRegistry from '../../dal/lib/model-registry.ts';
 import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
 import { logNotice, logOK } from '../helpers/test-helpers.ts';
 
@@ -268,14 +269,14 @@ class DALFixtureAVA {
           }
           this.cacheKnownModelByBase(baseName, model);
 
-          const registry =
+          const registryCandidate =
             typeof this.dal.getModelRegistry === 'function' ? this.dal.getModelRegistry() : null;
 
-          if (registry && aliasKey !== baseName) {
+          if (registryCandidate instanceof ModelRegistry && aliasKey !== baseName) {
             try {
               const runtime = this.dal.getModel(baseName) as ModelConstructor | null;
               if (runtime) {
-                registry.register(aliasKey, runtime, { key: aliasKey });
+                registryCandidate.register(aliasKey, runtime, { key: aliasKey });
               }
             } catch (error) {
               const message = error instanceof Error ? error.message : '';
