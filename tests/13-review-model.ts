@@ -217,8 +217,16 @@ test.serial(
     savedRev.thing = await Thing.get(savedRev.thingID);
     await savedRev.deleteAllRevisionsWithThing(author);
 
-    const deletedReview1 = await Review.filter({ _revID: reviewRevId1 }).run();
-    const deletedReview2 = await Review.filter({ _revID: reviewRevId2 }).run();
+    const deletedReview1 = await Review.filterWhere({})
+      .includeDeleted()
+      .includeStale()
+      .revisionData({ _revID: reviewRevId1 })
+      .run();
+    const deletedReview2 = await Review.filterWhere({})
+      .includeDeleted()
+      .includeStale()
+      .revisionData({ _revID: reviewRevId2 })
+      .run();
     const deletedThing = await Thing.get(thingID);
 
     t.true(deletedReview1[0]._data._rev_deleted, 'Original review revision marked as deleted');

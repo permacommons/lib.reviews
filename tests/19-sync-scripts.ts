@@ -52,7 +52,7 @@ test.serial('sync scripts can be imported and work with PostgreSQL Thing model',
 
   await thing.save();
 
-  // Test that filterNotStaleOrDeleted works (used by sync scripts)
+  // Test that filterWhere defaults work (used by sync scripts)
   const things = await Thing.filterWhere({}).run();
   t.true(Array.isArray(things), 'Should return an array of things');
   t.true(things.length >= 1, 'Should find at least our test thing');

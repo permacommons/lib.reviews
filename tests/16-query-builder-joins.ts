@@ -56,7 +56,7 @@ test.serial('QueryBuilder supports simple boolean joins', async t => {
 
   // Test simple join syntax: { teams: true }
   // This should not fail even if no team associations exist
-  const query = User.filter({ id: testUser.id }).getJoin({ teams: true });
+  const query = User.filterWhere({ id: testUser.id }).getJoin({ teams: true });
   const users = await query.run();
 
   t.true(Array.isArray(users));
@@ -151,7 +151,7 @@ test.serial('QueryBuilder supports complex joins with _apply', async t => {
   await review.save();
 
   // Test complex join with _apply transformation
-  const query = Review.filter({ id: review.id }).getJoin({
+  const query = Review.filterWhere({ id: review.id }).getJoin({
     creator: {
       _apply: seq => seq.without('password'),
     },
@@ -229,7 +229,7 @@ test.serial('QueryBuilder materializes through-table joins generically', async t
     userId,
   ]);
 
-  const users = await User.filter({ id: userId }).getJoin({ teams: {} }).run();
+  const users = await User.filterWhere({ id: userId }).getJoin({ teams: {} }).run();
 
   t.is(users.length, 1);
   const loadedUser = users[0];
@@ -262,7 +262,7 @@ test.serial('QueryBuilder supports multiple joins', async t => {
   await review.save();
 
   // Test multiple joins
-  const query = Review.filter({ id: review.id })
+  const query = Review.filterWhere({ id: review.id })
     .getJoin({ thing: true })
     .getJoin({ creator: true });
 
@@ -499,7 +499,7 @@ test.serial('QueryBuilder supports first() operation', async t => {
   const { actor: testUser } = await dalFixture.createTestUser('First Test User');
 
   // Test first - should return the user we created
-  const user = await User.filter({ id: testUser.id }).first();
+  const user = await User.filterWhere({ id: testUser.id }).first();
 
   t.truthy(user);
   t.is(user.id, testUser.id);
@@ -508,14 +508,14 @@ test.serial('QueryBuilder supports first() operation', async t => {
 test('QueryBuilder handles empty results gracefully', async t => {
   // Test with non-existent ID
   const nonExistentId = randomUUID();
-  const user = await User.filter({ id: nonExistentId }).first();
+  const user = await User.filterWhere({ id: nonExistentId }).first();
 
   t.is(user, null);
 
-  const users = await User.filter({ id: nonExistentId }).run();
+  const users = await User.filterWhere({ id: nonExistentId }).run();
   t.is(users.length, 0);
 
-  const count = await User.filter({ id: nonExistentId }).count();
+  const count = await User.filterWhere({ id: nonExistentId }).count();
   t.is(count, 0);
 });
 

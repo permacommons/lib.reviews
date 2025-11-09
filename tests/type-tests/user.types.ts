@@ -111,8 +111,9 @@ if (userFromModel) {
 }
 
 // Test DAL query builder chain returns properly typed results
-const filterQuery = User.filter({ displayName: 'test' });
+const filterQuery = User.filterWhere({ displayName: 'test' }).includeDeleted().includeStale();
 expectTypeOf(filterQuery.run()).toEqualTypeOf<Promise<UserInstance[]>>();
+expectTypeOf(filterQuery.first()).toEqualTypeOf<Promise<UserInstance | null>>();
 
 // Test that extra statics passed to defineModel() are available
 // (User.options was passed via the statics: { options } parameter)

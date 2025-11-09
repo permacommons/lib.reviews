@@ -505,7 +505,7 @@ test.serial('POST /api/actions/upload rejects files with unrecognized signature'
     `Unexpected display message: ${errorDetail.displayMessage}`
   );
 
-  const savedFiles = await File.filter({ uploadedBy: uploader.id });
+  const savedFiles = await File.filterWhere({ uploadedBy: uploader.id });
   t.is(savedFiles.length, 0, 'No file records should be persisted for rejected uploads');
 });
 

@@ -16,6 +16,15 @@ import {
 
 type QueryBuilderArgs = ConstructorParameters<typeof QueryBuilder>;
 
+type DefaultRecord = {
+  id: string;
+  name?: string;
+  createdOn?: string;
+};
+type DefaultInstance = ModelInstance<DefaultRecord, JsonObject>;
+type RevisionRecord = DefaultRecord & { _revID?: string };
+type RevisionInstance = ModelInstance<RevisionRecord, JsonObject>;
+
 /**
  * Unit tests for QueryBuilder functionality
  *
@@ -28,12 +37,22 @@ test('QueryBuilder can be instantiated', t => {
   t.is(qb.tableName, 'test_table');
 });
 
-test('QueryBuilder supports filter method', t => {
+test('FilterWhereBuilder applies literal predicates to QueryBuilder', t => {
   const { qb } = createQueryBuilderHarness();
-  const result = qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
 
-  t.is(result, qb); // Should return self for chaining
-  t.true(qb._where.length > 0);
+  const result = builder.and({ id: 'test-id' });
+
+  t.is(result, builder, 'FilterWhereBuilder.and should return the builder instance');
+  t.is(qb._where.length, 1);
+  const predicate = qb._where[0];
+  if (predicate?.type !== 'basic') {
+    t.fail('Expected FilterWhereBuilder to add a basic predicate for literal values');
+    return;
+  }
+  t.is(predicate.column, 'id');
+  t.is(predicate.operator, '=');
+  t.is(predicate.value, 'test-id');
 });
 
 test('QueryBuilder supports orderBy method', t => {
@@ -231,20 +250,33 @@ test('QueryBuilder supports offset method', t => {
   t.is(qb._offset, 5);
 });
 
-test('QueryBuilder supports revision filtering', t => {
+test('FilterWhereBuilder enforces revision guards before execution', async t => {
   const { qb } = createQueryBuilderHarness();
-  const result = qb.filterNotStaleOrDeleted();
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, true);
 
-  t.is(result, qb); // Should return self for chaining
-  t.true(qb._where.length > 0);
+  await builder.run();
+
   const oldRevisionPredicate = qb._where.find(predicate => predicate.column === '_old_rev_of');
   t.truthy(oldRevisionPredicate);
-  t.is(oldRevisionPredicate.operator, 'IS');
+  t.is(oldRevisionPredicate?.operator, 'IS');
 
   const deletedPredicate = qb._where.find(predicate => predicate.column === '_rev_deleted');
   t.truthy(deletedPredicate);
-  t.is(deletedPredicate.operator, '=');
-  t.false(deletedPredicate.value);
+  t.is(deletedPredicate?.operator, '=');
+  t.false(deletedPredicate?.value);
+});
+
+test('FilterWhereBuilder can include deleted and stale revisions on demand', async t => {
+  const { qb } = createQueryBuilderHarness();
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, true);
+
+  await builder.includeDeleted().includeStale().run();
+
+  const oldRevisionPredicate = qb._where.find(predicate => predicate.column === '_old_rev_of');
+  t.falsy(oldRevisionPredicate);
+
+  const deletedPredicate = qb._where.find(predicate => predicate.column === '_rev_deleted');
+  t.falsy(deletedPredicate);
 });
 
 test('FilterWhereBuilder sample enforces revision guards before delegating', async t => {
@@ -278,6 +310,30 @@ test('FilterWhereBuilder sample enforces revision guards before delegating', asy
   t.truthy(deletedPredicate);
   t.is(deletedPredicate.operator, '=');
   t.false(deletedPredicate.value);
+});
+
+test('FilterWhereBuilder.revisionData applies revision predicates', t => {
+  const schema = {
+    id: typesLib.string(),
+    name: typesLib.string(),
+    created_on: typesLib.string(),
+    _rev_id: typesLib.string(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on', _revID: '_rev_id' },
+  });
+
+  const builder = new FilterWhereBuilder<RevisionRecord, JsonObject, RevisionInstance, string>(qb, true);
+
+  const revId = 'rev-123';
+  builder.revisionData({ _revID: revId });
+
+  const predicate = qb._where.find(entry => entry.column === '_rev_id');
+  t.truthy(predicate);
+  t.is(predicate?.operator, '=');
+  t.is(predicate?.value, revId);
 });
 
 test('QueryBuilder supports revision tag filtering', t => {
@@ -379,7 +435,8 @@ test('QueryBuilder supports complex joins with _apply', t => {
 
 test('QueryBuilder builds SELECT queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  builder.and({ id: 'test-id' });
   qb.orderBy('created_on', 'DESC');
   qb.limit(10);
   qb.offset(5);
@@ -397,7 +454,8 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 
 test('QueryBuilder builds COUNT queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  builder.and({ id: 'test-id' });
 
   const { sql: countSql, params: countParams } = qb._buildCountQuery();
 
@@ -409,7 +467,8 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 
 test('QueryBuilder builds DELETE queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  builder.and({ id: 'test-id' });
 
   const { sql: deleteSql, params: deleteParams } = qb._buildDeleteQuery();
 
@@ -476,19 +535,18 @@ test('QueryBuilder handles schema namespace prefixing', t => {
   t.is(tableName2, 'users');
 });
 
-test('QueryBuilder method chaining works correctly', t => {
+test('FilterWhereBuilder method chaining works correctly', t => {
   const { qb } = createQueryBuilderHarness();
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, true);
 
-  // Test method chaining
-  const result = qb
-    .filter({ status: 'active' })
-    .filterNotStaleOrDeleted()
-    .orderBy('created_on', 'DESC')
+  const result = builder
+    .and({ id: 'active-record' })
+    .orderBy('createdOn', 'DESC')
     .limit(10)
     .offset(5)
     .getJoin({ creator: true });
 
-  t.is(result, qb); // Should return the same instance
+  t.is(result, builder); // Should return the same builder instance
   t.true(qb._where.length > 0);
   t.true(qb._orderBy.length > 0);
   t.is(qb._limit, 10);
@@ -631,7 +689,8 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
   TestModel._registerFieldMapping('email', 'email');
 
   const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  builder.and({ id: 'test-id' });
 
   const { sql } = qb._buildSelectQuery();
 
@@ -658,7 +717,8 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
   TestModel._registerFieldMapping('email', 'email');
 
   const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(qb, false);
+  builder.and({ id: 'test-id' });
   qb.includeSensitive(['password']);
 
   const { sql } = qb._buildSelectQuery();

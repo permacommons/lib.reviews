@@ -306,8 +306,10 @@ test.serial('maintenance script ensures DAL bootstrap before indexing', async t 
 
   const { default: ThingHandle } = await import('../models/thing.ts');
   const { default: ReviewHandle } = await import('../models/review.ts');
-  t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
-  t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
+  t.true(typeof ThingHandle.filterWhere === 'function', 'Thing handle exposes filterWhere');
+  t.true(typeof ReviewHandle.filterWhere === 'function', 'Review handle exposes filterWhere');
+  t.truthy(ThingHandle.ops, 'Thing handle exposes filter operator helpers');
+  t.truthy(ReviewHandle.ops, 'Review handle exposes filter operator helpers');
 });
 
 test.serial('search indexing extracts multilingual content correctly', async t => {
