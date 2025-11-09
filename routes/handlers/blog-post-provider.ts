@@ -3,10 +3,10 @@
 import { resolve as resolveURL } from 'node:url';
 import config from 'config';
 import i18n from 'i18n';
-import mlString from '../../dal/lib/ml-string.ts';
 import type { LocaleCodeWithUndetermined } from '../../locales/languages.ts';
 import languages from '../../locales/languages.ts';
-import BlogPost from '../../models/blog-post.ts';
+import BlogPostModel, { type BlogPostInstance } from '../../models/blog-post.ts';
+import type { TeamInstance } from '../../models/team.ts';
 // Internal dependencies
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
@@ -14,66 +14,8 @@ import feeds from '../helpers/feeds.ts';
 import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
-type BlogPostFormValues = {
-  title: Record<string, string>;
-  text: Record<string, string>;
-  html: Record<string, string>;
-  createdBy?: string;
-  createdOn?: Date;
-  creator?: unknown;
-  teamID?: string;
-  originalLanguage?: string;
-  [key: string]: any;
-};
-
-type BlogPostInstance = BlogPostFormValues & {
-  id: string;
-  _revDate?: Date;
-  populateUserInfo: (user: HandlerRequest['user']) => void;
-  userCanEdit?: boolean;
-  userCanDelete?: boolean;
-  newRevision: (
-    user: HandlerRequest['user'],
-    options?: Record<string, unknown>
-  ) => Promise<BlogPostInstance>;
-  deleteAllRevisions: (
-    user: HandlerRequest['user'],
-    options?: Record<string, unknown>
-  ) => Promise<unknown>;
-  save: () => Promise<BlogPostInstance>;
-};
-
-type BlogPostCollectionResult = {
-  blogPosts: BlogPostInstance[];
-  offsetDate?: Date;
-};
-
-type BlogPostModelHandle = {
-  getMostRecentBlogPosts: (
-    teamID: string,
-    options?: { limit?: number; offsetDate?: Date | null }
-  ) => Promise<BlogPostCollectionResult>;
-  getWithCreator: (id: string) => Promise<BlogPostInstance>;
-  createFirstRevision: (
-    user: HandlerRequest['user'],
-    options?: Record<string, unknown>
-  ) => Promise<BlogPostInstance>;
-} & Record<string, unknown>;
-
-type TeamInstance = {
-  id: string;
-  urlID: string;
-  name: Record<string, string>;
-  populateUserInfo: (user: HandlerRequest['user']) => void;
-  userCanBlog?: boolean;
-  userCanDelete?: boolean;
-  userCanEdit?: boolean;
-  userIsMember?: boolean;
-  files?: unknown[];
-  [key: string]: unknown;
-};
-
-const BlogPostModel = BlogPost as unknown as BlogPostModelHandle;
+type BlogPostFormValues = Required<Pick<BlogPostInstance, 'title' | 'text' | 'html'>> &
+  Partial<Omit<BlogPostInstance, 'title' | 'text' | 'html'>>;
 
 class BlogPostProvider extends AbstractBREADProvider {
   static formDefs: Record<string, any>;
@@ -152,9 +94,10 @@ class BlogPostProvider extends AbstractBREADProvider {
         });
 
         const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
+        const resolvedTeamName = this.resolveMlString(currentLocale, team.name);
         const vars = {
           titleKey: this.actions[this.action].titleKey,
-          titleParam: mlString.resolve(currentLocale, team.name).str,
+          titleParam: resolvedTeamName?.str ?? '',
           blogPosts,
           blogPostsUTCISODate: nextOffsetDate ? nextOffsetDate.toISOString() : undefined,
           team,
@@ -184,6 +127,7 @@ class BlogPostProvider extends AbstractBREADProvider {
   async read_GET(team: TeamInstance): Promise<void> {
     BlogPostModel.getWithCreator(this.postID)
       .then(blogPost => {
+        if (!blogPost) return this.handleMissingResource('post', this.postID);
         blogPost.populateUserInfo(this.req.user);
 
         let pageMessages = this.req.flash('pageMessages');
@@ -198,7 +142,7 @@ class BlogPostProvider extends AbstractBREADProvider {
           team,
           blogPost,
           titleKey: 'blog post page title',
-          titleParam: mlString.resolve(requestLanguage, blogPost.title).str,
+          titleParam: this.resolveMlString(requestLanguage, blogPost.title)?.str ?? '',
           teamURL: `/team/${team.urlID}`,
           deferPageHeader: true,
           pageMessages,
@@ -232,6 +176,7 @@ class BlogPostProvider extends AbstractBREADProvider {
   async edit_GET(team: TeamInstance): Promise<void> {
     BlogPostModel.getWithCreator(this.postID)
       .then(blogPost => {
+        if (!blogPost) return this.handleMissingResource('post', this.postID);
         if (!this.userCanEditPost(blogPost)) return false;
 
         this.editing = true;
@@ -243,6 +188,7 @@ class BlogPostProvider extends AbstractBREADProvider {
   async edit_POST(team: TeamInstance): Promise<void> {
     BlogPostModel.getWithCreator(this.postID)
       .then(blogPost => {
+        if (!blogPost) return this.handleMissingResource('post', this.postID);
         if (!this.userCanEditPost(blogPost)) return false;
 
         this.editing = true;
@@ -253,11 +199,18 @@ class BlogPostProvider extends AbstractBREADProvider {
           typeof languageBodyValue === 'string'
             ? languageBodyValue
             : (blogPost.originalLanguage ?? 'en');
-        const formValues = this.parseForm({
-          formDef: BlogPostProvider.formDefs[formKey],
+        const formDef = BlogPostProvider.formDefs[formKey];
+        if (!formDef) {
+          throw new Error(`Form definition '${formKey}' is not registered.`);
+        }
+
+        const submission = this.parseData<BlogPostFormValues>({
+          formDef,
           formKey,
           language,
-        }).formValues as BlogPostFormValues;
+          transform: values => this.toBlogPostFormValues(values),
+        });
+        const { data: formValues } = submission;
 
         const postAction = this.req.body?.['post-action'];
         if (postAction === 'preview') {
@@ -268,7 +221,7 @@ class BlogPostProvider extends AbstractBREADProvider {
           this.isPreview = true;
         }
 
-        if (this.isPreview || this.req.flashHas?.('pageErrors'))
+        if (this.isPreview || !submission.hasRequiredFields || this.req.flashHas?.('pageErrors'))
           return this.add_GET(team, formValues);
 
         blogPost
@@ -299,11 +252,18 @@ class BlogPostProvider extends AbstractBREADProvider {
     let formKey = 'new-post';
     const languageBodyValue = this.req.body?.['post-language'];
     const language = typeof languageBodyValue === 'string' ? languageBodyValue : 'en';
-    const postObj = this.parseForm({
-      formDef: BlogPostProvider.formDefs[formKey],
+    const formDef = BlogPostProvider.formDefs[formKey];
+    if (!formDef) {
+      throw new Error(`Form definition '${formKey}' is not registered.`);
+    }
+
+    const submission = this.parseData<BlogPostFormValues>({
+      formDef,
       formKey,
       language,
-    }).formValues as BlogPostFormValues;
+      transform: values => this.toBlogPostFormValues(values),
+    });
+    const { data: postObj } = submission;
 
     if (typeof this.req.user?.id === 'string') postObj.createdBy = this.req.user.id;
     postObj.createdOn = new Date();
@@ -311,7 +271,8 @@ class BlogPostProvider extends AbstractBREADProvider {
     postObj.teamID = team.id;
 
     // We're previewing or have basic problems with the submission -- back to form
-    if (this.isPreview || this.req.flashHas?.('pageErrors')) return this.add_GET(team, postObj);
+    if (this.isPreview || !submission.hasRequiredFields || this.req.flashHas?.('pageErrors'))
+      return this.add_GET(team, postObj);
 
     BlogPostModel.createFirstRevision(this.req.user, {
       tags: ['create-via-form'],
@@ -331,6 +292,7 @@ class BlogPostProvider extends AbstractBREADProvider {
   async delete_GET(team: TeamInstance): Promise<void> {
     BlogPostModel.getWithCreator(this.postID)
       .then(blogPost => {
+        if (!blogPost) return this.handleMissingResource('post', this.postID);
         if (!this.userCanDeletePost(blogPost)) return false;
 
         this.renderTemplate('delete-blog-post', {
@@ -344,6 +306,7 @@ class BlogPostProvider extends AbstractBREADProvider {
   async delete_POST(): Promise<void> {
     BlogPostModel.getWithCreator(this.postID)
       .then(blogPost => {
+        if (!blogPost) return this.handleMissingResource('post', this.postID);
         if (!this.userCanDeletePost(blogPost)) return false;
 
         blogPost
@@ -393,8 +356,23 @@ class BlogPostProvider extends AbstractBREADProvider {
     return true;
   }
 
-  loadData() {
+  loadData(): Promise<TeamInstance> {
+    if (!this.id) {
+      throw new Error('Team identifier is required to load blog posts.');
+    }
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id) as Promise<TeamInstance>;
+  }
+
+  private toBlogPostFormValues(formValues: Record<string, unknown>): BlogPostFormValues {
+    const typedValues = formValues as Partial<BlogPostInstance>;
+    const { title, text, html, ...rest } = typedValues;
+
+    return {
+      ...rest,
+      title: this.ensureMlString(title),
+      text: this.ensureMlString(text),
+      html: this.ensureMlString(html),
+    } satisfies BlogPostFormValues;
   }
 }
 

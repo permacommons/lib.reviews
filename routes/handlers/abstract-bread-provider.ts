@@ -1,4 +1,5 @@
 import express from 'express';
+import mlString from '../../dal/lib/ml-string.ts';
 import type {
   BoundRenderFunction,
   BoundTemplateRenderer,
@@ -55,9 +56,22 @@ interface ProviderOptions {
  *
  * Use the bakery method to create standard BREAD routes. :)
  */
-type ParseSubmissionFn = (
-  options?: Parameters<typeof forms.parseSubmission>[1]
-) => ReturnType<typeof forms.parseSubmission>;
+type ParseSubmissionOptions = Parameters<typeof forms.parseSubmission>[1] extends undefined
+  ? Record<string, never>
+  : NonNullable<Parameters<typeof forms.parseSubmission>[1]>;
+
+type ParseSubmissionResult = ReturnType<typeof forms.parseSubmission>;
+
+type ParseSubmissionFn = (options?: ParseSubmissionOptions) => ParseSubmissionResult;
+
+interface ParseDataOptions<TParsed> extends ParseSubmissionOptions {
+  transform?: (formValues: ParseSubmissionResult['formValues']) => TParsed;
+  validate?: (parsed: TParsed) => void;
+}
+
+interface ParseDataResult<TParsed> extends ParseSubmissionResult {
+  data: TParsed;
+}
 
 class AbstractBREADProvider {
   protected readonly req: ProviderRequest;
@@ -212,6 +226,65 @@ class AbstractBREADProvider {
       this.next
     );
     this.parseForm = forms.parseSubmission.bind(forms, this.req) as ParseSubmissionFn;
+  }
+
+  protected parseData<TParsed>(options: ParseDataOptions<TParsed>): ParseDataResult<TParsed> {
+    const { transform, validate, ...parseOptions } = options;
+
+    const submission = this.parseForm(parseOptions);
+    const data = transform
+      ? transform(submission.formValues)
+      : (submission.formValues as unknown as TParsed);
+
+    if (validate) validate(data);
+
+    return {
+      ...submission,
+      data,
+    };
+  }
+
+  protected handleMissingResource(
+    resourceKeyPrefix: string,
+    resourceID?: string,
+    message?: string
+  ): void {
+    const resolvedID = resourceID ?? '';
+    const errorMessage =
+      message ??
+      (resolvedID
+        ? `${resourceKeyPrefix} ${resolvedID} not found`
+        : `${resourceKeyPrefix} not found`);
+    const notFoundError = new Error(errorMessage);
+    notFoundError.name = 'DocumentNotFound';
+    this.getResourceErrorHandler(resourceKeyPrefix, resolvedID)(notFoundError);
+  }
+
+  protected normalizeMlString(value: unknown): Record<string, string> | undefined {
+    if (!value || typeof value !== 'object') {
+      return undefined;
+    }
+
+    const normalized: Record<string, string> = {};
+    for (const [language, languageValue] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof languageValue === 'string') {
+        normalized[language] = languageValue;
+      }
+    }
+
+    return Object.keys(normalized).length ? normalized : undefined;
+  }
+
+  protected ensureMlString(value: unknown): Record<string, string> {
+    return this.normalizeMlString(value) ?? {};
+  }
+
+  protected resolveMlString(
+    language: string,
+    value: Record<string, string> | unknown
+  ): ReturnType<typeof mlString.resolve> | undefined {
+    const normalized = this.normalizeMlString(value);
+    return normalized ? mlString.resolve(language, normalized) : undefined;
   }
 
   execute(): void {

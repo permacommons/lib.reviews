@@ -11,7 +11,7 @@ import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import TeamJoinRequest, { type TeamJoinRequestInstance } from './team-join-request.ts';
 import TeamSlug from './team-slug.ts';
-import User from './user.ts';
+import User, { type UserViewer } from './user.ts';
 
 // TODO: Convert Team/Review to share manifest + type contracts to remove this lazy import.
 async function getReviewModel() {
@@ -231,7 +231,10 @@ const teamManifest = defineModelManifest({
      *
      * @param user - Viewer whose relationship determines permissions
      */
-    populateUserInfo(this: ModelInstance, user: ModelInstance | null | undefined): void {
+    populateUserInfo(
+      this: ModelInstance,
+      user: ModelInstance | UserViewer | null | undefined
+    ): void {
       if (!user) return;
 
       if (
