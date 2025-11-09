@@ -283,7 +283,7 @@ Usage in application code:
 import User from './models/user.js';
 
 const user = await User.create({ displayName: 'Jane', email: 'jane@example.com' });
-const users = await User.filter({ isTrusted: false }).run();
+const users = await User.filterWhere({ isTrusted: false }).run();
 ```
 
 ### Historical Note

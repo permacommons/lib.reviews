@@ -389,8 +389,8 @@ function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRe
 /**
  * Typed facade around the legacy `QueryBuilder`. It injects default
  * revision-aware predicates, exposes the fluent DAL surface, and keeps the
- * `PromiseLike` contract so existing `await Model.filter()` call sites can
- * switch over with minimal churn.
+ * `PromiseLike` contract so `await Model.filterWhere(...)` call sites work
+ * without forcing `.run()`.
  */
 class FilterWhereBuilder<
   TData extends JsonObject,
@@ -528,11 +528,6 @@ class FilterWhereBuilder<
 
   includeSensitive(fields: string | string[]): this {
     this._builder.includeSensitive(fields);
-    return this;
-  }
-
-  filter(criteria: Record<string, unknown> | ((row: unknown) => unknown)): this {
-    this._builder.filter(criteria);
     return this;
   }
 

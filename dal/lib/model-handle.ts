@@ -41,7 +41,6 @@ type ModelHandle<
 > = Partial<ModelConstructor<TRecord, TVirtual, TInstance>> & Record<string | symbol, unknown>;
 
 const CORE_METHODS = [
-  'filter',
   'get',
   'create',
   'save',

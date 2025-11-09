@@ -7,7 +7,7 @@ The lib.reviews DAL is a TypeScript-first PostgreSQL abstraction that exposes ty
 - **DataAccessLayer (`dal/lib/data-access-layer.ts`)** – Owns the shared `pg.Pool`, manages migrations, and keeps a per-instance `ModelRegistry` so constructors are isolated between DALs (useful for fixtures/tests).
 - **Model runtime (`dal/lib/model.ts`)** – Implements camelCase ↔︎ snake_case mapping, validation/default handling, change tracking, and persistence primitives consumed by every manifest-driven model.
 - **Manifest system (`dal/lib/create-model.ts`, `dal/lib/model-manifest.ts`)** – Declarative manifests define schema, relations, revision support, and custom methods. `defineModel` returns a lazy proxy constructor whose types are inferred from the manifest.
-- **Query builder (`dal/lib/query-builder.ts`)** – Builds SQL fragments for filters, joins, ordering, pagination, and deletes. `filterWhere` wraps it with typed predicates, while the legacy `.filter()` path remains for holdouts.
+- **Query builder (`dal/lib/query-builder.ts`)** – Builds SQL fragments for predicates, joins, ordering, pagination, and deletes. `filterWhere` wraps it with typed predicates for day-to-day usage.
 - **Revision helpers (`dal/lib/revision.ts`)** – Adds static/instance helpers (`createFirstRevision`, `newRevision`, etc.) to models flagged with `hasRevisions: true`.
 - **Type helpers (`dal/lib/type.ts`)** – Fluent schema builders that feed manifest inference, including virtual field descriptors and multilingual string support via `mlString`.
 
@@ -75,9 +75,8 @@ Manifests drive all type inference:
 
 ## Querying Data
 
-Every manifest-based model ships two query entry points:
+Every manifest-based model ships a typed query entry point:
 
-- **`Model.filter(criteria)`** – Legacy ReQL-style proxy that accepts `Partial<TData>` or a predicate callback. It remains untyped and should be phased out.
 - **`Model.filterWhere(literal)`** – Typed builder defined in `dal/lib/filter-where.ts`. Features include:
   - Typed predicate literals keyed by manifest fields.
   - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `in`, `between/notBetween`, `containsAll`, `containsAny`, `jsonContains`, `not`).

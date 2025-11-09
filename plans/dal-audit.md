@@ -18,12 +18,10 @@
 - `ModelConstructor` typing exposes CRUD, query, and helper statics. Revision-enabled constructors extend this with revision helpers.
 
 ## Query Builder & Filters
-- Legacy `.filter(criteria)` accepts `unknown` and forwards to `QueryBuilder.filter`, preserving existing lambda/callback semantics with no typing guarantees (`dal/lib/model.ts`, `dal/lib/query-builder.ts`).
-- `filterWhere` is the typed alternative injected into every manifest-derived constructor via `createFilterWhereStatics()` (`dal/lib/filter-where.ts`). Key behaviours:
+- `filterWhere` is the typed entry point injected into every manifest-derived constructor via `createFilterWhereStatics()` (`dal/lib/filter-where.ts`). Key behaviours:
   - Accepts typed literals keyed by manifest fields; values can be raw equality matches or operator helpers produced by `Model.ops`.
   - `FilterWhereBuilder` enforces default revision predicates (`_old_rev_of IS NULL`, `_rev_deleted = false`) unless `.includeStale()` / `.includeDeleted()` is invoked.
-  - Methods mirror the legacy builder (joins, pagination, delete/count, `revisionData` scoping) and remain `PromiseLike` for ergonomic `await Model.filterWhere(...)` usage.
-  - Operator coverage currently includes equality, inequality, numeric comparisons, and PostgreSQL array helpers (`@>`, `&&`) on string arrays. Boolean combinators are limited to `and`/`or`.
+  - Methods are `PromiseLike` for ergonomic `await Model.filterWhere(...)` usage.
 - Underlying `QueryBuilder` still builds SQL fragments manually. Typing is coarse (`JsonObject`) and direct column references rely on runtime `_resolveFieldName` mapping.
 
 ## Revision System
@@ -36,7 +34,5 @@
 - Model handles (`dal/lib/model-handle.ts`) provide lazy proxies for modules that need synchronous exports before bootstrap. `createAutoModelHandle` and `setBootstrapResolver` bridge runtime constructors.
 
 ## Observations & Gaps
-- Many production modules still rely on `.filter()` with untyped predicates (`models/user.ts`, `routes/...`), so migration to `filterWhere` is incomplete.
-- Operator helpers lack coverage for range/between, negation, `IN` lists, JSON containment, and other advanced predicates noted in `FILTER-WHERE-MVP.md`.
 - Relation typings depend on manual `types.virtual().returns<...>()` declarations in manifests; there is no manifest-driven inference for relation payloads yet.
 - Several helper types still expose broad `JsonObject` / `unknown` option bags (for example, `createModel` options) that could be narrowed per manifest.

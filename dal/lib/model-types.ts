@@ -246,9 +246,6 @@ export interface ModelQueryBuilder<
   includeSensitive(
     fields: string | string[]
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
-  filter(
-    criteria: Partial<TData> | ((row: unknown) => unknown)
-  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
@@ -289,9 +286,6 @@ export interface FilterWhereQueryBuilder<
   includeSensitive(
     fields: string | string[]
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
-  filter(
-    criteria: Partial<TData> | ((row: unknown) => unknown)
-  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   orderBy(
     field: Extract<keyof TData, string>,
     direction?: 'ASC' | 'DESC'
@@ -319,7 +313,7 @@ export interface FilterWhereQueryBuilder<
 
 /**
  * Runtime constructor exported by each manifest. It exposes the DAL's static
- * helpers (`create`, `get`, `filter`, etc.) while producing instances typed as
+ * helpers (`create`, `get`, `filterWhere`, etc.) while producing instances typed as
  * {@link ModelInstance}. Individual models extend this interface with their
  * own static methods through `ThisType` in the manifest definition.
  */
@@ -339,9 +333,6 @@ export interface ModelConstructor<
 
   get(id: string, options?: GetOptions): Promise<TInstance>;
   getAll(...ids: string[]): Promise<TInstance[]>;
-  filter(
-    criteria: Partial<TData> | ((row: unknown) => unknown)
-  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   filterWhere(
     criteria: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;

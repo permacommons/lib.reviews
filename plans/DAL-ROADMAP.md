@@ -8,7 +8,7 @@ target architecture for the Data Access Layer (DAL).
 - **Postgres first** – remove every RethinkDB dependency before investing in
   new backends or major refactors.
 - **Ergonomic by default** – production code should continue to look like
-  `const User = require(...); User.filter(...)` with no DAL plumbing visible to
+  `const User = require(...); User.filterWhere({...})` with no DAL plumbing visible to
   route handlers.
 - **Single bootstrap** – the application initialises the DAL once, at startup;
   models are registered exactly one time per DAL instance.

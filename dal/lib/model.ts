@@ -519,19 +519,6 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
-   * Filter records by criteria
-   * @param criteria - Filter criteria
-   * @returns Query builder for chaining
-   */
-  static filter<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
-    criteria: unknown
-  ) {
-    const query = new QueryBuilder(this, this.dal);
-    return query.filter(criteria as Record<string, unknown>);
-  }
-
-  /**
    * Create a new record
    * @param data - Record data
    * @param options - Creation options
