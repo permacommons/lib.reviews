@@ -6,8 +6,8 @@ import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
-import type { UserViewer } from '../user.ts';
 import type { ReviewInstance } from './review.ts';
+import type { UserViewer } from './user.ts';
 
 const { mlString } = dal as unknown as {
   mlString: Record<string, any>;

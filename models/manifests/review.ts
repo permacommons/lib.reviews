@@ -4,8 +4,8 @@ import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
 import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
-import type { UserViewer } from '../user.ts';
 import type { ThingInstance } from './thing.ts';
+import type { UserViewer } from './user.ts';
 
 const { mlString } = dal as {
   mlString: Record<string, any>;

@@ -5,7 +5,7 @@ import type { InferConstructor, InferInstance } from '../../dal/lib/model-manife
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
-import type { UserViewer } from '../user.ts';
+import type { UserViewer } from './user.ts';
 
 const { mlString } = dal as { mlString: Record<string, any> };
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };

@@ -9,7 +9,7 @@ import type {
 } from '../../dal/lib/model-manifest.ts';
 import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
-import type { UserViewer } from '../user.ts';
+import type { UserViewer } from './user.ts';
 
 const { mlString } = dal as {
   mlString: typeof import('../../dal/lib/ml-string.ts').default;

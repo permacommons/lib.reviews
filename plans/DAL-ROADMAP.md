@@ -66,6 +66,7 @@ Replace manual model initialization with declarative manifests that drive type g
 - ✅ Update the remaining models (thing, file, blog-post, etc.) to the same `defineModel` pattern used by `user`, removing legacy casts. As part of this, export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
 - ✅ Extend `filterWhere` operator helpers to cover range/negation/JSON use cases (for example `between`, `in`, `jsonContains`, `not`).
 - ✅ Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`.
+- ✅ Split manifest/type declarations from runtime implementations to eliminate circular lazy imports (`Thing`/`Review`, `Team`/`Review`) once consumers are on typed handles.
 
 **Next steps (prioritised)**
 - [ ] Replace `Record<string, any>` fallbacks in core models (`review`, `thing`, `blog-post`, `team`) and their callers (`routes/things.ts`, `routes/uploads.ts`, action handlers) by threading manifest-derived types through statics/instance helpers and exposing typed payload shims where unavoidable.
@@ -73,7 +74,6 @@ Replace manual model initialization with declarative manifests that drive type g
 - [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations, and cascade the stricter payloads into upload/action handlers.
 - [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`, closing escape hatches around manifest initialisation.
 - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
-- [ ] Split manifest/type declarations from runtime implementations to eliminate circular lazy imports (`Thing`/`Review`, `Team`/`Review`) once consumers are on typed handles.
 - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
 - [ ] Audit remaining scattered raw SQL usage and design targeted query helpers that build on `filterWhere`.
 
