@@ -4,12 +4,12 @@ type ThingModel = typeof import('../models/thing.ts').default;
 type ReviewModel = typeof import('../models/review.ts').default;
 
 import { randomUUID } from 'crypto';
+import type { ThingInstance } from '../models/manifests/thing.ts';
 import searchModule from '../search.ts';
-
 import { ensureUserExists } from './helpers/dal-helpers-ava.ts';
-
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
+import { isMultilingualString, isThingInstance } from './helpers/type-guards.ts';
 
 const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   schemaNamespace: 'search_validation',
@@ -199,7 +199,9 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
   const startTime = Date.now();
 
   // Query all current revisions (this would be used by search indexing)
-  const currentThings = await Thing.filterNotStaleOrDeleted().run();
+  const currentThings = (await Thing.filterWhere({}).run()).filter(
+    (candidate): candidate is ThingInstance => isThingInstance(candidate, Thing)
+  );
 
   const endTime = Date.now();
   const queryTime = endTime - startTime;
@@ -208,9 +210,10 @@ test.serial('search performance with PostgreSQL JSONB fields', async t => {
   t.true(queryTime < 1000, `Query should complete in reasonable time (${queryTime}ms)`);
 
   // Verify JSONB data integrity
-  const firstThing = currentThings.find(
-    t => t.label && t.label.en && t.label.en.includes('Performance Test Item')
-  );
+  const firstThing = currentThings.find(thing => {
+    const { label } = thing;
+    return isMultilingualString(label) && label.en.includes('Performance Test Item');
+  });
   if (firstThing) {
     t.truthy(firstThing.metadata, 'Thing should have metadata');
     t.truthy(firstThing.metadata.description, 'Thing should have description in metadata');

@@ -1,3 +1,10 @@
+import type {
+  InferConstructor,
+  InferData,
+  InferInstance,
+  InferVirtual,
+  ModelManifest,
+} from './model-manifest.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from './model-types.ts';
 
 type BootstrapModule = {
@@ -34,6 +41,25 @@ function getBootstrapModule(): BootstrapModule {
   return module;
 }
 
+/**
+ * Look up a registered model by table name using the bootstrap resolver.
+ * Used by both model handles and the createModel proxy system.
+ * @param tableName Table name or registry key to look up.
+ * @returns The registered model constructor.
+ * @throws Error if model not found or bootstrap not initialized.
+ */
+export function getRegisteredModel<
+  TRecord extends JsonObject = JsonObject,
+  TVirtual extends JsonObject = JsonObject,
+>(tableName: string): ModelConstructor<TRecord, TVirtual> {
+  const { getModel } = getBootstrapModule();
+  const model = getModel<TRecord, TVirtual>(tableName);
+  if (!model) {
+    throw new Error(`${tableName} model not registered. Ensure DAL is initialized.`);
+  }
+  return model as ModelConstructor<TRecord, TVirtual>;
+}
+
 type ModelHandle<
   TRecord extends JsonObject,
   TVirtual extends JsonObject,
@@ -41,7 +67,6 @@ type ModelHandle<
 > = Partial<ModelConstructor<TRecord, TVirtual, TInstance>> & Record<string | symbol, unknown>;
 
 const CORE_METHODS = [
-  'filter',
   'get',
   'create',
   'save',
@@ -49,20 +74,19 @@ const CORE_METHODS = [
   'run',
   'createFirstRevision',
   'getNotStaleOrDeleted',
-  'filterNotStaleOrDeleted',
   'getMultipleNotStaleOrDeleted',
 ] as const;
 
 /**
  * Build a proxy object that forwards calls to the live model constructor while
- * providing optional static helpers. Useful for modules that want to expose a
- * stable API before the DAL is fully initialized.
+ * providing optional static helpers. Used internally for creating cross-model
+ * references without circular imports.
  * @param tableName Table name or registry key for the target model.
  * @param staticMethods Optional method overrides that fall back to the live model.
  * @param staticProperties Optional properties exposed before the model is resolved.
- * @returns Proxy handle that mirrors the runtime model API.
+ * @returns Proxy reference that mirrors the runtime model API.
  */
-export function createModelHandle<
+export function createModelReference<
   TRecord extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
   TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
@@ -73,18 +97,18 @@ export function createModelHandle<
 ): ModelHandle<TRecord, TVirtual, TInstance> {
   const handle: Record<string | symbol, unknown> = {};
 
-  function getRegisteredModel(): ModelConstructor<TRecord, TVirtual, TInstance> {
-    const { getModel } = getBootstrapModule();
-    const model = getModel<TRecord, TVirtual>(tableName);
-    if (!model) {
-      throw new Error(`${tableName} model not registered. Ensure DAL is initialized.`);
-    }
-    return model as ModelConstructor<TRecord, TVirtual, TInstance>;
+  // Local helper to avoid repeating the type cast throughout this function
+  function _getModel(): ModelConstructor<TRecord, TVirtual, TInstance> {
+    return getRegisteredModel<TRecord, TVirtual>(tableName) as ModelConstructor<
+      TRecord,
+      TVirtual,
+      TInstance
+    >;
   }
 
   for (const methodName of CORE_METHODS) {
     handle[methodName] = (...args: unknown[]) => {
-      const model = getRegisteredModel();
+      const model = _getModel();
       const method = model[methodName as keyof typeof model];
       if (typeof method === 'function') {
         return method.apply(model, args);
@@ -95,7 +119,7 @@ export function createModelHandle<
 
   for (const [methodName, method] of Object.entries(staticMethods)) {
     handle[methodName] = (...args: unknown[]) => {
-      const model = getRegisteredModel();
+      const model = _getModel();
       const targetMethod = model[methodName as keyof typeof model];
       if (typeof targetMethod === 'function') {
         return targetMethod.apply(model, args);
@@ -110,7 +134,7 @@ export function createModelHandle<
   for (const [propName, value] of Object.entries(staticProperties)) {
     Object.defineProperty(handle, propName, {
       get() {
-        const model = getRegisteredModel();
+        const model = _getModel();
         if (propName in model) {
           return model[propName as keyof typeof model];
         }
@@ -128,7 +152,7 @@ export function createModelHandle<
       }
 
       try {
-        const model = getRegisteredModel();
+        const model = _getModel();
         const value = model[prop as keyof typeof model];
         if (typeof value === 'function') {
           return (...args: unknown[]) =>
@@ -149,7 +173,7 @@ export function createModelHandle<
       }
 
       try {
-        const model = getRegisteredModel();
+        const model = _getModel();
         return prop in model;
       } catch {
         return false;
@@ -158,359 +182,76 @@ export function createModelHandle<
   }) as ModelHandle<TRecord, TVirtual, TInstance>;
 }
 
-interface AutoModelHandleOptions {
-  staticProperties?: Record<string, unknown>;
-  staticMethods?: Record<string, (...args: unknown[]) => unknown>;
-}
+type StaticMethodsMap = Record<string, (...args: unknown[]) => unknown>;
+type StaticPropertiesMap = Record<string, unknown>;
 
 /**
- * Create a constructor-like handle that defers to the registered model at call
- * time. This allows modules to export a class while relying on bootstrap to
- * wire up the actual implementation.
- * @param tableName Table name or registry key for the model.
- * @param initializeModel Function used to register the model during bootstrap.
- * @param options Static metadata to expose alongside the handle.
- * @returns Proxy constructor that mirrors the runtime model.
+ * Create a typed reference to another model using its manifest. This allows
+ * models to reference each other without importing their full runtime code,
+ * avoiding circular dependency issues.
+ * @param manifest The model manifest to reference
+ * @param staticMethods Optional static method overrides
+ * @param staticProperties Optional static property overrides
+ * @returns Typed model reference that resolves at runtime via bootstrap
  */
-export function createAutoModelHandle<
-  TRecord extends JsonObject,
-  TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
+export function referenceModel<Manifest extends ModelManifest>(
+  manifest: Manifest
+): InferConstructor<Manifest>;
+export function referenceModel<Manifest extends ModelManifest, Methods extends StaticMethodsMap>(
+  manifest: Manifest,
+  staticMethods: Methods
+): InferConstructor<Manifest> & Methods;
+export function referenceModel<
+  Manifest extends ModelManifest,
+  Methods extends StaticMethodsMap,
+  Properties extends StaticPropertiesMap,
 >(
-  tableName: string,
-  initializeModel: (...args: unknown[]) => unknown,
-  options: AutoModelHandleOptions = {}
-): ModelConstructor<TRecord, TVirtual, TInstance> {
-  const { staticProperties = {}, staticMethods = {} } = options;
+  manifest: Manifest,
+  staticMethods: Methods,
+  staticProperties: Properties
+): InferConstructor<Manifest> & Methods & Properties;
+export function referenceModel<
+  Manifest extends ModelManifest,
+  Properties extends StaticPropertiesMap,
+>(
+  manifest: Manifest,
+  staticMethods: undefined,
+  staticProperties: Properties
+): InferConstructor<Manifest> & Properties;
+export function referenceModel<
+  Manifest extends ModelManifest,
+  Methods extends StaticMethodsMap | undefined,
+  Properties extends StaticPropertiesMap | undefined,
+>(
+  manifest: Manifest,
+  staticMethods?: Methods,
+  staticProperties?: Properties
+): InferConstructor<Manifest> &
+  (Methods extends undefined ? unknown : Methods) &
+  (Properties extends undefined ? unknown : Properties) {
+  type Data = InferData<Manifest['schema']>;
+  type Virtual = InferVirtual<Manifest['schema']>;
+  type Instance = InferInstance<Manifest>;
 
-  function getRegisteredModel(): ModelConstructor<TRecord, TVirtual, TInstance> {
-    const { getModel } = getBootstrapModule();
-    const model = getModel<TRecord, TVirtual>(tableName);
-    if (!model) {
-      throw new Error(`${tableName} model not registered. Ensure DAL is initialized.`);
-    }
-    return model as ModelConstructor<TRecord, TVirtual, TInstance>;
-  }
+  const resolvedMethods = (staticMethods ?? {}) as StaticMethodsMap;
+  const resolvedProperties = (staticProperties ?? {}) as StaticPropertiesMap;
 
-  // Named function expression prevents Biome from converting to arrow function.
-  // Arrow functions cannot be used as constructors with `new`.
-  const ModelHandle = function ModelHandle(...args: unknown[]) {
-    const model = getRegisteredModel();
-    return new (model as new (...constructorArgs: unknown[]) => TInstance)(...args);
-  } as unknown as ModelConstructor<TRecord, TVirtual, TInstance>;
+  const handle = createModelReference<Data, Virtual, Instance>(
+    manifest.tableName,
+    resolvedMethods,
+    resolvedProperties
+  );
 
-  for (const [propName, value] of Object.entries(staticProperties)) {
-    Object.defineProperty(ModelHandle, propName, {
-      get() {
-        try {
-          const model = getRegisteredModel();
-          if (propName in model) {
-            return model[propName as keyof typeof model];
-          }
-          return value;
-        } catch {
-          return value;
-        }
-      },
-      enumerable: true,
-      configurable: false,
-    });
-  }
-
-  return new Proxy(ModelHandle, {
-    get(target, prop, receiver) {
-      if (prop in staticMethods) {
-        return (...args: unknown[]) => {
-          const model = getRegisteredModel();
-          const method = model[prop as keyof typeof model];
-          if (typeof method === 'function') {
-            return method.apply(model, args);
-          }
-          const fallback = staticMethods[prop as keyof typeof staticMethods];
-          if (typeof fallback === 'function') {
-            return fallback.apply(model, args);
-          }
-          throw new Error(`Method ${String(prop)} not available on ${tableName} model`);
-        };
-      }
-
-      if (Reflect.has(target, prop)) {
-        return Reflect.get(target, prop, receiver);
-      }
-
-      if (prop === 'initializeModel') {
-        return initializeModel;
-      }
-
-      try {
-        const model = getRegisteredModel();
-        const value = model[prop as keyof typeof model];
-        if (typeof value === 'function') {
-          return (...args: unknown[]) =>
-            (value as (...args: unknown[]) => unknown).apply(model, args);
-        }
-        return value;
-      } catch {
-        return undefined;
-      }
-    },
-    has(target, prop) {
-      if (Reflect.has(target, prop)) {
-        return true;
-      }
-
-      if (prop === 'initializeModel') {
-        return true;
-      }
-
-      try {
-        const model = getRegisteredModel();
-        return prop in model;
-      } catch {
-        return false;
-      }
-    },
-  });
-}
-
-interface LazyHandleExport<THandle extends object> {
-  proxy: THandle;
-  assignHandle: (handle: THandle) => void;
-}
-
-/**
- * Create a placeholder export that becomes fully functional once a model handle
- * is assigned. Guards against accidental access before bootstrap completes.
- * @param label Identifier used in error messages when access happens too early.
- * @returns Proxy along with a function that installs the resolved handle.
- */
-export function createLazyHandleExport<THandle extends object>(
-  label: string
-): LazyHandleExport<THandle> {
-  let resolvedHandle: THandle | null = null;
-
-  function ensureResolved(): THandle {
-    if (!resolvedHandle) {
-      throw new Error(`${label} model handle accessed before initialization`);
-    }
-    return resolvedHandle;
-  }
-
-  const target = function lazyModelHandle(this: unknown, ...args: unknown[]) {
-    const handle = ensureResolved();
-    if (typeof handle === 'function') {
-      return (handle as unknown as (...invokeArgs: unknown[]) => unknown)(...args);
-    }
-    throw new Error(`${label} model handle is not callable`);
-  } as unknown as THandle;
-
-  const proxy = new Proxy(target, {
-    get(currentTarget, prop, receiver) {
-      if (prop === '__isLazyHandle') {
-        return true;
-      }
-
-      if (Reflect.has(currentTarget, prop)) {
-        return Reflect.get(currentTarget, prop, receiver);
-      }
-
-      if (!resolvedHandle) {
-        throw new Error(`${label} model handle accessed before initialization`);
-      }
-
-      const value = (resolvedHandle as Record<string | symbol, unknown>)[prop];
-      if (typeof value === 'function') {
-        return value.bind(resolvedHandle);
-      }
-      return value;
-    },
-    set(currentTarget, prop, value, receiver) {
-      if (!resolvedHandle || Reflect.has(currentTarget, prop)) {
-        return Reflect.set(currentTarget, prop, value, receiver);
-      }
-
-      (resolvedHandle as Record<string | symbol, unknown>)[prop] = value;
-      return true;
-    },
-    has(currentTarget, prop) {
-      if (Reflect.has(currentTarget, prop)) {
-        return true;
-      }
-      if (!resolvedHandle) {
-        return false;
-      }
-      return prop in (resolvedHandle as object);
-    },
-    ownKeys(currentTarget) {
-      if (!resolvedHandle) {
-        return Reflect.ownKeys(currentTarget);
-      }
-      const keys = new Set([
-        ...Reflect.ownKeys(currentTarget),
-        ...Reflect.ownKeys(resolvedHandle as object),
-      ]);
-      return Array.from(keys);
-    },
-    getOwnPropertyDescriptor(currentTarget, prop) {
-      if (Reflect.has(currentTarget, prop)) {
-        return Reflect.getOwnPropertyDescriptor(currentTarget, prop);
-      }
-
-      if (!resolvedHandle) {
-        return undefined;
-      }
-
-      const descriptor = Object.getOwnPropertyDescriptor(resolvedHandle as object, prop);
-      if (descriptor) {
-        descriptor.configurable = true;
-      }
-      return descriptor;
-    },
-    apply(currentTarget, thisArg, args) {
-      const handle = ensureResolved() as unknown as (...invokeArgs: unknown[]) => unknown;
-      return Reflect.apply(handle, thisArg, args);
-    },
-    construct(currentTarget, args, newTarget) {
-      const handle = ensureResolved() as unknown as new (...ctorArgs: unknown[]) => object;
-      return Reflect.construct(handle, args, newTarget);
-    },
-  });
-
-  function assignHandle(handle: THandle): void {
-    resolvedHandle = handle;
-  }
-
-  return { proxy: proxy as THandle, assignHandle };
-}
-
-/**
- * Finalize a lazy handle export by wiring the resolved handle and copying any
- * additional exports onto the placeholder.
- * @param lazyExport Proxy created by {@link createLazyHandleExport}.
- * @param assignHandle Callback that installs the resolved handle.
- * @param resolvedHandle Live handle returned from bootstrap.
- * @param additionalProperties Optional descriptors to copy onto the proxy.
- * @returns The proxy after registration completes.
- */
-export function registerLazyHandle<THandle extends object>(
-  lazyExport: THandle,
-  assignHandle: (handle: THandle) => void,
-  resolvedHandle: THandle,
-  additionalProperties: Record<string, PropertyDescriptor | unknown> = {}
-): THandle {
-  if (typeof assignHandle !== 'function') {
-    throw new Error('registerLazyHandle requires a valid assignHandle function');
-  }
-
-  assignHandle(resolvedHandle);
-
-  const descriptors: Record<string, PropertyDescriptor> = {};
-  for (const [key, value] of Object.entries(additionalProperties)) {
-    if (
-      value &&
-      typeof value === 'object' &&
-      (Object.prototype.hasOwnProperty.call(value, 'get') ||
-        Object.prototype.hasOwnProperty.call(value, 'set') ||
-        Object.prototype.hasOwnProperty.call(value, 'value') ||
-        Object.prototype.hasOwnProperty.call(value, 'writable'))
-    ) {
-      descriptors[key] = {
-        enumerable: true,
-        configurable: true,
-        ...(value as PropertyDescriptor),
-      };
-    } else {
-      descriptors[key] = {
-        value,
-        enumerable: true,
-        configurable: true,
-      };
-    }
-  }
-
-  if (Object.keys(descriptors).length > 0) {
-    Object.defineProperties(lazyExport, descriptors);
-  }
-
-  return lazyExport;
-}
-
-interface ModelModule<THandle extends object> {
-  proxy: THandle;
-  register: (options: {
-    initializeModel: (...args: unknown[]) => unknown;
-    handleOptions?: AutoModelHandleOptions;
-    additionalExports?: Record<string, unknown>;
-  }) => THandle;
-}
-
-/**
- * Convenience helper for modules that expose a model handle and initialization
- * function. Returns a proxy export plus a registrar that wires everything up
- * once bootstrap runs.
- * @param tableName Table name tied to the model registration.
- * @returns Module utilities for registering and accessing the model handle.
- */
-export function createModelModule<
-  TRecord extends JsonObject,
-  TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
->({
-  tableName,
-}: {
-  tableName: string;
-}): ModelModule<ModelConstructor<TRecord, TVirtual, TInstance>> {
-  if (typeof tableName !== 'string' || tableName.length === 0) {
-    throw new Error('createModelModule requires a tableName');
-  }
-
-  const { proxy, assignHandle } =
-    createLazyHandleExport<ModelConstructor<TRecord, TVirtual, TInstance>>(tableName);
-  let registered = false;
-
-  function register({
-    initializeModel,
-    handleOptions = {},
-    additionalExports = {},
-  }: {
-    initializeModel: (...args: unknown[]) => unknown;
-    handleOptions?: AutoModelHandleOptions;
-    additionalExports?: Record<string, unknown>;
-  }): ModelConstructor<TRecord, TVirtual, TInstance> {
-    if (registered) {
-      return proxy;
-    }
-
-    if (typeof initializeModel !== 'function') {
-      throw new Error(`createModelModule.register for ${tableName} requires initializeModel`);
-    }
-
-    const handle = createAutoModelHandle<TRecord, TVirtual, TInstance>(
-      tableName,
-      initializeModel,
-      handleOptions
-    );
-    registerLazyHandle(proxy, assignHandle, handle, {
-      initializeModel,
-      ...additionalExports,
-    });
-    registered = true;
-    return proxy;
-  }
-
-  return {
-    proxy,
-    register,
-  };
+  return handle as InferConstructor<Manifest> &
+    (Methods extends undefined ? unknown : Methods) &
+    (Properties extends undefined ? unknown : Properties);
 }
 
 const modelHandleModule = {
   setBootstrapResolver,
-  createModelHandle,
-  createAutoModelHandle,
-  createLazyHandleExport,
-  registerLazyHandle,
-  createModelModule,
+  getRegisteredModel,
+  createModelReference,
+  referenceModel,
 };
 
 export default modelHandleModule;

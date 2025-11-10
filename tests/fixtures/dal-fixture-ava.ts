@@ -1,8 +1,15 @@
 import { randomUUID } from 'crypto';
 import pgModule from 'pg';
 import { createTestHarness } from '../../bootstrap/dal.ts';
-import { initializeModel } from '../../dal/lib/model-initializer.ts';
+import {
+  defineModel,
+  defineModelManifest,
+  initializeManifestModels,
+} from '../../dal/lib/create-model.ts';
+import type { ModelSchemaField } from '../../dal/lib/model.ts';
+import ModelRegistry from '../../dal/lib/model-registry.ts';
 import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
+import type { TeamModel } from '../../models/manifests/team.ts';
 import { logNotice, logOK } from '../helpers/test-helpers.ts';
 
 type ThingModel = typeof import('../../models/thing.ts').default;
@@ -10,7 +17,6 @@ type ThingSlugModel = typeof import('../../models/thing-slug.ts').default;
 type ReviewModel = typeof import('../../models/review.ts').default;
 type UserModel = typeof import('../../models/user.ts').default;
 type FileModel = typeof import('../../models/file.ts').default;
-type TeamModel = typeof import('../../models/team.ts').default;
 type TeamSlugModel = typeof import('../../models/team-slug.ts').default;
 type TeamJoinRequestModel = typeof import('../../models/team-join-request.ts').default;
 
@@ -68,6 +74,17 @@ type ModelDescriptor =
       registryKey?: string;
     };
 
+type CustomModelDefinition = {
+  name: string;
+  schema?: Record<string, ModelSchemaField>;
+  camelToSnake?: Record<string, string>;
+  hasRevisions?: boolean;
+  staticMethods?: Record<string, (...args: unknown[]) => unknown>;
+  instanceMethods?: Record<string, (...args: unknown[]) => unknown>;
+  registryKey?: string;
+  [key: string]: unknown;
+};
+
 /**
  * AVA-compatible PostgreSQL DAL fixture for testing
  *
@@ -116,7 +133,7 @@ class DALFixtureAVA {
   bootstrapError: unknown;
   skipReason: string | null;
   managedTables: string[];
-  private knownModels: Partial<KnownModels>;
+  private knownModels: Partial<Record<KnownModelAlias, ModelConstructor>>;
 
   constructor(testInstance: string = 'testing-2', options: { schemaNamespace?: string } = {}) {
     const { schemaNamespace } = options;
@@ -206,33 +223,72 @@ class DALFixtureAVA {
     if (modelDefinitions.length > 0) {
       logNotice('Creating DAL models for AVA tests.');
 
-      for (const modelDef of modelDefinitions) {
-        const { model } = initializeModel({
-          dal: this.dal,
-          baseTable: modelDef.name,
-          schema: modelDef.schema,
+      const pendingModels: Array<{
+        baseName: string;
+        aliasKey: string;
+        model: ModelConstructor;
+      }> = [];
+
+      for (const rawDef of modelDefinitions) {
+        if (!rawDef || typeof rawDef !== 'object') {
+          continue;
+        }
+
+        const modelDef = rawDef as CustomModelDefinition;
+        const baseName =
+          typeof modelDef.name === 'string' && modelDef.name.length > 0 ? modelDef.name : null;
+        if (!baseName || !this.dal) {
+          continue;
+        }
+
+        const manifest = defineModelManifest({
+          tableName: baseName,
+          hasRevisions: Boolean(modelDef.hasRevisions),
+          schema: (modelDef.schema ?? {}) as Record<string, ModelSchemaField>,
           camelToSnake: modelDef.camelToSnake,
-          withRevision: modelDef.hasRevisions
-            ? {
-                static: [
-                  'createFirstRevision',
-                  'getNotStaleOrDeleted',
-                  'filterNotStaleOrDeleted',
-                  'getMultipleNotStaleOrDeleted',
-                ],
-                instance: ['newRevision', 'deleteAllRevisions'],
-              }
-            : false,
           staticMethods: modelDef.staticMethods,
           instanceMethods: modelDef.instanceMethods,
-          registryKey: modelDef.registryKey || modelDef.name,
         });
 
-        this.customModels.set(modelDef.name, model as ModelConstructor);
-        this.models[modelDef.name] = model;
+        const model = defineModel(manifest) as unknown as ModelConstructor;
+        const aliasKey =
+          typeof modelDef.registryKey === 'string' && modelDef.registryKey.length > 0
+            ? modelDef.registryKey
+            : baseName;
+        pendingModels.push({ baseName, aliasKey, model });
       }
 
-      logOK(`Created ${modelDefinitions.length} DAL models for AVA tests.`);
+      if (pendingModels.length > 0 && this.dal) {
+        initializeManifestModels(this.dal);
+
+        for (const { baseName, aliasKey, model } of pendingModels) {
+          this.customModels.set(baseName, model);
+          this.models[baseName] = model;
+          if (aliasKey && aliasKey !== baseName) {
+            this.models[aliasKey] = model;
+          }
+          this.cacheKnownModelByBase(baseName, model);
+
+          const registryCandidate =
+            typeof this.dal.getModelRegistry === 'function' ? this.dal.getModelRegistry() : null;
+
+          if (registryCandidate instanceof ModelRegistry && aliasKey !== baseName) {
+            try {
+              const runtime = this.dal.getModel(baseName) as ModelConstructor | null;
+              if (runtime) {
+                registryCandidate.register(aliasKey, runtime, { key: aliasKey });
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : '';
+              if (!/already registered/i.test(message) && !/Model '.*' not found/.test(message)) {
+                throw error;
+              }
+            }
+          }
+        }
+
+        logOK(`Created ${pendingModels.length} DAL models for AVA tests.`);
+      }
     }
 
     const tableDefinitions = normalizedOptions.tableDefs as TableDefinition[] | undefined;
@@ -421,7 +477,7 @@ class DALFixtureAVA {
     if (!alias || !model || !this.isKnownAlias(alias)) {
       return;
     }
-    this.knownModels[alias] = model as KnownModels[KnownModelAlias];
+    this.knownModels[alias] = model;
   }
 
   private cacheKnownModelByBase(
@@ -440,15 +496,15 @@ class DALFixtureAVA {
   private requireKnownModel<A extends KnownModelAlias>(alias: A): KnownModels[A] {
     const cached = this.knownModels[alias];
     if (cached) {
-      return cached;
+      return cached as unknown as KnownModels[A];
     }
     const baseName = KNOWN_MODEL_BASE_NAMES[alias];
     const model = this.getModel(baseName);
     if (!model) {
       throw new Error(`Model '${baseName}' has not been initialized in the DAL fixture.`);
     }
-    const typedModel = model as KnownModels[A];
-    this.knownModels[alias] = typedModel;
+    const typedModel = model as unknown as KnownModels[A];
+    this.knownModels[alias] = model;
     return typedModel;
   }
 

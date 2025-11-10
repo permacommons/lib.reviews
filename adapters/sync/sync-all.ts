@@ -7,14 +7,9 @@
 
 import promiseLimit from 'promise-limit';
 import { initializeDAL } from '../../bootstrap/dal.ts';
+import type { ThingInstance } from '../../models/manifests/thing.ts';
 import Thing from '../../models/thing.js';
 import debug from '../../util/debug.ts';
-
-type SyncableThing = {
-  urls?: string[];
-  setURLs(urls?: string[]): void;
-  updateActiveSyncs(): Promise<unknown>;
-};
 
 const limit = promiseLimit<unknown>(2); // Max 2 URL batch updates at a time
 
@@ -24,7 +19,7 @@ debug.errorLog.enabled = true;
 
 async function syncAll(): Promise<void> {
   await initializeDAL();
-  const things = (await Thing.filterNotStaleOrDeleted().run()) as SyncableThing[];
+  const things = (await Thing.filterWhere({}).run()) as ThingInstance[];
 
   // Reset sync settings to ensure model-side mutations are applied consistently.
   for (const thing of things) {

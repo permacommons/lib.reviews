@@ -5,6 +5,7 @@ import searchModule from '../search.ts';
 
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
+import { clonePlainObject } from './helpers/type-guards.ts';
 
 type ThingModel = typeof import('../models/thing.ts').default;
 type ReviewModel = typeof import('../models/review.ts').default;
@@ -141,7 +142,7 @@ test.serial('indexThing skips old and deleted revisions', async t => {
   // Create an old revision (simulated)
   const oldThing = Object.assign(Object.create(Object.getPrototypeOf(currentThing)), {
     _data: { ...currentThing._data, _old_rev_of: randomUUID() },
-    _virtualFields: { ...currentThing._virtualFields },
+    _virtualFields: clonePlainObject(currentThing._virtualFields),
     _changed: new Set(currentThing._changed),
     _isNew: currentThing._isNew,
   });
@@ -150,7 +151,7 @@ test.serial('indexThing skips old and deleted revisions', async t => {
   // Create a deleted revision (simulated)
   const deletedThing = Object.assign(Object.create(Object.getPrototypeOf(currentThing)), {
     _data: { ...currentThing._data, _rev_deleted: true },
-    _virtualFields: { ...currentThing._virtualFields },
+    _virtualFields: clonePlainObject(currentThing._virtualFields),
     _changed: new Set(currentThing._changed),
     _isNew: currentThing._isNew,
   });
@@ -306,8 +307,10 @@ test.serial('maintenance script ensures DAL bootstrap before indexing', async t 
 
   const { default: ThingHandle } = await import('../models/thing.ts');
   const { default: ReviewHandle } = await import('../models/review.ts');
-  t.truthy(ThingHandle.filterNotStaleOrDeleted, 'Thing handle exposes filterNotStaleOrDeleted');
-  t.truthy(ReviewHandle.filterNotStaleOrDeleted, 'Review handle exposes filterNotStaleOrDeleted');
+  t.true(typeof ThingHandle.filterWhere === 'function', 'Thing handle exposes filterWhere');
+  t.true(typeof ReviewHandle.filterWhere === 'function', 'Review handle exposes filterWhere');
+  t.truthy(ThingHandle.ops, 'Thing handle exposes filter operator helpers');
+  t.truthy(ReviewHandle.ops, 'Review handle exposes filter operator helpers');
 });
 
 test.serial('search indexing extracts multilingual content correctly', async t => {

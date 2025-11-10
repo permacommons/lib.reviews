@@ -37,7 +37,7 @@ const wikidataURLPattern = /^http(s)*:\/\/(www.)*wikidata.org\/(entity|wiki)\/(Q
 
 async function syncWikidata(): Promise<void> {
   await initializeDAL();
-  const allThings = (await Thing.filterNotStaleOrDeleted().run()) as WikidataThing[];
+  const allThings = (await Thing.filterWhere({}).run()) as WikidataThing[];
 
   const wikidataThings = allThings.filter(
     thing => Array.isArray(thing.urls) && thing.urls.some(url => wikidataURLPattern.test(url))

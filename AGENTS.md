@@ -4,6 +4,6 @@ This repository powers the lib.reviews platform. The codebase dates back several
 
 ## Guidance for Agents
 - Preserve existing behavior unless instructions say otherwise; many routes have implicit dependencies.
-- All changes must pass tests, typechecks, lint checks, and format checks before being committed.
 - When asked to draft a commit message, use conventional commit format. Keep the first line ≤50 chars, subsequent lines ≤72 chars, and limit bullet lists to at most four items (but do use bullets to expand on the headline). Only describe changes that remain in the current diff.
 - When migrating or editing TypeScript doc comments, omit explicit type annotations in `@param` tags; TypeScript already conveys that information.
+- `npm run test`, `npm run lint` and `npm run typecheck` must all pass upon completion of a task.

@@ -1,3 +1,4 @@
+import type { ModelSchemaField } from './model.ts';
 import type {
   DataAccessLayer,
   JsonObject,
@@ -10,11 +11,11 @@ export interface GetOrCreateModelOptions extends JsonObject {
 }
 
 export interface GetOrCreateModelResult<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>,
+  TInstance extends ModelInstance<TData, TVirtual>,
 > {
-  model: ModelConstructor<TRecord, TVirtual, TInstance>;
+  model: ModelConstructor<TData, TVirtual, TInstance>;
   isNew: boolean;
 }
 
@@ -26,17 +27,17 @@ export interface GetOrCreateModelResult<
  * @returns The registered constructor or null when missing.
  */
 function safeGetModel<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual>,
->(dal: DataAccessLayer, key: string): ModelConstructor<TRecord, TVirtual, TInstance> | null {
+  TInstance extends ModelInstance<TData, TVirtual>,
+>(dal: DataAccessLayer, key: string): ModelConstructor<TData, TVirtual, TInstance> | null {
   if (!key) {
     return null;
   }
 
   try {
-    const model = dal.getModel<TRecord, TVirtual>(key) as ModelConstructor<
-      TRecord,
+    const model = dal.getModel<TData, TVirtual>(key) as ModelConstructor<
+      TData,
       TVirtual,
       TInstance
     > | null;
@@ -61,15 +62,15 @@ function safeGetModel<
  * @returns Descriptor containing the resolved model and whether it was newly created.
  */
 export function getOrCreateModel<
-  TRecord extends JsonObject,
+  TData extends JsonObject,
   TVirtual extends JsonObject = JsonObject,
-  TInstance extends ModelInstance<TRecord, TVirtual> = ModelInstance<TRecord, TVirtual>,
+  TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
 >(
   dal: DataAccessLayer,
   tableName: string,
-  schema: JsonObject,
+  schema: Record<string, ModelSchemaField>,
   options: GetOrCreateModelOptions = {}
-): GetOrCreateModelResult<TRecord, TVirtual, TInstance> {
+): GetOrCreateModelResult<TData, TVirtual, TInstance> {
   const { registryKey, ...modelOptions } = options;
   const lookupKeys = new Set<string>();
 
@@ -82,16 +83,16 @@ export function getOrCreateModel<
   }
 
   for (const key of lookupKeys) {
-    const existing = safeGetModel<TRecord, TVirtual, TInstance>(dal, key);
+    const existing = safeGetModel<TData, TVirtual, TInstance>(dal, key);
     if (existing) {
       return { model: existing, isNew: false };
     }
   }
 
-  const model = dal.createModel<TRecord, TVirtual>(tableName, schema, {
+  const model = dal.createModel<TData, TVirtual>(tableName, schema, {
     ...modelOptions,
     registryKey,
-  }) as ModelConstructor<TRecord, TVirtual, TInstance>;
+  }) as ModelConstructor<TData, TVirtual, TInstance>;
 
   return { model, isNew: true };
 }

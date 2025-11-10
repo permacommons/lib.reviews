@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import languages from '../locales/languages.ts';
+import { type ThingModel } from '../models/manifests/thing.ts';
 import Thing from '../models/thing.ts';
 import User from '../models/user.ts';
 import search from '../search.ts';
@@ -11,6 +12,7 @@ type ApiRouteRequest = HandlerRequest;
 type ApiRouteResponse = HandlerResponse;
 
 const router = Router();
+const ThingHandle = Thing as ThingModel;
 
 // For true/false user preferences.
 router.post('/actions/:modify-preference', actionHandler.modifyPreference);
@@ -44,34 +46,34 @@ router.get('/thing', (req: ApiRouteRequest, res: ApiRouteResponse, next: Handler
       return;
     }
 
-    Thing.lookupByURL(urlUtils.normalize(urlParam), userID)
-      .then(result => {
-        if (!result.length) {
+    ThingHandle.lookupByURL(urlUtils.normalize(urlParam), userID)
+      .then(things => {
+        const [thing] = things;
+        if (!thing) {
           res.status(404);
           rv.message = failureMsg;
           rv.errors = ['URL not found.'];
           res.type('json');
           res.send(JSON.stringify(rv, null, 2));
         } else {
-          result = result[0];
-          result
+          thing
             .populateReviewMetrics()
             .then(() => {
               res.status(200);
               rv.thing = {
-                id: result.id,
-                label: result.label,
-                aliases: result.aliases,
-                description: result.description,
-                originalLanguage: result.originalLanguage,
-                canonicalSlugName: result.canonicalSlugName,
-                urlID: result.urlID,
-                createdOn: result.createdOn,
-                createdBy: result.createdBy,
-                numberOfReviews: result.numberOfReviews,
-                averageStarRating: result.averageStarRating,
-                urls: result.urls,
-                reviews: result.reviews,
+                id: thing.id,
+                label: thing.label,
+                aliases: thing.aliases,
+                description: thing.description,
+                originalLanguage: thing.originalLanguage,
+                canonicalSlugName: thing.canonicalSlugName,
+                urlID: thing.urlID,
+                createdOn: thing.createdOn,
+                createdBy: thing.createdBy,
+                numberOfReviews: thing.numberOfReviews,
+                averageStarRating: thing.averageStarRating,
+                urls: thing.urls,
+                reviews: thing.reviews,
               };
               res.type('json');
               res.send(JSON.stringify(rv, null, 2));
@@ -123,7 +125,7 @@ router.get(
 router.get('/user/:name', (req: ApiRouteRequest, res: ApiRouteResponse) => {
   const { name } = req.params;
   const rv: Record<string, unknown> = {};
-  User.filter({
+  User.filterWhere({
     canonicalName: User.canonicalize(name),
   }).then(result => {
     if (result.length) {

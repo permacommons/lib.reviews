@@ -1,9 +1,10 @@
 import test from 'ava';
 
 import * as dalModule from '../dal/index.ts';
+import { createOperators, FilterWhereBuilder } from '../dal/lib/filter-where.ts';
 import Model, { type ModelSchema } from '../dal/lib/model.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
-import type { JsonObject } from '../dal/lib/model-types.ts';
+import type { JsonObject, ModelInstance } from '../dal/lib/model-types.ts';
 import QueryBuilder from '../dal/lib/query-builder.ts';
 import typesLib from '../dal/lib/type.ts';
 import type { RuntimeModel } from './helpers/dal-mocks.ts';
@@ -14,6 +15,15 @@ import {
 } from './helpers/dal-mocks.ts';
 
 type QueryBuilderArgs = ConstructorParameters<typeof QueryBuilder>;
+
+type DefaultRecord = {
+  id: string;
+  name?: string;
+  createdOn?: string;
+};
+type DefaultInstance = ModelInstance<DefaultRecord, JsonObject>;
+type RevisionRecord = DefaultRecord & { _revID?: string };
+type RevisionInstance = ModelInstance<RevisionRecord, JsonObject>;
 
 /**
  * Unit tests for QueryBuilder functionality
@@ -27,12 +37,25 @@ test('QueryBuilder can be instantiated', t => {
   t.is(qb.tableName, 'test_table');
 });
 
-test('QueryBuilder supports filter method', t => {
+test('FilterWhereBuilder applies literal predicates to QueryBuilder', t => {
   const { qb } = createQueryBuilderHarness();
-  const result = qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
 
-  t.is(result, qb); // Should return self for chaining
-  t.true(qb._where.length > 0);
+  const result = builder.and({ id: 'test-id' });
+
+  t.is(result, builder, 'FilterWhereBuilder.and should return the builder instance');
+  t.is(qb._where.length, 1);
+  const predicate = qb._where[0];
+  if (predicate?.type !== 'basic') {
+    t.fail('Expected FilterWhereBuilder to add a basic predicate for literal values');
+    return;
+  }
+  t.is(predicate.column, 'id');
+  t.is(predicate.operator, '=');
+  t.is(predicate.value, 'test-id');
 });
 
 test('QueryBuilder supports orderBy method', t => {
@@ -42,6 +65,183 @@ test('QueryBuilder supports orderBy method', t => {
   t.is(result, qb); // Should return self for chaining
   t.true(qb._orderBy.length > 0);
   t.is(qb._orderBy[0], 'created_on DESC');
+});
+
+test('FilterWhereBuilder resolves manifest keys before delegating', t => {
+  const schema = {
+    id: typesLib.string(),
+    createdOn: typesLib.string(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on' },
+  });
+
+  type Data = { id: string; createdOn: string };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+
+  builder.orderBy('createdOn', 'DESC').whereIn('id', ['a', 'b']);
+
+  t.deepEqual(qb._orderBy, ['created_on DESC']);
+  const predicate = qb._where[0] as { column: string } | undefined;
+  t.truthy(predicate);
+  t.is(predicate?.column, 'id');
+});
+
+test('FilterWhere operator helpers build advanced predicates', t => {
+  type Data = {
+    id: string;
+    status: string;
+    score: number;
+    createdOn: Date;
+    isActive: boolean | null;
+    metadata: JsonObject;
+  };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const schema = {
+    id: typesLib.string(),
+    status: typesLib.string(),
+    score: typesLib.number(),
+    created_on: typesLib.date(),
+    is_active: typesLib.boolean(),
+    metadata: typesLib.object(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on', isActive: 'is_active' },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+  const ops = createOperators<Data>();
+
+  builder
+    .and({
+      status: ops.in(['draft', 'published']),
+      id: ops.in(['one'], { cast: 'uuid[]' }),
+    })
+    .and({ score: ops.between(10, 20, { leftBound: 'open', rightBound: 'closed' }) })
+    .and({ score: ops.notBetween(30, 40, { leftBound: 'open', rightBound: 'open' }) })
+    .and({ metadata: ops.jsonContains({ foo: 'bar' }) })
+    .and({ isActive: ops.not() });
+
+  t.is(qb._where.length, 6);
+
+  const [
+    anyPredicate,
+    castPredicate,
+    betweenGroup,
+    notBetweenGroup,
+    jsonPredicate,
+    booleanPredicate,
+  ] = qb._where;
+
+  if (!anyPredicate || anyPredicate.type !== 'basic') {
+    t.fail('Expected first predicate to be basic');
+    return;
+  }
+  t.is(anyPredicate.operator, '= ANY');
+  t.deepEqual(anyPredicate.value, ['draft', 'published']);
+  t.truthy(anyPredicate.valueTransform);
+  t.is(anyPredicate.valueTransform?.('__value__'), '(__value__)');
+
+  if (!castPredicate || castPredicate.type !== 'basic') {
+    t.fail('Expected second predicate to be basic');
+    return;
+  }
+  t.is(castPredicate.operator, '= ANY');
+  t.deepEqual(castPredicate.value, ['one']);
+  t.is(castPredicate.valueTransform?.('__value__'), '(__value__::uuid[])');
+
+  if (!betweenGroup || betweenGroup.type !== 'group') {
+    t.fail('Expected third predicate to be a group');
+    return;
+  }
+  t.is(betweenGroup.conjunction, 'AND');
+  const [lowerBetween, upperBetween] = betweenGroup.predicates;
+  t.truthy(lowerBetween && upperBetween);
+  if (lowerBetween?.type === 'basic' && upperBetween?.type === 'basic') {
+    t.is(lowerBetween.operator, '>');
+    t.is(upperBetween.operator, '<=');
+    t.is(lowerBetween.value, 10);
+    t.is(upperBetween.value, 20);
+  } else {
+    t.fail('Between group predicates should be basic');
+  }
+
+  if (!notBetweenGroup || notBetweenGroup.type !== 'group') {
+    t.fail('Expected fourth predicate to be a group');
+    return;
+  }
+  t.is(notBetweenGroup.conjunction, 'OR');
+  const [lowerNotBetween, upperNotBetween] = notBetweenGroup.predicates;
+  t.truthy(lowerNotBetween && upperNotBetween);
+  if (lowerNotBetween?.type === 'basic' && upperNotBetween?.type === 'basic') {
+    t.is(lowerNotBetween.operator, '<=');
+    t.is(upperNotBetween.operator, '>=');
+    t.is(lowerNotBetween.value, 30);
+    t.is(upperNotBetween.value, 40);
+  } else {
+    t.fail('NotBetween group predicates should be basic');
+  }
+
+  if (!jsonPredicate || jsonPredicate.type !== 'basic') {
+    t.fail('Expected fifth predicate to be basic');
+    return;
+  }
+  t.is(jsonPredicate.operator, '@>');
+  t.is(jsonPredicate.value, JSON.stringify({ foo: 'bar' }));
+  t.is(jsonPredicate.valueTransform?.('__value__'), '__value__::jsonb');
+
+  if (!booleanPredicate || booleanPredicate.type !== 'basic') {
+    t.fail('Expected sixth predicate to be basic');
+    return;
+  }
+  t.is(booleanPredicate.operator, 'IS NOT');
+  t.true(booleanPredicate.value);
+  t.is(booleanPredicate.valueTransform?.('__value__'), '__value__');
+});
+
+test('FilterWhere operators enforce non-empty IN arrays at runtime', t => {
+  type MinimalRecord = JsonObject & { id: string };
+  const ops = createOperators<MinimalRecord>();
+  t.throws(() => ops.in([] as unknown as [string, ...string[]]), {
+    message: /requires at least one value/i,
+  });
+});
+
+test('FilterWhere between participates in OR groups', t => {
+  type Data = { value: number };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const schema = {
+    value: typesLib.number(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({ schema });
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+  const ops = createOperators<Data>();
+
+  builder.or({ value: ops.between(1, 5) });
+
+  t.is(qb._where.length, 1);
+  const groupPredicate = qb._where[0];
+  if (groupPredicate?.type !== 'group') {
+    t.fail('Expected OR predicate to be grouped');
+    return;
+  }
+  t.is(groupPredicate.conjunction, 'OR');
+  t.is(groupPredicate.predicates.length, 1);
+  const nested = groupPredicate.predicates[0];
+  if (nested?.type !== 'group') {
+    t.fail('Expected nested between group');
+    return;
+  }
+  t.is(nested.conjunction, 'AND');
 });
 
 test('QueryBuilder supports limit method', t => {
@@ -60,12 +260,64 @@ test('QueryBuilder supports offset method', t => {
   t.is(qb._offset, 5);
 });
 
-test('QueryBuilder supports revision filtering', t => {
+test('FilterWhereBuilder enforces revision guards before execution', async t => {
   const { qb } = createQueryBuilderHarness();
-  const result = qb.filterNotStaleOrDeleted();
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    true
+  );
 
-  t.is(result, qb); // Should return self for chaining
-  t.true(qb._where.length > 0);
+  await builder.run();
+
+  const oldRevisionPredicate = qb._where.find(predicate => predicate.column === '_old_rev_of');
+  t.truthy(oldRevisionPredicate);
+  t.is(oldRevisionPredicate?.operator, 'IS');
+
+  const deletedPredicate = qb._where.find(predicate => predicate.column === '_rev_deleted');
+  t.truthy(deletedPredicate);
+  t.is(deletedPredicate?.operator, '=');
+  t.false(deletedPredicate?.value);
+});
+
+test('FilterWhereBuilder can include deleted and stale revisions on demand', async t => {
+  const { qb } = createQueryBuilderHarness();
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    true
+  );
+
+  await builder.includeDeleted().includeStale().run();
+
+  const oldRevisionPredicate = qb._where.find(predicate => predicate.column === '_old_rev_of');
+  t.falsy(oldRevisionPredicate);
+
+  const deletedPredicate = qb._where.find(predicate => predicate.column === '_rev_deleted');
+  t.falsy(deletedPredicate);
+});
+
+test('FilterWhereBuilder sample enforces revision guards before delegating', async t => {
+  type Data = JsonObject & { id: string };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness();
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
+
+  const sampleRows = [{ id: 'example' }];
+  let delegatedCount: number | undefined;
+
+  const originalSample = qb.sample.bind(qb);
+  type SampleReturn = Awaited<ReturnType<typeof originalSample>>;
+
+  qb.sample = (async (count = 1) => {
+    delegatedCount = count;
+    return sampleRows as unknown as SampleReturn;
+  }) as typeof qb.sample;
+
+  const results = await builder.sample(2);
+
+  t.is(delegatedCount, 2);
+  t.is(results, sampleRows as unknown as Instance[]);
+
   const oldRevisionPredicate = qb._where.find(predicate => predicate.column === '_old_rev_of');
   t.truthy(oldRevisionPredicate);
   t.is(oldRevisionPredicate.operator, 'IS');
@@ -74,6 +326,33 @@ test('QueryBuilder supports revision filtering', t => {
   t.truthy(deletedPredicate);
   t.is(deletedPredicate.operator, '=');
   t.false(deletedPredicate.value);
+});
+
+test('FilterWhereBuilder.revisionData applies revision predicates', t => {
+  const schema = {
+    id: typesLib.string(),
+    name: typesLib.string(),
+    created_on: typesLib.string(),
+    _rev_id: typesLib.string(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on', _revID: '_rev_id' },
+  });
+
+  const builder = new FilterWhereBuilder<RevisionRecord, JsonObject, RevisionInstance, string>(
+    qb,
+    true
+  );
+
+  const revId = 'rev-123';
+  builder.revisionData({ _revID: revId });
+
+  const predicate = qb._where.find(entry => entry.column === '_rev_id');
+  t.truthy(predicate);
+  t.is(predicate?.operator, '=');
+  t.is(predicate?.value, revId);
 });
 
 test('QueryBuilder supports revision tag filtering', t => {
@@ -175,7 +454,11 @@ test('QueryBuilder supports complex joins with _apply', t => {
 
 test('QueryBuilder builds SELECT queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
+  builder.and({ id: 'test-id' });
   qb.orderBy('created_on', 'DESC');
   qb.limit(10);
   qb.offset(5);
@@ -193,7 +476,11 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 
 test('QueryBuilder builds COUNT queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
+  builder.and({ id: 'test-id' });
 
   const { sql: countSql, params: countParams } = qb._buildCountQuery();
 
@@ -205,7 +492,11 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 
 test('QueryBuilder builds DELETE queries correctly', t => {
   const { qb } = createQueryBuilderHarness();
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
+  builder.and({ id: 'test-id' });
 
   const { sql: deleteSql, params: deleteParams } = qb._buildDeleteQuery();
 
@@ -272,19 +563,21 @@ test('QueryBuilder handles schema namespace prefixing', t => {
   t.is(tableName2, 'users');
 });
 
-test('QueryBuilder method chaining works correctly', t => {
+test('FilterWhereBuilder method chaining works correctly', t => {
   const { qb } = createQueryBuilderHarness();
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    true
+  );
 
-  // Test method chaining
-  const result = qb
-    .filter({ status: 'active' })
-    .filterNotStaleOrDeleted()
-    .orderBy('created_on', 'DESC')
+  const result = builder
+    .and({ id: 'active-record' })
+    .orderBy('createdOn', 'DESC')
     .limit(10)
     .offset(5)
     .getJoin({ creator: true });
 
-  t.is(result, qb); // Should return the same instance
+  t.is(result, builder); // Should return the same builder instance
   t.true(qb._where.length > 0);
   t.true(qb._orderBy.length > 0);
   t.is(qb._limit, 10);
@@ -427,7 +720,11 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
   TestModel._registerFieldMapping('email', 'email');
 
   const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
+  builder.and({ id: 'test-id' });
 
   const { sql } = qb._buildSelectQuery();
 
@@ -454,7 +751,11 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
   TestModel._registerFieldMapping('email', 'email');
 
   const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
-  qb.filter({ id: 'test-id' });
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
+  builder.and({ id: 'test-id' });
   qb.includeSensitive(['password']);
 
   const { sql } = qb._buildSelectQuery();

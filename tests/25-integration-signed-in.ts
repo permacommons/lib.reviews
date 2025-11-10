@@ -329,7 +329,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
     .expect(302);
 
   // Verify join request was created with status=pending
-  let joinRequests = await TeamJoinRequest.filter({ userID: user.id });
+  let joinRequests = await TeamJoinRequest.filterWhere({ userID: user.id });
   t.is(joinRequests.length, 1);
   t.is(joinRequests[0].status, 'pending');
   t.is(joinRequests[0].requestMessage, 'I would like to join');
@@ -357,7 +357,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
     .expect(302);
 
   // Verify request status changed to approved
-  joinRequests = await TeamJoinRequest.filter({ userID: user.id });
+  joinRequests = await TeamJoinRequest.filterWhere({ userID: user.id });
   t.is(joinRequests[0].status, 'approved');
 
   // User should now be a member
@@ -371,7 +371,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
   await userAgent.post(`${teamURL}/leave`).type('form').send({ _csrf: leaveCsrf }).expect(302);
 
   // Verify request status changed to withdrawn
-  joinRequests = await TeamJoinRequest.filter({ userID: user.id });
+  joinRequests = await TeamJoinRequest.filterWhere({ userID: user.id });
   t.is(joinRequests[0].status, 'withdrawn');
 
   // User is no longer a member
@@ -399,7 +399,7 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
     .expect(302);
 
   // Verify same request was updated (not a new one created)
-  joinRequests = await TeamJoinRequest.filter({ userID: user.id });
+  joinRequests = await TeamJoinRequest.filterWhere({ userID: user.id });
   t.is(joinRequests.length, 1, 'Should still only have one request record');
   t.is(joinRequests[0].status, 'pending', 'Status should be back to pending');
   t.is(joinRequests[0].requestMessage, 'I would like to rejoin', 'Message should be updated');

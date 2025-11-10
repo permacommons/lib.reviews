@@ -1,7 +1,13 @@
 import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
 import { DocumentNotFound, InvalidUUIDError, ValidationError } from './errors.ts';
-import QueryBuilder from './query-builder.ts';
+import type {
+  FilterWhereQueryBuilder,
+  JsonObject,
+  RevisionActor,
+  VersionedModelConstructor,
+  VersionedModelInstance,
+} from './model-types.ts';
 import types from './type.ts';
 
 /**
@@ -11,68 +17,87 @@ import types from './type.ts';
  * features like partial indexes for performance.
  */
 
-export interface ModelInstance {
-  id: string;
-  _data: Record<string, any>;
-  _changed: Set<string>;
-  save(options?: Record<string, unknown>): Promise<this>;
-  newRevision(user: unknown, options?: { tags?: string[]; date?: Date }): Promise<this>;
-  [key: string]: any;
-}
-
-export interface ModelConstructorLike {
-  new (data?: Record<string, unknown>): ModelInstance;
-  tableName: string;
-  dal: {
-    query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<{ rows: T[] }>;
-  };
-  _createInstance(row: Record<string, unknown>): ModelInstance;
+export interface ModelConstructorLike<
+  TData extends JsonObject = JsonObject,
+  TVirtual extends JsonObject = JsonObject,
+  TInstance extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
+    TData,
+    TVirtual
+  >,
+> extends VersionedModelConstructor<TData, TVirtual, TInstance> {
+  _createInstance(row: JsonObject): TInstance;
   _registerFieldMapping?(camel: string, snake: string): void;
 }
 
+type FilterWhereCapable<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends VersionedModelInstance<TData, TVirtual>,
+> = {
+  filterWhere?: (
+    literal: JsonObject
+  ) => FilterWhereQueryBuilder<TData, TVirtual, TInstance, string>;
+};
+
 export interface RevisionHelpers {
-  applyRevisionMetadata(
-    instance: ModelInstance,
+  applyRevisionMetadata<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(
+    instance: TInstance,
     options?: {
-      user?: { id?: string } | null;
-      userId?: string | null;
+      user?: RevisionActor | null;
       date?: Date | string;
       tags?: string[] | string | null;
       revId?: string | null;
     }
-  ): ModelInstance;
-  getNewRevisionHandler(
-    ModelClass: ModelConstructorLike
+  ): TInstance;
+  getNewRevisionHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(
+    ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>
   ): (
-    this: ModelInstance,
-    user: { id?: string } | null,
+    this: TInstance,
+    user: RevisionActor | null,
     options?: { tags?: string[] }
-  ) => Promise<ModelInstance>;
-  getDeleteAllRevisionsHandler(
-    ModelClass: ModelConstructorLike
+  ) => Promise<VersionedModelInstance<TData, TVirtual>>;
+  getDeleteAllRevisionsHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(
+    ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>
   ): (
-    this: ModelInstance,
-    user: { id?: string } | null,
+    this: TInstance,
+    user: RevisionActor | null,
     options?: { tags?: string[] }
-  ) => Promise<ModelInstance>;
-  getNotStaleOrDeletedGetHandler(
-    ModelClass: ModelConstructorLike
+  ) => Promise<VersionedModelInstance<TData, TVirtual>>;
+  getNotStaleOrDeletedGetHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(
+    ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>
+  ): (id: string, joinOptions?: JsonObject) => Promise<VersionedModelInstance<TData, TVirtual>>;
+  getFirstRevisionHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(
+    ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>
   ): (
-    this: ModelInstance,
-    id: string,
-    joinOptions?: Record<string, unknown>
-  ) => Promise<ModelInstance>;
-  getFirstRevisionHandler(
-    ModelClass: ModelConstructorLike
-  ): (
-    this: ModelInstance,
-    user: { id?: string } | null,
+    this: TInstance,
+    user: RevisionActor | null,
     options?: { tags?: string[]; date?: Date }
-  ) => Promise<ModelInstance>;
-  getNotStaleOrDeletedFilterHandler(ModelClass: ModelConstructorLike): () => unknown;
-  getMultipleNotStaleOrDeletedHandler(
-    ModelClass: ModelConstructorLike
-  ): (idArray: string[]) => unknown;
+  ) => Promise<VersionedModelInstance<TData, TVirtual>>;
+  getMultipleNotStaleOrDeletedHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>): (idArray: string[]) => unknown;
   getSchema(): Record<string, unknown>;
   registerFieldMappings(ModelClass: ModelConstructorLike): void;
   deletedError: Error;
@@ -93,6 +118,16 @@ deletedError.name = 'RevisionDeletedError';
 const staleError = new Error('Outdated revision.');
 staleError.name = 'RevisionStaleError';
 
+type RevisionUserInput = RevisionActor | null | undefined;
+
+const resolveRevisionUserId = (user: RevisionUserInput): string | null => {
+  if (!user) {
+    return null;
+  }
+
+  return user.id;
+};
+
 /**
  * Apply revision metadata to a model instance
  *
@@ -102,32 +137,30 @@ staleError.name = 'RevisionStaleError';
  * @param instance - Model instance to stamp
  * @param options - Metadata options
  * @param [options.user] - User object providing the ID
- * @param [options.userId] - Explicit user ID (if user object omitted)
  * @param [options.date] - Revision timestamp (defaults to now)
  * @param [options.tags] - Revision tags
  * @param [options.revId] - Explicit revision ID (generated if absent)
  * @returns The same model instance for chaining
  */
-const applyRevisionMetadata = (
-  instance: ModelInstance,
+const applyRevisionMetadata = <
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends VersionedModelInstance<TData, TVirtual>,
+>(
+  instance: TInstance,
   {
     user = null,
-    userId = null,
     date = new Date(),
     tags = [],
     revId = null,
   }: {
-    user?: { id?: string } | null;
-    userId?: string | null;
+    user?: RevisionActor | null;
     date?: Date | string;
     tags?: string[] | string | null;
     revId?: string | null;
   } = {}
-): ModelInstance => {
-  const resolvedUserId =
-    user && typeof user === 'object' && 'id' in user && typeof user.id === 'string'
-      ? user.id
-      : userId;
+): TInstance => {
+  const resolvedUserId = resolveRevisionUserId(user);
   if (!resolvedUserId) {
     throw new ValidationError('Revision metadata requires a user ID');
   }
@@ -160,7 +193,11 @@ const revision: RevisionHelpers = {
    * @param ModelClass - The model class
    * @returns New revision handler function
    */
-  getNewRevisionHandler(ModelClass) {
+  getNewRevisionHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>) {
     /**
      * Create a new revision by archiving the current revision and preparing
      * a new one with updated revision metadata
@@ -171,8 +208,8 @@ const revision: RevisionHelpers = {
      * @returns New revision instance
      */
     const newRevision = async function (
-      this: ModelInstance,
-      user: { id?: string } | null,
+      this: TInstance,
+      user: RevisionActor | null,
       { tags }: { tags?: string[] } = {}
     ) {
       const currentRev = this;
@@ -193,9 +230,8 @@ const revision: RevisionHelpers = {
       await ModelClass.dal.query(insertQuery, insertValues);
 
       const metadataDate = new Date();
-      applyRevisionMetadata(currentRev, {
+      applyRevisionMetadata<TData, TVirtual, TInstance>(currentRev, {
         user,
-        userId: user?.id ?? null,
         date: metadataDate,
         tags,
       });
@@ -212,7 +248,11 @@ const revision: RevisionHelpers = {
    * @param ModelClass - The model class
    * @returns Delete all revisions handler
    */
-  getDeleteAllRevisionsHandler(ModelClass) {
+  getDeleteAllRevisionsHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>) {
     /**
      * Mark all revisions as deleted by creating a deletion revision
      * and updating all related revisions
@@ -223,8 +263,8 @@ const revision: RevisionHelpers = {
      * @returns Deletion revision
      */
     const deleteAllRevisions = async function (
-      this: ModelInstance,
-      user: { id?: string } | null,
+      this: TInstance,
+      user: RevisionActor | null,
       { tags = [] }: { tags?: string[] } = {}
     ) {
       const id = this.id;
@@ -256,7 +296,11 @@ const revision: RevisionHelpers = {
    * @param ModelClass - The model class
    * @returns Get handler for current revisions
    */
-  getNotStaleOrDeletedGetHandler(ModelClass) {
+  getNotStaleOrDeletedGetHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>) {
     /**
      * Get a record by ID, ensuring it's not stale or deleted
      *
@@ -265,29 +309,32 @@ const revision: RevisionHelpers = {
      * @returns Model instance
      * @throws If revision is deleted or stale
      */
-    const getNotStaleOrDeleted = async function (
-      this: ModelInstance,
-      id: string,
-      joinOptions: Record<string, unknown> = {}
-    ) {
+    const getNotStaleOrDeleted = async (id: string, joinOptions: Record<string, unknown> = {}) => {
       // Validate UUID format before querying database to avoid PostgreSQL syntax errors
       if (!isUUID.v4(id)) {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);
       }
 
-      let data: ModelInstance | null = null;
+      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>)
+        .filterWhere;
+      if (typeof filterWhere !== 'function') {
+        throw new Error(
+          `Model "${ModelClass.tableName}" must expose filterWhere. Ensure defineModel() initialized this constructor.`
+        );
+      }
+
+      const builder = filterWhere
+        .call(ModelClass, {} as JsonObject)
+        .includeDeleted()
+        .includeStale();
+      const idField = 'id' as Extract<keyof TData, string>;
+      builder.whereIn(idField, [id], { cast: 'uuid[]' });
 
       if (Object.keys(joinOptions).length > 0) {
-        const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
-        data = await query.filter({ id }).getJoin(joinOptions).first();
-      } else {
-        const queryText = `
-          SELECT * FROM ${ModelClass.tableName}
-          WHERE id = $1
-        `;
-        const result = await ModelClass.dal.query(queryText, [id]);
-        data = result.rows[0] ? ModelClass._createInstance(result.rows[0]) : null;
+        builder.getJoin(joinOptions as never);
       }
+
+      const data = (await builder.first()) as TInstance | null;
 
       if (!data) {
         throw new DocumentNotFound(`${ModelClass.tableName} with id ${id} not found`);
@@ -313,7 +360,11 @@ const revision: RevisionHelpers = {
    * @param ModelClass - The model class
    * @returns First revision creator
    */
-  getFirstRevisionHandler(ModelClass) {
+  getFirstRevisionHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>) {
     /**
      * Create the first revision of a model instance
      *
@@ -323,17 +374,12 @@ const revision: RevisionHelpers = {
      * @returns First revision instance
      */
     const createFirstRevision = async function (
-      this: ModelInstance,
-      user: { id?: string } | null,
+      this: TInstance,
+      user: RevisionActor | null,
       { tags, date = new Date() }: { tags?: string[]; date?: Date } = {}
     ) {
-      const firstRev = new ModelClass({});
-      applyRevisionMetadata(firstRev, {
-        user,
-        userId: user?.id ?? null,
-        date,
-        tags,
-      });
+      const firstRev = new ModelClass({}) as TInstance;
+      applyRevisionMetadata<TData, TVirtual, TInstance>(firstRev, { user, date, tags });
 
       return firstRev;
     };
@@ -342,46 +388,42 @@ const revision: RevisionHelpers = {
   },
 
   /**
-   * Get a function that filters records to exclude stale and deleted revisions
-   *
-   * @param ModelClass - The model class
-   * @returns Filter function for current revisions
-   */
-  getNotStaleOrDeletedFilterHandler(ModelClass) {
-    /**
-     * Filter records to exclude stale and deleted revisions
-     *
-     * @returns Query builder with revision filters applied
-     */
-    const filterNotStaleOrDeleted = () => {
-      const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
-      return query.filterNotStaleOrDeleted();
-    };
-
-    return filterNotStaleOrDeleted;
-  },
-
-  /**
    * Get a function that retrieves multiple records by IDs, excluding stale and deleted revisions
    *
    * @param ModelClass - The model class
    * @returns Multiple get handler for current revisions
    */
-  getMultipleNotStaleOrDeletedHandler(ModelClass) {
+  getMultipleNotStaleOrDeletedHandler<
+    TData extends JsonObject,
+    TVirtual extends JsonObject,
+    TInstance extends VersionedModelInstance<TData, TVirtual>,
+  >(ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>) {
     /**
      * Get multiple records by IDs, excluding stale and deleted revisions
      *
      * @param idArray - Array of record IDs
      * @returns Query builder for chaining
      */
-    const getMultipleNotStaleOrDeleted = (idArray: string[]) => {
-      const query = new (QueryBuilder as any)(ModelClass, ModelClass.dal);
+    const getMultipleNotStaleOrDeleted = (ids: string[]) => {
+      const filterWhere = (ModelClass as FilterWhereCapable<TData, TVirtual, TInstance>)
+        .filterWhere;
 
-      if (idArray.length > 0) {
-        query.whereIn('id', idArray, { cast: 'uuid[]' });
+      if (typeof filterWhere !== 'function') {
+        throw new Error(
+          `Model "${ModelClass.tableName}" must expose filterWhere. Ensure defineModel() initialized this constructor.`
+        );
       }
 
-      return query.filterNotStaleOrDeleted();
+      const builder = filterWhere.call(ModelClass, {} as JsonObject);
+      const idField = 'id' as Extract<keyof TData, string>;
+
+      if (ids.length > 0) {
+        builder.whereIn(idField, ids, { cast: 'uuid[]' });
+      } else {
+        builder.limit(0);
+      }
+
+      return builder;
     };
 
     return getMultipleNotStaleOrDeleted;
@@ -422,7 +464,5 @@ const revision: RevisionHelpers = {
   deletedError,
   staleError,
 };
-
-export { revision };
 
 export default revision;

@@ -1,399 +1,298 @@
 import bcrypt from 'bcrypt';
 
-import dal from '../dal/index.ts';
+import {
+  defineInstanceMethods,
+  defineModel,
+  defineStaticMethods,
+} from '../dal/lib/create-model.ts';
 import { DocumentNotFound } from '../dal/lib/errors.ts';
-import { createModelModule } from '../dal/lib/model-handle.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
-import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
+import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import Team from './team.ts';
-import UserMeta from './user-meta.ts';
+import { referenceTeam } from './manifests/team.ts';
+import userManifest, {
+  type CreateUserPayload,
+  canonicalize,
+  type UserInstance,
+  type UserInstanceMethods,
+  type UserModel,
+  type UserStaticMethods,
+  type UserViewer,
+  userOptions,
+} from './manifests/user.ts';
+import { referenceUserMeta, type UserMetaInstance } from './manifests/user-meta.ts';
 
-type PostgresModule = typeof import('../db-postgres.ts');
-
-type UserRecord = JsonObject;
-type UserVirtual = JsonObject;
-type UserInstance = ModelInstance<UserRecord, UserVirtual> & Record<string, any>;
-type UserModel = ModelConstructor<UserRecord, UserVirtual, UserInstance> & Record<string, any>;
-type NewUserErrorOptions = ReportedErrorOptions & {
-  payload?: Record<string, any>;
-  parentError?: Error;
-};
-
-const { proxy: userHandleProxy, register: registerUserHandle } = createModelModule<
-  UserRecord,
-  UserVirtual,
-  UserInstance
->({
-  tableName: 'users',
-});
-
-const UserHandle = userHandleProxy as UserModel;
-const { types } = dal as unknown as { types: Record<string, any> };
-
-const userOptions = {
-  maxChars: 128,
-  illegalChars: /[<>;"&?!./_]/,
-  minPasswordLength: 6,
-  illegalCharsReadable: '',
-};
+const Team = referenceTeam();
+const UserMeta = referenceUserMeta();
 
 const BCRYPT_ROUNDS = 10; // matches legacy bcrypt-nodejs default cost
 
-// Erm, if we add [, ] or \ to forbidden chars, we'll have to fix this :)
-userOptions.illegalCharsReadable = userOptions.illegalChars.source.replace(/[\[\]\\]/g, '');
+type FindByURLNameOptions = GetOptions & {
+  withData?: boolean;
+  withTeams?: boolean;
+};
 
-let User: UserModel | null = null;
-let postgresModulePromise: Promise<PostgresModule> | null = null;
+const userStatics = {
+  options: userOptions,
+} as const;
 
-async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
+const userStaticMethods = defineStaticMethods(userManifest, {
+  /**
+   * Increase a user's invite link count and return the new total.
+   *
+   * @param id - Identifier of the user to update
+   * @returns The updated invite count
+   */
+  async increaseInviteLinkCount(this: UserModel, id: string) {
+    const query = `
+        UPDATE ${this.tableName ?? 'users'}
+        SET invite_link_count = invite_link_count + 1
+        WHERE id = $1
+        RETURNING invite_link_count
+      `;
 
-  return postgresModulePromise;
-}
+    const result = await this.dal.query(query, [id]);
+    if (!result.rows.length) throw new Error(`User with id ${id} not found`);
 
-async function getPostgresDAL(): Promise<Record<string, any>> {
-  const module = await loadDbPostgres();
-  return module.getPostgresDAL();
-}
+    return (result.rows[0] as { invite_link_count: number }).invite_link_count;
+  },
+  /**
+   * Create a new user record from the supplied payload.
+   *
+   * @param userObj - User attributes to persist
+   * @returns The created user instance
+   * @throws NewUserError if validation fails or the user exists
+   */
+  async create(this: UserModel, userObj: CreateUserPayload) {
+    const user = new this({}) as UserInstance;
 
-/**
- * Initialize the PostgreSQL User model.
- *
- * @param dalInstance - Optional DAL instance for testing
- * @returns The initialized model or null if the DAL is unavailable
- */
-export async function initializeUserModel(
-  dalInstance: Record<string, any> | null = null
-): Promise<UserModel | null> {
-  try {
-    debug.db('Starting User model initialization...');
-    const activeDAL = dalInstance ?? (await getPostgresDAL());
-
-    if (!activeDAL) {
-      debug.db('PostgreSQL DAL not available, skipping User model initialization');
-      return null;
+    if (!userObj || typeof userObj !== 'object') {
+      throw new NewUserError({
+        message: 'We need a user object containing the user data to create a new user.',
+      });
     }
 
-    debug.db('DAL available, creating User model...');
-    const userSchema = {
-      id: types.string().uuid(4),
-      displayName: types
-        .string()
-        .max(userOptions.maxChars)
-        .validator(_containsOnlyLegalCharacters)
-        .required(),
-      canonicalName: types
-        .string()
-        .max(userOptions.maxChars)
-        .validator(_containsOnlyLegalCharacters)
-        .required(),
-      email: types.string().max(userOptions.maxChars).email().sensitive(),
-      password: types.string().sensitive(),
-      userMetaID: types.string().uuid(4),
-      inviteLinkCount: types.number().integer().default(0),
-      registrationDate: types.date().default(() => new Date()),
-      showErrorDetails: types.boolean().default(false),
-      isTrusted: types.boolean().default(false),
-      isSiteModerator: types.boolean().default(false),
-      isSuperUser: types.boolean().default(false),
-      suppressedNotices: types.array(types.string()),
-      prefersRichTextEditor: types.boolean().default(false),
-      urlName: types.virtual().default(function (this: UserInstance) {
-        const displayName =
-          typeof this.getValue === 'function' ? this.getValue('displayName') : this.displayName;
-        return displayName ? encodeURIComponent(String(displayName).replace(/ /g, '_')) : undefined;
-      }),
-      userCanEditMetadata: types.virtual().default(false),
-      userCanUploadTempFiles: types.virtual().default(function (this: UserInstance) {
-        const isTrusted =
-          typeof this.getValue === 'function' ? this.getValue('isTrusted') : this.isTrusted;
-        const isSuperUser =
-          typeof this.getValue === 'function' ? this.getValue('isSuperUser') : this.isSuperUser;
-        return Boolean(isTrusted || isSuperUser);
-      }),
-    } as JsonObject;
+    try {
+      user.setName(userObj.name);
+      if (userObj.email) user.email = userObj.email;
 
-    const { model, isNew } = initializeModel<UserRecord, UserVirtual, UserInstance>({
-      dal: activeDAL as any,
-      baseTable: 'users',
-      schema: userSchema,
-      camelToSnake: {
-        displayName: 'display_name',
-        canonicalName: 'canonical_name',
-        userMetaID: 'user_meta_id',
-        inviteLinkCount: 'invite_link_count',
-        registrationDate: 'registration_date',
-        showErrorDetails: 'show_error_details',
-        isTrusted: 'is_trusted',
-        isSiteModerator: 'is_site_moderator',
-        isSuperUser: 'is_super_user',
-        suppressedNotices: 'suppressed_notices',
-        prefersRichTextEditor: 'prefers_rich_text_editor',
-      },
-      staticMethods: {
-        increaseInviteLinkCount,
-        create: createUser,
-        ensureUnique,
-        getWithTeams,
-        findByURLName,
-        canonicalize,
-        createBio,
-      },
-      instanceMethods: {
-        populateUserInfo,
-        setName,
-        setPassword,
-        checkPassword,
-        getValidPreferences,
-      },
-      relations: [
-        {
-          name: 'teams',
-          targetTable: 'teams',
-          sourceKey: 'id',
-          targetKey: 'id',
-          hasRevisions: true,
-          through: {
-            table: 'team_members',
-            sourceForeignKey: 'user_id',
-            targetForeignKey: 'team_id',
-          },
-          cardinality: 'many',
-        },
-        {
-          name: 'moderatorOf',
-          targetTable: 'teams',
-          sourceKey: 'id',
-          targetKey: 'id',
-          hasRevisions: true,
-          through: {
-            table: 'team_moderators',
-            sourceForeignKey: 'user_id',
-            targetForeignKey: 'team_id',
-          },
-          cardinality: 'many',
-        },
-        {
-          name: 'meta',
-          targetTable: 'user_metas',
-          sourceKey: 'user_meta_id',
-          targetKey: 'id',
-          hasRevisions: true,
-          cardinality: 'one',
-        },
-      ] as any,
-    });
+      await this.ensureUnique(userObj.name);
+      await user.setPassword(userObj.password);
+      await user.save();
+      updateUploadPermission(user);
+    } catch (error) {
+      if (error instanceof NewUserError) throw error;
 
-    User = model as UserModel;
+      throw new NewUserError({
+        payload: { user },
+        parentError: error instanceof Error ? error : undefined,
+      });
+    }
 
-    if (!isNew) return User;
+    return user;
+  },
+  /**
+   * Ensure no other user already claims the provided name.
+   *
+   * @param name - Username to verify
+   * @returns True when the name is available
+   * @throws NewUserError if a conflicting user is found
+   */
+  async ensureUnique(this: UserModel, name: string) {
+    if (typeof name !== 'string') throw new Error('Username to check must be a string.');
 
-    Object.defineProperty(User, 'options', {
-      value: userOptions,
-      writable: false,
-      enumerable: true,
-      configurable: false,
-    });
+    const trimmed = name.trim();
+    const existingUser = await this.filterWhere({
+      canonicalName: canonicalize(trimmed),
+    }).first();
+    if (existingUser) {
+      throw new NewUserError({
+        message: 'A user named %s already exists.',
+        userMessage: 'username exists',
+        messageParams: [trimmed],
+      });
+    }
+    return true;
+  },
+  /**
+   * Retrieve a user and join their associated teams according to the options.
+   *
+   * @param id - User identifier to look up
+   * @param options - Join options forwarded to the DAL
+   * @returns The hydrated user instance or null if not found
+   */
+  async getWithTeams(this: UserModel, id: string, options: GetOptions = {}) {
+    const user = (await this.get(id, { teams: true, ...options })) as UserInstance | null;
+    return user;
+  },
+  /**
+   * Find a user by their decoded URL name, optionally including sensitive fields and teams.
+   *
+   * @param name - URL-decoded name to search for
+   * @param options - Controls included associations and sensitive fields
+   * @returns The matching user instance
+   * @throws DocumentNotFound if the user cannot be located
+   */
+  async findByURLName(this: UserModel, name: string, options: FindByURLNameOptions = {}) {
+    const trimmed = name.trim().replace(/_/g, ' ');
 
-    const prototype = User.prototype as UserInstance & {
-      _validate(): unknown;
-      _originalValidate?: () => unknown;
-      _isNew: boolean;
-    };
-    prototype._originalValidate = prototype._validate;
-    prototype._validate = function (this: typeof prototype) {
-      if (this._isNew && (!this.password || typeof this.password !== 'string'))
-        throw new Error('Password must be set to a non-empty string.');
+    let query = this.filterWhere({ canonicalName: canonicalize(trimmed) });
 
-      return this._originalValidate ? this._originalValidate.call(this) : undefined;
-    } as typeof prototype._validate;
+    if (
+      options.includeSensitive &&
+      Array.isArray(options.includeSensitive) &&
+      typeof query.includeSensitive === 'function'
+    ) {
+      query = query.includeSensitive(options.includeSensitive);
+    }
 
-    debug.db('PostgreSQL User model initialized with all methods');
-    return User;
-  } catch (error) {
-    debug.error('Failed to initialize PostgreSQL User model');
-    debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
-    return null;
-  }
-}
+    if (options.withData && typeof query.getJoin === 'function') {
+      query = query.getJoin({ meta: true });
+    }
 
-/**
- * Increase a user's invite link count and return the updated value.
- *
- * @param id - Unique identifier of the user
- * @returns Updated invite count
- */
-async function increaseInviteLinkCount(id: string): Promise<number> {
-  const model = (User ?? UserHandle) as UserModel;
-  const query = `
-    UPDATE ${model.tableName}
-    SET invite_link_count = invite_link_count + 1
-    WHERE id = $1
-    RETURNING invite_link_count
-  `;
+    const user = (await query.first()) as UserInstance | null;
+    if (!user) {
+      const notFoundError = new DocumentNotFound('User not found');
+      notFoundError.name = 'DocumentNotFoundError';
+      throw notFoundError;
+    }
 
-  const result = await model.dal.query(query, [id]);
-  if (!result.rows.length) throw new Error(`User with id ${id} not found`);
-
-  return result.rows[0].invite_link_count;
-}
-
-/**
- * Create a new user record from the supplied payload, hashing the password
- * and validating uniqueness before persisting the record.
- *
- * @param userObj - Plain object containing user attributes
- * @returns The created user instance
- * @throws NewUserError if validation fails or the user already exists
- */
-async function createUser(userObj: Record<string, any>): Promise<UserInstance> {
-  const model = (User ?? UserHandle) as UserModel;
-  const user = new model({});
-
-  if (!userObj || typeof userObj !== 'object') {
-    throw new NewUserError({
-      message: 'We need a user object containing the user data to create a new user.',
-    });
-  }
-
-  try {
-    user.setName(userObj.name);
-    if (userObj.email) user.email = userObj.email;
-
-    await model.ensureUnique(userObj.name);
-    await user.setPassword(userObj.password);
-    await user.save();
-    updateUploadPermission(user);
-  } catch (error) {
-    if (error instanceof NewUserError) throw error;
-
-    throw new NewUserError({
-      payload: { user },
-      parentError: error instanceof Error ? error : undefined,
-    });
-  }
-
-  return user;
-}
-
-/**
- * Throw if another user already exists with the provided name.
- *
- * @param name - Username to check for uniqueness
- * @returns True if the name is available
- * @throws NewUserError if a conflicting user already exists
- */
-async function ensureUnique(name: string): Promise<boolean> {
-  if (typeof name !== 'string') throw new Error('Username to check must be a string.');
-
-  const trimmed = name.trim();
-  const users = await UserHandle.filter({ canonicalName: canonicalize(trimmed) }).run();
-  if (users.length) {
-    throw new NewUserError({
-      message: 'A user named %s already exists.',
-      userMessage: 'username exists',
-      messageParams: [trimmed],
-    });
-  }
-  return true;
-}
-
-/**
- * Retrieve a user and join their associated teams according to the options.
- *
- * @param id - User identifier to look up
- * @param options - Query options forwarded to the DAL
- * @returns The hydrated user instance or null if not found
- */
-async function getWithTeams(
-  id: string,
-  options: Record<string, any> = {}
-): Promise<UserInstance | null> {
-  return UserHandle.get(id, {
-    teams: true,
-    ...options,
-  }) as Promise<UserInstance | null>;
-}
-
-/**
- * Find a user by their decoded URL name, optionally including sensitive
- * fields, metadata, and team associations.
- *
- * @param name - URL-decoded name to search for
- * @param options - Controls included associations and sensitive fields
- * @returns The matching user instance
- * @throws DocumentNotFound if the user cannot be located
- */
-async function findByURLName(
-  name: string,
-  options: Record<string, any> = {}
-): Promise<UserInstance> {
-  const model = (User ?? UserHandle) as UserModel;
-  const trimmed = name.trim().replace(/_/g, ' ');
-
-  let query = model.filter({ canonicalName: canonicalize(trimmed) });
-
-  if (
-    options.includeSensitive &&
-    Array.isArray(options.includeSensitive) &&
-    typeof query.includeSensitive === 'function'
-  )
-    query = query.includeSensitive(options.includeSensitive);
-
-  if (options.withData && typeof query.getJoin === 'function')
-    query = query.getJoin({ meta: true });
-
-  const users = await query.run();
-  if (users.length) {
-    const user = users[0] as UserInstance;
-
-    if (options.withTeams) await attachUserTeams(user);
+    if (options.withTeams) {
+      await _attachUserTeams(user);
+    }
 
     updateUploadPermission(user);
     return user;
-  }
+  },
+  /**
+   * Create or update the biography associated with a user and persist both entities.
+   *
+   * @param user - User instance that should receive the biography
+   * @param bioObj - Object containing multilingual bio data
+   * @returns The updated user instance
+   */
+  async createBio(
+    this: UserModel,
+    user: UserInstance,
+    bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>
+  ) {
+    const metaRev = await UserMeta.createFirstRevision(user, {
+      tags: ['create-bio-via-user'],
+    });
 
-  const notFoundError = new DocumentNotFound('User not found');
-  notFoundError.name = 'DocumentNotFoundError';
-  throw notFoundError;
-}
+    metaRev.bio = bioObj.bio;
+    metaRev.originalLanguage = bioObj.originalLanguage;
+
+    await metaRev.save();
+
+    user.userMetaID = metaRev.id as string;
+    user.meta = metaRev;
+    await user.save();
+    return user;
+  },
+  canonicalize,
+}) satisfies UserStaticMethods;
+
+const userInstanceMethods = defineInstanceMethods(userManifest, {
+  /**
+   * Populate permission flags on this instance relative to the provided viewer.
+   *
+   * @param user - Viewer whose rights should be reflected on the instance
+   */
+  populateUserInfo(this: UserInstance, user: UserViewer | null | undefined) {
+    if (!user) return;
+    if (user.id === this.id) this.userCanEditMetadata = true;
+  },
+  /**
+   * Update the user's display name and recompute derived identifiers without persisting.
+   *
+   * @param displayName - New display name to assign
+   */
+  setName(this: UserInstance, displayName: string) {
+    if (typeof displayName !== 'string') throw new Error('Username to set must be a string.');
+
+    const trimmed = displayName.trim();
+    this.displayName = trimmed;
+    this.canonicalName = canonicalize(trimmed);
+    this.generateVirtualValues();
+  },
+  /**
+   * Hash and set a user's password, enforcing the configured minimum length.
+   *
+   * @param password - Plain-text password to hash
+   * @returns Promise resolving with the stored hash
+   */
+  setPassword(this: UserInstance, password: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (typeof password !== 'string') {
+        reject(new Error('Password must be a string.'));
+        return;
+      }
+
+      if (password.length < userOptions.minPasswordLength) {
+        reject(
+          new NewUserError({
+            message: 'Password for new user is too short, must be at least %s characters.',
+            userMessage: 'password too short',
+            messageParams: [String(userOptions.minPasswordLength)],
+          })
+        );
+        return;
+      }
+
+      bcrypt.hash(password, BCRYPT_ROUNDS, (error, hash) => {
+        if (error) {
+          reject(error);
+        } else {
+          this.password = hash;
+          resolve(this.password as string);
+        }
+      });
+    });
+  },
+  /**
+   * Compare a plain-text password against the stored hash.
+   *
+   * @param password - Password candidate to verify
+   * @returns Promise resolving with true if the password matches
+   */
+  checkPassword(this: UserInstance, password: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      bcrypt.compare(password, this.password as string, (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      });
+    });
+  },
+  /**
+   * List the preference keys supported by the current API.
+   *
+   * @returns Array of preference names
+   */
+  getValidPreferences(this: UserInstance): string[] {
+    return ['prefersRichTextEditor'];
+  },
+}) satisfies UserInstanceMethods;
+
+const User = defineModel(userManifest, {
+  statics: userStatics,
+  staticMethods: userStaticMethods,
+  instanceMethods: userInstanceMethods,
+}) as UserModel;
+
+type NewUserErrorOptions = ReportedErrorOptions & {
+  payload?: { user?: UserInstance };
+  parentError?: Error;
+};
 
 /**
- * Transform a user name into its canonical uppercase representation for
- * duplicate checks.
+ * Update upload permissions on a user instance based on trust status.
  *
- * @param name - Name to canonicalize
- * @returns Uppercase representation used for lookups
+ * @param user - User instance to mutate
  */
-function canonicalize(name: string): string {
-  return name.toUpperCase();
-}
-
-/**
- * Create or update the biography associated with a user and persist both
- * entities.
- *
- * @param user - User instance that should receive the biography
- * @param bioObj - Object containing multilingual bio data
- * @returns The updated user instance
- */
-async function createBio(user: UserInstance, bioObj: Record<string, any>): Promise<UserInstance> {
-  const metaRev = await (UserMeta as any).createFirstRevision(user, {
-    tags: ['create-bio-via-user'],
-  });
-
-  metaRev.bio = bioObj.bio;
-  metaRev.originalLanguage = bioObj.originalLanguage;
-
-  await metaRev.save();
-
-  user.userMetaID = metaRev.id;
-  user.meta = metaRev;
-  await user.save();
-  return user;
+function updateUploadPermission(user: UserInstance): void {
+  user.userCanUploadTempFiles = Boolean(user.isTrusted || user.isSuperUser);
 }
 
 /**
@@ -401,13 +300,14 @@ async function createBio(user: UserInstance, bioObj: Record<string, any>): Promi
  *
  * @param user - User instance to enrich with team data
  */
-async function attachUserTeams(user: UserInstance): Promise<void> {
+async function _attachUserTeams(user: UserInstance): Promise<void> {
   user.teams = [];
   user.moderatorOf = [];
 
-  const teamModel = Team as UserModel;
-  const dalInstance = teamModel.dal;
-  const teamTable = teamModel.tableName;
+  const teamDal = Team.dal;
+  const teamTable = Team.tableName;
+  const createFromRow = Team.createFromRow;
+  const dalInstance = teamDal;
   const prefix = dalInstance.schemaNamespace || '';
   const memberTable = `${prefix}team_members`;
   const moderatorTable = `${prefix}team_moderators`;
@@ -417,13 +317,11 @@ async function attachUserTeams(user: UserInstance): Promise<void> {
     AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
   `;
 
-  const mapRowsToTeams = (rows: any[]) =>
-    rows.map(row =>
-      teamModel._createInstance ? teamModel._createInstance(row) : new (Team as any)(row)
-    );
+  const mapRowsToTeams = (rows: Array<Record<string, unknown>>) =>
+    rows.map(row => createFromRow(row));
 
   try {
-    const memberResult = await dalInstance.query(
+    const memberResult = await dalInstance.query<Record<string, unknown>>(
       `
         SELECT t.*
         FROM ${teamTable} t
@@ -440,7 +338,7 @@ async function attachUserTeams(user: UserInstance): Promise<void> {
   }
 
   try {
-    const moderatorResult = await dalInstance.query(
+    const moderatorResult = await dalInstance.query<Record<string, unknown>>(
       `
         SELECT t.*
         FROM ${teamTable} t
@@ -455,112 +353,6 @@ async function attachUserTeams(user: UserInstance): Promise<void> {
     debug.error('Error attaching moderation teams to user');
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
   }
-}
-
-/**
- * Populate permission flags on this user instance relative to the provided
- * viewer.
- *
- * @param user - Viewer whose rights should be reflected on the instance
- */
-function populateUserInfo(this: UserInstance, user: UserInstance | null | undefined): void {
-  if (!user) return;
-
-  if (user.id === this.id) this.userCanEditMetadata = true;
-}
-
-/**
- * Update the user's display name and recompute derived identifiers without
- * persisting changes.
- *
- * @param displayName - New display name to assign
- */
-function setName(this: UserInstance, displayName: string): void {
-  if (typeof displayName !== 'string') throw new Error('Username to set must be a string.');
-
-  const trimmed = displayName.trim();
-  this.displayName = trimmed;
-  this.canonicalName = canonicalize(trimmed);
-  this.generateVirtualValues();
-}
-
-/**
- * Hash and set a user's password, enforcing minimum length requirements.
- *
- * @param password - Plain text password to hash
- * @returns Promise resolving to the stored password hash
- */
-function setPassword(this: UserInstance, password: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (typeof password !== 'string') {
-      reject(new Error('Password must be a string.'));
-      return;
-    }
-
-    if (password.length < userOptions.minPasswordLength) {
-      reject(
-        new NewUserError({
-          message: 'Password for new user is too short, must be at least %s characters.',
-          userMessage: 'password too short',
-          messageParams: [String(userOptions.minPasswordLength)],
-        })
-      );
-      return;
-    }
-
-    bcrypt.hash(password, BCRYPT_ROUNDS, (error, hash) => {
-      if (error) {
-        reject(error);
-      } else {
-        this.password = hash;
-        resolve(this.password);
-      }
-    });
-  });
-}
-
-/**
- * Compare a plaintext password against the stored hash for this user.
- *
- * @param password - Plain text password to verify
- * @returns Promise resolving with true if the password matches
- */
-function checkPassword(this: UserInstance, password: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    bcrypt.compare(password, this.password, (error, result) => {
-      if (error) reject(error);
-      else resolve(result);
-    });
-  });
-}
-
-/**
- * List the preference keys that the current API supports toggling.
- *
- * @returns Array of preference names
- */
-function getValidPreferences(): string[] {
-  return ['prefersRichTextEditor'];
-}
-
-/**
- * Validate that the supplied username avoids characters disallowed by the
- * registration rules.
- *
- * @param name - Username to validate
- * @returns True when the name passes validation
- * @throws NewUserError if illegal characters are detected
- */
-function _containsOnlyLegalCharacters(name: string): true {
-  if (userOptions.illegalChars.test(name)) {
-    throw new NewUserError({
-      message: 'Username %s contains invalid characters.',
-      messageParams: [name],
-      userMessage: 'invalid username characters',
-      userMessageParams: [userOptions.illegalCharsReadable],
-    });
-  }
-  return true;
 }
 
 /**
@@ -593,22 +385,21 @@ class NewUserError extends ReportedError {
   }
 }
 
-function updateUploadPermission(user: UserInstance): void {
-  user.userCanUploadTempFiles = Boolean(user.isTrusted || user.isSuperUser);
-}
+export { NewUserError };
 
-registerUserHandle({
-  initializeModel: initializeUserModel,
-  handleOptions: {
-    staticProperties: {
-      options: userOptions,
-    },
-  },
-  additionalExports: {
-    initializeUserModel,
-    NewUserError,
-  },
-});
+export type {
+  CreateUserPayload,
+  UserInstance,
+  UserInstanceMethods,
+  UserModel,
+  UserStaticMethods,
+  UserViewer,
+} from './manifests/user.ts';
+export {
+  canonicalize,
+  containsOnlyLegalCharacters,
+  referenceUser,
+  userOptions,
+} from './manifests/user.ts';
 
-export default UserHandle;
-export { initializeUserModel as initializeModel, NewUserError };
+export default User;

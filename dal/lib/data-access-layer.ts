@@ -193,23 +193,23 @@ class DataAccessLayer implements DataAccessLayerContract {
    * @param options - Model options
    * @returns Model constructor
    */
-  createModel<TRecord extends JsonObject, TVirtual extends JsonObject = JsonObject>(
+  createModel<TData extends JsonObject, TVirtual extends JsonObject = JsonObject>(
     name: string,
-    schema: ModelSchema<TRecord, TVirtual>,
+    schema: ModelSchema<TData, TVirtual>,
     options: JsonObject = {}
-  ): ModelConstructor<TRecord, TVirtual> {
+  ): ModelConstructor<TData, TVirtual> {
     const { registryKey, ...modelOptions } = options || {};
     const canonicalKey = typeof registryKey === 'string' ? registryKey : name;
 
     const existing =
-      this.modelRegistry.get<TRecord, TVirtual>(name) ||
-      (canonicalKey !== name ? this.modelRegistry.get<TRecord, TVirtual>(canonicalKey) : null);
+      this.modelRegistry.get<TData, TVirtual>(name) ||
+      (canonicalKey !== name ? this.modelRegistry.get<TData, TVirtual>(canonicalKey) : null);
 
     if (existing) {
       throw new Error(`Model '${canonicalKey}' already exists`);
     }
 
-    const ModelClass = Model.createModel<TRecord, TVirtual>(name, schema, modelOptions, this);
+    const ModelClass = Model.createModel<TData, TVirtual>(name, schema, modelOptions, this);
     this.modelRegistry.register(name, ModelClass, { key: canonicalKey });
 
     debug.db(`Model '${name}' created`);
@@ -221,10 +221,10 @@ class DataAccessLayer implements DataAccessLayerContract {
    * @param name - Model name
    * @returns Model constructor
    */
-  getModel<TRecord extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
+  getModel<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
     name: string
-  ): ModelConstructor<TRecord, TVirtual> {
-    const model = this.modelRegistry.get<TRecord, TVirtual>(name);
+  ): ModelConstructor<TData, TVirtual> {
+    const model = this.modelRegistry.get<TData, TVirtual>(name);
     if (!model) {
       throw new Error(`Model '${name}' not found`);
     }

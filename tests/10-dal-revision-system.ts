@@ -67,7 +67,7 @@ type RevisionModel = ModelConstructor<JsonObject, JsonObject, RevisionInstance> 
     user: RevisionUser,
     options?: Record<string, unknown>
   ): Promise<RevisionInstance>;
-  filterNotStaleOrDeleted(): RevisionQuery;
+  filterWhere(filter: Record<string, unknown>): RevisionQuery;
   getNotStaleOrDeleted(id: string): Promise<RevisionInstance>;
 };
 
@@ -78,7 +78,7 @@ const isRevisionModel = (model: ModelConstructor | undefined): model is Revision
   const candidate = model as unknown as Record<string, unknown>;
   return (
     typeof candidate.createFirstRevision === 'function' &&
-    typeof candidate.filterNotStaleOrDeleted === 'function' &&
+    typeof candidate.filterWhere === 'function' &&
     typeof (model.prototype as Record<string, unknown>).newRevision === 'function'
   );
 };
@@ -156,7 +156,7 @@ test.serial('DAL revision system: new revision preserves existing revision mecha
 });
 
 test.serial(
-  'DAL revision system: filterNotStaleOrDeleted performs efficiently with partial indexes',
+  'DAL revision system: filterWhere defaults perform efficiently with partial indexes',
   async t => {
     const TestModel = getRevisionModel();
 
@@ -187,7 +187,7 @@ test.serial(
 
     // Query current revisions - should use partial index
     const start = Date.now();
-    const currentRevisions = await TestModel.filterNotStaleOrDeleted().run();
+    const currentRevisions = await TestModel.filterWhere({}).run();
     const queryTime = Date.now() - start;
 
     t.true(currentRevisions.length > 0, 'Found current revisions');
@@ -220,7 +220,7 @@ test.serial('DAL revision system: revision querying patterns', async t => {
   t.is(current.title, 'Updated Title 2', 'Gets current revision');
 
   // 2. Filter current revisions
-  const currentRevs = await TestModel.filterNotStaleOrDeleted().run();
+  const currentRevs = await TestModel.filterWhere({}).run();
   t.is(currentRevs.length, 1, 'Filters to current revisions only');
   t.is(currentRevs[0].title, 'Updated Title 2', 'Current revision has latest content');
 
@@ -362,7 +362,7 @@ test.serial('DAL revision system: revision filtering by user works correctly', a
   await doc2.save();
 
   // Get all current documents and filter manually (since filterByRevisionUser may not be implemented)
-  const allDocs = await TestModel.filterNotStaleOrDeleted().run();
+  const allDocs = await TestModel.filterWhere({}).run();
   const user1Docs = allDocs.filter(doc => doc._data._rev_user === user1.id);
   const user2Docs = allDocs.filter(doc => doc._data._rev_user === user2.id);
 

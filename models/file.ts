@@ -1,242 +1,126 @@
-import dal from '../dal/index.ts';
-import { createAutoModelHandle } from '../dal/lib/model-handle.ts';
-import { initializeModel } from '../dal/lib/model-initializer.ts';
-import debug from '../util/debug.ts';
+import {
+  defineInstanceMethods,
+  defineModel,
+  defineStaticMethods,
+} from '../dal/lib/create-model.ts';
+import fileManifest, {
+  type FileFeedOptions,
+  type FileFeedResult,
+  type FileInstance,
+  type FileInstanceMethods,
+  type FileModel,
+  type FileStaticMethods,
+  fileValidLicenses,
+} from './manifests/file.ts';
+import type { UserViewer } from './user.ts';
 
-type PostgresModule = typeof import('../db-postgres.ts');
+const validLicenses = fileValidLicenses;
 
-let postgresModulePromise: Promise<PostgresModule> | null = null;
-async function loadDbPostgres(): Promise<PostgresModule> {
-  if (!postgresModulePromise) postgresModulePromise = import('../db-postgres.ts');
-  return postgresModulePromise;
-}
+const fileStaticMethods = defineStaticMethods(fileManifest, {
+  /**
+   * Get a stashed (incomplete) upload by user ID and name.
+   *
+   * @param userID - User identifier that created the upload
+   * @param name - File name used during the staged upload
+   * @returns File instance for the pending upload, if present
+   */
+  async getStashedUpload(this: FileModel, userID: string, name: string) {
+    const query = `
+      SELECT *
+      FROM ${this.tableName}
+      WHERE name = $1
+        AND uploaded_by = $2
+        AND completed = false
+        AND (_rev_deleted IS NULL OR _rev_deleted = false)
+        AND (_old_rev_of IS NULL)
+      LIMIT 1
+    `;
 
-async function getPostgresDAL(): Promise<Record<string, any>> {
-  const module = await loadDbPostgres();
-  return module.getPostgresDAL();
-}
+    const result = await this.dal.query(query, [name, userID]);
+    return result.rows.length > 0
+      ? (this.createFromRow(result.rows[0] as Record<string, unknown>) as FileInstance)
+      : undefined;
+  },
 
-const { types, mlString } = dal;
+  /**
+   * Get array of valid license values.
+   *
+   * @returns Clone of the allowed license identifiers
+   */
+  getValidLicenses(this: FileModel): readonly string[] {
+    return Array.from(validLicenses);
+  },
 
-const validLicenses = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'];
+  /**
+   * Get a feed of completed files with pagination.
+   *
+   * @param options - Feed retrieval options
+   * @param options.offsetDate - Upper bound for the returned results
+   * @param options.limit - Maximum number of items requested
+   * @returns Feed payload containing items and optional offset marker
+   */
+  async getFileFeed(
+    this: FileModel,
+    { offsetDate, limit = 10 }: FileFeedOptions = {}
+  ): Promise<FileFeedResult<Record<string, any>>> {
+    let query = this.filterWhere({ completed: true })
+      .getJoin({ uploader: true })
+      .orderBy('uploadedOn', 'DESC');
 
-let File = null;
-
-/**
- * Initialize the PostgreSQL File model
- * @param dal - Optional DAL instance for testing
- */
-async function initializeFileModel(dal = null) {
-  const activeDAL = dal || (await getPostgresDAL());
-
-  if (!activeDAL) {
-    debug.db('PostgreSQL DAL not available, skipping File model initialization');
-    return null;
-  }
-
-  try {
-    // Create the schema with revision fields
-    const fileSchema = {
-      id: types.string().uuid(4),
-      name: types.string().max(512),
-      description: mlString.getSchema(),
-
-      // CamelCase fields that map to snake_case database columns
-      uploadedBy: types.string().uuid(4),
-      uploadedOn: types.date(),
-      mimeType: types.string(),
-      license: types.string().enum(validLicenses),
-
-      // Provided by uploader: if not the author, who is?
-      creator: mlString.getSchema(),
-      // Provided by uploader: where does this file come from?
-      source: mlString.getSchema(),
-      // Uploaded files with incomplete metadata are stored in a separate directory
-      completed: types.boolean().default(false),
-
-      // Virtual permission fields
-      userCanDelete: types.virtual().default(false),
-      userIsCreator: types.virtual().default(false),
-    };
-
-    const { model, isNew } = initializeModel({
-      dal: activeDAL,
-      baseTable: 'files',
-      schema: fileSchema,
-      camelToSnake: {
-        uploadedBy: 'uploaded_by',
-        uploadedOn: 'uploaded_on',
-        mimeType: 'mime_type',
-      },
-      withRevision: {
-        static: [
-          'createFirstRevision',
-          'getNotStaleOrDeleted',
-          'filterNotStaleOrDeleted',
-          'getMultipleNotStaleOrDeleted',
-        ],
-        instance: ['deleteAllRevisions'],
-      },
-      staticMethods: {
-        getStashedUpload,
-        getValidLicenses,
-        getFileFeed,
-      },
-      instanceMethods: {
-        populateUserInfo,
-      },
-      relations: [
-        {
-          name: 'uploader',
-          targetTable: 'users',
-          sourceKey: 'uploaded_by',
-          targetKey: 'id',
-          hasRevisions: false,
-          cardinality: 'one',
-        },
-        {
-          name: 'things',
-          targetTable: 'things',
-          sourceKey: 'id',
-          targetKey: 'id',
-          hasRevisions: true,
-          through: {
-            table: 'thing_files',
-            sourceForeignKey: 'file_id',
-            targetForeignKey: 'thing_id',
-          },
-          cardinality: 'many',
-        },
-      ],
-    });
-    File = model;
-
-    if (!isNew) {
-      return File;
+    if (offsetDate?.valueOf) {
+      query = query.and({ uploadedOn: this.ops.lt(offsetDate) });
     }
 
-    debug.db('PostgreSQL File model initialized with all methods');
-    return File;
-  } catch (error) {
-    debug.error('Failed to initialize PostgreSQL File model:', error);
-    return null;
-  }
-}
+    const items = await query.limit(limit + 1).run();
+    const slicedItems = items.slice(0, limit);
 
-// NOTE: STATIC METHODS --------------------------------------------------------
+    const feed: FileFeedResult<Record<string, any>> = {
+      items: slicedItems,
+    };
 
-/**
- * Get a stashed (incomplete) upload by user ID and name
- *
- * @param userID - User ID who uploaded the file
- * @param name - File name
- * @returns {Promise<File|undefined>} File instance or undefined if not found
- * @async
- */
-async function getStashedUpload(userID, name) {
-  const query = `
-    SELECT * FROM ${File.tableName}
-    WHERE name = $1
-      AND uploaded_by = $2
-      AND completed = false
-      AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      AND (_old_rev_of IS NULL)
-    LIMIT 1
-  `;
+    if (items.length === limit + 1 && limit > 0) {
+      const lastVisible = slicedItems[limit - 1] as { uploadedOn?: Date };
+      feed.offsetDate = lastVisible?.uploadedOn;
+    }
 
-  const result = await File.dal.query(query, [name, userID]);
-  return result.rows.length > 0 ? File._createInstance(result.rows[0]) : undefined;
-}
+    return feed;
+  },
+}) satisfies FileStaticMethods;
 
-/**
- * Get array of valid license values
- *
- * @returns {String[]} Array of valid license strings
- */
-function getValidLicenses() {
-  return validLicenses.slice();
-}
+const fileInstanceMethods = defineInstanceMethods(fileManifest, {
+  /**
+   * Populate virtual permission fields in a File instance for the given user.
+   *
+   * @param user - User whose permissions should be evaluated
+   */
+  populateUserInfo(this: FileInstance, user: UserViewer | null | undefined) {
+    if (!user) {
+      return;
+    }
 
-/**
- * Get a feed of completed files with pagination
- *
- * @param options - Feed options
- * @param options.offsetDate - Date for pagination offset
- * @param options.limit - Maximum number of items to return (default: 10)
- * @returns {Promise<Object>} Feed object with items and optional offsetDate
- * @async
- */
-interface FileFeedOptions {
-  offsetDate?: Date;
-  limit?: number;
-}
+    const isSuperUser = Boolean(user.isSuperUser);
+    const isSiteModerator = Boolean(user.isSiteModerator);
 
-interface FileFeedResult<TItem> {
-  items: TItem[];
-  offsetDate?: Date;
-}
+    this.userIsCreator = user.id === this.uploadedBy;
+    this.userCanDelete = this.userIsCreator || isSuperUser || isSiteModerator;
+  },
+}) satisfies FileInstanceMethods;
 
-async function getFileFeed({
-  offsetDate,
-  limit = 10,
-}: FileFeedOptions = {}): Promise<FileFeedResult<unknown>> {
-  let query = File.filter({ completed: true })
-    .filterNotStaleOrDeleted()
-    .getJoin({ uploader: true })
-    .orderBy('uploadedOn', 'DESC');
+const File = defineModel(fileManifest, {
+  statics: {
+    validLicenses,
+  },
+  staticMethods: fileStaticMethods,
+  instanceMethods: fileInstanceMethods,
+}) as FileModel;
 
-  if (offsetDate && offsetDate.valueOf) {
-    query = query.filter(row => row('uploadedOn').lt(offsetDate));
-  }
-
-  // Get one extra to check for more results
-  const items = await query.limit(limit + 1).run();
-  const slicedItems = items.slice(0, limit);
-
-  const feed: FileFeedResult<unknown> = {
-    items: slicedItems,
-  };
-
-  // At least one additional document available, set offset for pagination
-  if (items.length === limit + 1 && limit > 0) {
-    const lastVisible = slicedItems[limit - 1] as { uploadedOn?: Date };
-    feed.offsetDate = lastVisible?.uploadedOn;
-  }
-
-  return feed;
-}
-
-// NOTE: INSTANCE METHODS ------------------------------------------------------
-
-/**
- * Populate virtual permission fields in a File object with the rights of a
- * given user.
- *
- * @param user - the user whose permissions to check
- * @memberof File
- * @instance
- */
-function populateUserInfo(user) {
-  if (!user) {
-    return; // Permissions will be at their default value (false)
-  }
-
-  this.userIsCreator = user.id === this.uploadedBy;
-  this.userCanDelete = this.userIsCreator || user.isSuperUser || user.isSiteModerator || false;
-}
-
-/**
- * Get the PostgreSQL File model (initialize if needed)
- * @param dal - Optional DAL instance for testing
- */
-async function getPostgresFileModel(dal = null) {
-  if (!File || dal) {
-    File = await initializeFileModel(dal);
-  }
-  return File;
-}
-
-const FileHandle = createAutoModelHandle('files', initializeFileModel);
-
-export default FileHandle;
-export { initializeFileModel as initializeModel, initializeFileModel, getPostgresFileModel };
+export { fileManifest };
+export default File;
+export type {
+  FileFeedOptions,
+  FileFeedResult,
+  FileInstance,
+  FileInstanceMethods,
+  FileModel,
+  FileStaticMethods,
+};

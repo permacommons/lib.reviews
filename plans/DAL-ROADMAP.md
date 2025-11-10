@@ -8,7 +8,7 @@ target architecture for the Data Access Layer (DAL).
 - **Postgres first** – remove every RethinkDB dependency before investing in
   new backends or major refactors.
 - **Ergonomic by default** – production code should continue to look like
-  `const User = require(...); User.filter(...)` with no DAL plumbing visible to
+  `const User = require(...); User.filterWhere({...})` with no DAL plumbing visible to
   route handlers.
 - **Single bootstrap** – the application initialises the DAL once, at startup;
   models are registered exactly one time per DAL instance.
@@ -47,40 +47,48 @@ target architecture for the Data Access Layer (DAL).
 - ✅ `getOrCreateModel` prevents duplicate registrations across production and
      test DALs.
 
-### Phase 4 – Declarative Model Registry & Typed Handles (next)
+### Phase 4 – Declarative Model Registry, Typed Handles & Typed Filters
 
-- Define a canonical model registry that maps literal keys (for example,
-  `"reviews"`) to declarative `defineModel` manifests. Each manifest captures
-  schema, camel-to-snake mappings, relations, revision metadata, and custom
-  methods as data.
-- Generate strongly typed constructors and handles from the registry so both
-  production code and tests can `import { Review }` and receive the fully typed
-  API without casts. The registry becomes the single source of truth for model keys.
-- Update bootstrap to initialise the registry in one pass (prod and tests) and
-  return the typed map. Fixtures obtain their DAL instance and call the same
-  registry helper, eliminating test-only `initializeModel` calls.
-- Provide utilities such as `getModel<'reviews'>(dal)` that leverage the registry's
-  type information, removing ad hoc narrowing and `as any` escapes throughout
-  the codebase.
-- Use the registry metadata to unlock follow-up ergonomics: code-generation for
-  fixtures, declarative migration checks, and future backend experiments once
-  the TypeScript build lands in production.
+Replace manual model initialization with declarative manifests that drive type generation. See `plans/PHASE-4-TYPE-SYSTEM.md` for detailed design.
 
-### Phase 5 – Optional Backend Generalisation (future, only if needed)
+**Goal:** Zero DAL exposure, full type safety, manifest as single source of truth.
+
+**Completed milestones**
+- ✅ Added `VersionedModelInstance`/`VersionedModelConstructor` to the shared type definitions.
+- ✅ Introduced manifest inference helpers and the global registry.
+- ✅ Implemented `create-model.ts` so manifests return typed proxies.
+- ✅ Updated `ModelInstance` to merge record/virtual fields inferred from the schema builders.
+- ✅ Migrated every model (team, user, thing, review, file, blog-post, etc.) to the manifest format.
+- ✅ Applied contextual `ThisType` so manifest static/instance methods receive strongly typed `this`.
+- ✅ Updated bootstrap to register models simply by importing them.
+- ✅ Introduce a typed query helper (e.g. `filterWhere`, with helpers like `containsAll`, `containsAny`, `neq`) so modernised models can stop using the ReQL-style `filter(row => …)` proxy.
+- ✅ Provide a `defineModel` helper that returns both the manifest constructor and the enriched static context, eliminating per-model cast boilerplate.
+- ✅ Update the remaining models (thing, file, blog-post, etc.) to the same `defineModel` pattern used by `user`, removing legacy casts. As part of this, export canonical manifest-derived instance aliases (e.g. `UserInstance`, `ThingInstance`) for consumers that need explicit typings.
+- ✅ Extend `filterWhere` operator helpers to cover range/negation/JSON use cases (for example `between`, `in`, `jsonContains`, `not`).
+- ✅ Replace legacy Thinky-style `filter(row => …)` usage with first-class query-builder helpers building on `filterWhere`.
+- ✅ Split manifest/type declarations from runtime implementations to eliminate circular lazy imports (`Thing`/`Review`, `Team`/`Review`) once consumers are on typed handles.
+
+### Phase 5 – Increase typing surface; remove raw SQL
+
+- **Harden the DAL typing surface**
+  - [ ] Expose DAL helper namespaces (`mlString`, `revision`, `QueryBuilder`) with concrete typings so model modules can drop casts like `const { mlString } = dal as { ... }`.
+  - [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`, closing escape hatches around manifest initialisation.
+
+- **Eliminate `Record<string, any>` fallbacks from hot paths**
+  - [ ] Replace `Record<string, any>` fallbacks in core models (`review`, `thing`, `blog-post`, `team`, `file`) and their callers (`routes/things.ts`, `routes/uploads.ts`, action handlers) by threading manifest-derived types through statics/instance helpers and exposing typed payload shims where unavoidable.
+  - [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations, and cascade the stricter payloads into upload/action handlers.
+
+- **Expand manifest-driven inference**
+  - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
+
+- **Clean up supporting infrastructure**
+  - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
+  - [ ] Audit remaining scattered raw SQL usage and design targeted query helpers that build on `filterWhere`.
+
+### Phase 6 – Optional Backend Generalisation (future, only if needed)
 
 - Define a capability contract if additional backends become a priority.
 - Extract Postgres-specific helpers (for example, JSONB utilities) behind
   reusable abstractions.
 - Explore lightweight secondary backends (for example, SQLite for tests) only
   if the primary Postgres path remains simple.
-
-## Outstanding Ergonomic Follow-ups
-
-- Replace legacy Thinky-style `filter(row => …)` usage with first-class
-  query-builder helpers (for example, `whereArrayOverlap`, `whereNotId`) so we
-  can drop the proxy/function parser and rely on declarative predicates only.
-- Introduce high-level conveniences for common lookups (for example,
-  `Thing.lookupByURLs(urls, { excludeId })`) to consolidate duplication checks
-  into one SQL call instead of scattering per-URL queries across routes.
-- Align fixtures with the model registry so seeded test data uses the same typed
-  constructors, paving the road for the optional backend generalisation phase.

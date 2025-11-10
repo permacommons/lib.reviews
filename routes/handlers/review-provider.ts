@@ -2,6 +2,10 @@
 import config from 'config';
 import mlString from '../../dal/lib/ml-string.ts';
 import File from '../../models/file.ts';
+import type {
+  TeamInstance as TeamManifestInstance,
+  TeamModel as TeamModelType,
+} from '../../models/manifests/team.ts';
 import Review from '../../models/review.ts';
 import Team from '../../models/team.ts';
 import User from '../../models/user.ts';
@@ -17,7 +21,7 @@ import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 const ReviewModel = Review as any;
-const TeamModel = Team as any;
+const TeamModel = Team as TeamModelType;
 const UserModel = User as any;
 const FileModel = File as any;
 
@@ -64,13 +68,7 @@ type ReviewInstance = ReviewFormValues & {
   ) => Promise<unknown>;
 };
 
-type TeamInstance = {
-  id: string;
-  urlID?: string;
-  userIsMember?: boolean;
-  populateUserInfo: (user: HandlerRequest['user']) => void;
-  [key: string]: unknown;
-};
+type TeamInstance = TeamManifestInstance & Record<string, unknown>;
 
 class ReviewProvider extends AbstractBREADProvider {
   static formDefs: Record<string, any>;

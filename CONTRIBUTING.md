@@ -228,62 +228,32 @@ npm run docs:coverage
 
 ## Database Architecture
 
-lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL). See `dal/README.md` for detailed documentation.
+lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL).
 
-### Key Features
+**See [`dal/README.md`](./dal/README.md) for comprehensive documentation** on:
+- Manifest-based model architecture
+- Type-safe query interface with `filterWhere()`
+- Cross-model references and circular dependency resolution
+- Schema definitions, validation, and relations
 
-- **Hybrid Schema:** Relational columns for structured data (IDs, timestamps, foreign keys), JSONB columns for multilingual content and flexible metadata
-- **CamelCase Accessors:** Application code uses camelCase properties (`user.displayName`) that map to snake_case database columns (`display_name`)
-- **Revision System:** Built-in versioning with partial indexes for performance
-- **Multilingual Support:** JSONB-based language-keyed content with validation and fallback resolution
+### Quick Start
 
-### Model Pattern
+Models use declarative manifests for schema and types:
 
-Models use a handle-based pattern that allows synchronous imports:
+```typescript
+import User from './models/user.ts';
 
-```javascript
-// models/user.js
-import dal from '../dal/index.js';
-import { createModelModule } from '../dal/lib/model-handle.js';
-import { initializeModel } from '../dal/lib/model-initializer.js';
-
-const { proxy: UserHandle, register: registerUserHandle } = createModelModule({
-  tableName: 'users'
-});
-
-const { types } = dal;
-
-const schema = {
-  id: types.string().uuid(4),
-  displayName: types.string().max(128).required(),
-  email: types.string().email()
-};
-
-async function initializeUserModel(dalInstance) {
-  const { model } = initializeModel({
-    dal: dalInstance,
-    baseTable: 'users',
-    schema
-  });
-  return model;
-}
-
-// dalInstance is provided by the DAL bootstrap when registering models.
-
-registerUserHandle({
-  initializeModel: initializeUserModel
-});
-
-export default UserHandle;
-```
-
-Usage in application code:
-
-```javascript
-import User from './models/user.js';
-
+// Create a user
 const user = await User.create({ displayName: 'Jane', email: 'jane@example.com' });
-const users = await User.filter({ isTrusted: false }).run();
+
+// Type-safe queries
+const users = await User.filterWhere({ isTrusted: false }).run();
+
+// With operators
+const { gt } = User.ops;
+const recentUsers = await User.filterWhere({
+  registrationDate: gt(cutoffDate)
+}).orderBy('registrationDate', 'DESC').run();
 ```
 
 ### Historical Note

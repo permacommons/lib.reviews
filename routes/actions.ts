@@ -1,9 +1,14 @@
 import config from 'config';
+import type { Express } from 'express';
 import { Router } from 'express';
 import i18n from 'i18n';
 import passport from 'passport';
+import type { ParsedQs } from 'qs';
 import languages from '../locales/languages.ts';
-import InviteLink from '../models/invite-link.ts';
+import InviteLink, {
+  type InviteLinkInstance,
+  type InviteLinkModel as InviteLinkModelConstructor,
+} from '../models/invite-link.ts';
 import User from '../models/user.ts';
 import search from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
@@ -13,17 +18,34 @@ import signinRequiredRoute from './handlers/signin-required-route.ts';
 import forms from './helpers/forms.ts';
 import render from './helpers/render.ts';
 
-type ActionsRequest = HandlerRequest<Record<string, string>, unknown, Record<string, unknown>>;
+type ActionsRequest = HandlerRequest<
+  Record<string, string>,
+  unknown,
+  ActionsRequestBody,
+  ActionsRequestQuery
+>;
 type ActionsResponse = HandlerResponse;
-type InviteLinkModelType = {
-  new (args: Record<string, unknown>): any;
-  getAvailable(user: Express.User): Promise<any[]>;
-  getUsed(user: Express.User): Promise<any[]>;
-  get(id: string): Promise<any>;
+
+type ActionsRequestBody = {
+  username?: string;
+  password?: string;
+  email?: string;
+  returnTo?: string;
+  signupLanguage?: string;
+  lang?: string;
+  'redirect-to'?: string;
+  'has-language-notice'?: string | boolean;
+  [key: string]: string | boolean | undefined;
+};
+
+type ActionsRequestQuery = ParsedQs & {
+  query?: string | string[];
+  signupLanguage?: string | string[];
 };
 
 const router = Router();
-const InviteLinkModel = InviteLink as unknown as InviteLinkModelType;
+const InviteLinkModel: InviteLinkModelConstructor = InviteLink;
+type CreateUserPayload = Parameters<typeof User.create>[0];
 
 const formDefs = {
   register: [
@@ -106,15 +128,15 @@ router.post(
           return renderInviteLinkPage(req, res, next);
         }
 
-        let inviteLink = new InviteLinkModel({});
+        const inviteLink: InviteLinkInstance = new InviteLinkModel({});
         inviteLink.createdOn = new Date();
         inviteLink.createdBy = user.id;
-        let p1 = inviteLink.save();
+        const saveInvitePromise = inviteLink.save();
 
         user.inviteLinkCount--;
-        let p2 = user.save();
+        const saveUserPromise = user.save?.();
 
-        await Promise.all([p1, p2]);
+        await Promise.all([saveInvitePromise, saveUserPromise ?? Promise.resolve()]);
 
         req.flash('pageMessages', res.__('link generated'));
         return renderInviteLinkPage(req, res, next);
@@ -142,10 +164,8 @@ async function renderInviteLinkPage(req: ActionsRequest, res: ActionsResponse, n
       next(new Error('User required to view invite links.'));
       return;
     }
-    const [pendingInviteLinks, usedInviteLinks] = await Promise.all([
-      InviteLinkModel.getAvailable(user),
-      InviteLinkModel.getUsed(user),
-    ]);
+    const [pendingInviteLinks, usedInviteLinks]: [InviteLinkInstance[], InviteLinkInstance[]] =
+      await Promise.all([InviteLinkModel.getAvailable(user), InviteLinkModel.getUsed(user)]);
 
     render.template(req, res, 'invite', {
       titleKey: res.locals.titleKey,
@@ -248,7 +268,7 @@ router.get(
     const { code } = req.params;
 
     try {
-      const inviteLink = await InviteLinkModel.get(code);
+      const inviteLink: InviteLinkInstance = await InviteLinkModel.get(code);
 
       if (inviteLink.usedBy) {
         return render.permissionError(req, res, {
@@ -292,14 +312,15 @@ if (!config.requireInviteLinks) {
     }
 
     try {
-      const user = await User.create({
-        name: req.body.username,
-        password: req.body.password,
-        email: req.body.email,
-      });
+      const userPayload: CreateUserPayload = {
+        name: req.body.username as string,
+        password: req.body.password as string,
+        email: typeof req.body.email === 'string' ? req.body.email : undefined,
+      };
+      const user = await User.create(userPayload);
 
       setSignupLanguage(req, res);
-      req.login(user, error => {
+      req.login(user as Express.User, error => {
         if (error) {
           debug.error({ req, error });
         }
@@ -326,7 +347,7 @@ router.post(
     const { code } = req.params;
 
     try {
-      const inviteLink = await InviteLinkModel.get(code);
+      const inviteLink: InviteLinkInstance = await InviteLinkModel.get(code);
 
       if (inviteLink.usedBy)
         return render.permissionError(req, res, {
@@ -349,17 +370,18 @@ router.post(
       }
 
       try {
-        const user = await User.create({
-          name: req.body.username,
-          password: req.body.password,
-          email: req.body.email,
-        });
+        const userPayload: CreateUserPayload = {
+          name: req.body.username as string,
+          password: req.body.password as string,
+          email: typeof req.body.email === 'string' ? req.body.email : undefined,
+        };
+        const user = await User.create(userPayload);
 
         inviteLink.usedBy = user.id;
         await inviteLink.save();
 
         setSignupLanguage(req, res);
-        req.login(user, error => {
+        req.login(user as Express.User, error => {
           if (error) {
             debug.error({ req, error });
           }
@@ -395,7 +417,7 @@ function sendRegistrationForm(
   const pageErrors = req.flash('pageErrors');
 
   const { code } = req.params;
-  const body = req.body || {};
+  const body: ActionsRequestBody = req.body ?? {};
 
   render.template(
     req,
@@ -436,7 +458,7 @@ function redirectBackOrHome(req: ActionsRequest, res: ActionsResponse) {
 // If the ?signupLanguage query parameter or has been POSTed, and the language
 // is valid, show the form in the language (but do not set the cookie yet).
 function viewInSignupLanguage(req: ActionsRequest) {
-  const body = req.body || {};
+  const body: ActionsRequestBody = req.body ?? {};
   const signupLanguageQuery = req.query.signupLanguage;
   const signupLanguageBody = body.signupLanguage;
   const signupLanguage =
@@ -451,7 +473,7 @@ function viewInSignupLanguage(req: ActionsRequest) {
 // Once we know that the registration is likely to be successful, actually set
 // the locale cookie if a signup language was POSTed.
 function setSignupLanguage(req: ActionsRequest, res: ActionsResponse) {
-  const { signupLanguage } = req.body as { signupLanguage?: string };
+  const { signupLanguage } = req.body ?? {};
   if (signupLanguage && languages.isValid(signupLanguage)) {
     const maxAge = 1000 * 60 * config.sessionCookieDuration; // cookie age: 30 days
     res.cookie('locale', signupLanguage, {

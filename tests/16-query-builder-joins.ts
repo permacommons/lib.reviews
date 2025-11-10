@@ -56,7 +56,7 @@ test.serial('QueryBuilder supports simple boolean joins', async t => {
 
   // Test simple join syntax: { teams: true }
   // This should not fail even if no team associations exist
-  const query = User.filter({ id: testUser.id }).getJoin({ teams: true });
+  const query = User.filterWhere({ id: testUser.id }).getJoin({ teams: true });
   const users = await query.run();
 
   t.true(Array.isArray(users));
@@ -116,7 +116,10 @@ test.serial('QueryBuilder handles revision-aware joins', async t => {
   await thing.save();
 
   // Test join with revision filtering
-  const query = Thing.filter({ id: thing.id }).getJoin({ reviews: true });
+  const { containsAll, neq } = Thing.ops;
+  const query = Thing.filterWhere({ id: thing.id })
+    .and({ id: neq(randomUUID()), urls: containsAll(thing.urls) })
+    .getJoin({ reviews: true });
   const things = await query.run();
 
   t.true(Array.isArray(things));
@@ -148,7 +151,7 @@ test.serial('QueryBuilder supports complex joins with _apply', async t => {
   await review.save();
 
   // Test complex join with _apply transformation
-  const query = Review.filter({ id: review.id }).getJoin({
+  const query = Review.filterWhere({ id: review.id }).getJoin({
     creator: {
       _apply: seq => seq.without('password'),
     },
@@ -185,7 +188,11 @@ test.serial('QueryBuilder materializes hasMany relations using model metadata', 
   reviewDraft.createdBy = testUser.id;
   await reviewDraft.save();
 
-  const things = await Thing.filter({ id: thingDraft.id }).getJoin({ reviews: {} }).run();
+  const { containsAll: includesUrl } = Thing.ops;
+  const things = await Thing.filterWhere({ id: thingDraft.id })
+    .and({ urls: includesUrl(thingDraft.urls) })
+    .getJoin({ reviews: {} })
+    .run();
 
   t.is(things.length, 1);
   const loadedThing = things[0];
@@ -222,7 +229,7 @@ test.serial('QueryBuilder materializes through-table joins generically', async t
     userId,
   ]);
 
-  const users = await User.filter({ id: userId }).getJoin({ teams: {} }).run();
+  const users = await User.filterWhere({ id: userId }).getJoin({ teams: {} }).run();
 
   t.is(users.length, 1);
   const loadedUser = users[0];
@@ -255,7 +262,7 @@ test.serial('QueryBuilder supports multiple joins', async t => {
   await review.save();
 
   // Test multiple joins
-  const query = Review.filter({ id: review.id })
+  const query = Review.filterWhere({ id: review.id })
     .getJoin({ thing: true })
     .getJoin({ creator: true });
 
@@ -306,8 +313,8 @@ test.serial('QueryBuilder supports array contains operations', async t => {
   // Test that the contains method exists and can be called
   const testUrl = 'https://example.com/test';
 
-  // Test the query builder method
-  const things = await Thing.contains('urls', testUrl).run();
+  const { containsAll } = Thing.ops;
+  const things = await Thing.filterWhere({ urls: containsAll(testUrl) }).run();
 
   t.true(Array.isArray(things));
   // The query should execute without error, regardless of results
@@ -326,7 +333,7 @@ test.serial('QueryBuilder supports revision filtering', async t => {
   await thing.save();
 
   // Test revision filtering
-  const things = await Thing.filterNotStaleOrDeleted().run();
+  const things = await Thing.filterWhere({}).run();
 
   t.true(Array.isArray(things));
   t.true(things.length >= 1);
@@ -358,8 +365,10 @@ test.serial('QueryBuilder supports revision tag filtering', async t => {
   review.createdBy = testUser.id;
   await review.save();
 
-  // Test revision tag filtering
-  const reviews = await Review.filterNotStaleOrDeleted().filterByRevisionTags(['test-tag']).run();
+  const { containsAny } = Review.ops;
+  const reviews = await Review.filterWhere({})
+    .revisionData({ _revTags: containsAny(['test-tag']) })
+    .run();
 
   t.true(Array.isArray(reviews));
   t.true(reviews.length >= 1);
@@ -397,10 +406,7 @@ test.serial('QueryBuilder supports ordering and limiting', async t => {
   }
 
   // Test ordering and limiting
-  const orderedReviews = await Review.filterNotStaleOrDeleted()
-    .orderBy('created_on', 'DESC')
-    .limit(2)
-    .run();
+  const orderedReviews = await Review.filterWhere({}).orderBy('createdOn', 'DESC').limit(2).run();
 
   t.true(orderedReviews.length <= 2);
   t.true(orderedReviews.length >= 1);
@@ -437,13 +443,9 @@ test.serial('QueryBuilder supports offset for pagination', async t => {
   }
 
   // Test pagination
-  const page1 = await Review.filterNotStaleOrDeleted().orderBy('created_on', 'DESC').limit(2).run();
+  const page1 = await Review.filterWhere({}).orderBy('createdOn', 'DESC').limit(2).run();
 
-  const page2 = await Review.filterNotStaleOrDeleted()
-    .orderBy('created_on', 'DESC')
-    .limit(2)
-    .offset(2)
-    .run();
+  const page2 = await Review.filterWhere({}).orderBy('createdOn', 'DESC').limit(2).offset(2).run();
 
   t.true(page1.length <= 2);
   t.true(page2.length <= 2);
@@ -479,7 +481,7 @@ test.serial('QueryBuilder supports count operations', async t => {
   await review.save();
 
   // Test count
-  const count = await Review.filterNotStaleOrDeleted().count();
+  const count = await Review.filterWhere({}).count();
 
   t.is(typeof count, 'number');
   t.true(count >= 1);
@@ -490,7 +492,7 @@ test.serial('QueryBuilder supports first() operation', async t => {
   const { actor: testUser } = await dalFixture.createTestUser('First Test User');
 
   // Test first - should return the user we created
-  const user = await User.filter({ id: testUser.id }).first();
+  const user = await User.filterWhere({ id: testUser.id }).first();
 
   t.truthy(user);
   t.is(user.id, testUser.id);
@@ -499,14 +501,14 @@ test.serial('QueryBuilder supports first() operation', async t => {
 test('QueryBuilder handles empty results gracefully', async t => {
   // Test with non-existent ID
   const nonExistentId = randomUUID();
-  const user = await User.filter({ id: nonExistentId }).first();
+  const user = await User.filterWhere({ id: nonExistentId }).first();
 
   t.is(user, null);
 
-  const users = await User.filter({ id: nonExistentId }).run();
+  const users = await User.filterWhere({ id: nonExistentId }).run();
   t.is(users.length, 0);
 
-  const count = await User.filter({ id: nonExistentId }).count();
+  const count = await User.filterWhere({ id: nonExistentId }).count();
   t.is(count, 0);
 });
 
