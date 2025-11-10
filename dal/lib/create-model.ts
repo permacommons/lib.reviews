@@ -288,15 +288,14 @@ export function defineInstanceMethods<
 }
 
 /**
- * Convenience wrapper around {@link createModel} that preserves manifest-derived
+ * Convenience wrapper around {@link createModelProxy} that preserves manifest-derived
  * typing while layering on additional statics in a type-safe manner.
  *
  * This is purely a TypeScript ergonomic helper. At runtime it forwards directly
- * to {@link createModel}, ensuring the emitted JavaScript stays unchanged.
+ * to {@link createModelProxy}, ensuring the emitted JavaScript stays unchanged.
  *
  * @param manifest - Model manifest definition
- * @param options - Additional statics to merge onto the constructor
- * @returns Typed model constructor enriched with the provided statics
+ * @returns Typed model constructor
  */
 export function defineModel<Manifest extends ModelManifest>(
   manifest: Manifest
