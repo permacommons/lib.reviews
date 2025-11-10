@@ -228,78 +228,32 @@ npm run docs:coverage
 
 ## Database Architecture
 
-lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL). See `dal/README.md` for detailed documentation.
+lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL).
 
-### Key Features
+**See [`dal/README.md`](./dal/README.md) for comprehensive documentation** on:
+- Manifest-based model architecture
+- Type-safe query interface with `filterWhere()`
+- Cross-model references and circular dependency resolution
+- Schema definitions, validation, and relations
 
-- **Hybrid Schema:** Relational columns for structured data (IDs, timestamps, foreign keys), JSONB columns for multilingual content and flexible metadata
-- **CamelCase Accessors:** Application code uses camelCase properties (`user.displayName`) that map to snake_case database columns (`display_name`)
-- **Revision System:** Built-in versioning with partial indexes for performance
-- **Multilingual Support:** JSONB-based language-keyed content with validation and fallback resolution
+### Quick Start
 
-### Model Pattern
-
-Models use a manifest-based pattern with lazy-loaded proxies:
-
-```typescript
-// models/manifests/user.ts
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
-import types from '../../dal/lib/type.ts';
-
-export const userManifest = defineModelManifest({
-  tableName: 'users',
-  hasRevisions: false,
-  schema: {
-    id: types.string().uuid(4),
-    displayName: types.string().max(128).required(),
-    email: types.string().email(),
-  },
-});
-
-export type UserInstance = InferInstance<typeof userManifest>;
-export type UserModel = InferConstructor<typeof userManifest>;
-
-// models/user.ts
-import { defineModel } from '../dal/lib/create-model.ts';
-import userManifest from './manifests/user.ts';
-
-const User = defineModel(userManifest);
-
-export default User;
-```
-
-Usage in application code:
+Models use declarative manifests for schema and types:
 
 ```typescript
 import User from './models/user.ts';
 
+// Create a user
 const user = await User.create({ displayName: 'Jane', email: 'jane@example.com' });
+
+// Type-safe queries
 const users = await User.filterWhere({ isTrusted: false }).run();
-```
 
-Models with custom methods separate the manifest (schema) from behavior:
-
-```typescript
-// Define static methods with proper typing
-const userStaticMethods = defineStaticMethods(userManifest, {
-  async findByEmail(email: string) {
-    return this.filterWhere({ email }).run();
-  }
-});
-
-// Combine manifest with methods
-const User = defineModel(userManifest, { staticMethods: userStaticMethods });
-```
-
-Cross-model references avoid circular imports by referencing manifests:
-
-```typescript
-// models/thing.ts - needs to call Review methods
-import { referenceModel } from '../dal/lib/model-handle.ts';
-import reviewManifest, { type ReviewModel } from './manifests/review.ts';
-
-const Review = referenceModel(reviewManifest) as ReviewModel;
-// Can now call Review.getFeed() etc. without importing review.ts
+// With operators
+const { gt } = User.ops;
+const recentUsers = await User.filterWhere({
+  registrationDate: gt(cutoffDate)
+}).orderBy('registrationDate', 'DESC').run();
 ```
 
 ### Historical Note

@@ -13,8 +13,8 @@
 ## Model Bootstrapping & Typing
 - Declarative manifests (`defineModelManifest` / `defineModel`) describe schema, relations, revision support, and custom methods (`dal/lib/create-model.ts`, `dal/lib/model-manifest.ts`).
 - `createModel()` registers manifests globally, merges shared `filterWhere` statics, and returns a proxy constructor that delegates to lazily initialised runtime models once bootstrap calls `initializeManifestModels()`.
-- `createModel()` now injects a stable `createFromRow()` static so manifests expose typed hydration helpers even before bootstrap wires `_createInstance` (`dal/lib/create-model.ts`).
-- `defineModel()` wraps `createModel()` so model modules can add bespoke statics without casts while preserving manifest inference (`dal/lib/create-model.ts`).
+- `createModel()` injects a stable `createFromRow()` static so manifests expose typed hydration helpers even before bootstrap wires `_createInstance` (`dal/lib/create-model.ts`).
+- `defineModel()` wraps `createModel()` so model modules can add bespoke statics without casts while preserving manifest inference, with `defineStaticMethods` / `defineInstanceMethods` providing typed helpers for manifest-scoped behaviour blocks (`dal/lib/create-model.ts`).
 - Schema builders derive persisted (`InferData`) and virtual (`InferVirtual`) field types; `InferInstance` switches between `ModelInstance` and `VersionedModelInstance` based on `hasRevisions` and layers in manifest-defined methods.
 - Model instances intersect data/virtual fields with `ModelInstanceCore` for DAL helpers; an index signature remains for legacy compatibility but narrows via intersection (`dal/lib/model-types.ts`).
 - `ModelConstructor` typing exposes CRUD, query, and helper statics. Revision-enabled constructors extend this with revision helpers.
@@ -37,10 +37,17 @@
 - Model handles (`dal/lib/model-handle.ts`) provide lazy proxies for cross-model references. `createModelHandle`/`createTypedModelHandle` and `setBootstrapResolver` enable models to reference each other without circular imports, while `createModel`/`defineModel` provide the main manifest-based model definition API.
 
 ## Observations & Gaps
-- Relation typings depend on manual `types.virtual().returns<...>()` declarations in manifests; there is no manifest-driven inference for relation payloads yet (`models/user.ts`, `models/blog-post.ts`).
+
+### Typed DAL surface
 - Several helper types still expose broad `JsonObject` / `unknown` option bags (for example, `createModel` options) that could be narrowed per manifest (`dal/lib/create-model.ts`, `dal/lib/model-initializer.ts`).
-- Core models with complex behaviours (`models/review.ts`, `models/thing.ts`, `models/blog-post.ts`) still fall back to `Record<string, any>` in statics and instance helpers, forcing consumers such as `routes/things.ts` and `routes/uploads.ts` to lean on `any`-centric payload shims.
+- The exported `createDataAccessLayer` surface is typed as returning `Record<string, unknown>`, so models frequently cast helper namespaces like `mlString` or `revision` back to `Record<string, any>` to satisfy TypeScript (`dal/index.ts`, `models/manifests/review.ts`).
+- Model instances retain a `[key: string]: unknown` escape hatch through `ModelInstanceCore`, preserving legacy ergonomics but diluting strong property inference (`dal/lib/model-types.ts`).
+
+### Model ergonomics
+- Relation typings depend on manual `types.virtual().returns<...>()` declarations in manifests; there is no manifest-driven inference for relation payloads yet (`models/user.ts`, `models/blog-post.ts`).
+- Core models with complex behaviours (`models/review.ts`, `models/thing.ts`, `models/blog-post.ts`, `models/file.ts`) still fall back to `Record<string, any>` in statics and instance helpers, forcing consumers such as `routes/things.ts` and `routes/uploads.ts` to lean on `any`-centric payload shims.
 - Route helpers like `routes/helpers/forms.ts` continue to emit `Record<string, any>` structures, complicating plans to make form payloads align with typed model inputs.
-- Models still coerce DAL helper namespaces via `const { mlString, revision } = dal as { ... }`, indicating the `createDataAccessLayer` static surface is not recognised as typed in consuming modules (`models/review.ts`, `models/blog-post.ts`, `models/thing.ts`).
-- Lazy dynamic imports are sprinkled through the heaviest models (`models/review.ts`, `models/thing.ts`, `models/team.ts`) to avoid circular manifest dependencies, and the imported handles return `Record<string, any>` until runtime wiring finishes.
+- Cross-model helpers rely on manifest references, yet hydration logic still mutates relation data onto instances as `Record<string, any>` blobs because the relation payloads are not inferred (`models/review.ts`, `models/thing.ts`, `models/team.ts`).
+
+### Query & data shaping
 - Raw SQL remains embedded in several model statics (for example `models/blog-post.ts#getMostRecentBlogPosts`, `models/team.ts#getWithData`), signalling a need for targeted query helpers built atop `filterWhere`.
