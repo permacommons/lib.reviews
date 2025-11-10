@@ -14,8 +14,8 @@ async function generateSlugs(): Promise<void> {
     if (!thing.label) {
       continue;
     }
-    // Legacy maintenance tasks run without a user context; propagate the historical behaviour.
-    updates.push(thing.updateSlug(undefined, 'en'));
+    // Maintenance tasks run without a user context.
+    updates.push(thing.updateSlug(undefined, thing.originalLanguage || 'und'));
   }
 
   const updated = await Promise.all(updates);
