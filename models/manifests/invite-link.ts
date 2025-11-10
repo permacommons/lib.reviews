@@ -1,0 +1,57 @@
+import { randomUUID } from 'node:crypto';
+
+import config from 'config';
+
+import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import { referenceModel } from '../../dal/lib/model-handle.ts';
+import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import types from '../../dal/lib/type.ts';
+
+const inviteLinkManifest = defineModelManifest({
+  tableName: 'invite_links',
+  hasRevisions: false,
+  schema: {
+    id: types
+      .string()
+      .uuid(4)
+      .default(() => randomUUID()),
+    createdBy: types.string().uuid(4).required(true),
+    createdOn: types.date().default(() => new Date()),
+    usedBy: types.string().uuid(4),
+    url: types.virtual().default(function (this: InferInstance<typeof inviteLinkManifest>) {
+      const identifier = typeof this.getValue === 'function' ? this.getValue('id') : this.id;
+      return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
+    }),
+  },
+  camelToSnake: {
+    createdBy: 'created_by',
+    createdOn: 'created_on',
+    usedBy: 'used_by',
+  },
+});
+
+type InviteLinkInstanceBase = InferInstance<typeof inviteLinkManifest>;
+type InviteLinkModelBase = InferConstructor<typeof inviteLinkManifest>;
+
+export type InviteLinkInstanceMethods = Record<never, never>;
+
+export interface InviteLinkStaticMethods {
+  getAvailable(
+    this: InviteLinkModelBase & InviteLinkStaticMethods,
+    user: { id?: string }
+  ): Promise<InviteLinkInstance[]>;
+  getUsed(
+    this: InviteLinkModelBase & InviteLinkStaticMethods,
+    user: { id?: string }
+  ): Promise<InviteLinkInstance[]>;
+  get(this: InviteLinkModelBase & InviteLinkStaticMethods, id: string): Promise<InviteLinkInstance>;
+}
+
+export type InviteLinkInstance = InviteLinkInstanceBase & InviteLinkInstanceMethods;
+export type InviteLinkModel = InviteLinkModelBase & InviteLinkStaticMethods;
+
+export function referenceInviteLink(): InviteLinkModel {
+  return referenceModel(inviteLinkManifest) as InviteLinkModel;
+}
+
+export default inviteLinkManifest;
