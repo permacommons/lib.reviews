@@ -13,7 +13,7 @@ import search from '../search.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import urlUtils from '../util/url-utils.ts';
-import File from './file.ts';
+import { referenceFile } from './manifests/file.ts';
 import { type ReviewInstance, referenceReview } from './manifests/review.ts';
 import thingManifest, {
   type ThingInstance,
@@ -26,6 +26,7 @@ import ThingSlug from './thing-slug.ts';
 import User, { type UserViewer } from './user.ts';
 
 const Review = referenceReview();
+const File = referenceFile();
 
 const { mlString } = dal as unknown as {
   mlString: Record<string, any>;
