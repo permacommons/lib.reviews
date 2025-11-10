@@ -194,41 +194,15 @@ type StaticPropertiesMap = Record<string, unknown>;
  * @param staticProperties Optional static property overrides
  * @returns Typed model reference that resolves at runtime via bootstrap
  */
-export function referenceModel<Manifest extends ModelManifest>(
-  manifest: Manifest
-): InferConstructor<Manifest>;
-export function referenceModel<Manifest extends ModelManifest, Methods extends StaticMethodsMap>(
-  manifest: Manifest,
-  staticMethods: Methods
-): InferConstructor<Manifest> & Methods;
 export function referenceModel<
   Manifest extends ModelManifest,
-  Methods extends StaticMethodsMap,
-  Properties extends StaticPropertiesMap,
->(
-  manifest: Manifest,
-  staticMethods: Methods,
-  staticProperties: Properties
-): InferConstructor<Manifest> & Methods & Properties;
-export function referenceModel<
-  Manifest extends ModelManifest,
-  Properties extends StaticPropertiesMap,
->(
-  manifest: Manifest,
-  staticMethods: undefined,
-  staticProperties: Properties
-): InferConstructor<Manifest> & Properties;
-export function referenceModel<
-  Manifest extends ModelManifest,
-  Methods extends StaticMethodsMap | undefined,
-  Properties extends StaticPropertiesMap | undefined,
+  Methods extends StaticMethodsMap = {},
+  Properties extends StaticPropertiesMap = {},
 >(
   manifest: Manifest,
   staticMethods?: Methods,
   staticProperties?: Properties
-): InferConstructor<Manifest> &
-  (Methods extends undefined ? unknown : Methods) &
-  (Properties extends undefined ? unknown : Properties) {
+): InferConstructor<Manifest> & Methods & Properties {
   type Data = InferData<Manifest['schema']>;
   type Virtual = InferVirtual<Manifest['schema']>;
   type Instance = InferInstance<Manifest>;
@@ -242,9 +216,7 @@ export function referenceModel<
     resolvedProperties
   );
 
-  return handle as InferConstructor<Manifest> &
-    (Methods extends undefined ? unknown : Methods) &
-    (Properties extends undefined ? unknown : Properties);
+  return handle as InferConstructor<Manifest> & Methods & Properties;
 }
 
 const modelHandleModule = {

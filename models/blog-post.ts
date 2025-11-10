@@ -43,8 +43,9 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
   async getMostRecentBlogPosts(
     this: BlogPostModel,
     teamID: string,
-    { limit = 10, offsetDate }: BlogPostFeedOptions = {}
+    options: BlogPostFeedOptions = {}
   ) {
+    const { limit = 10, offsetDate } = options;
     if (!teamID) {
       throw new Error('We require a team ID to fetch blog posts.');
     }
