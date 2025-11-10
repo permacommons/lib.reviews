@@ -249,10 +249,23 @@ export function initializeManifestModels(dal: DataAccessLayer): void {
   }
 }
 
+/**
+ * Type-safe helper for defining model manifests with full type inference.
+ *
+ * @param manifest - Model manifest configuration
+ * @returns The same manifest with preserved typing
+ */
 export function defineModelManifest<Manifest extends ModelManifest>(manifest: Manifest): Manifest {
   return manifest;
 }
 
+/**
+ * Define static methods for a model with properly typed `this` context.
+ *
+ * @param manifest - Model manifest to derive types from
+ * @param methods - Static methods with `this` bound to the model constructor
+ * @returns The methods object with preserved typing
+ */
 export function defineStaticMethods<
   Manifest extends ModelManifest,
   Methods extends Record<string, (...args: unknown[]) => unknown>,
@@ -260,6 +273,13 @@ export function defineStaticMethods<
   return methods;
 }
 
+/**
+ * Define instance methods for a model with properly typed `this` context.
+ *
+ * @param manifest - Model manifest to derive types from
+ * @param methods - Instance methods with `this` bound to model instances
+ * @returns The methods object with preserved typing
+ */
 export function defineInstanceMethods<
   Manifest extends ModelManifest,
   Methods extends Record<string, InstanceMethod>,

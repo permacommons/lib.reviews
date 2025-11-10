@@ -61,6 +61,12 @@ export interface ThingSlugInstanceMethods {
 export type ThingSlugInstance = ThingSlugInstanceBase & ThingSlugInstanceMethods;
 export type ThingSlugModel = ThingSlugModelBase & ThingSlugStaticMethods;
 
+/**
+ * Create a lazy reference to the ThingSlug model for use in other models.
+ * Resolves after bootstrap without causing circular import issues.
+ *
+ * @returns Typed ThingSlug model constructor
+ */
 export function referenceThingSlug(): ThingSlugModel {
   return referenceModel(thingSlugManifest) as ThingSlugModel;
 }

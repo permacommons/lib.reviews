@@ -15,10 +15,23 @@ const userOptions = {
 // Erm, if we add [, ] or \\ to forbidden chars, we'll have to fix this :)
 userOptions.illegalCharsReadable = userOptions.illegalChars.source.replace(/[\[\]\\]/g, '');
 
+/**
+ * Canonicalize a username for case-insensitive comparison.
+ *
+ * @param name - Username to canonicalize
+ * @returns Uppercase version of the name
+ */
 export function canonicalize(name: string): string {
   return name.toUpperCase();
 }
 
+/**
+ * Validate that a username contains only legal characters.
+ *
+ * @param name - Username to validate
+ * @returns True if valid
+ * @throws Error if username contains illegal characters
+ */
 export function containsOnlyLegalCharacters(name: string): true {
   if (userOptions.illegalChars.test(name)) {
     throw new Error(`Username ${name} contains invalid characters.`);
@@ -192,6 +205,12 @@ const userManifest = defineModelManifest({
   ] as const,
 } as ModelManifest<UserSchema, false, UserStaticMethods, UserInstanceMethods>);
 
+/**
+ * Create a lazy reference to the User model for use in other models.
+ * Resolves after bootstrap without causing circular import issues.
+ *
+ * @returns Typed User model constructor
+ */
 export function referenceUser(): UserModel {
   return referenceModel(userManifest) as UserModel;
 }

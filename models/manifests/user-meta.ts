@@ -45,6 +45,12 @@ const userMetaManifest = defineModelManifest({
 export type UserMetaInstance = InferInstance<typeof userMetaManifest>;
 export type UserMetaModel = InferConstructor<typeof userMetaManifest>;
 
+/**
+ * Create a lazy reference to the UserMeta model for use in other models.
+ * Resolves after bootstrap without causing circular import issues.
+ *
+ * @returns Typed UserMeta model constructor
+ */
 export function referenceUserMeta(): UserMetaModel {
   return referenceModel(userMetaManifest) as UserMetaModel;
 }

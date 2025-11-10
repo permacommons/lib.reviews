@@ -135,6 +135,8 @@ const manifestRegistry = new Map<string, ModelManifest>();
 
 /**
  * Register a model manifest (called by createModel())
+ *
+ * @param manifest - Model manifest to register in the global registry
  */
 export function registerManifest(manifest: ModelManifest): void {
   if (manifestRegistry.has(manifest.tableName)) {
@@ -150,6 +152,9 @@ export function registerManifest(manifest: ModelManifest): void {
 
 /**
  * Get a registered manifest by table name
+ *
+ * @param tableName - Database table name to look up
+ * @returns The registered manifest, or undefined if not found
  */
 export function getManifest(tableName: string): ModelManifest | undefined {
   return manifestRegistry.get(tableName);

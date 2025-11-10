@@ -640,6 +640,9 @@ class FilterWhereBuilder<
  * Produces the concrete `filterWhere` static bound to a manifest-derived
  * constructor. This stays lightweight so every model gets the same behaviour
  * without bespoke wiring inside the manifest definition itself.
+ *
+ * @param hasRevisions - Whether the model uses revision tracking
+ * @returns A filterWhere method bound to the model type
  */
 function createFilterWhereMethod<
   TData extends JsonObject,
@@ -667,13 +670,6 @@ function createFilterWhereMethod<
   return filterWhere;
 }
 
-/**
- * Helper consumed by `createModel` so all manifest-based models expose the new
- * statics even before the DAL bootstrap finishes initializing the underlying
- * constructors.
- *
- * @param _manifest Manifest describing the model being registered.
- */
 type RelationNames<Manifest extends ModelManifest> =
   Manifest['relations'] extends readonly (infer Relations)[]
     ? Relations extends { name: infer Name }
@@ -683,6 +679,14 @@ type RelationNames<Manifest extends ModelManifest> =
       : never
     : never;
 
+/**
+ * Helper consumed by `createModel` so all manifest-based models expose the new
+ * statics even before the DAL bootstrap finishes initializing the underlying
+ * constructors.
+ *
+ * @param _manifest - Manifest describing the model being registered
+ * @returns Static methods object with filterWhere and ops
+ */
 function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Manifest) {
   type Data = InferData<Manifest['schema']>;
   type Virtual = InferVirtual<Manifest['schema']>;

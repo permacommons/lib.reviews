@@ -92,6 +92,12 @@ export type FileInstance = FileInstanceBase & FileInstanceMethods;
 export type FileModel = FileModelBase & FileStaticMethods;
 export const fileValidLicenses = validLicenseValues;
 
+/**
+ * Create a lazy reference to the File model for use in other models.
+ * Resolves after bootstrap without causing circular import issues.
+ *
+ * @returns Typed File model constructor
+ */
 export function referenceFile(): FileModel {
   return referenceModel(fileManifest) as FileModel;
 }

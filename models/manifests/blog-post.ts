@@ -77,6 +77,12 @@ export interface BlogPostStaticMethods {
 export type BlogPostInstance = BlogPostInstanceBase & BlogPostInstanceMethods;
 export type BlogPostModel = BlogPostModelBase & BlogPostStaticMethods;
 
+/**
+ * Create a lazy reference to the BlogPost model for use in other models.
+ * Resolves after bootstrap without causing circular import issues.
+ *
+ * @returns Typed BlogPost model constructor
+ */
 export function referenceBlogPost(): BlogPostModel {
   return referenceModel(blogPostManifest) as BlogPostModel;
 }

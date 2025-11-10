@@ -40,6 +40,12 @@ export interface TeamSlugInstanceMethods {
 export type TeamSlugInstance = TeamSlugInstanceBase & TeamSlugInstanceMethods;
 export type TeamSlugModel = TeamSlugModelBase & TeamSlugStaticMethods;
 
+/**
+ * Create a lazy reference to the TeamSlug model for use in other models.
+ * Resolves after bootstrap without causing circular import issues.
+ *
+ * @returns Typed TeamSlug model constructor
+ */
 export function referenceTeamSlug(): TeamSlugModel {
   return referenceModel(teamSlugManifest) as TeamSlugModel;
 }

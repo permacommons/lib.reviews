@@ -50,6 +50,12 @@ export interface InviteLinkStaticMethods {
 export type InviteLinkInstance = InviteLinkInstanceBase & InviteLinkInstanceMethods;
 export type InviteLinkModel = InviteLinkModelBase & InviteLinkStaticMethods;
 
+/**
+ * Create a lazy reference to the InviteLink model for use in other models.
+ * Resolves after bootstrap without causing circular import issues.
+ *
+ * @returns Typed InviteLink model constructor
+ */
 export function referenceInviteLink(): InviteLinkModel {
   return referenceModel(inviteLinkManifest) as InviteLinkModel;
 }
