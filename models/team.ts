@@ -10,6 +10,7 @@ import {
 } from '../dal/lib/create-model.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import debug from '../util/debug.ts';
+import { generateSlugName } from '../util/slug.ts';
 import { referenceReview } from './manifests/review.ts';
 import teamManifest, {
   type TeamGetWithDataOptions,
@@ -26,32 +27,6 @@ import User, { type UserViewer } from './user.ts';
 const Review = referenceReview();
 
 const { mlString } = dal;
-
-/**
- * Normalize a string into a slug-safe representation.
- *
- * @param str - Source string to convert
- * @returns Slugified name suitable for URLs
- */
-function generateSlugName(str: string): string {
-  if (typeof str !== 'string') throw new Error('Source string is undefined or not a string.');
-
-  const trimmed = str.trim();
-  if (trimmed === '') throw new Error('Source string cannot be empty.');
-
-  const slugName = unescapeHTML(trimmed)
-    .trim()
-    .toLowerCase()
-    .replace(/[?&"″'`'<>:]/g, '')
-    .replace(/[ _/]/g, '-')
-    .replace(/-{2,}/g, '-');
-
-  if (!slugName) throw new Error('Source string cannot be converted to a valid slug.');
-
-  if (isUUID.v4(slugName)) throw new Error('Source string cannot be a UUID.');
-
-  return slugName;
-}
 
 type GetWithDataOptions = TeamGetWithDataOptions;
 
