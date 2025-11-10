@@ -9,9 +9,10 @@ import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import { referenceTeam } from './manifests/team.ts';
-import UserMeta, { type UserMetaInstance } from './user-meta.ts';
+import { referenceUserMeta, type UserMetaInstance } from './manifests/user-meta.ts';
 
 const Team = referenceTeam();
+const UserMeta = referenceUserMeta();
 
 type CreateUserPayload = {
   name: string;

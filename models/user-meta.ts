@@ -1,49 +1,11 @@
-import dal from '../dal/index.ts';
-import { defineModel, defineModelManifest } from '../dal/lib/create-model.ts';
-import { ValidationError } from '../dal/lib/errors.ts';
-import type { InferInstance } from '../dal/lib/model-manifest.ts';
-import types from '../dal/lib/type.ts';
-import languages from '../locales/languages.ts';
-
-const { mlString } = dal;
-const { isValid: isValidLanguage } = languages;
-
-// Manifest-based model definition
-const userMetaManifest = defineModelManifest({
-  tableName: 'user_metas',
-  hasRevisions: true,
-  schema: {
-    id: types.string().uuid(4),
-    bio: types
-      .object()
-      .default(() => ({ text: {}, html: {} }))
-      .validator((value: unknown) => {
-        if (value === null || value === undefined) return true;
-
-        const multilingualStringSchema = mlString.getSchema({ maxLength: 1000 });
-        const record = value as Record<string, unknown>;
-        multilingualStringSchema.validate(record.text, 'bio.text');
-        multilingualStringSchema.validate(record.html, 'bio.html');
-        return true;
-      }),
-    originalLanguage: types
-      .string()
-      .max(4)
-      .required(true)
-      .validator((lang: string | null | undefined) => {
-        if (lang === null || lang === undefined) return true;
-        if (!isValidLanguage(lang))
-          throw new ValidationError(`Invalid language code: ${lang}`, 'originalLanguage');
-        return true;
-      }),
-  },
-  camelToSnake: {
-    originalLanguage: 'original_language',
-  },
-});
+import { defineModel } from '../dal/lib/create-model.ts';
+import userMetaManifest, {
+  type UserMetaInstance,
+  type UserMetaModel,
+} from './manifests/user-meta.ts';
 
 const UserMeta = defineModel(userMetaManifest);
 
-export type UserMetaInstance = InferInstance<typeof userMetaManifest>;
+export type { UserMetaInstance, UserMetaModel };
 
 export default UserMeta;
