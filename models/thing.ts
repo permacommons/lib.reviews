@@ -12,6 +12,7 @@ import type { VersionedModelInstance } from '../dal/lib/model-types.ts';
 import search from '../search.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
+import { generateSlugName } from '../util/slug.ts';
 import urlUtils from '../util/url-utils.ts';
 import { referenceFile } from './manifests/file.ts';
 import { type ReviewInstance, referenceReview } from './manifests/review.ts';
@@ -576,7 +577,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
 
     let baseSlug;
     try {
-      baseSlug = _generateSlugName(resolved.str);
+      baseSlug = generateSlugName(resolved.str);
     } catch {
       return this;
     }
@@ -777,31 +778,6 @@ function _isValidURL(url: string): boolean {
       userMessageParams: [],
     });
   }
-}
-
-function _generateSlugName(str: string): string {
-  let slug = decodeHTML(str)
-    .trim()
-    .toLowerCase()
-    .replace(/[?&"″'`’<>:]/g, '')
-    .replace(/[ _/]/g, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  slug = slug
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  if (!slug) {
-    throw new Error('Source string cannot be converted to a valid slug.');
-  }
-
-  if (isUUID.v4(slug)) {
-    throw new Error('Source string cannot be a UUID.');
-  }
-
-  return slug;
 }
 
 /**
