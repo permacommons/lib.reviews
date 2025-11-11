@@ -46,6 +46,17 @@ export default abstract class AbstractBackendAdapter {
    */
   protected supportedFields!: string[];
 
+  /**
+   * Minimum milliseconds to wait between requests to this adapter's API.
+   * Set to 0 to disable throttling.
+   */
+  protected throttleMs: number = 0;
+
+  /**
+   * Timestamp of the last request made by this adapter instance
+   */
+  private lastRequestTime: number = 0;
+
   constructor() {
     if (new.target === AbstractBackendAdapter)
       throw new TypeError(
@@ -61,20 +72,41 @@ export default abstract class AbstractBackendAdapter {
   }
 
   /**
-   * Perform a lookup for a given URL.
-   * Implementations should resolve with an object of the form:
-   * {
-   *   data: {
-   *     label: Record<string, string> (required)
-   *     description?: Record<string, string>
-   *     subtitle?: Record<string, string>
-   *     authors?: Array<Record<string, string>>
-   *     thing?: unknown
-   *   },
-   *   sourceID: string
-   * }
+   * Promise that resolves when the adapter is ready for the next request.
+   * Used to serialize requests and enforce throttling.
    */
-  abstract lookup(url: string): Promise<AdapterLookupResult>;
+  private throttlePromise: Promise<void> = Promise.resolve();
+
+  /**
+   * Internal lookup implementation to be provided by each adapter.
+   * Do not call directly - use lookup() which handles throttling.
+   */
+  protected abstract _lookup(url: string): Promise<AdapterLookupResult>;
+
+  /**
+   * Perform a lookup for a given URL with automatic throttling.
+   * Waits if necessary to respect the adapter's throttleMs setting.
+   * Ensures requests are serialized per adapter instance, even with concurrent callers.
+   * Implementations should override _lookup() instead of this method.
+   */
+  async lookup(url: string): Promise<AdapterLookupResult> {
+    // Chain this request after the previous one completes
+    const myTurn = this.throttlePromise.then(() => {
+      // Mark when this request actually starts
+      this.lastRequestTime = Date.now();
+    });
+
+    // Update the throttle promise to include this request + delay
+    this.throttlePromise = myTurn.then(async () => {
+      if (this.throttleMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, this.throttleMs));
+      }
+    });
+
+    // Wait for our turn, then execute
+    await myTurn;
+    return this._lookup(url);
+  }
 
   getSourceURL(): string {
     // Keep legacy fallback behavior

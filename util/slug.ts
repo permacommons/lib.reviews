@@ -13,8 +13,8 @@ import unescapeHTML from 'unescape-html';
  * This function:
  * - Unescapes HTML entities
  * - Converts to lowercase
+ * - Replaces ampersands, spaces, underscores, and slashes with hyphens
  * - Removes specific punctuation characters that are problematic in URLs
- * - Replaces spaces, underscores, and slashes with hyphens
  * - Collapses multiple consecutive hyphens into one
  * - Preserves non-ASCII Unicode characters (accented letters, Cyrillic, etc.)
  *
@@ -25,6 +25,7 @@ import unescapeHTML from 'unescape-html';
  * @example
  * generateSlugName('Hello World!') // returns 'hello-world!'
  * generateSlugName('Café Münchën') // returns 'café-münchën'
+ * generateSlugName('B&B Hotel') // returns 'b-b-hotel'
  * generateSlugName('foo & bar') // returns 'foo-bar'
  */
 export function generateSlugName(str: string): string {
@@ -40,7 +41,8 @@ export function generateSlugName(str: string): string {
   const slugName = unescapeHTML(trimmed)
     .trim()
     .toLowerCase()
-    .replace(/[?&"″'`'<>:]/g, '') // Remove problematic punctuation
+    .replace(/[&]/g, '-') // Replace ampersands with hyphens
+    .replace(/[?"″'`'<>:]/g, '') // Remove problematic punctuation
     .replace(/[ _/]/g, '-') // Replace spaces, underscores, slashes with hyphens
     .replace(/-{2,}/g, '-'); // Collapse multiple hyphens
 

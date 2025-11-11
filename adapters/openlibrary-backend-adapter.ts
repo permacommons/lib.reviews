@@ -5,7 +5,8 @@
 
 /* External deps */
 import config from 'config';
-import escapeHTML from 'escape-html';
+import { decodeHTML } from 'entities';
+import stripTags from 'striptags';
 import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
 
@@ -74,9 +75,10 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
     this.supportedFields = ['label', 'authors', 'subtitle'];
     this.sourceID = 'openlibrary';
     this.sourceURL = 'https://openlibrary.org/';
+    this.throttleMs = 2000; // Wait 2 seconds between OpenLibrary requests
   }
 
-  async lookup(url: string): Promise<AdapterLookupResult> {
+  protected async _lookup(url: string): Promise<AdapterLookupResult> {
     const m = url.match(this.supportedPattern);
     if (m === null)
       throw new Error('URL does not appear to reference an Open Library work or edition.');
@@ -118,14 +120,16 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
 
     const result: AdapterLookupResult = {
       data: {
-        label: { [language]: escapeHTML(data.title) },
+        // Sanitize: strip HTML tags and decode entities to get plain text
+        label: { [language]: stripTags(decodeHTML(data.title)) },
       },
       sourceID: this.sourceID,
     };
 
     if (data.subtitle) {
       result.data.subtitle = {
-        [language]: escapeHTML(data.subtitle),
+        // Sanitize: strip HTML tags and decode entities to get plain text
+        [language]: stripTags(decodeHTML(data.subtitle)),
       };
     }
 
@@ -200,7 +204,8 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
         // We generally don't know what language an author name
         // is transliterated into. Most likely the common Western
         // Latin transliteration. Flag as undetermined.
-        authorArray.push({ und: escapeHTML(name) });
+        // Sanitize: strip HTML tags and decode entities to get plain text
+        authorArray.push({ und: stripTags(decodeHTML(name)) });
       }
     }
 

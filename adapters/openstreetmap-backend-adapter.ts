@@ -5,7 +5,8 @@
 
 /* External deps */
 import config from 'config';
-import escapeHTML from 'escape-html';
+import { decodeHTML } from 'entities';
+import stripTags from 'striptags';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
@@ -37,9 +38,10 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
     this.supportedFields = ['label'];
     this.sourceID = 'openstreetmap';
     this.sourceURL = 'https://openstreetmap.org/';
+    this.throttleMs = 2000; // Wait 2 seconds between OSM requests
   }
 
-  async lookup(url: string): Promise<AdapterLookupResult> {
+  protected async _lookup(url: string): Promise<AdapterLookupResult> {
     const m = url.match(this.supportedPattern);
     if (m === null)
       throw new Error('URL does not appear to reference an OpenStreetMap way or node.');
@@ -78,7 +80,8 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
     // Names without a language code are stored as 'undetermined' - while those
     // could sometimes be inferred from the country, this is often tricky in practice.
     if (tags['name']) {
-      label['und'] = escapeHTML(tags['name']);
+      // Sanitize: strip HTML tags and decode entities to get plain text
+      label['und'] = stripTags(decodeHTML(tags['name']));
     }
 
     for (const language of languages.getValidLanguages()) {
@@ -88,7 +91,8 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
       // Traditional and Simplified Chinese). We map against the more common variants.
       const key = 'name:' + language;
       if (tags[key]) {
-        label[language] = escapeHTML(tags[key]);
+        // Sanitize: strip HTML tags and decode entities to get plain text
+        label[language] = stripTags(decodeHTML(tags[key]));
       }
     }
 
