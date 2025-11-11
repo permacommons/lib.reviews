@@ -146,6 +146,70 @@ test('Adapters report correct supported fields', t => {
   t.pass();
 });
 
+test('Adapter throttling serializes requests with configured delays', async t => {
+  // Create a fresh OSM adapter instance with throttling enabled
+  const osmAdapter = new OpenStreetMapBackendAdapter();
+
+  // Verify it has throttling configured (should be non-zero)
+  const throttleMs = osmAdapter['throttleMs'];
+  t.true(throttleMs > 0, 'OSM adapter should have throttling enabled');
+
+  const startTime = Date.now();
+  const timings: number[] = [];
+
+  // Fire 3 concurrent requests to the same adapter
+  const urls = [
+    'https://www.openstreetmap.org/way/540846325',
+    'https://www.openstreetmap.org/node/4809608023',
+    'https://www.openstreetmap.org/way/540846325', // Duplicate is fine for timing test
+  ];
+
+  const promises = urls.map((url, index) =>
+    osmAdapter.lookup(url).then(() => {
+      const elapsed = Date.now() - startTime;
+      timings[index] = elapsed;
+      return elapsed;
+    })
+  );
+
+  await Promise.all(promises);
+
+  // First request should start immediately
+  t.true(timings[0] < 500, `First request should start quickly (${timings[0]}ms)`);
+
+  // Second request should wait approximately throttleMs
+  const expectedSecond = throttleMs;
+  const tolerance = 500; // Allow 500ms tolerance for execution time
+  t.true(
+    timings[1] >= expectedSecond - tolerance && timings[1] < expectedSecond + tolerance,
+    `Second request should wait ~${throttleMs}ms (actual: ${timings[1]}ms)`
+  );
+
+  // Third request should wait approximately 2 * throttleMs
+  const expectedThird = throttleMs * 2;
+  t.true(
+    timings[2] >= expectedThird - tolerance && timings[2] < expectedThird + tolerance,
+    `Third request should wait ~${throttleMs * 2}ms (actual: ${timings[2]}ms)`
+  );
+
+  t.pass();
+});
+
+test('Wikidata adapter has no throttling', t => {
+  const wikidataAdapter = new WikidataBackendAdapter();
+  t.is(wikidataAdapter['throttleMs'], 0, 'Wikidata adapter should have no throttling');
+  t.pass();
+});
+
+test('OpenLibrary adapter has throttling configured', t => {
+  const openLibraryAdapter = new OpenLibraryBackendAdapter();
+  t.true(
+    openLibraryAdapter['throttleMs'] > 0,
+    'OpenLibrary adapter should have throttling enabled'
+  );
+  t.pass();
+});
+
 /**
  * Attempt an adapter lookup with a couple of retries to shield the suite from
  * transient Overpass/OpenStreetMap 5xx responses in CI.

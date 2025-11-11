@@ -1,6 +1,7 @@
 /* External deps */
 import config from 'config';
-import escapeHTML from 'escape-html';
+import { decodeHTML } from 'entities';
+import stripTags from 'striptags';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
@@ -46,9 +47,10 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
     this.supportedFields = ['label', 'description'];
     this.sourceID = 'wikidata';
     this.sourceURL = 'https://www.wikidata.org/';
+    this.throttleMs = 0; // No throttling for Wikidata
   }
 
-  async lookup(url: string): Promise<AdapterLookupResult> {
+  protected async _lookup(url: string): Promise<AdapterLookupResult> {
     let qNumber = (url.match(this.supportedPattern) || [])[4];
     if (!qNumber)
       throw new Error(
@@ -123,9 +125,10 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
 
       const entry = wdObj[language];
       if (entry && typeof entry === 'object' && entry.language === language && entry.value) {
-        let wdStr = escapeHTML(entry.value);
+        // Sanitize: strip HTML tags and decode entities to get plain text
+        let wdStr = stripTags(decodeHTML(entry.value));
         if (typeof maxLength === 'number') wdStr = wdStr.substr(0, maxLength);
-        mlStr[native] = escapeHTML(wdStr);
+        mlStr[native] = wdStr;
       }
     }
     return mlStr;
