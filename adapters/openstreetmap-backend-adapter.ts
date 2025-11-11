@@ -38,7 +38,7 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
     this.supportedFields = ['label'];
     this.sourceID = 'openstreetmap';
     this.sourceURL = 'https://openstreetmap.org/';
-    this.throttleMs = 2000; // Wait 2 seconds between OSM requests
+    this.throttleMs = 5000; // Wait 5 seconds between OSM requests
   }
 
   protected async _lookup(url: string): Promise<AdapterLookupResult> {
