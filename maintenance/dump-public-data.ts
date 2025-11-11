@@ -19,7 +19,25 @@ import config from 'config';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
-const EXPORT_DIR = path.join(moduleDir, '../static/downloads/dumps');
+const findProjectRoot = (fromDir: string): string => {
+  let currentDir: string | undefined = fromDir;
+
+  while (currentDir) {
+    if (fs.existsSync(path.join(currentDir, 'package.json'))) {
+      return currentDir;
+    }
+
+    const parentDir = path.dirname(currentDir);
+
+    currentDir = parentDir === currentDir ? undefined : parentDir;
+  }
+
+  throw new Error('Unable to determine project root directory');
+};
+
+const PROJECT_ROOT = findProjectRoot(moduleDir);
+
+const EXPORT_DIR = path.join(PROJECT_ROOT, 'static/downloads/dumps');
 const ISO_DATE = new Date().toISOString().split('T')[0];
 const SQL_FILE = `dump-${ISO_DATE}.sql`;
 const TAR_FILE = `dump-${ISO_DATE}.tgz`;
