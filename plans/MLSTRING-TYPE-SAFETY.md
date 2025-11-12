@@ -142,56 +142,70 @@ But there's no type enforcement ensuring step 1 happens correctly.
 
 ### Phase 1: Distinct Types
 
-```typescript
-// Brand types to prevent mixing
-type PlainTextBrand = { __plaintext: never };
-type HTMLBrand = { __html: never };
+1. **Introduce branded aliases** in `dal/lib/ml-string.ts`:
+   ```typescript
+   type PlainTextBrand = { __plaintext: true };
+   type HtmlBrand = { __html: true };
 
-export type MultilingualPlainText = Record<string, string> & PlainTextBrand;
-export type MultilingualHTML = Record<string, string> & HTMLBrand;
+   export type MultilingualPlainText = Record<string, string> & PlainTextBrand;
+   export type MultilingualHTML = Record<string, string> & HtmlBrand;
 
-// Rich text structure
-export interface MultilingualRichText {
-  text: MultilingualPlainText;
-  html: MultilingualHTML;
-}
-```
+   export interface MultilingualRichText {
+     text: MultilingualPlainText;
+     html: MultilingualHTML;
+   }
+   ```
+   *Using brands lets us tighten TypeScript without altering runtime objects or the database schema.*
+2. **Add factory/branding helpers** alongside `resolveMultilingual`, e.g. `asPlainText()` and `asHtml()`, so callers can opt-in without refactoring data structures.
+3. **Provide type guards** (`isMultilingualPlainText`, `isMultilingualHTML`) to ease migration of existing call sites that already validate input.
+4. **Document expectations** in the module JSDoc so adapters and models understand which helper to use.
 
 ### Phase 2: Separate Schema Methods
 
-```typescript
-mlString.getPlainTextSchema({ maxLength?: number }); // Returns branded type
-mlString.getRichTextSchema({ maxLength?: number });  // Returns RichText structure
-mlString.getPlainTextArraySchema({ maxLength?: number }); // For authors, aliases
-```
+1. Extend `mlString.getSchema` with thin wrappers:
+   ```typescript
+   function getPlainTextSchema(opts?: Options) {
+     return mlString.getSchema(opts) as Schema<MultilingualPlainText>;
+   }
+   ```
+   *At first, these wrappers simply brand the validated value without changing runtime validation.*
+2. Add `getPlainTextArraySchema` and `getRichTextSchema` helpers that reuse the existing implementation, returning branded results with minimal code duplication.
+3. Update schema manifests (`models/manifests/*.ts`) to call the new helpers for the fields enumerated in “Current Usage Patterns”. No database migrations are required because the underlying structure stays the same.
+4. Keep the original `getSchema` available for legacy call sites while we convert each manifest file; annotate it as deprecated.
 
 ### Phase 3: Separate Handlebars Helpers
 
-```typescript
-// Auto-escapes plain text for XSS protection
-hbs.registerHelper('mlText', (mlText: MultilingualPlainText) => {
-  const resolved = resolveMultilingual(context.locale, mlText);
-  return new SafeString(escapeHTML(resolved.str));
-});
+1. Create `mlText` and `mlHTML` helpers in `util/handlebars-helpers.ts`:
+   ```typescript
+   hbs.registerHelper('mlText', (mlText: MultilingualPlainText) => {
+     const { str } = resolveMultilingual(locale, mlText);
+     return new SafeString(escapeHTML(str));
+   });
 
-// Renders pre-sanitized HTML without escaping
-hbs.registerHelper('mlHTML', (mlHtml: MultilingualHTML) => {
-  const resolved = resolveMultilingual(context.locale, mlHtml);
-  return new SafeString(resolved.str);
-});
-```
+   hbs.registerHelper('mlHTML', (mlHtml: MultilingualHTML) => {
+     const { str } = resolveMultilingual(locale, mlHtml);
+     return new SafeString(str);
+   });
+   ```
+2. Update the existing `mlString` helper to delegate to `mlText` after emitting a runtime warning when called with branded HTML. This keeps templates working while we migrate.
+3. Replace template usages gradually:
+   - `{{{mlString thing.label}}}` → `{{mlText thing.label}}`
+   - `{{{mlString review.html}}}` → `{{{mlHTML review.html}}}` (triple braces optional but harmless)
+4. Keep JSON-LD scripts (`views/thing.hbs`) on `mlHTML` to preserve unescaped output; use comments to clarify that the content is machine-readable HTML/JSON hybrids.
 
 ### Phase 4: Adapter Type Enforcement
 
-```typescript
-export interface AdapterLookupData {
-  // Only plain text allowed from adapters
-  label?: MultilingualPlainText;
-  subtitle?: MultilingualPlainText;
-  authors?: MultilingualPlainText[];
-  description?: MultilingualPlainText;
-}
-```
+1. Change adapter return types (`adapters/*-backend-adapter.ts`) to express plain-text expectations:
+   ```typescript
+   export interface AdapterLookupData {
+     label?: MultilingualPlainText;
+     subtitle?: MultilingualPlainText;
+     authors?: MultilingualPlainText[];
+     description?: MultilingualPlainText;
+   }
+   ```
+2. Apply `asPlainText` to sanitized adapter outputs so they satisfy the stricter types without altering the sanitization logic added in the recent bugfix.
+3. For data sources that legitimately deliver HTML (none currently), require explicit review before branding as `MultilingualHTML` to keep the database safe by default.
 
 ## Migration Strategy
 
@@ -217,13 +231,13 @@ export interface AdapterLookupData {
 - Type errors catch bugs during development
 - New developers don't need to memorize conventions
 
-## Open Questions
+## Decisions on Previous Open Questions
 
-1. Should we use branded types or nominal types (classes)?
-2. How to handle migration of existing data in database?
-3. Should markdown rendering create a new branded type `MultilingualMarkdown`?
-4. Performance impact of additional type checking?
-5. How to handle edge cases like JSON-LD in templates (line 112-114 in views/thing.hbs)?
+- **Brand vs. nominal types**: Branded intersections give us compile-time safety with zero runtime cost and no constructor refactors, so we will stay with brands.
+- **Existing data**: Because the runtime representation is unchanged, no database migration is needed. We will add a one-off script (or temporary logging) to flag any stored HTML during rollout, but schema changes are unnecessary.
+- **Markdown as a distinct brand**: The markdown source is already treated as plain text and always rendered before display. Branding it as `MultilingualPlainText` keeps the API simple; we do not add a `MultilingualMarkdown` type.
+- **Performance**: The plan only adds TypeScript annotations and helper wrappers; there is no extra runtime validation beyond what already exists, so performance remains unchanged.
+- **JSON-LD edge cases**: Treat JSON-LD snippets as trusted HTML by routing them through the new `mlHTML` helper and documenting why they bypass escaping.
 
 ## Related Files
 
