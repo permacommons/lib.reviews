@@ -42,7 +42,7 @@ export function generateSlugName(str: string): string {
     .trim()
     .toLowerCase()
     .replace(/[&]/g, '-') // Replace ampersands with hyphens
-    .replace(/[?"″'`'<>:]/g, '') // Remove problematic punctuation
+    .replace(/[?"″''`'<>:]/g, '') // Remove problematic punctuation
     .replace(/[ _/]/g, '-') // Replace spaces, underscores, slashes with hyphens
     .replace(/-{2,}/g, '-'); // Collapse multiple hyphens
 
