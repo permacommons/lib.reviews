@@ -1,253 +1,652 @@
-# Multilingual String Type Safety Improvements
+# Multilingual String Type Safety Implementation Plan
 
-**Status**: Preliminary observations
+**Status**: Implementation Ready
 **Created**: 2025-11-11
-**Context**: Double-escaping bug investigation revealed broader type safety issues
+**Revised**: 2025-11-12
+**Approach**: Runtime validation + TypeScript type safety
+
+## Executive Summary
+
+This plan adds runtime validation to distinguish plain text multilingual strings from HTML content. Each phase can be committed independently while keeping all tests green.
+
+**Key insight:** Templates must migrate to explicit helpers (`mlText`/`mlHTML`) before schemas enforce validation, otherwise double-escaping occurs.
 
 ## Problem Statement
 
-The current multilingual string system relies on naming conventions and developer knowledge rather than type safety to distinguish between plain text and HTML content. This creates opportunities for XSS vulnerabilities and makes the codebase harder to understand for new developers.
+Currently all multilingual strings use the same validation (`mlString.getSchema()`), whether they contain:
+- Plain text that should be escaped (labels, titles)
+- Markdown source that should be escaped (review.text)
+- Rendered HTML that should not be escaped (review.html)
 
-## Current State Analysis
+This creates:
+1. **XSS risk**: Nothing prevents storing `<script>` in a plain text field
+2. **Type ambiguity**: Developers must memorize which fields contain what
+3. **Template confusion**: All fields use `{{{mlString}}}` (unescaped)
 
-### Existing Type Definitions
+## Current Field Patterns
 
-Located in `dal/lib/ml-string.ts`:
+Based on comprehensive codebase analysis:
 
-```typescript
-// Line 11 - Basic multilingual string (language code -> string)
-type MultilingualString = Record<string, string>;
+### Pattern A: Plain Text Fields
+Simple strings that should never contain HTML.
 
-// Line 13 - Array variant
-type MultilingualStringArray = Record<string, string[]>;
+**Examples:** `review.title`, `team.name`, `team.motto`, `thing.label`
 
-// Line 25 - Rich text structure with both markdown source and rendered HTML
-export interface MultilingualRichText {
-  text?: MultilingualString;
-  html?: MultilingualString;
-}
+**Storage:** `{ en: "plain text", es: "texto plano" }`
 
-// Line 30 - Union type accepting any of the above
-export type MultilingualInput =
-  | MultilingualString
-  | MultilingualStringArray
-  | MultilingualRichText
-  | null
-  | undefined;
+### Pattern B: Rich Text Sibling Fields
+Markdown source + cached rendered HTML as separate fields.
+
+**Examples:** `review.text` + `review.html`, `blogPost.text` + `blogPost.html`
+
+**Storage:**
+```javascript
+review.text = { en: "markdown" }      // Plain text
+review.html = { en: "<p>HTML</p>" }   // Rendered HTML
 ```
 
-### Current Usage Patterns
+### Pattern C: Rich Text Nested Fields
+Markdown source + cached rendered HTML in one nested object.
 
-**Pattern 1: Plain Text Fields** (stored directly as `MultilingualString`)
-- `thing.label` - Labels from external adapters (OSM, Wikidata, OpenLibrary)
-- `thing.metadata.subtitle` - Subtitles for things
-- `thing.metadata.authors` - Author names (array of MultilingualString)
-- `team.name` - Team names
-- `team.motto` - Team mottos
-- `review.title` - Review titles
+**Examples:** `team.description`, `team.rules`, `userMeta.bio`
 
-**Pattern 2: Rich Text Fields** (stored as `MultilingualRichText` with `.text` and `.html`)
-- `team.description.text` / `team.description.html`
-- `team.rules.text` / `team.rules.html`
-- `user.meta.bio.text` / `user.meta.bio.html`
-
-**Pattern 3: Sibling Fields** (exception: separate fields instead of nested object)
-- `review.text` - Markdown source
-- `review.html` - Rendered HTML
-
-### Schema Definition
-
-All multilingual fields use the same schema method:
-```typescript
-mlString.getSchema({ maxLength?: number, array?: boolean })
-```
-
-This returns an `ObjectType` that validates structure but **doesn't distinguish between plain text and HTML content**.
-
-### Validation
-
-For Pattern 2 (rich text), there's a custom validator in `models/manifests/team.ts`:
-
-```typescript
-function validateTextHtmlObject(value: unknown): boolean {
-  if (value === null || value === undefined) return true;
-
-  if (typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Description/rules must be an object with text and html properties');
-
-  const record = value as Record<string, unknown>;
-  if (record.text !== undefined) mlString.validate(record.text);
-  if (record.html !== undefined) mlString.validate(record.html);
-
-  return true;
+**Storage:**
+```javascript
+team.description = {
+  text: { en: "markdown" },
+  html: { en: "<p>HTML</p>" }
 }
 ```
 
-This validates structure but still treats both `.text` and `.html` identically.
+### Pattern D: Array Fields
+Arrays of plain text multilingual strings.
 
-## Issues with Current Design
+**Examples:** `thing.aliases`, `thing.metadata.authors`
 
-### 1. No Type Distinction Between Plain Text and HTML
+## Proposed Solution
+
+### Three Schema Methods
 
 ```typescript
-// Both are valid TypeScript, but semantically wrong:
-thing.label = { en: '<script>alert("xss")</script>' }; // Should be plain text!
-review.html = { en: 'Plain text here' }; // Should be rendered HTML!
+// Plain text - rejects HTML
+mlString.getPlainTextSchema({ maxLength?: number, array?: boolean })
+
+// HTML - allows HTML (use only for cached rendered markdown)
+mlString.getHTMLSchema({ maxLength?: number })
+
+// Rich text - validates { text: plain, html: html }
+mlString.getRichTextSchema()
 ```
 
-### 2. Template Rendering is Unsafe
+### Two Template Helpers
 
-The `mlString` Handlebars helper (in `util/handlebars-helpers.ts:202-225`) doesn't distinguish between content types:
+```handlebars
+{{!-- Auto-escapes for safety --}}
+{{mlText review.title}}
+
+{{!-- No escaping for pre-rendered HTML --}}
+{{{mlHTML review.html}}}
+```
+
+### Runtime Validation
+
+Uses `stripTags()` to detect HTML:
 
 ```typescript
-hbs.registerHelper('mlString', (...args) => {
-  // ... resolves the multilingual string ...
-  return mlRv.str; // Returns raw string without escaping
+if (!allowHTML) {
+  const stripped = stripTags(langValue);
+  if (stripped !== langValue) {
+    throw new ValidationError(
+      `Plain text field for language '${langKey}' contains HTML tags`
+    );
+  }
+}
+```
+
+## Migration Phases
+
+Each phase can be committed independently with all tests passing.
+
+---
+
+### Phase 1: Core Implementation (Permissive Mode)
+
+**Goal**: Add new APIs without changing behavior.
+
+**Changes:**
+1. Add `allowHTML` option to `getSchema()` (default: `true` for compatibility)
+2. Add `getPlainTextSchema()`, `getHTMLSchema()`, `getRichTextSchema()`
+3. Add comprehensive unit tests
+4. Update JSDoc documentation
+
+**Example:**
+```typescript
+// In dal/lib/ml-string.ts
+export interface MlStringSchemaOptions {
+  maxLength?: number;
+  array?: boolean;
+  allowHTML?: boolean;  // NEW - defaults to true
+}
+
+const mlString = {
+  getSchema({ maxLength, array = false, allowHTML = true }: MlStringSchemaOptions = {}) {
+    // ... existing validation ...
+
+    // NEW: HTML validation
+    if (!allowHTML && typeof langValue === 'string') {
+      const stripped = stripTags(langValue);
+      if (stripped !== langValue) {
+        throw new ValidationError(
+          `Plain text field for language '${langKey}' contains HTML tags. ` +
+          `Use stripHTML() to sanitize.`
+        );
+      }
+    }
+
+    // ... rest of validation ...
+  },
+
+  getPlainTextSchema(opts = {}) {
+    return this.getSchema({ ...opts, allowHTML: false });
+  },
+
+  getHTMLSchema(opts = {}) {
+    return this.getSchema({ ...opts, allowHTML: true });
+  },
+
+  getRichTextSchema() {
+    const objectType = types.object();
+    objectType.validator(value => {
+      if (value === null || value === undefined) return true;
+      const record = value as Record<string, unknown>;
+      if (record.text !== undefined) {
+        this.getPlainTextSchema().validate(record.text, 'rich text .text field');
+      }
+      if (record.html !== undefined) {
+        this.getHTMLSchema().validate(record.html, 'rich text .html field');
+      }
+      return true;
+    });
+    return objectType;
+  },
+};
+```
+
+**Tests:**
+```typescript
+describe('mlString.getPlainTextSchema', () => {
+  it('accepts plain text', () => {
+    const schema = mlString.getPlainTextSchema();
+    expect(() => schema.validate({ en: 'Hello' })).not.toThrow();
+  });
+
+  it('rejects HTML', () => {
+    const schema = mlString.getPlainTextSchema();
+    expect(() => schema.validate({ en: '<p>Hello</p>' }))
+      .toThrow('contains HTML tags');
+  });
 });
 ```
 
-All templates use triple braces (unescaped output):
-```handlebars
-{{{mlString thing.label}}}        <!-- Plain text, should be escaped! -->
-{{{mlString review.html}}}         <!-- HTML, correctly unescaped -->
-{{{mlString team.description.html}}} <!-- HTML, correctly unescaped -->
+**Files:**
+- `dal/lib/ml-string.ts` - Implementation
+- `dal/lib/ml-string.test.ts` - Tests (new file)
+
+**Commit message:** `feat(ml-string): add runtime HTML validation with permissive default`
+
+✅ All existing tests pass (behavior unchanged)
+
+---
+
+### Phase 2: Add Template Helpers
+
+**Goal**: Add new helpers without changing existing templates.
+
+**Changes:**
+1. Add `mlText` helper (auto-escapes)
+2. Add `mlHTML` helper (no escaping)
+3. Keep `mlString` unchanged
+
+**Example:**
+```typescript
+// In util/handlebars-helpers.ts
+
+hbs.registerHelper('mlText', (...args) => {
+  const [str, addLanguageSpan, options] =
+    args.length === 2 ? [args[0], true, args[1]] :
+    [args[0], args[1] as boolean, args[2]];
+
+  const context = getTemplateContext(options);
+  const mlRv = resolveMultilingual(context.locale, str);
+
+  if (!mlRv?.str) return undefined;
+
+  const escaped = escapeHTML(mlRv.str);
+
+  if (!addLanguageSpan || mlRv.lang === context.locale || mlRv.lang === 'und') {
+    return new SafeString(escaped);
+  }
+
+  const languageName = languages.getCompositeName(mlRv.lang, context.locale);
+  return new SafeString(
+    `${escaped} <span class="language-identifier" title="${languageName}">` +
+    `<span class="fa fa-fw fa-globe">&nbsp;</span>${mlRv.lang}</span>`
+  );
+});
+
+hbs.registerHelper('mlHTML', (...args) => {
+  const [str, addLanguageSpan, options] =
+    args.length === 2 ? [args[0], false, args[1]] :
+    [args[0], args[1] as boolean, args[2]];
+
+  const context = getTemplateContext(options);
+  const mlRv = resolveMultilingual(context.locale, str);
+
+  if (!mlRv?.str) return undefined;
+
+  // No escaping - content is pre-rendered HTML
+  if (!addLanguageSpan || mlRv.lang === context.locale || mlRv.lang === 'und') {
+    return new SafeString(mlRv.str);
+  }
+
+  const languageName = languages.getCompositeName(mlRv.lang, context.locale);
+  return new SafeString(
+    mlRv.str +
+    ` <span class="language-identifier" title="${languageName}">` +
+    `<span class="fa fa-fw fa-globe">&nbsp;</span>${mlRv.lang}</span>`
+  );
+});
+
+// Keep existing mlString helper unchanged
 ```
 
-### 3. Adapter Output is Ambiguous
+**Files:**
+- `util/handlebars-helpers.ts` - Add new helpers
 
-Adapters return `AdapterMultilingualString` which is just an alias:
+**Commit message:** `feat(templates): add mlText and mlHTML helpers for explicit escaping`
+
+✅ All existing tests pass (no templates use new helpers yet)
+
+---
+
+### Phase 3: Migrate Templates
+
+**Goal**: Switch all templates to explicit helpers.
+
+**Critical**: This MUST happen before schema migration to avoid double-escaping.
+
+**Changes:**
+Replace all `mlString` usage across 22 template files:
+
+```handlebars
+{{!-- Plain text fields --}}
+Before: {{{mlString review.title}}}
+After:  {{mlText review.title}}
+
+Before: {{{mlString team.name}}}
+After:  {{mlText team.name}}
+
+Before: {{{mlString thing.label}}}
+After:  {{mlText thing.label}}
+
+{{!-- HTML fields --}}
+Before: {{{mlString review.html false}}}
+After:  {{{mlHTML review.html}}}
+
+Before: {{{mlString team.description.html false}}}
+After:  {{{mlHTML team.description.html}}}
+
+{{!-- Markdown source (plain text) --}}
+Before: {{{mlString formValues.text false}}}
+After:  {{mlText formValues.text false}}
+```
+
+**Migration Pattern:**
+- `.html` field → `mlHTML`
+- `.text` field → `mlText`
+- `.title`, `.name`, `.label`, `.motto` → `mlText`
+- Everything else → `mlText` (default to safe)
+
+**Template Groups:**
+1. Review templates (9 files): review.hbs, review-form.hbs, partials/review.hbs, etc.
+2. Team templates (5 files): team.hbs, team-form.hbs, teams.hbs, etc.
+3. Thing templates (3 files): thing.hbs, thing-form.hbs, search.hbs
+4. User & Blog templates (4 files): user.hbs, blog-post.hbs, etc.
+5. Utility templates (3 files): index.hbs, files.hbs, partials/uploads.hbs
+6. Feed templates (2 files): blog-feed-atom.hbs, partials/feed-atom.hbs
+
+**Testing:**
+- Visual inspection of all pages
+- Verify HTML escaping with browser dev tools
+- Test with XSS payloads in plain text fields
+
+**Files:**
+- All 22 `.hbs` files in `views/`
+
+**Commit message:** `refactor(templates): migrate from mlString to mlText/mlHTML for explicit escaping`
+
+✅ All tests pass (templates now handle escaping, schemas still permissive)
+
+---
+
+### Phase 4: Migrate Schemas to Strict Mode
+
+**Goal**: Enforce validation at database write time.
+
+**Now safe because**: Templates already handle escaping correctly from Phase 3.
+
+**Changes:**
+Update all model manifests to use explicit schema methods:
+
+**Group A: Plain Text Fields**
+```typescript
+// models/manifests/team.ts
+name: mlString.getPlainTextSchema({ maxLength: 100 }),
+motto: mlString.getPlainTextSchema({ maxLength: 200 }),
+
+// models/manifests/thing.ts
+label: mlString.getPlainTextSchema({ maxLength: 256 }),
+
+// models/manifests/review.ts
+title: mlString.getPlainTextSchema({ maxLength: 255 }),
+
+// models/manifests/blog-post.ts
+title: mlString.getPlainTextSchema({ maxLength: 100 }),
+
+// models/manifests/file.ts
+description: mlString.getPlainTextSchema(),
+creator: mlString.getPlainTextSchema(),
+source: mlString.getPlainTextSchema(),
+```
+
+**Group B: Rich Text Sibling Fields**
+```typescript
+// models/manifests/review.ts
+text: mlString.getPlainTextSchema(),
+html: mlString.getHTMLSchema(),
+
+// models/manifests/blog-post.ts
+text: mlString.getPlainTextSchema(),
+html: mlString.getHTMLSchema(),
+```
+
+**Group C: Rich Text Nested Fields**
+```typescript
+// models/manifests/team.ts
+description: mlString.getRichTextSchema(),
+rules: mlString.getRichTextSchema(),
+
+// models/manifests/user-meta.ts
+bio: mlString.getRichTextSchema(),
+```
+
+**Group D: Array Fields**
+```typescript
+// models/manifests/thing.ts
+aliases: mlString.getPlainTextSchema({ maxLength: 256, array: true }),
+// In metadata virtual getter
+authors: mlString.getPlainTextSchema({ maxLength: 256, array: true }),
+```
+
+**Testing:**
+- Run full test suite
+- Test creating records with plain text (should work)
+- Test creating records with HTML in plain text fields (should fail with clear error)
+
+**Files:**
+- `models/manifests/team.ts`
+- `models/manifests/thing.ts`
+- `models/manifests/review.ts`
+- `models/manifests/blog-post.ts`
+- `models/manifests/file.ts`
+- `models/manifests/user-meta.ts`
+
+**Commit message:** `feat(models): enforce runtime HTML validation in multilingual schemas`
+
+✅ All tests pass (validation enforced, templates already correct)
+
+---
+
+### Phase 5: Handler Review & Error Handling
+
+**Goal**: Add user-friendly error handling for validation failures.
+
+**Changes:**
+1. Review form processing code (should already be safe - uses `escapeHTML`)
+2. Review adapter code (should already be safe - uses `stripHTML`)
+3. Add error handling for validation failures
+4. Add integration tests
+
+**Example Error Handling:**
+```typescript
+// In route handlers
+try {
+  await review.save();
+} catch (err) {
+  if (err instanceof ValidationError && err.message.includes('contains HTML tags')) {
+    req.flash('errors', req.__('plain text field cannot contain html'));
+    return res.redirect('back');
+  }
+  throw err;
+}
+```
+
+**Integration Tests:**
+```typescript
+describe('Validation error handling', () => {
+  it('rejects HTML in plain text field', async () => {
+    const thing = new Thing({
+      label: { en: '<script>alert("xss")</script>' },
+      createdBy: user.id,
+    });
+    await expect(thing.save()).rejects.toThrow('contains HTML tags');
+  });
+
+  it('accepts HTML in html field', async () => {
+    const review = new Review({
+      title: { en: 'Title' },
+      text: { en: 'Content' },
+      html: { en: '<p>Content</p>' },
+      starRating: 5,
+      thingID: thing.id,
+      createdBy: user.id,
+    });
+    await expect(review.save()).resolves.toBeDefined();
+  });
+});
+```
+
+**Files:**
+- `routes/handlers/*.ts` - Add error handling
+- `tests/integration/*.ts` - Add validation tests
+
+**Commit message:** `feat(validation): add user-friendly error handling for HTML validation`
+
+✅ All tests pass (better error messages, validation working)
+
+---
+
+### Phase 6: Change Default & Cleanup
+
+**Goal**: Make strict validation the default.
+
+**Changes:**
+1. Change `allowHTML` default from `true` to `false` in `getSchema()`
+2. Add deprecation warning to `mlString` helper
+3. Remove `validateTextHtmlObject()` from team.ts (replaced by getRichTextSchema)
+4. Update documentation
+
+**Example:**
+```typescript
+// dal/lib/ml-string.ts
+function getSchema({
+  maxLength,
+  array = false,
+  allowHTML = false  // Changed from true to false
+}: MlStringSchemaOptions = {}) {
+  // ...
+}
+
+// util/handlebars-helpers.ts
+hbs.registerHelper('mlString', (...args) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('[DEPRECATED] mlString helper - use mlText or mlHTML');
+  }
+  return hbs.helpers.mlText(...args);
+});
+
+// models/manifests/team.ts
+// Remove validateTextHtmlObject function (now unused)
+```
+
+**Files:**
+- `dal/lib/ml-string.ts` - Change default
+- `util/handlebars-helpers.ts` - Deprecate helper
+- `models/manifests/team.ts` - Remove old validator
+
+**Commit message:** `refactor(ml-string): make strict validation default and deprecate mlString helper`
+
+✅ All tests pass (strict by default, old code deprecated)
+
+---
+
+### Phase 7 (Optional): Remove Deprecated Code
+
+**Goal**: Final cleanup after deprecation period.
+
+**Changes:**
+1. Remove deprecated `mlString` helper entirely
+2. Remove any other deprecated code paths
+
+**Files:**
+- `util/handlebars-helpers.ts` - Remove `mlString` helper
+
+**Commit message:** `refactor(templates): remove deprecated mlString helper`
+
+✅ All tests pass (clean codebase)
+
+---
+
+## Adoption Pattern for Future Development
+
+Once implementation is complete, use these patterns:
+
+### Creating New Models
 
 ```typescript
-// In adapters/abstract-backend-adapter.ts
-export type AdapterMultilingualString = Record<string, string>;
+const myManifest = defineModelManifest({
+  schema: {
+    // Plain text
+    name: mlString.getPlainTextSchema({ maxLength: 100 }),
+
+    // Array of plain text
+    tags: mlString.getPlainTextSchema({ array: true }),
+
+    // Rich text (nested)
+    description: mlString.getRichTextSchema(),
+
+    // Rich text (sibling fields)
+    text: mlString.getPlainTextSchema(),
+    html: mlString.getHTMLSchema(),
+  }
+});
 ```
 
-There's no indication that this MUST be plain text only (no HTML).
+### Writing Templates
 
-### 4. Data Flow Lacks Sanitization Checkpoints
+```handlebars
+{{!-- Plain text (auto-escaped) --}}
+<h1>{{mlText review.title}}</h1>
 
-Before the recent fix, the data flow was:
-1. External API → Adapter (no sanitization)
-2. Adapter → Database (stored as-is)
-3. Database → Template (rendered unescaped)
+{{!-- HTML (pre-rendered markdown) --}}
+<div>{{{mlHTML review.html}}}</div>
 
-After the fix (2025-11-11):
-1. External API → Adapter (**now sanitized**: `stripTags(decodeHTML(value))`)
-2. Adapter → Database (plain text only)
-3. Database → Template (still rendered unescaped)
+{{!-- Suppress language indicator --}}
+<meta content="{{mlText thing.label false}}" />
+```
 
-But there's no type enforcement ensuring step 1 happens correctly.
+### Processing External Data
 
-## Proposed Improvements
+```typescript
+// In adapters
+const label = mlString.stripHTML({
+  en: externalData.title,
+  es: externalData.titulo,
+});
+```
 
-### Phase 1: Distinct Types
+### Handling Validation Errors
 
-1. **Introduce branded aliases** in `dal/lib/ml-string.ts`:
-   ```typescript
-   type PlainTextBrand = { __plaintext: true };
-   type HtmlBrand = { __html: true };
+```
+ValidationError: Plain text field for language 'en' contains HTML tags.
+```
 
-   export type MultilingualPlainText = Record<string, string> & PlainTextBrand;
-   export type MultilingualHTML = Record<string, string> & HtmlBrand;
-
-   export interface MultilingualRichText {
-     text: MultilingualPlainText;
-     html: MultilingualHTML;
-   }
-   ```
-   *Using brands lets us tighten TypeScript without altering runtime objects or the database schema.*
-2. **Add factory/branding helpers** alongside `resolveMultilingual`, e.g. `asPlainText()` and `asHtml()`, so callers can opt-in without refactoring data structures.
-3. **Provide type guards** (`isMultilingualPlainText`, `isMultilingualHTML`) to ease migration of existing call sites that already validate input.
-4. **Document expectations** in the module JSDoc so adapters and models understand which helper to use.
-
-### Phase 2: Separate Schema Methods
-
-1. Extend `mlString.getSchema` with thin wrappers:
-   ```typescript
-   function getPlainTextSchema(opts?: Options) {
-     return mlString.getSchema(opts) as Schema<MultilingualPlainText>;
-   }
-   ```
-   *At first, these wrappers simply brand the validated value without changing runtime validation.*
-2. Add `getPlainTextArraySchema` and `getRichTextSchema` helpers that reuse the existing implementation, returning branded results with minimal code duplication.
-3. Update schema manifests (`models/manifests/*.ts`) to call the new helpers for the fields enumerated in “Current Usage Patterns”. No database migrations are required because the underlying structure stays the same.
-4. Keep the original `getSchema` available for legacy call sites while we convert each manifest file; annotate it as deprecated.
-
-### Phase 3: Separate Handlebars Helpers
-
-1. Create `mlText` and `mlHTML` helpers in `util/handlebars-helpers.ts`:
-   ```typescript
-   hbs.registerHelper('mlText', (mlText: MultilingualPlainText) => {
-     const { str } = resolveMultilingual(locale, mlText);
-     return new SafeString(escapeHTML(str));
-   });
-
-   hbs.registerHelper('mlHTML', (mlHtml: MultilingualHTML) => {
-     const { str } = resolveMultilingual(locale, mlHtml);
-     return new SafeString(str);
-   });
-   ```
-2. Update the existing `mlString` helper to delegate to `mlText` after emitting a runtime warning when called with branded HTML. This keeps templates working while we migrate.
-3. Replace template usages gradually:
-   - `{{{mlString thing.label}}}` → `{{mlText thing.label}}`
-   - `{{{mlString review.html}}}` → `{{{mlHTML review.html}}}` (triple braces optional but harmless)
-4. Keep JSON-LD scripts (`views/thing.hbs`) on `mlHTML` to preserve unescaped output; use comments to clarify that the content is machine-readable HTML/JSON hybrids.
-
-### Phase 4: Adapter Type Enforcement
-
-1. Change adapter return types (`adapters/*-backend-adapter.ts`) to express plain-text expectations:
-   ```typescript
-   export interface AdapterLookupData {
-     label?: MultilingualPlainText;
-     subtitle?: MultilingualPlainText;
-     authors?: MultilingualPlainText[];
-     description?: MultilingualPlainText;
-   }
-   ```
-2. Apply `asPlainText` to sanitized adapter outputs so they satisfy the stricter types without altering the sanitization logic added in the recent bugfix.
-3. For data sources that legitimately deliver HTML (none currently), require explicit review before branding as `MultilingualHTML` to keep the database safe by default.
-
-## Migration Strategy
-
-1. **Add new types without breaking changes** - Introduce branded types as aliases initially
-2. **Update adapters first** - They're the entry points, enforce plain text output
-3. **Update models** - Change schema definitions to use new methods
-4. **Add new Handlebars helpers** - Keep old `mlString` for backwards compatibility
-5. **Update templates incrementally** - Convert `{{{mlString}}}` to `{{mlText}}` or `{{mlHTML}}`
-6. **Deprecate old helper** - After all templates migrated
-7. **Remove brand compatibility** - Make types strictly incompatible
+**Fix:** Apply `mlString.stripHTML()` or use `getHTMLSchema()` if it's legitimately HTML.
 
 ## Security Benefits
 
-- **Defense in depth**: Multiple layers preventing XSS
-- **Compile-time safety**: TypeScript catches misuse
-- **Self-documenting**: Types communicate intent
-- **Harder to make mistakes**: Wrong usage won't compile
+**Defense in Depth:**
+1. Input sanitization (adapters/forms)
+2. Runtime validation (schema layer) ← NEW
+3. Template escaping (mlText helper) ← NEW
+4. Type system (future: branded types)
 
-## Developer Experience Benefits
+Even if one layer fails, others catch it.
 
-- Clear distinction between plain text and HTML in code
-- IDE autocomplete helps choose correct helper
-- Type errors catch bugs during development
-- New developers don't need to memorize conventions
+## Testing Strategy
 
-## Decisions on Previous Open Questions
+### Unit Tests
+- Plain text schema rejects HTML
+- HTML schema allows HTML
+- Rich text schema validates both fields
+- Clear error messages
 
-- **Brand vs. nominal types**: Branded intersections give us compile-time safety with zero runtime cost and no constructor refactors, so we will stay with brands.
-- **Existing data**: Because the runtime representation is unchanged, no database migration is needed. We will add a one-off script (or temporary logging) to flag any stored HTML during rollout, but schema changes are unnecessary.
-- **Markdown as a distinct brand**: The markdown source is already treated as plain text and always rendered before display. Branding it as `MultilingualPlainText` keeps the API simple; we do not add a `MultilingualMarkdown` type.
-- **Performance**: The plan only adds TypeScript annotations and helper wrappers; there is no extra runtime validation beyond what already exists, so performance remains unchanged.
-- **JSON-LD edge cases**: Treat JSON-LD snippets as trusted HTML by routing them through the new `mlHTML` helper and documenting why they bypass escaping.
+### Integration Tests
+- Create records with valid data
+- Create records with HTML in plain text (fails)
+- Form submission works correctly
+- Adapters pass validation
+
+### Security Tests
+- XSS payloads rejected in plain text fields
+- Template rendering escapes correctly
+- HTML rendering works for markdown
+
+## Performance Impact
+
+- **Runtime cost**: ~0.1ms per field validation (only on writes)
+- **Memory cost**: None (schema objects reused)
+- **Database impact**: None (no schema changes)
+
+## Rollback Plan
+
+Each phase can be reverted independently:
+- **Phase 1-2**: Revert, no impact (APIs unused)
+- **Phase 3**: Revert templates, keep using `mlString`
+- **Phase 4+**: Revert schemas, set `allowHTML: true` default
+
+**Emergency**: Set `DISABLE_HTML_VALIDATION=true` environment variable to bypass validation.
 
 ## Related Files
 
-- `dal/lib/ml-string.ts` - Core type definitions
-- `util/handlebars-helpers.ts` - Template rendering (mlString helper at line 202-225)
-- `adapters/*-backend-adapter.ts` - Data sources (now sanitize with stripTags/decodeHTML)
-- `models/manifests/*.ts` - Schema definitions
-- `views/**/*.hbs` - Template files using `{{{mlString}}}`
+### Core
+- `dal/lib/ml-string.ts` - Type definitions and validation
+- `util/handlebars-helpers.ts` - Template helpers
 
-## See Also
+### Models
+- `models/manifests/review.ts`, `blog-post.ts`, `team.ts`, `thing.ts`, `user-meta.ts`, `file.ts`
 
-- Recent fix for double-escaping bug (commit removing escapeHTML from adapters)
-- Issue with slug generation from labels containing HTML tags
+### Templates
+- 22 files in `views/` directory
+
+### Form Processing
+- `routes/helpers/forms.ts`
+- `routes/handlers/review-provider.ts`, `blog-post-provider.ts`, `team-provider.ts`, `user-handlers.ts`, `things.ts`
+
+### Adapters
+- `adapters/wikidata-backend-adapter.ts`, `openlibrary-backend-adapter.ts`, `openstreetmap-backend-adapter.ts`
+
+## References
+
+- Original plan (superseded): Earlier version of this document
+- OWASP XSS Prevention: https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
