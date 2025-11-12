@@ -21,6 +21,13 @@ export interface ResolveResult {
 export interface MlStringSchemaOptions {
   maxLength?: number;
   array?: boolean;
+  allowHTML?: boolean;
+}
+
+export interface MlStringPlainTextSchemaOptions extends Omit<MlStringSchemaOptions, 'allowHTML'> {}
+
+export interface MlStringHTMLSchemaOptions {
+  maxLength?: number;
 }
 
 export interface MultilingualRichText {
@@ -39,8 +46,17 @@ const mlString = {
   /**
    * Obtain a type definition for a multilingual string object which
    * permits only strings in the supported languages defined in `locales/`.
+   *
+   * Options:
+   * - `maxLength`: maximum length enforced for each value
+   * - `array`: when true, validates string arrays per language
+   * - `allowHTML`: when false, rejects values that contain HTML tags
    */
-  getSchema({ maxLength, array = false }: MlStringSchemaOptions = {}): ObjectType {
+  getSchema({
+    maxLength,
+    array = false,
+    allowHTML = true,
+  }: MlStringSchemaOptions = {}): ObjectType {
     const objectType = types.object();
 
     // Add custom validator for multilingual string structure
@@ -79,6 +95,15 @@ const mlString = {
                 `Array item at index ${index} for language '${langKey}' exceeds maximum length of ${maxLength} characters`
               );
             }
+
+            if (!allowHTML) {
+              const stripped = stripTags(item);
+              if (stripped !== item) {
+                throw new ValidationError(
+                  `Plain text field for language '${langKey}' contains HTML tags`
+                );
+              }
+            }
           }
         } else {
           if (typeof langValue !== 'string') {
@@ -90,7 +115,71 @@ const mlString = {
               `Value for language '${langKey}' exceeds maximum length of ${maxLength} characters`
             );
           }
+
+          if (!allowHTML) {
+            const stripped = stripTags(langValue);
+            if (stripped !== langValue) {
+              throw new ValidationError(
+                `Plain text field for language '${langKey}' contains HTML tags`
+              );
+            }
+          }
         }
+      }
+
+      return true;
+    });
+
+    return objectType;
+  },
+
+  /**
+   * Obtain a schema that enforces plain text multilingual strings.
+   * HTML tags are rejected and array validation may be enabled.
+   */
+  getPlainTextSchema(options: MlStringPlainTextSchemaOptions = {}): ObjectType {
+    return mlString.getSchema({ ...options, allowHTML: false });
+  },
+
+  /**
+   * Obtain a schema for multilingual HTML strings. These strings are expected
+   * to contain pre-rendered HTML (for example, cached markdown output).
+   */
+  getHTMLSchema(options: MlStringHTMLSchemaOptions = {}): ObjectType {
+    return mlString.getSchema({ ...options, allowHTML: true });
+  },
+
+  /**
+   * Obtain a schema for objects containing plain-text and HTML multilingual
+   * strings (for example: { text, html }).
+   */
+  getRichTextSchema(): ObjectType {
+    const objectType = types.object();
+
+    objectType.validator(value => {
+      if (value === null || value === undefined) {
+        return true;
+      }
+
+      if (typeof value !== 'object' || Array.isArray(value)) {
+        throw new ValidationError('Multilingual rich text must be an object');
+      }
+
+      const { text, html, ...rest } = value as MultilingualRichText & Record<string, unknown>;
+
+      const extraKeys = Object.keys(rest);
+      if (extraKeys.length > 0) {
+        throw new ValidationError(
+          `Rich text object contains unsupported keys: ${extraKeys.join(', ')}`
+        );
+      }
+
+      if (text !== undefined) {
+        mlString.getSchema({ allowHTML: false }).validate(text, 'rich text.text');
+      }
+
+      if (html !== undefined) {
+        mlString.getSchema({ allowHTML: true }).validate(html, 'rich text.html');
       }
 
       return true;
