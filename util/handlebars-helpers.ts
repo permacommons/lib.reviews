@@ -132,8 +132,8 @@ hbs.registerHelper('link', (url: string, title: string, singleQuotes?: boolean) 
 });
 
 // Strips HTML and shortens to specified length
-hbs.registerHelper('summarize', (html: string, length: number) => {
-  const stripped = stripTags(html ?? '');
+hbs.registerHelper('summarize', (html: unknown, length: number) => {
+  const stripped = stripTags(`${html ?? ''}`);
   let shortened = stripped.substr(0, length);
   if (stripped.length > length) shortened += '...';
   return shortened;

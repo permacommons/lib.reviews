@@ -19,11 +19,11 @@
 <div class="pure-u-1 pure-u-md-1-2">
 <div class="team-info">
 <h1 id="page-header" class="team-header">
-{{{__ "team title" (mlString team.name)}}}
+{{{__ "team title" (mlText team.name)}}}
 </h1>
-<span class="team-motto">{{{mlString team.motto false}}}</span>
+<span class="team-motto">{{mlText team.motto false}}</span>
 <p>
-{{{mlString team.description.html false}}}
+{{{mlHTML team.description.html}}}
 <p>
 {{!LINK TO ROSTER AND MODERATORS LIST}}
 <b>{{{__ "number of members"}}}</b> {{{team.members.length}}} <a href="/team/{{{team.urlID}}}/members">{{{__ "view list"}}}</a>
@@ -47,10 +47,10 @@
 {{>page_errors pageErrors=joinErrors}}
 <h3>{{{__ "join this team"}}}</h3>
 
-{{#if (mlString team.rules.html)}}
+{{#if (mlHTML team.rules.html)}}
 <b>{{{__ "team rules label"}}}</b>
 <div class="team-rules">
-{{{mlString team.rules.html false}}}
+{{{mlHTML team.rules.html}}}
 </div>
 
 <input type="checkbox" id="agree-to-rules" name="agree-to-rules">
@@ -73,10 +73,10 @@
 {{!/JOIN FORM}}
 {{!JUST THE RULES}}
 {{else}}
-{{#if (mlString team.rules.html)}}
+{{#if (mlHTML team.rules.html)}}
 <b>{{{__ "team rules label"}}}</b>
 <div class="team-rules">
-{{{mlString team.rules.html false}}}
+{{{mlHTML team.rules.html}}}
 </div>
 {{/if}}
 {{/if}}

@@ -1,7 +1,7 @@
 {{#each feedItems}}
 <entry>
   <id>urn:uuid:{{{this.id}}}</id>
-  <title xml:lang="{{getLang this.title}}">{{{mlString this.title false}}}</title>
+  <title xml:lang="{{getLang this.title}}">{{mlText this.title false}}</title>
   <link href="{{{../qualifiedURL}}}review/{{this.id}}" />
   <updated>{{isoDate this._revDate}}</updated>
   <content type="html" xml:lang="{{getLang this.html}}">
@@ -11,7 +11,7 @@
   {{{getThingLabel this.thing}}}
   </a>
   </p>
-  {{{mlString this.html false}}}
+  {{{mlHTML this.html}}}
   <p>
   {{#times this.starRating}}
   <img src="{{{../../qualifiedURL}}}static/img/star-{{../this.starRating}}-full.svg" width="25" style="padding:3px;"{{#if @first}} alt="{{{__n "one or multiple stars" ../this.starRating}}}"{{/if}}>

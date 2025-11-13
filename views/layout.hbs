@@ -5,13 +5,13 @@
     {{#if socialImage}}
     <meta property="og:image" content="{{{qualifiedURL}}}static/uploads/{{{socialImage}}}"/>
     <meta property="og:type" content="article">
-    <meta property="og:title" content="{{{mlString review.title false}}}" />
-    <meta property="og:description" content="{{{summarize (mlString review.html false) 200}}}" />
+    <meta property="og:title" content="{{mlText review.title false}}" />
+    <meta property="og:description" content="{{{summarize (mlHTML review.html) 200}}}" />
     <meta property="og:url" content="{{{qualifiedURL}}}review/{{review.id}}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lib_reviews" />
-    <meta name="twitter:title" content="{{{mlString review.title false}}}" />
-    <meta name="twitter:description" content="{{{summarize (mlString review.html false) 200}}}" />
+    <meta name="twitter:title" content="{{mlText review.title false}}" />
+    <meta name="twitter:description" content="{{{summarize (mlHTML review.html) 200}}}" />
     <meta name="twitter:image" content="{{{qualifiedURL}}}static/uploads/{{{socialImage}}}" />
     {{/if}}
     <title>{{{__ "site name"}}}{{#if titleKey}} - {{{__ titleKey titleParam }}}{{else}}{{#if titleString}} - {{{titleString}}}{{/if}}{{/if}}</title>

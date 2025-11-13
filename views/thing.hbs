@@ -9,8 +9,8 @@
 <h1 id="page-header">
 {{{getThingLabel thing}}}{{>sync_info thing=thing sync=thing.sync.label editable=true field="label"}}
 </h1>
-{{#if (mlString thing.subtitle)}}
-<h2 id="sub-header">{{{mlString thing.subtitle}}}{{>sync_info thing=thing sync=thing.sync.subtitle editable=false}}
+{{#if (mlText thing.subtitle)}}
+<h2 id="sub-header">{{mlText thing.subtitle}}{{>sync_info thing=thing sync=thing.sync.subtitle editable=false}}
 </h2>
 {{/if}}
 
@@ -44,11 +44,11 @@
 {{/if}}
 </li>
 {{/if}}
-{{#ifCond (mlString thing.description) '||' thing.userCanEdit}}
+{{#ifCond (mlText thing.description) '||' thing.userCanEdit}}
 <li class="thing-data-list-item"><span class="fa fa-li fa-info-circle thing-data-icon">&nbsp;</span>
-{{#if (mlString thing.description)}}
+{{#if (mlText thing.description)}}
 {{! The powertip is shown for JS users, and includes a clickable link to the source from which the data was synced.}}
-{{{mlString thing.description}}}{{>sync_info thing=thing field="description" sync=thing.sync.description editable=true}}
+{{mlText thing.description}}{{>sync_info thing=thing field="description" sync=thing.sync.description editable=true}}
 {{else}}
 {{#if thing.userCanEdit}}
 <a href="/{{{thing.urlID}}}/edit/description" id="add-description" class="pure-button button-rounded no-print"><span class="fa fa fa-pencil spaced-icon">&nbsp;</span>
@@ -62,7 +62,7 @@
 <li class="thing-data-list-item">
 <span class="fa fa-li fa-user thing-data-icon">&nbsp;</span>
 {{#each thing.authors}}
-{{{mlString this false}}}{{#unless @last}}, {{/unless}}
+{{mlText this false}}{{#unless @last}}, {{/unless}}
 {{/each}}
 {{>sync_info thing=thing sync=thing.sync.authors}}
 </li>
@@ -109,8 +109,8 @@
 {
   "@context": "https://schema.org",
   "@type": "Product",
-  "name": "{{{mlString thing.label false}}}",
-  "description": "{{{mlString thing.description false}}}",
+  "name": "{{mlText thing.label false}}",
+  "description": "{{mlText thing.description false}}",
   "aggregateRating": {
     "@type": "AggregateRating",
     "ratingValue": "{{{round thing.averageStarRating 1}}}",

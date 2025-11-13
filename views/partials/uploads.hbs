@@ -5,10 +5,10 @@
 <div id="thing-data-file-list" class="hidden-regular nojs-visible print-visible">
 {{#each thing.files}}
 <div class="thing-data-file-list"><span class="thing-data-file-name">{{{getFileLink this.name}}}</span>
-<br>{{{mlString this.description}}}
+<br>{{mlText this.description}}
 <div class="thing-data-file-credit">{{{fileCredit this}}}</div>
 {{#if this.source}}
-<div class="thing-data-file-credit">{{{__ "source in upload summary" (linkify (mlString this.source))}}}</div>
+<div class="thing-data-file-credit">{{{__ "source in upload summary" (linkify (mlText this.source))}}}</div>
 {{/if}}
 {{#if this.userCanDelete}}
 <div class="file-actions"><span class="file-action"><a href="/file/{{this.id}}/delete"><span class="fa fa-trash fa-fw">&nbsp;</span>{{{__ "delete file"}}}</a></span></div>

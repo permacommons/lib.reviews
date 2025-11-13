@@ -8,14 +8,14 @@
 <input type="hidden" name="thing-language" value="{{currentLanguage.langKey}}">
 
 {{#if edit.label}}
-<input type="text" class="pure-input-1-2" id="thing-edit-label" name="thing-label" value="{{{mlString thing.label false}}}" placeholder="{{{__ "enter label"}}}" size="64" data-auto-trim data-focus>
+<input type="text" class="pure-input-1-2" id="thing-edit-label" name="thing-label" value="{{mlText thing.label false}}" placeholder="{{{__ "enter label"}}}" size="64" data-auto-trim data-focus>
 <button type="submit" id="save" name="thing-action" value="save" class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>
 <span class="fa fa-fw fa-question-circle info-icon spaced-icon">&nbsp;</span>{{{__ "thing label help"}}}
 {{/if}}
 {{#if edit.description}}
-<input type="text" class="pure-input-1-2" id="thing-edit-description" name="thing-description" value="{{{mlString thing.description false}}}" placeholder="{{{__ "enter thing description"}}}" size="128" data-auto-trim data-focus>
+<input type="text" class="pure-input-1-2" id="thing-edit-description" name="thing-description" value="{{mlText thing.description false}}" placeholder="{{{__ "enter thing description"}}}" size="128" data-auto-trim data-focus>
 <button type="submit" id="save" name="thing-action" value="save" class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>
@@ -26,7 +26,7 @@
 {{#if thing.urls}}
 <div id="item-url"><span class="fa fa-fw fa-external-link review-icon">&nbsp;</span>{{{link thing.urls.[0] (prettify thing.urls.[0])}}}</div>
 {{/if}}
-{{# if (mlString thing.description)}}
-<div id="item-description"><span class="fa fa-fw fa-info-circle review-icon">&nbsp;</span>{{{mlString thing.description}}}</div>
+{{# if (mlText thing.description)}}
+<div id="item-description"><span class="fa fa-fw fa-info-circle review-icon">&nbsp;</span>{{mlText thing.description}}</div>
 {{/if}}
 </div>
