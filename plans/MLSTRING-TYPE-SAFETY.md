@@ -407,19 +407,35 @@ authors: mlString.getPlainTextSchema({ maxLength: 256, array: true }),
 
 ---
 
-### Phase 5: Handler Review & Error Handling
+### Phase 5: Finalize & Cleanup
 
-**Goal**: Add user-friendly error handling for validation failures.
+**Goal**: Make strict validation the default, add error handling, and remove old code.
 
 **Changes:**
-1. Review form processing code (should already be safe - uses `escapeHTML`)
-2. Review adapter code (should already be safe - uses `stripHTML`)
-3. Add error handling for validation failures
-4. Add integration tests
+1. Change `allowHTML` default from `true` to `false` in `getSchema()`
+2. Remove `mlString` helper entirely (templates already migrated)
+3. Remove `validateTextHtmlObject()` from team.ts (replaced by getRichTextSchema)
+4. Add user-friendly error handling for validation failures
+5. Add integration tests
 
-**Example Error Handling:**
+**Example:**
 ```typescript
-// In route handlers
+// dal/lib/ml-string.ts
+function getSchema({
+  maxLength,
+  array = false,
+  allowHTML = false  // Changed from true to false
+}: MlStringSchemaOptions = {}) {
+  // ...
+}
+
+// util/handlebars-helpers.ts
+// Remove mlString helper entirely (templates already use mlText/mlHTML)
+
+// models/manifests/team.ts
+// Remove validateTextHtmlObject function (now unused)
+
+// In route handlers - add error handling
 try {
   await review.save();
 } catch (err) {
@@ -457,73 +473,15 @@ describe('Validation error handling', () => {
 ```
 
 **Files:**
+- `dal/lib/ml-string.ts` - Change default
+- `util/handlebars-helpers.ts` - Remove `mlString` helper
+- `models/manifests/team.ts` - Remove old validator
 - `routes/handlers/*.ts` - Add error handling
 - `tests/integration/*.ts` - Add validation tests
 
-**Commit message:** `feat(validation): add user-friendly error handling for HTML validation`
+**Commit message:** `feat: finalize mlString type safety with strict validation and cleanup`
 
-✅ All tests pass (better error messages, validation working)
-
----
-
-### Phase 6: Change Default & Cleanup
-
-**Goal**: Make strict validation the default.
-
-**Changes:**
-1. Change `allowHTML` default from `true` to `false` in `getSchema()`
-2. Add deprecation warning to `mlString` helper
-3. Remove `validateTextHtmlObject()` from team.ts (replaced by getRichTextSchema)
-4. Update documentation
-
-**Example:**
-```typescript
-// dal/lib/ml-string.ts
-function getSchema({
-  maxLength,
-  array = false,
-  allowHTML = false  // Changed from true to false
-}: MlStringSchemaOptions = {}) {
-  // ...
-}
-
-// util/handlebars-helpers.ts
-hbs.registerHelper('mlString', (...args) => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn('[DEPRECATED] mlString helper - use mlText or mlHTML');
-  }
-  return hbs.helpers.mlText(...args);
-});
-
-// models/manifests/team.ts
-// Remove validateTextHtmlObject function (now unused)
-```
-
-**Files:**
-- `dal/lib/ml-string.ts` - Change default
-- `util/handlebars-helpers.ts` - Deprecate helper
-- `models/manifests/team.ts` - Remove old validator
-
-**Commit message:** `refactor(ml-string): make strict validation default and deprecate mlString helper`
-
-✅ All tests pass (strict by default, old code deprecated)
-
----
-
-### Phase 7 (Optional): Remove Deprecated Code
-
-**Goal**: Final cleanup after deprecation period.
-
-**Changes:**
-1. Remove deprecated `mlString` helper entirely
-2. Remove any other deprecated code paths
-
-**Files:**
-- `util/handlebars-helpers.ts` - Remove `mlString` helper
-
-**Commit message:** `refactor(templates): remove deprecated mlString helper`
-
-✅ All tests pass (clean codebase)
+✅ All tests pass (strict validation, clean codebase)
 
 ---
 
