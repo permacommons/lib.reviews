@@ -14,9 +14,9 @@ const { mlString } = dal as unknown as {
 };
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
 
-const metadataDescriptionSchema = mlString.getPlainTextSchema({ maxLength: 512 });
-const metadataSubtitleSchema = mlString.getPlainTextSchema({ maxLength: 256 });
-const metadataAuthorsSchema = types.array(mlString.getPlainTextSchema({ maxLength: 256 }));
+const metadataDescriptionSchema = mlString.getSafeTextSchema({ maxLength: 512 });
+const metadataSubtitleSchema = mlString.getSafeTextSchema({ maxLength: 256 });
+const metadataAuthorsSchema = types.array(mlString.getSafeTextSchema({ maxLength: 256 }));
 
 function validateMetadata(metadata: unknown): boolean {
   if (metadata === null || metadata === undefined) {
@@ -83,8 +83,8 @@ const thingManifest = defineModelManifest({
     urls: types.array(types.string().validator(validateURL)),
 
     // JSONB multilingual fields
-    label: mlString.getPlainTextSchema({ maxLength: 256 }),
-    aliases: mlString.getPlainTextSchema({ maxLength: 256, array: true }),
+    label: mlString.getSafeTextSchema({ maxLength: 256 }),
+    aliases: mlString.getSafeTextSchema({ maxLength: 256, array: true }),
 
     // Grouped metadata in JSONB for extensibility
     metadata: types.object().validator(validateMetadata),

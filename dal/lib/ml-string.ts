@@ -47,10 +47,17 @@ const mlString = {
    * Obtain a type definition for a multilingual string object which
    * permits only strings in the supported languages defined in `locales/`.
    *
+   * Storage format: Text fields store "HTML-safe text" with entities escaped
+   * (e.g., `My &amp; Co`) but HTML tags removed/rejected. This allows safe
+   * rendering in HTML templates while preserving user's literal text input.
+   *
    * Options:
    * - `maxLength`: maximum length enforced for each value
    * - `array`: when true, validates string arrays per language
    * - `allowHTML`: when false, rejects values that contain HTML tags
+   *
+   * Note: HTML entities like `&amp;` are allowed regardless of `allowHTML` setting.
+   * Only actual HTML tags like `<script>` are validated.
    */
   getSchema({
     maxLength,
@@ -134,24 +141,45 @@ const mlString = {
   },
 
   /**
-   * Obtain a schema that enforces plain text multilingual strings.
-   * HTML tags are rejected and array validation may be enabled.
+   * Obtain a schema that enforces HTML-safe text multilingual strings.
+   *
+   * HTML-safe text format:
+   * - HTML entities are escaped (e.g., `&` → `&amp;`, `<` → `&lt;`)
+   * - HTML tags are rejected
+   * - User input like "I like <b>" is preserved as "I like &lt;b&gt;"
+   * - Safe to render directly in HTML templates without additional escaping
+   *
+   * Use for: labels, titles, names, descriptions (non-HTML fields)
+   * Array validation may be enabled for multiple values per language.
    */
-  getPlainTextSchema(options: MlStringPlainTextSchemaOptions = {}): ObjectType {
+  getSafeTextSchema(options: MlStringPlainTextSchemaOptions = {}): ObjectType {
     return mlString.getSchema({ ...options, allowHTML: false });
   },
 
   /**
-   * Obtain a schema for multilingual HTML strings. These strings are expected
-   * to contain pre-rendered HTML (for example, cached markdown output).
+   * Obtain a schema for multilingual HTML strings.
+   *
+   * HTML strings contain actual HTML markup (tags and entities) that should be
+   * rendered without escaping. Typically used for cached markdown output where
+   * the markdown has been converted to safe HTML.
+   *
+   * Use for: review.html, blogPost.html, etc. (rendered content fields)
+   *
+   * Security: Content should be sanitized before storage to prevent XSS.
    */
   getHTMLSchema(options: MlStringHTMLSchemaOptions = {}): ObjectType {
     return mlString.getSchema({ ...options, allowHTML: true });
   },
 
   /**
-   * Obtain a schema for objects containing plain-text and HTML multilingual
-   * strings (for example: { text, html }).
+   * Obtain a schema for rich text objects containing both source and rendered content.
+   *
+   * Rich text format: { text: MlString, html: MlString }
+   * - `text`: HTML-safe markdown source (entities escaped, tags rejected)
+   * - `html`: Rendered HTML from markdown (contains actual HTML markup)
+   *
+   * Use for: team.description, team.rules, userMeta.bio
+   * (fields that store both markdown source and cached HTML output)
    */
   getRichTextSchema(): ObjectType {
     const objectType = types.object();
@@ -231,7 +259,14 @@ const mlString = {
   },
 
   /**
-   * String object with HTML entities decoded and HTML elements stripped
+   * Strip HTML tags and decode entities from multilingual string.
+   *
+   * Use for external/adapter data that may contain unwanted HTML formatting.
+   * After stripping, the result should be entity-escaped again before storage
+   * to maintain the "HTML-safe text" format.
+   *
+   * Example: `<b>Label</b> &amp; Co` → `Label & Co`
+   * Then escape for storage: `Label & Co` → `Label &amp; Co`
    */
   stripHTML<T extends MultilingualInput>(strObj: T): T {
     if (typeof strObj !== 'object' || strObj === null) {

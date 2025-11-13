@@ -1,7 +1,7 @@
 {{!We show a little headline identifying the item type in the feed view, but nowhere else}}
 {{#unless thingFeed}}
 <div class="thing-data">
-<b>{{mlText review.thing.label}}</b>
+<b>{{mlSafeText review.thing.label}}</b>
 {{!Show prettified URL, if available}}
 {{#if review.thing.urls.[0]}}
 <div class="review-url"><span class="fa fa-fw fa-external-link review-icon spaced-icon">&nbsp;</span>{{{link review.thing.urls.[0] (prettify review.thing.urls.[0])}}}</div>
@@ -19,7 +19,7 @@
 <img src="/static/img/star-{{../review.starRating}}-full.svg" width="25" height="35" class="review-star"{{#if @first}} alt="{{{__n "one or multiple stars" ../review.starRating}}}"{{/if}}>
 {{/times}}
 </div>
-<div class="review-title">{{mlText review.title}}</div>
+<div class="review-title">{{mlSafeText review.title}}</div>
 {{!The actual review!}}
 <div class="review-text">
 {{{mlHTML review.html}}}
@@ -35,7 +35,7 @@
     {{#if review.teams}}
     {{{__ "posted under"}}}
     {{#each review.teams}}
-    <a href="/team/{{this.urlID}}">{{mlText this.name}}</a>{{#unless @last}},{{/unless}}
+    <a href="/team/{{this.urlID}}">{{mlSafeText this.name}}</a>{{#unless @last}},{{/unless}}
     {{/each}}
     <br style="clear:both;">
     {{/if}}

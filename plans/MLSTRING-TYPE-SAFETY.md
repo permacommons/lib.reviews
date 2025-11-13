@@ -1,38 +1,43 @@
 # Multilingual String Type Safety Implementation Plan
 
-**Status**: Implementation Ready
+**Status**: Implementation In Progress - Refinement Phase
 **Created**: 2025-11-11
-**Revised**: 2025-11-12
-**Approach**: Runtime validation + TypeScript type safety
+**Revised**: 2025-11-13
+**Approach**: Runtime validation + HTML-safe text storage
 
 ## Executive Summary
 
 This plan adds runtime validation to distinguish plain text multilingual strings from HTML content. Each phase can be committed independently while keeping all tests green.
 
-**Key insight:** Templates must migrate to explicit helpers (`mlText`/`mlHTML`) before schemas enforce validation, otherwise double-escaping occurs.
+**Key insight:** Text fields store "HTML-safe text" (entities escaped, tags stripped) at write time. Templates render this safely without additional escaping. This enables write-time validation while supporting multiple output contexts.
+
+**Storage model:** Text is stored with HTML entities escaped (`My &amp; Co`, `&lt;b&gt;`). User-entered content preserves the literal text they type (including literal angle brackets). External data from adapters has HTML tags stripped before entity escaping. For HTML output, use as-is. For plain text contexts (emails, etc.), decode entities with `decodeHTML()`.
 
 ## Problem Statement
 
 Currently all multilingual strings use the same validation (`mlString.getSchema()`), whether they contain:
-- Plain text that should be escaped (labels, titles)
-- Markdown source that should be escaped (review.text)
-- Rendered HTML that should not be escaped (review.html)
+- Plain text (labels, titles) - should be HTML-safe
+- Markdown source (review.text) - should be HTML-safe
+- Rendered HTML (review.html) - contains actual HTML tags
 
 This creates:
 1. **XSS risk**: Nothing prevents storing `<script>` in a plain text field
 2. **Type ambiguity**: Developers must memorize which fields contain what
 3. **Template confusion**: All fields use `{{{mlString}}}` (unescaped)
+4. **Inconsistent escaping**: Some text is entity-escaped, some isn't (depends on source)
 
 ## Current Field Patterns
 
 Based on comprehensive codebase analysis:
 
-### Pattern A: Plain Text Fields
-Simple strings that should never contain HTML.
+### Pattern A: HTML-Safe Text Fields
+Strings with HTML entities escaped. User input preserves literal angle brackets as `&lt;&gt;`. Adapter input has unwanted HTML tags stripped first.
 
 **Examples:** `review.title`, `team.name`, `team.motto`, `thing.label`
 
-**Storage:** `{ en: "plain text", es: "texto plano" }`
+**Storage:**
+- User types `My & "Cool" <Company>` → `{ en: "My &amp; &quot;Cool&quot; &lt;Company&gt;" }`
+- Adapter returns `My <b>Label</b>` → strip tags → `{ en: "My Label" }`
 
 ### Pattern B: Rich Text Sibling Fields
 Markdown source + cached rendered HTML as separate fields.
@@ -69,7 +74,7 @@ Arrays of plain text multilingual strings.
 
 ```typescript
 // Plain text - rejects HTML
-mlString.getPlainTextSchema({ maxLength?: number, array?: boolean })
+mlString.getSafeTextSchema({ maxLength?: number, array?: boolean })
 
 // HTML - allows HTML (use only for cached rendered markdown)
 mlString.getHTMLSchema({ maxLength?: number })
@@ -82,7 +87,7 @@ mlString.getRichTextSchema()
 
 ```handlebars
 {{!-- Auto-escapes for safety --}}
-{{mlText review.title}}
+{{mlSafeText review.title}}
 
 {{!-- No escaping for pre-rendered HTML --}}
 {{{mlHTML review.html}}}
@@ -115,7 +120,7 @@ Each phase can be committed independently with all tests passing.
 
 **Changes:**
 1. Add `allowHTML` option to `getSchema()` (default: `true` for compatibility)
-2. Add `getPlainTextSchema()`, `getHTMLSchema()`, `getRichTextSchema()`
+2. Add `getSafeTextSchema()`, `getHTMLSchema()`, `getRichTextSchema()`
 3. Add comprehensive unit tests
 4. Update JSDoc documentation
 
@@ -146,7 +151,7 @@ const mlString = {
     // ... rest of validation ...
   },
 
-  getPlainTextSchema(opts = {}) {
+  getSafeTextSchema(opts = {}) {
     return this.getSchema({ ...opts, allowHTML: false });
   },
 
@@ -160,7 +165,7 @@ const mlString = {
       if (value === null || value === undefined) return true;
       const record = value as Record<string, unknown>;
       if (record.text !== undefined) {
-        this.getPlainTextSchema().validate(record.text, 'rich text .text field');
+        this.getSafeTextSchema().validate(record.text, 'rich text .text field');
       }
       if (record.html !== undefined) {
         this.getHTMLSchema().validate(record.html, 'rich text .html field');
@@ -174,14 +179,14 @@ const mlString = {
 
 **Tests:**
 ```typescript
-describe('mlString.getPlainTextSchema', () => {
+describe('mlString.getSafeTextSchema', () => {
   it('accepts plain text', () => {
-    const schema = mlString.getPlainTextSchema();
+    const schema = mlString.getSafeTextSchema();
     expect(() => schema.validate({ en: 'Hello' })).not.toThrow();
   });
 
   it('rejects HTML', () => {
-    const schema = mlString.getPlainTextSchema();
+    const schema = mlString.getSafeTextSchema();
     expect(() => schema.validate({ en: '<p>Hello</p>' }))
       .toThrow('contains HTML tags');
   });
@@ -203,7 +208,7 @@ describe('mlString.getPlainTextSchema', () => {
 **Goal**: Add new helpers without changing existing templates.
 
 **Changes:**
-1. Add `mlText` helper (auto-escapes)
+1. Add `mlSafeText` helper (auto-escapes)
 2. Add `mlHTML` helper (no escaping)
 3. Keep `mlString` unchanged
 
@@ -211,7 +216,7 @@ describe('mlString.getPlainTextSchema', () => {
 ```typescript
 // In util/handlebars-helpers.ts
 
-hbs.registerHelper('mlText', (...args) => {
+hbs.registerHelper('mlSafeText', (...args) => {
   const [str, addLanguageSpan, options] =
     args.length === 2 ? [args[0], true, args[1]] :
     [args[0], args[1] as boolean, args[2]];
@@ -263,7 +268,7 @@ hbs.registerHelper('mlHTML', (...args) => {
 **Files:**
 - `util/handlebars-helpers.ts` - Add new helpers
 
-**Commit message:** `feat(templates): add mlText and mlHTML helpers for explicit escaping`
+**Commit message:** `feat(templates): add mlSafeText and mlHTML helpers for explicit escaping`
 
 ✅ All existing tests pass (no templates use new helpers yet)
 
@@ -281,13 +286,13 @@ Replace all `mlString` usage across 22 template files:
 ```handlebars
 {{!-- Plain text fields --}}
 Before: {{{mlString review.title}}}
-After:  {{mlText review.title}}
+After:  {{mlSafeText review.title}}
 
 Before: {{{mlString team.name}}}
-After:  {{mlText team.name}}
+After:  {{mlSafeText team.name}}
 
 Before: {{{mlString thing.label}}}
-After:  {{mlText thing.label}}
+After:  {{mlSafeText thing.label}}
 
 {{!-- HTML fields --}}
 Before: {{{mlString review.html false}}}
@@ -298,14 +303,14 @@ After:  {{{mlHTML team.description.html}}}
 
 {{!-- Markdown source (plain text) --}}
 Before: {{{mlString formValues.text false}}}
-After:  {{mlText formValues.text false}}
+After:  {{mlSafeText formValues.text false}}
 ```
 
 **Migration Pattern:**
 - `.html` field → `mlHTML`
-- `.text` field → `mlText`
-- `.title`, `.name`, `.label`, `.motto` → `mlText`
-- Everything else → `mlText` (default to safe)
+- `.text` field → `mlSafeText`
+- `.title`, `.name`, `.label`, `.motto` → `mlSafeText`
+- Everything else → `mlSafeText` (default to safe)
 
 **Template Groups:**
 1. Review templates (9 files): review.hbs, review-form.hbs, partials/review.hbs, etc.
@@ -323,7 +328,7 @@ After:  {{mlText formValues.text false}}
 **Files:**
 - All 22 `.hbs` files in `views/`
 
-**Commit message:** `refactor(templates): migrate from mlString to mlText/mlHTML for explicit escaping`
+**Commit message:** `refactor(templates): migrate from mlString to mlSafeText/mlHTML for explicit escaping`
 
 ✅ All tests pass (templates now handle escaping, schemas still permissive)
 
@@ -341,32 +346,32 @@ Update all model manifests to use explicit schema methods:
 **Group A: Plain Text Fields**
 ```typescript
 // models/manifests/team.ts
-name: mlString.getPlainTextSchema({ maxLength: 100 }),
-motto: mlString.getPlainTextSchema({ maxLength: 200 }),
+name: mlString.getSafeTextSchema({ maxLength: 100 }),
+motto: mlString.getSafeTextSchema({ maxLength: 200 }),
 
 // models/manifests/thing.ts
-label: mlString.getPlainTextSchema({ maxLength: 256 }),
+label: mlString.getSafeTextSchema({ maxLength: 256 }),
 
 // models/manifests/review.ts
-title: mlString.getPlainTextSchema({ maxLength: 255 }),
+title: mlString.getSafeTextSchema({ maxLength: 255 }),
 
 // models/manifests/blog-post.ts
-title: mlString.getPlainTextSchema({ maxLength: 100 }),
+title: mlString.getSafeTextSchema({ maxLength: 100 }),
 
 // models/manifests/file.ts
-description: mlString.getPlainTextSchema(),
-creator: mlString.getPlainTextSchema(),
-source: mlString.getPlainTextSchema(),
+description: mlString.getSafeTextSchema(),
+creator: mlString.getSafeTextSchema(),
+source: mlString.getSafeTextSchema(),
 ```
 
 **Group B: Rich Text Sibling Fields**
 ```typescript
 // models/manifests/review.ts
-text: mlString.getPlainTextSchema(),
+text: mlString.getSafeTextSchema(),
 html: mlString.getHTMLSchema(),
 
 // models/manifests/blog-post.ts
-text: mlString.getPlainTextSchema(),
+text: mlString.getSafeTextSchema(),
 html: mlString.getHTMLSchema(),
 ```
 
@@ -383,9 +388,9 @@ bio: mlString.getRichTextSchema(),
 **Group D: Array Fields**
 ```typescript
 // models/manifests/thing.ts
-aliases: mlString.getPlainTextSchema({ maxLength: 256, array: true }),
+aliases: mlString.getSafeTextSchema({ maxLength: 256, array: true }),
 // In metadata virtual getter
-authors: mlString.getPlainTextSchema({ maxLength: 256, array: true }),
+authors: mlString.getSafeTextSchema({ maxLength: 256, array: true }),
 ```
 
 **Testing:**
@@ -430,7 +435,7 @@ function getSchema({
 }
 
 // util/handlebars-helpers.ts
-// Remove mlString helper entirely (templates already use mlText/mlHTML)
+// Remove mlString helper entirely (templates already use mlSafeText/mlHTML)
 
 // models/manifests/team.ts
 // Remove validateTextHtmlObject function (now unused)
@@ -495,16 +500,16 @@ Once implementation is complete, use these patterns:
 const myManifest = defineModelManifest({
   schema: {
     // Plain text
-    name: mlString.getPlainTextSchema({ maxLength: 100 }),
+    name: mlString.getSafeTextSchema({ maxLength: 100 }),
 
     // Array of plain text
-    tags: mlString.getPlainTextSchema({ array: true }),
+    tags: mlString.getSafeTextSchema({ array: true }),
 
     // Rich text (nested)
     description: mlString.getRichTextSchema(),
 
     // Rich text (sibling fields)
-    text: mlString.getPlainTextSchema(),
+    text: mlString.getSafeTextSchema(),
     html: mlString.getHTMLSchema(),
   }
 });
@@ -514,13 +519,13 @@ const myManifest = defineModelManifest({
 
 ```handlebars
 {{!-- Plain text (auto-escaped) --}}
-<h1>{{mlText review.title}}</h1>
+<h1>{{mlSafeText review.title}}</h1>
 
 {{!-- HTML (pre-rendered markdown) --}}
 <div>{{{mlHTML review.html}}}</div>
 
 {{!-- Suppress language indicator --}}
-<meta content="{{mlText thing.label false}}" />
+<meta content="{{mlSafeText thing.label false}}" />
 ```
 
 ### Processing External Data
@@ -546,7 +551,7 @@ ValidationError: Plain text field for language 'en' contains HTML tags.
 **Defense in Depth:**
 1. Input sanitization (adapters/forms)
 2. Runtime validation (schema layer) ← NEW
-3. Template escaping (mlText helper) ← NEW
+3. Template escaping (mlSafeText helper) ← NEW
 4. Type system (future: branded types)
 
 Even if one layer fails, others catch it.
@@ -585,6 +590,21 @@ Each phase can be reverted independently:
 
 **Emergency**: Set `DISABLE_HTML_VALIDATION=true` environment variable to bypass validation.
 
+## Implementation Notes
+
+### Slug Generation
+When generating URL slugs from HTML-safe text fields, must decode entities first to avoid slugs like `a-amp-b` from `A&amp;B`. Use `decodeHTML()` before slug generation:
+```typescript
+const slug = generateSlug(decodeHTML(mlString.resolve('en', thing.label)));
+// "A&B" → "a-b" ✓
+// Not: "A&amp;B" → "a-amp-b" ✗
+```
+
+### Terminology
+- **HTML-safe text**: Text with entities escaped (`&amp;`, `&lt;`, etc.) but preserving user's literal content
+- **Plain text**: Decoded text for non-HTML contexts (use `decodeHTML()`)
+- Consider `mlSafeText` as alternative helper name to make safety model explicit
+
 ## Related Files
 
 ### Core
@@ -603,6 +623,82 @@ Each phase can be reverted independently:
 
 ### Adapters
 - `adapters/wikidata-backend-adapter.ts`, `openlibrary-backend-adapter.ts`, `openstreetmap-backend-adapter.ts`
+
+## Future Improvements
+
+### Phase 5: Entity Escaping Runtime Guards (Post-Merge)
+
+**Goal**: Add runtime validation to enforce that all text stored in HTML-safe text fields has entities properly escaped.
+
+**Prerequisites**:
+- All phases 1-4 complete and merged
+- All existing data verified to be conformant to HTML-safe text format
+- Data migration run if needed to normalize legacy content
+
+**Changes:**
+
+Add validation to `getSafeTextSchema()` to reject improperly escaped text:
+
+```typescript
+// In dal/lib/ml-string.ts
+
+// Check for unescaped entities
+function hasUnescapedEntities(value: string): boolean {
+  // Detect bare ampersands not part of entity references
+  if (/&(?![a-z]+;|#\d+;|#x[0-9a-f]+;)/i.test(value)) {
+    return true;
+  }
+
+  // Detect unescaped angle brackets (< should be &lt;)
+  if (/</.test(value)) {
+    return true;
+  }
+
+  return false;
+}
+
+getSafeTextSchema(options: MlStringPlainTextSchemaOptions = {}): ObjectType {
+  // ... existing code ...
+
+  schema = schema.test(
+    'properly-escaped',
+    'Text must have HTML entities properly escaped',
+    function(mlStr: MultlingualString | undefined) {
+      if (!mlStr) return true;
+
+      for (const lang in mlStr) {
+        const value = mlStr[lang];
+        if (typeof value === 'string' && hasUnescapedEntities(value)) {
+          return this.createError({
+            message: `Text in language '${lang}' contains unescaped entities. ` +
+                     `Example: use '&amp;' not '&', use '&lt;' not '<'`,
+            path: this.path,
+          });
+        }
+      }
+
+      return true;
+    }
+  );
+
+  return schema;
+}
+```
+
+**Benefits:**
+- Enforces the HTML-safe text contract at the type system level
+- Catches bugs where text is stored without proper escaping
+- Makes the "escape on write" model explicit and verifiable
+- Aligns validation completely with the spec
+
+**Rollout:**
+1. Add validation with opt-in flag initially for testing
+2. Run validation against all existing data to identify non-conformant records
+3. Migrate any non-conformant data (likely minimal after phase 4)
+4. Enable validation by default
+5. Remove opt-in flag in future commit
+
+**Commit message:** `feat(ml-string): add runtime guards for entity escaping in HTML-safe text`
 
 ## References
 

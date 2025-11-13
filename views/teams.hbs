@@ -14,8 +14,8 @@
 </p>
 <div class="team-list">
 {{#each teams}}
-<b><a href='/team/{{{this.urlID}}}'>{{mlText this.name}}</a></b><br>
-<i>{{mlText this.motto false}}</i>
+<b><a href='/team/{{{this.urlID}}}'>{{mlSafeText this.name}}</a></b><br>
+<i>{{mlSafeText this.motto false}}</i>
 <p>
 {{{mlHTML this.description.html}}}
 <p>

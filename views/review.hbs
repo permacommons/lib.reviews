@@ -5,8 +5,8 @@
 </div>
 <div class="centered-column">
 <h1 id="page-header">
-{{#if (mlText review.thing.label)}}
-{{{__ "review of" (mlText review.thing.label)}}}
+{{#if (getThingLabel review.thing)}}
+{{{__ "review of" (getThingLabel review.thing)}}}
 {{else}}
 {{{__ titleKey (prettify review.thing.urls.[0])}}}
 {{/if}}
@@ -20,8 +20,8 @@
 {
   "@context": "https://schema.org",
   "@type": "Product",
-  "name": "{{mlText review.thing.label false}}",
-  "description": "{{mlText review.thing.description false}}",
+  "name": "{{mlSafeText review.thing.label false}}",
+  "description": "{{mlSafeText review.thing.description false}}",
 {{#if socialImage}}  "image": "{{{qualifiedURL}}}static/uploads/{{{socialImage}}}",
 {{/if}}  "review": [
     {
@@ -32,7 +32,7 @@
       },
       "datePublished": "{{{review.createdOn}}}",
       "reviewBody": "{{{summarize (mlHTML review.html) 250}}}",
-      "headline": "{{mlText review.title false}}",
+      "headline": "{{mlSafeText review.title false}}",
       "reviewRating": {
         "@type": "Rating",
         "bestRating": "5",

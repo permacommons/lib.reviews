@@ -4,8 +4,8 @@
 <div class="message-box">{{{this}}}</div>
 {{/each}}
 </div>
-<h1 id="page-header">{{mlText blogPost.title}}</h1>
-<h2 id="sub-header">{{{__ "team blog" (link teamURL (mlText team.name false))}}}</h2>
+<h1 id="page-header">{{mlSafeText blogPost.title}}</h1>
+<h2 id="sub-header">{{{__ "team blog" (link teamURL (mlSafeText team.name false))}}}</h2>
 {{>blog_post post=blogPost skipTitle=true}}
 </div>
 </div>

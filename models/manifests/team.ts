@@ -42,8 +42,8 @@ const teamManifest = defineModelManifest({
   hasRevisions: true,
   schema: {
     id: types.string().uuid(4),
-    name: mlString.getPlainTextSchema({ maxLength: 100 }),
-    motto: mlString.getPlainTextSchema({ maxLength: 200 }),
+    name: mlString.getSafeTextSchema({ maxLength: 100 }),
+    motto: mlString.getSafeTextSchema({ maxLength: 200 }),
     description: mlString.getRichTextSchema(),
     rules: mlString.getRichTextSchema(),
     modApprovalToJoin: types.boolean().default(false),

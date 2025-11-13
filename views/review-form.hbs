@@ -9,7 +9,7 @@
 {{#if isPreview}}
 <div id="preview-contents">
 <h2 id="preview-review-url" {{#unless formValues.url}}class="hidden"{{/unless}}><span id="preview-review-url-label">{{{__ "preview of" (link formValues.url (prettify formValues.url))}}}</span></h2>
-<h2 id="preview-review-title">{{mlText formValues.title}}</h2>
+<h2 id="preview-review-title">{{mlSafeText formValues.title}}</h2>
 <span id="preview-review-rating">
 {{#times formValues.starRating}}
 <img src="/static/img/star-{{../formValues.starRating}}-full.svg" width="25" class="preview-star">
@@ -26,7 +26,7 @@
 {{{__ "posted under"}}}
 <span id="preview-team-list">
 {{#each formValues.teams}}
-<a href="/team/{{this.urlID}}" target="_blank">{{mlText this.name}}</a>{{#unless @last}}, {{/unless}}
+<a href="/team/{{this.urlID}}" target="_blank">{{mlSafeText this.name}}</a>{{#unless @last}}, {{/unless}}
 {{/each}}
 </span>
 </div>
@@ -92,7 +92,7 @@
         <div class="pure-u-1 pure-u-md-2-3 review-label-group nojs-hidden">
           <div class="pure-control-group">
               <label for="review-label">{{{__ "review label"}}} <span class="required">*</span></label>
-              <input id="review-label" name="review-label" type="text" class="pure-input-1" data-auto-trim placeholder="{{{__ "enter label for review subject"}}}" value="{{mlText formValues.label false}}">
+              <input id="review-label" name="review-label" type="text" class="pure-input-1" data-auto-trim placeholder="{{{__ "enter label for review subject"}}}" value="{{mlSafeText formValues.label false}}">
           </div>
           <br>
         </div>
@@ -104,7 +104,7 @@
         <div class="pure-u-1 pure-u-md-2-3">
           <div class="pure-control-group">
               <label for="review-title">{{{__ "review title"}}} <span class="required">*</span></label>
-              <input id="review-title" name="review-title" type="text" class="pure-input-1" {{#if editing}}data-focus{{/if}} data-required placeholder='{{{__ "enter title"}}}' value="{{mlText formValues.title false}}">
+              <input id="review-title" name="review-title" type="text" class="pure-input-1" {{#if editing}}data-focus{{/if}} data-required placeholder='{{{__ "enter title"}}}' value="{{mlSafeText formValues.title false}}">
           </div>
           <br>
         </div>
@@ -114,7 +114,7 @@
         <div class="pure-u-1 pure-u-md-2-3">
           <div class="pure-control-group">
               <label for="review-text">{{{__ "review text"}}} <span class="required">*</span></label>
-              <textarea id="review-text" name="review-text" class="pure-input-1" data-required data-markdown placeholder="{{{__ "enter review"}}}">{{mlText formValues.text false}}</textarea>
+              <textarea id="review-text" name="review-text" class="pure-input-1" data-required data-markdown placeholder="{{{__ "enter review"}}}">{{mlSafeText formValues.text false}}</textarea>
               {{>editor_switcher}}
               <br>&nbsp;
           </div>
@@ -173,7 +173,7 @@
       <p>
       {{#if user.teams}}
       {{#each user.teams}}
-      <input type="checkbox" id="review-team-{{this.id}}" name="review-team-{{this.id}}"{{#if (lookup ../formValues.hasTeam this.id)}} checked{{/if}}> <label for="review-team-{{this.id}}" class="inline-label"><span class="team-name" data-team-name="{{mlText this.name false}}">{{mlText this.name}}</span> <a class="team-link" href="/team/{{this.urlID}}" target="_blank">{{{__ "team page"}}}</a></label><br>
+      <input type="checkbox" id="review-team-{{this.id}}" name="review-team-{{this.id}}"{{#if (lookup ../formValues.hasTeam this.id)}} checked{{/if}}> <label for="review-team-{{this.id}}" class="inline-label"><span class="team-name" data-team-name="{{mlSafeText this.name false}}">{{mlSafeText this.name}}</span> <a class="team-link" href="/team/{{this.urlID}}" target="_blank">{{{__ "team page"}}}</a></label><br>
       {{/each}}
       {{else}}
       <span class="fa fa-info-circle fa-fw info-icon">&nbsp;</span> {{{__ "not member of any teams yet"}}}
@@ -187,7 +187,7 @@
         {{#if formValues.uploads}}
         <option value="">{{{__ "no social media image"}}}</option>
         {{#each formValues.uploads}}
-        <option {{#if (lookup ../formValues.hasSocialImageID this.id)}}selected{{/if}} value="{{{this.id}}}">{{{this.name}}}: {{{summarize (mlText this.description false) 80}}}</option>
+        <option {{#if (lookup ../formValues.hasSocialImageID this.id)}}selected{{/if}} value="{{{this.id}}}">{{{this.name}}}: {{{summarize (mlSafeText this.description false) 80}}}</option>
         {{/each}}
         {{else}}
         <option value="">{{{__ "no social media image"}}}</option>

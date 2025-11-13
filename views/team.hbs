@@ -19,9 +19,9 @@
 <div class="pure-u-1 pure-u-md-1-2">
 <div class="team-info">
 <h1 id="page-header" class="team-header">
-{{{__ "team title" (mlText team.name)}}}
+{{{__ "team title" (mlSafeText team.name)}}}
 </h1>
-<span class="team-motto">{{mlText team.motto false}}</span>
+<span class="team-motto">{{mlSafeText team.motto false}}</span>
 <p>
 {{{mlHTML team.description.html}}}
 <p>

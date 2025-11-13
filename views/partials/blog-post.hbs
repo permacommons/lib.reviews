@@ -1,7 +1,7 @@
 <div class="blog-post">
 {{!We skip the title and render it differently when it's viewed on a single page}}
 {{#unless skipTitle}}
-<h3 class="blog-post-title">{{mlText post.title}}</h3>
+<h3 class="blog-post-title">{{mlSafeText post.title}}</h3>
 {{/unless}}
 
 <div class="blog-post-text">

@@ -6,6 +6,7 @@
 /* External deps */
 import config from 'config';
 import { decodeHTML } from 'entities';
+import escapeHTML from 'escape-html';
 import stripTags from 'striptags';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
@@ -80,8 +81,8 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
     // Names without a language code are stored as 'undetermined' - while those
     // could sometimes be inferred from the country, this is often tricky in practice.
     if (tags['name']) {
-      // Sanitize: strip HTML tags and decode entities to get plain text
-      label['und'] = stripTags(decodeHTML(tags['name']));
+      // Sanitize: strip tags, decode, then escape to get HTML-safe text
+      label['und'] = escapeHTML(stripTags(decodeHTML(tags['name'])));
     }
 
     for (const language of languages.getValidLanguages()) {
@@ -91,8 +92,8 @@ export default class OpenStreetMapBackendAdapter extends AbstractBackendAdapter 
       // Traditional and Simplified Chinese). We map against the more common variants.
       const key = 'name:' + language;
       if (tags[key]) {
-        // Sanitize: strip HTML tags and decode entities to get plain text
-        label[language] = stripTags(decodeHTML(tags[key]));
+        // Sanitize: strip tags, decode, then escape to get HTML-safe text
+        label[language] = escapeHTML(stripTags(decodeHTML(tags[key])));
       }
     }
 

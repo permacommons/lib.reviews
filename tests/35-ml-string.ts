@@ -25,7 +25,7 @@ test('mlString.getSchema rejects HTML when allowHTML is false', t => {
 });
 
 test('mlString plain text schema enforces plain text for arrays', t => {
-  const schema = mlString.getPlainTextSchema({ array: true });
+  const schema = mlString.getSafeTextSchema({ array: true });
 
   t.notThrows(() => {
     schema.validate({ en: ['One', 'Two'] }, 'ml');

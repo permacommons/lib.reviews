@@ -18,7 +18,7 @@
 <table class="blog-table">
 {{#each blogPosts}}
 <tr>
-<td>{{shortDate this.createdOn}}</td><td><a href="/team/{{../team.id}}/post/{{this.id}}" title="{{{summarize (mlHTML this.html) 150}}}">{{mlText this.title}}</a>
+<td>{{shortDate this.createdOn}}</td><td><a href="/team/{{../team.id}}/post/{{this.id}}" title="{{{summarize (mlHTML this.html) 150}}}">{{mlSafeText this.title}}</a>
 </td>
 </tr>
 {{/each}}
@@ -33,7 +33,7 @@
 {{{__ "team intro"}}}
 <p>
 {{#each sampleTeams}}
-<b><a href="/team/{{{this.urlID}}}">{{mlText this.name}}</a></b>
+<b><a href="/team/{{{this.urlID}}}">{{mlSafeText this.name}}</a></b>
 {{#unless @last}}
 &ndash;
 {{/unless}}

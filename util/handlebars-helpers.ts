@@ -165,12 +165,30 @@ hbs.registerHelper('getSourceURL', sourceID => adapters.getSourceURL(sourceID));
 
 hbs.registerHelper('__', (...args: unknown[]) => {
   const options = args.pop() as HelperOptions;
-  return Reflect.apply(i18n.__, getTemplateContext(options), args);
+
+  // Convert SafeString objects to plain strings for i18n substitution
+  const unwrappedArgs = args.map(arg => {
+    if (arg && typeof arg === 'object' && 'string' in arg) {
+      return String(arg);
+    }
+    return arg;
+  });
+
+  return Reflect.apply(i18n.__, getTemplateContext(options), unwrappedArgs);
 });
 
 hbs.registerHelper('__n', (...args: unknown[]) => {
   const options = args.pop() as HelperOptions;
-  return Reflect.apply(i18n.__n, getTemplateContext(options), args);
+
+  // Convert SafeString objects to plain strings for i18n substitution
+  const unwrappedArgs = args.map(arg => {
+    if (arg && typeof arg === 'object' && 'string' in arg) {
+      return String(arg);
+    }
+    return arg;
+  });
+
+  return Reflect.apply(i18n.__n, getTemplateContext(options), unwrappedArgs);
 });
 
 // Get the language code that will result from resolving a string to the
@@ -193,6 +211,7 @@ hbs.registerHelper(
 hbs.registerHelper('substitute', (...args) => {
   let i = 1,
     string = args.shift();
+  // Note: .replace() coerces SafeString to string via toString()
 
   while (args.length) {
     let sub = args.shift();
@@ -232,11 +251,24 @@ hbs.registerHelper('isoDate', (date: { toISOString?: () => string } | null | und
 );
 
 /**
- * Resolve multilingual content and return escaped text. Optionally appends the
- * language badge, ensuring templates receive a SafeString when appropriate.
+ * Render HTML-safe multilingual text content.
+ *
+ * Use for text fields (labels, titles, names, descriptions) that store HTML-safe
+ * text format: entities escaped (`My &amp; Co`), tags rejected. This helper
+ * renders the content as-is without additional escaping since it's already safe.
+ *
+ * Storage format: Text is entity-escaped at write time by form handlers/adapters
+ * Browser automatically decodes entities when rendering: `&amp;` displays as `&`
+ *
+ * Usage:
+ *   {{mlSafeText review.title}}          - With language indicator if needed
+ *   {{mlSafeText review.title false}}    - Without language indicator
+ *
+ * For plain text output (emails, etc.): Use decodeHTML() on the field first
+ * For HTML output: Use as-is (this helper)
  */
 hbs.registerHelper(
-  'mlText',
+  'mlSafeText',
   (...raw: [unknown, HelperOptions] | [unknown, boolean, HelperOptions]) => {
     const [str, addLanguageSpan, options] =
       raw.length === 2 ? [raw[0], true, raw[1]] : [raw[0], raw[1] as boolean, raw[2]];
@@ -246,21 +278,32 @@ hbs.registerHelper(
 
     if (mlRv === undefined || mlRv.str === undefined || mlRv.str === '') return undefined;
 
-    const escaped = escapeHTML(mlRv.str);
-
+    // No escaping - data is already entity-escaped at write time by form handlers/adapters
     if (!shouldAddLanguageIdentifier(addLanguageSpan, mlRv.lang, context.locale)) {
-      return new hbs.handlebars.SafeString(escaped);
+      return new hbs.handlebars.SafeString(mlRv.str);
     }
 
     return new hbs.handlebars.SafeString(
-      `${escaped}${renderLanguageIdentifier(mlRv.lang ?? 'und', context.locale)}`
+      `${mlRv.str}${renderLanguageIdentifier(mlRv.lang ?? 'und', context.locale)}`
     );
   }
 );
 
 /**
- * Resolve multilingual content that is already sanitized HTML so templates can
- * opt into unescaped rendering, with optional language badge support.
+ * Render multilingual HTML content.
+ *
+ * Use for HTML fields that contain rendered markup (typically cached markdown output).
+ * These fields store actual HTML tags and should be rendered without escaping.
+ *
+ * Storage format: Contains HTML markup like `<p>My &amp; Co</p>`
+ * Unlike mlText, this is NOT entity-escaped plain text - it's actual HTML.
+ *
+ * Usage:
+ *   {{{mlHTML review.html}}}         - Rendered review content
+ *   {{{mlHTML team.description.html}}} - Rendered description
+ *
+ * Security: Content must be sanitized before storage (e.g., from trusted markdown renderer)
+ * Type safety: Schema validation ensures HTML fields are only used with mlHTML helper
  */
 hbs.registerHelper(
   'mlHTML',
@@ -393,15 +436,18 @@ hbs.registerHelper(
   }
 );
 
-hbs.registerHelper('linkify', str =>
-  linkifyHTML(str, {
+hbs.registerHelper('linkify', str => {
+  // Convert to string (handles SafeString objects via toString())
+  const plainStr = String(str ?? '');
+
+  return linkifyHTML(plainStr, {
     defaultProtocol: 'https',
     target: {
       url: '_blank',
       // email links won't get target="_blank"
     },
-  })
-);
+  });
+});
 
 function userLink(user?: { urlName?: string; displayName?: string } | null) {
   return user ? `<a href="/user/${user.urlName ?? ''}">${user.displayName ?? ''}</a>` : '';

@@ -53,8 +53,8 @@ const reviewManifest = defineModelManifest({
     thingID: types.string().uuid(4).required(true),
 
     // JSONB multilingual content fields
-    title: mlString.getPlainTextSchema({ maxLength: reviewOptions.maxTitleLength }),
-    text: mlString.getPlainTextSchema(),
+    title: mlString.getSafeTextSchema({ maxLength: reviewOptions.maxTitleLength }),
+    text: mlString.getSafeTextSchema(),
     html: mlString.getHTMLSchema(),
 
     // Relational fields
