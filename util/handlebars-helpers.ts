@@ -19,11 +19,48 @@ import debug from './debug.ts';
 import getLicenseURL from './get-license-url.ts';
 import urlUtils from './url-utils.ts';
 
+/**
+ * Extract the template context that Handlebars tucks away inside helper options.
+ * Falls back to an empty object so helpers can safely destructure optional values.
+ */
 const getTemplateContext = (options: HelperOptions): TemplateContext =>
   (options?.data?.root ?? {}) as TemplateContext;
 
+/**
+ * Resolve any supported mlString structure into the most appropriate translation
+ * for the current locale, mirroring the legacy mlString helper behavior.
+ */
 const resolveMultilingual = (locale: string, value: unknown) =>
   mlString.resolve(locale, value as Record<string, string> | null | undefined);
+
+/**
+ * Determine whether we should append a language identifier badge.
+ * We only show the badge when one was requested, the language differs
+ * from the current locale, and the translation is not "und".
+ */
+const shouldAddLanguageIdentifier = (
+  addLanguageSpan: boolean,
+  resolvedLanguage: string | undefined,
+  locale: string | undefined
+) =>
+  Boolean(resolvedLanguage) &&
+  addLanguageSpan &&
+  resolvedLanguage !== locale &&
+  resolvedLanguage !== 'und';
+
+/**
+ * Render the standard language badge markup so every helper stays consistent.
+ * The badge includes an accessible tooltip with the localized language name.
+ */
+const renderLanguageIdentifier = (resolvedLanguage: string, locale: string | undefined) => {
+  const resolvedLocale = resolvedLanguage as LocaleCodeWithUndetermined;
+  const translationLocale = (locale ?? 'en') as LocaleCodeWithUndetermined;
+  const languageName = languages.getCompositeName(resolvedLocale, translationLocale);
+  return (
+    ` <span class="language-identifier" title="${languageName}">` +
+    `<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>${resolvedLanguage}</span>`
+  );
+};
 
 /**
  * Resolve a thing's display label in the current locale, with safe fallbacks.
@@ -192,6 +229,58 @@ hbs.registerHelper('getLanguageName', (lang: string, options: HelperOptions) => 
 
 hbs.registerHelper('isoDate', (date: { toISOString?: () => string } | null | undefined) =>
   date && typeof date.toISOString === 'function' ? date.toISOString() : undefined
+);
+
+/**
+ * Resolve multilingual content and return escaped text. Optionally appends the
+ * language badge, ensuring templates receive a SafeString when appropriate.
+ */
+hbs.registerHelper(
+  'mlText',
+  (...raw: [unknown, HelperOptions] | [unknown, boolean, HelperOptions]) => {
+    const [str, addLanguageSpan, options] =
+      raw.length === 2 ? [raw[0], true, raw[1]] : [raw[0], raw[1] as boolean, raw[2]];
+
+    const context = getTemplateContext(options);
+    const mlRv = resolveMultilingual(context.locale, str);
+
+    if (mlRv === undefined || mlRv.str === undefined || mlRv.str === '') return undefined;
+
+    const escaped = escapeHTML(mlRv.str);
+
+    if (!shouldAddLanguageIdentifier(addLanguageSpan, mlRv.lang, context.locale)) {
+      return new hbs.handlebars.SafeString(escaped);
+    }
+
+    return new hbs.handlebars.SafeString(
+      `${escaped}${renderLanguageIdentifier(mlRv.lang ?? 'und', context.locale)}`
+    );
+  }
+);
+
+/**
+ * Resolve multilingual content that is already sanitized HTML so templates can
+ * opt into unescaped rendering, with optional language badge support.
+ */
+hbs.registerHelper(
+  'mlHTML',
+  (...raw: [unknown, HelperOptions] | [unknown, boolean, HelperOptions]) => {
+    const [str, addLanguageSpan, options] =
+      raw.length === 2 ? [raw[0], false, raw[1]] : [raw[0], raw[1] as boolean, raw[2]];
+
+    const context = getTemplateContext(options);
+    const mlRv = resolveMultilingual(context.locale, str);
+
+    if (mlRv === undefined || mlRv.str === undefined || mlRv.str === '') return undefined;
+
+    if (!shouldAddLanguageIdentifier(addLanguageSpan, mlRv.lang, context.locale)) {
+      return new hbs.handlebars.SafeString(mlRv.str);
+    }
+
+    return new hbs.handlebars.SafeString(
+      `${mlRv.str}${renderLanguageIdentifier(mlRv.lang ?? 'und', context.locale)}`
+    );
+  }
 );
 
 // Resolve a multilingual string to the current request language.
