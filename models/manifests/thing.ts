@@ -10,9 +10,13 @@ import type { ReviewInstance } from './review.ts';
 import type { UserViewer } from './user.ts';
 
 const { mlString } = dal as unknown as {
-  mlString: Record<string, any>;
+  mlString: typeof import('../../dal/lib/ml-string.ts').default;
 };
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
+
+const metadataDescriptionSchema = mlString.getPlainTextSchema({ maxLength: 512 });
+const metadataSubtitleSchema = mlString.getPlainTextSchema({ maxLength: 256 });
+const metadataAuthorsSchema = types.array(mlString.getPlainTextSchema({ maxLength: 256 }));
 
 function validateMetadata(metadata: unknown): boolean {
   if (metadata === null || metadata === undefined) {
@@ -27,15 +31,22 @@ function validateMetadata(metadata: unknown): boolean {
   const entries = Object.entries(metadata as Record<string, any>);
   for (const [key, value] of entries) {
     if (validFields.includes(key)) {
+      if (value === null || value === undefined) {
+        continue;
+      }
+
       if (key === 'authors') {
-        if (!Array.isArray(value)) {
-          throw new Error('Authors metadata must be an array');
-        }
-        for (const author of value) {
-          mlString.validate(author, { maxLength: 256 });
-        }
-      } else {
-        mlString.validate(value, { maxLength: key === 'description' ? 512 : 256 });
+        metadataAuthorsSchema.validate(value, 'metadata.authors');
+        continue;
+      }
+
+      if (key === 'description') {
+        metadataDescriptionSchema.validate(value, 'metadata.description');
+        continue;
+      }
+
+      if (key === 'subtitle') {
+        metadataSubtitleSchema.validate(value, 'metadata.subtitle');
       }
     }
   }
@@ -72,8 +83,8 @@ const thingManifest = defineModelManifest({
     urls: types.array(types.string().validator(validateURL)),
 
     // JSONB multilingual fields
-    label: mlString.getSchema({ maxLength: 256 }),
-    aliases: mlString.getSchema({ maxLength: 256, array: true }),
+    label: mlString.getPlainTextSchema({ maxLength: 256 }),
+    aliases: mlString.getPlainTextSchema({ maxLength: 256, array: true }),
 
     // Grouped metadata in JSONB for extensibility
     metadata: types.object().validator(validateMetadata),

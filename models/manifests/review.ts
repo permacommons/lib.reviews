@@ -53,9 +53,9 @@ const reviewManifest = defineModelManifest({
     thingID: types.string().uuid(4).required(true),
 
     // JSONB multilingual content fields
-    title: mlString.getSchema({ maxLength: reviewOptions.maxTitleLength }),
-    text: mlString.getSchema(),
-    html: mlString.getSchema(),
+    title: mlString.getPlainTextSchema({ maxLength: reviewOptions.maxTitleLength }),
+    text: mlString.getPlainTextSchema(),
+    html: mlString.getHTMLSchema(),
 
     // Relational fields
     starRating: types.number().min(1).max(5).integer().required(true),
