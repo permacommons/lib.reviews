@@ -54,7 +54,7 @@ const mlString = {
    * Options:
    * - `maxLength`: maximum length enforced for each value
    * - `array`: when true, validates string arrays per language
-   * - `allowHTML`: when false, rejects values that contain HTML tags
+   * - `allowHTML`: when true, allows HTML tags (default: false for security)
    *
    * Note: HTML entities like `&amp;` are allowed regardless of `allowHTML` setting.
    * Only actual HTML tags like `<script>` are validated.
@@ -62,7 +62,7 @@ const mlString = {
   getSchema({
     maxLength,
     array = false,
-    allowHTML = true,
+    allowHTML = false,
   }: MlStringSchemaOptions = {}): ObjectType {
     const objectType = types.object();
 

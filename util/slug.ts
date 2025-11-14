@@ -4,8 +4,8 @@
  * @module util/slug
  */
 
-import isUUID from 'is-uuid';
 import { decodeHTML } from 'entities';
+import isUUID from 'is-uuid';
 
 /**
  * Normalize a string into a slug-safe representation.

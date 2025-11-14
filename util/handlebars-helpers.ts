@@ -28,7 +28,7 @@ const getTemplateContext = (options: HelperOptions): TemplateContext =>
 
 /**
  * Resolve any supported mlString structure into the most appropriate translation
- * for the current locale, mirroring the legacy mlString helper behavior.
+ * for the current locale. Used by mlSafeText and mlHTML helpers.
  */
 const resolveMultilingual = (locale: string, value: unknown) =>
   mlString.resolve(locale, value as Record<string, string> | null | undefined);

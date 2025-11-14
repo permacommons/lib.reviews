@@ -1,3 +1,4 @@
+import { decodeHTML } from 'entities';
 import { guessMediaType } from 'markdown-it-html5-media';
 import { setBlockType, toggleMark, wrapIn } from 'prosemirror-commands';
 import {
@@ -23,8 +24,6 @@ import {
   Transaction,
 } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
-
-import { decodeHTML } from 'entities';
 import { openPrompt, type PromptSpec, TextField } from './editor-prompt.ts';
 import $ from './lib/jquery.js';
 import libreviews, { msg } from './libreviews.ts';
