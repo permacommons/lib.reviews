@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { Router } from 'express';
 import languages from '../locales/languages.ts';
@@ -14,11 +13,9 @@ type LocaleCodeWithUndetermined = LibReviews.LocaleCodeWithUndetermined;
 const router = Router();
 
 const stat = promisify(fs.stat);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 router.get('/terms', (req: PagesRouteRequest, res: PagesRouteResponse, next: HandlerNext) => {
-  resolveMultilingualTemplate('terms', req.locale)
+  resolveMultilingualTemplate('terms', req.locale, req.app.locals.paths.runtimeRoot)
     .then(templateName =>
       render.template(req, res, templateName, {
         deferPageHeader: true,
@@ -29,7 +26,7 @@ router.get('/terms', (req: PagesRouteRequest, res: PagesRouteResponse, next: Han
 });
 
 router.get('/faq', (req: PagesRouteRequest, res: PagesRouteResponse, next: HandlerNext) => {
-  resolveMultilingualTemplate('faq', req.locale)
+  resolveMultilingualTemplate('faq', req.locale, req.app.locals.paths.runtimeRoot)
     .then(templateName =>
       render.template(req, res, templateName, {
         deferPageHeader: true,
@@ -41,7 +38,11 @@ router.get('/faq', (req: PagesRouteRequest, res: PagesRouteResponse, next: Handl
 
 // Detects the best available template in the multilingual templates directory
 // for a given locale.
-async function resolveMultilingualTemplate(templateName: string, locale?: string): Promise<string> {
+async function resolveMultilingualTemplate(
+  templateName: string,
+  locale: string | undefined,
+  runtimeRoot: string
+): Promise<string> {
   let templateLanguages = languages.getFallbacks(locale ?? 'und');
 
   // Add the request language itself if not already a default fallback
@@ -49,7 +50,7 @@ async function resolveMultilingualTemplate(templateName: string, locale?: string
     templateLanguages.unshift(locale as LocaleCodeWithUndetermined);
 
   const getRelPath = language => `multilingual/${templateName}-${language}`,
-    getAbsPath = relPath => path.join(__dirname, '../views', `${relPath}.hbs`);
+    getAbsPath = relPath => path.join(runtimeRoot, 'views', `${relPath}.hbs`);
 
   // Check existence of files, swallow errors
   const templateLookups = templateLanguages.map(language => {

@@ -6,7 +6,6 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import config from 'config';
 import { Router } from 'express';
@@ -29,9 +28,6 @@ import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import forms from './helpers/forms.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const readFile = promisify(fs.readFile);
 const rename = promisify(fs.rename);
