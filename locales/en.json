@@ -86,6 +86,7 @@
     "invalid star rating": "The submitted rating, '%s', is not valid.",
     "review title too long": "The submitted review title is too long.",
     "invalid language code": "The submitted language code, '%s', is not valid or recognized.",
+    "html in text field": "The submitted content contains HTML tags which are not allowed in this field. Please remove any HTML formatting.",
     "feed": "Latest reviews",
     "one or multiple stars": {
       "one": "%f star",

@@ -30,7 +30,7 @@
   {{{__ "description"}}}
   </div>
   <div class="file-table-value">
-  {{{mlString this.description}}}
+  {{mlSafeText this.description}}
   </div>
 </div>
 {{/if}}
@@ -41,7 +41,7 @@
   {{{__ "source help label"}}}
   </div>
   <div class="file-table-value">
-  {{{linkify (mlString this.source)}}}
+  {{{linkify (mlSafeText this.source)}}}
   </div>
 </div>
 {{/if}}

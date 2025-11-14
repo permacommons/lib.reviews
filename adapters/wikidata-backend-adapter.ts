@@ -1,6 +1,7 @@
 /* External deps */
 import config from 'config';
 import { decodeHTML } from 'entities';
+import escapeHTML from 'escape-html';
 import stripTags from 'striptags';
 import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
@@ -125,8 +126,9 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
 
       const entry = wdObj[language];
       if (entry && typeof entry === 'object' && entry.language === language && entry.value) {
-        // Sanitize: strip HTML tags and decode entities to get plain text
-        let wdStr = stripTags(decodeHTML(entry.value));
+        // Sanitize: strip tags, decode, then escape to get HTML-safe text
+        // External data: strip unwanted formatting, then escape entities for safe storage
+        let wdStr = escapeHTML(stripTags(decodeHTML(entry.value)));
         if (typeof maxLength === 'number') wdStr = wdStr.substr(0, maxLength);
         mlStr[native] = wdStr;
       }

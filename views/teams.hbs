@@ -14,10 +14,10 @@
 </p>
 <div class="team-list">
 {{#each teams}}
-<b><a href='/team/{{{this.urlID}}}'>{{{mlString this.name}}}</a></b><br>
-<i>{{{mlString this.motto false}}}</i>
+<b><a href='/team/{{{this.urlID}}}'>{{mlSafeText this.name}}</a></b><br>
+<i>{{mlSafeText this.motto false}}</i>
 <p>
-{{{mlString this.description.html false}}}
+{{{mlHTML this.description.html}}}
 <p>
 {{#unless @last}}
 <hr class="feed-separator">

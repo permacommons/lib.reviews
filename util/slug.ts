@@ -4,8 +4,8 @@
  * @module util/slug
  */
 
+import { decodeHTML } from 'entities';
 import isUUID from 'is-uuid';
-import unescapeHTML from 'unescape-html';
 
 /**
  * Normalize a string into a slug-safe representation.
@@ -38,7 +38,7 @@ export function generateSlugName(str: string): string {
     throw new Error('Source string cannot be empty.');
   }
 
-  const slugName = unescapeHTML(trimmed)
+  const slugName = decodeHTML(trimmed)
     .trim()
     .toLowerCase()
     .replace(/[&]/g, '-') // Replace ampersands with hyphens

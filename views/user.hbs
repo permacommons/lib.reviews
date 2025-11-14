@@ -15,7 +15,7 @@
 {{#unless edit.bio}}
 {{#if userInfo.meta.bio}}
 <span class="user-label">{{{__ "user bio"}}}</span><br>
-{{{mlString userInfo.meta.bio.html}}}
+{{{mlHTML userInfo.meta.bio.html}}}
 {{/if}}
 {{#if userInfo.userCanEditMetadata}}
 <a id="edit-bio" href="/user/{{userInfo.urlName}}/edit/bio" class="pure-button button-rounded">
@@ -25,7 +25,7 @@
 {{else}}
 <span class="user-label">{{{__ "user bio"}}}</span><br>
 <form id="bio-form" name="bio-form" class="pure-form" action="" method="post">
-<textarea id="bio-textarea" class="pure-input-1" data-markdown name="bio-text">{{{mlString userInfo.meta.bio.text false}}}</textarea>
+<textarea id="bio-textarea" class="pure-input-1" data-markdown name="bio-text">{{mlSafeText userInfo.meta.bio.text false}}</textarea>
 {{>editor_switcher}}
 <input type="hidden" value="{{currentLanguage.langKey}}" name="bio-language">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
@@ -51,7 +51,7 @@
 {{#if teams}}
 <ul class="user-team-list">
 {{#each teams}}
-<li> <a href='/team/{{this.id}}'>{{{mlString this.name}}}</a>
+<li> <a href='/team/{{this.id}}'>{{mlSafeText this.name}}</a>
 {{#if (lookup ../modOf this.id)}}
 <span class="user-team-badge">{{{__ "moderator badge"}}}</span>
 {{/if}}

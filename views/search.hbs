@@ -8,20 +8,20 @@
 {{#if labelMatches}}
 <h2 class="sub-header-regular">{{{__ "matches in review subjects"}}}</h2>
 {{#each labelMatches}}
-<h3 class="search-match-heading"><a href="/{{{this._source.urlID}}}">{{{mlString this._source.label}}}</a></h3>
-{{#if (mlString this._source.description)}}
-<div class="search-result-description"> <span class="fa fa-info-circle fa-fw">&nbsp;</span> {{{mlString this._source.description}}}</div>
+<h3 class="search-match-heading"><a href="/{{{this._source.urlID}}}">{{mlSafeText this._source.label}}</a></h3>
+{{#if (mlSafeText this._source.description)}}
+<div class="search-result-description"> <span class="fa fa-info-circle fa-fw">&nbsp;</span> {{mlSafeText this._source.description}}</div>
 {{/if}}
 {{/each}}
 {{/if}}
 {{#if textMatches}}
 <h2 class="sub-header-regular">{{{__ "matches in review text"}}}</h2>
 {{#each textMatches}}
-<h3><a href="/{{{this._source.urlID}}}">{{{mlString this._source.label}}}</a></h3>
+<h3><a href="/{{{this._source.urlID}}}">{{mlSafeText this._source.label}}</a></h3>
 <p>
 <i>{{{__n "one or multiple matches"  this.inner_hits.review.hits.total.value}}}</i><br>
 {{#each this.inner_hits.review.hits.hits}}
-<b><a href="/review/{{{this._id}}}">{{{mlString this._source.title}}}</a><br></b>
+<b><a href="/review/{{{this._id}}}">{{mlSafeText this._source.title}}</a><br></b>
   {{#times this._source.starRating}}
   <img src="/static/img/star-{{../this._source.starRating}}-full.svg" width="20" class="review-star"{{#if @first}} alt="{{{__n "one or multiple stars" ../this._source.starRating}}}"{{/if}}>
   {{/times}}

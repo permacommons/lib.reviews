@@ -204,6 +204,99 @@ Models with `hasRevisions: true` gain revision metadata fields and helpers:
 - Instance helpers (`newRevision`, `deleteAllRevisions`).
 - `filterWhere.revisionData()` exposes typed predicates for `_rev*` columns when querying revision metadata.
 
+## Multilingual Strings
+
+The DAL provides runtime-validated multilingual string schemas via `mlString` (imported from `dal/lib/ml-string.ts`). These enforce a security model that distinguishes plain text from HTML content at write time.
+
+### Storage Format
+
+Text fields store **HTML-safe text** with entities escaped (e.g., `My &amp; Co`, `I &lt;3 JS`) but HTML tags rejected. This preserves users' literal input including angle brackets while allowing safe rendering in HTML templates.
+
+- User types `A & B` → stored as `{ en: "A &amp; B" }` → browser displays `A & B`
+- Adapter returns `<b>Title</b>` → stripped to `Title` → stored as `{ en: "Title" }`
+- For plain text contexts (emails, exports), decode entities with `decodeHTML()` from the `entities` package
+
+### Schema Methods
+
+**Plain Text (HTML-safe)** – For labels, titles, names, descriptions
+
+```ts
+import mlString from '../../dal/lib/ml-string.ts';
+
+const thingManifest = defineModelManifest({
+  schema: {
+    label: mlString.getSafeTextSchema({ maxLength: 256 }),
+    aliases: mlString.getSafeTextSchema({ array: true, maxLength: 256 }),
+  }
+});
+```
+
+Rejects HTML tags at write time via `ValidationError`.
+
+**HTML Content** – For cached rendered markdown output
+
+```ts
+const reviewManifest = defineModelManifest({
+  schema: {
+    html: mlString.getHTMLSchema(),
+  }
+});
+```
+
+Permits full HTML markup. Use only for pre-sanitized content.
+
+**Rich Text (Nested)** – For fields storing both markdown source and cached HTML
+
+```ts
+const teamManifest = defineModelManifest({
+  schema: {
+    description: mlString.getRichTextSchema(),
+    // Expects: { text: { en: "markdown" }, html: { en: "<p>HTML</p>" } }
+  }
+});
+```
+
+Validates nested structure: `text` must be HTML-safe, `html` may contain tags.
+
+### Template Rendering
+
+```handlebars
+{{!-- Plain text (entity-escaped at storage) --}}
+<h1>{{mlSafeText review.title}}</h1>
+<meta content="{{mlSafeText thing.label false}}" />
+
+{{!-- Pre-rendered HTML --}}
+<div>{{{mlHTML review.html}}}</div>
+<div>{{{mlHTML team.description.html}}}</div>
+```
+
+Both helpers support language fallbacks and optional language indicators.
+
+### Security Model
+
+Defense in depth against XSS:
+
+1. **Input sanitization** – Adapters/forms escape entities at write time
+2. **Runtime validation** – Schemas reject `<script>` in text fields
+3. **Template safety** – Explicit `mlSafeText` vs `mlHTML` helpers
+4. **User feedback** – Flash middleware converts validation errors to localized messages
+
+### Helper Methods
+
+```ts
+// Resolve translation with fallbacks
+const resolved = mlString.resolve('de', thing.label);
+// Returns: { str: "Label text", lang: "en" }
+
+// Strip HTML from external data
+const cleaned = mlString.stripHTML({ en: '<b>Bold</b> text' });
+// Returns: { en: 'Bold text' }
+
+// Build JSONB query predicates
+const query = mlString.buildQuery('label', 'en', searchTerm, 'ILIKE');
+// Returns: "label->>'en' ILIKE $1"
+```
+
 ## Directory Reference
 
 - `dal/index.ts` – Public entry point that re-exports constructors, types, and helpers.

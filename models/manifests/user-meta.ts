@@ -6,7 +6,9 @@ import type { InferConstructor, InferInstance } from '../../dal/lib/model-manife
 import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
 
-const { mlString } = dal as { mlString: Record<string, any> };
+const { mlString } = dal as {
+  mlString: typeof import('../../dal/lib/ml-string.ts').default;
+};
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
 
 const userMetaManifest = defineModelManifest({
@@ -14,18 +16,7 @@ const userMetaManifest = defineModelManifest({
   hasRevisions: true,
   schema: {
     id: types.string().uuid(4),
-    bio: types
-      .object()
-      .default(() => ({ text: {}, html: {} }))
-      .validator((value: unknown) => {
-        if (value === null || value === undefined) return true;
-
-        const multilingualStringSchema = mlString.getSchema({ maxLength: 1000 });
-        const record = value as Record<string, unknown>;
-        multilingualStringSchema.validate(record.text, 'bio.text');
-        multilingualStringSchema.validate(record.html, 'bio.html');
-        return true;
-      }),
+    bio: mlString.getRichTextSchema().default(() => ({ text: {}, html: {} })),
     originalLanguage: types
       .string()
       .max(4)

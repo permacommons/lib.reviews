@@ -27,9 +27,9 @@ const blogPostManifest = defineModelManifest({
   schema: {
     id: types.string().uuid(4),
     teamID: types.string().uuid(4).required(true),
-    title: mlString.getSchema({ maxLength: 100 }),
-    text: mlString.getSchema(),
-    html: mlString.getSchema(),
+    title: mlString.getSafeTextSchema({ maxLength: 100 }),
+    text: mlString.getSafeTextSchema(),
+    html: mlString.getHTMLSchema(),
     createdOn: types.date().default(() => new Date()),
     createdBy: types.string().uuid(4).required(true),
     originalLanguage: types.string().max(4).required(true).validator(isValidLanguage),

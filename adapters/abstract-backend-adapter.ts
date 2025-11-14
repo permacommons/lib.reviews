@@ -4,6 +4,10 @@
  * divergence, we are keeping these separate.
  */
 
+/**
+ * Multilingual string as returned by adapters. Each language key maps to a string
+ * value that MUST be in "HTML-safe text" format as described below.
+ */
 export interface AdapterMultilingualString {
   [lang: string]: string;
 }
@@ -80,6 +84,35 @@ export default abstract class AbstractBackendAdapter {
   /**
    * Internal lookup implementation to be provided by each adapter.
    * Do not call directly - use lookup() which handles throttling.
+   *
+   * ## Text Sanitization Requirements
+   *
+   * All text strings returned in AdapterMultilingualString objects MUST be in
+   * "HTML-safe text" format:
+   * - HTML entities are escaped (e.g., `&` → `&amp;`, `<` → `&lt;`)
+   * - HTML tags are stripped/rejected
+   * - Safe to render directly in HTML templates without additional escaping
+   *
+   * ### Recommended Pattern for External Data
+   *
+   * For text from external APIs, use this three-step sanitization:
+   *
+   * ```typescript
+   * import { decodeHTML } from 'entities';
+   * import escapeHTML from 'escape-html';
+   * import stripTags from 'striptags';
+   *
+   * const safeText = escapeHTML(stripTags(decodeHTML(externalValue)));
+   * ```
+   *
+   * This pattern:
+   * 1. Decodes any existing entities to plain text
+   * 2. Strips HTML tags
+   * 3. Escapes entities for safe HTML storage
+   *
+   * Not all adapters need all three steps - adjust based on the format your
+   * external API returns. If it already returns plain text with no entities
+   * or tags, only `escapeHTML()` may be needed.
    */
   protected abstract _lookup(url: string): Promise<AdapterLookupResult>;
 

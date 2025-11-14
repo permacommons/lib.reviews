@@ -1,3 +1,4 @@
+import { decodeHTML } from 'entities';
 import { guessMediaType } from 'markdown-it-html5-media';
 import { setBlockType, toggleMark, wrapIn } from 'prosemirror-commands';
 import {
@@ -23,8 +24,6 @@ import {
   Transaction,
 } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
-
-import unescapeHTML from 'unescape-html';
 import { openPrompt, type PromptSpec, TextField } from './editor-prompt.ts';
 import $ from './lib/jquery.js';
 import libreviews, { msg } from './libreviews.ts';
@@ -362,7 +361,7 @@ function generateDescriptionFromUpload(upload: UploadMetadata): string {
   // API returns escaped HTML; editor will re-escape it
   const language = config.language ?? 'en';
   const rawDescription = upload.description[language] ?? '';
-  const description = unescapeHTML(rawDescription);
+  const description = decodeHTML(rawDescription);
   const creator = upload.creator && upload.creator[language];
   let license: string;
   switch (upload.license) {

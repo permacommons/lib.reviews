@@ -6,6 +6,7 @@
 /* External deps */
 import config from 'config';
 import { decodeHTML } from 'entities';
+import escapeHTML from 'escape-html';
 import stripTags from 'striptags';
 import debug from '../util/debug.ts';
 import { fetchJSON } from '../util/http.ts';
@@ -120,16 +121,16 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
 
     const result: AdapterLookupResult = {
       data: {
-        // Sanitize: strip HTML tags and decode entities to get plain text
-        label: { [language]: stripTags(decodeHTML(data.title)) },
+        // Sanitize: strip tags, decode, then escape to get HTML-safe text
+        label: { [language]: escapeHTML(stripTags(decodeHTML(data.title))) },
       },
       sourceID: this.sourceID,
     };
 
     if (data.subtitle) {
       result.data.subtitle = {
-        // Sanitize: strip HTML tags and decode entities to get plain text
-        [language]: stripTags(decodeHTML(data.subtitle)),
+        // Sanitize: strip tags, decode, then escape to get HTML-safe text
+        [language]: escapeHTML(stripTags(decodeHTML(data.subtitle))),
       };
     }
 
@@ -204,8 +205,8 @@ export default class OpenLibraryBackendAdapter extends AbstractBackendAdapter {
         // We generally don't know what language an author name
         // is transliterated into. Most likely the common Western
         // Latin transliteration. Flag as undetermined.
-        // Sanitize: strip HTML tags and decode entities to get plain text
-        authorArray.push({ und: stripTags(decodeHTML(name)) });
+        // Sanitize: strip tags, decode, then escape to get HTML-safe text
+        authorArray.push({ und: escapeHTML(stripTags(decodeHTML(name))) });
       }
     }
 

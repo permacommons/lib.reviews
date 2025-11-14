@@ -19,11 +19,48 @@ import debug from './debug.ts';
 import getLicenseURL from './get-license-url.ts';
 import urlUtils from './url-utils.ts';
 
+/**
+ * Extract the template context that Handlebars tucks away inside helper options.
+ * Falls back to an empty object so helpers can safely destructure optional values.
+ */
 const getTemplateContext = (options: HelperOptions): TemplateContext =>
   (options?.data?.root ?? {}) as TemplateContext;
 
+/**
+ * Resolve any supported mlString structure into the most appropriate translation
+ * for the current locale. Used by mlSafeText and mlHTML helpers.
+ */
 const resolveMultilingual = (locale: string, value: unknown) =>
   mlString.resolve(locale, value as Record<string, string> | null | undefined);
+
+/**
+ * Determine whether we should append a language identifier badge.
+ * We only show the badge when one was requested, the language differs
+ * from the current locale, and the translation is not "und".
+ */
+const shouldAddLanguageIdentifier = (
+  addLanguageSpan: boolean,
+  resolvedLanguage: string | undefined,
+  locale: string | undefined
+) =>
+  Boolean(resolvedLanguage) &&
+  addLanguageSpan &&
+  resolvedLanguage !== locale &&
+  resolvedLanguage !== 'und';
+
+/**
+ * Render the standard language badge markup so every helper stays consistent.
+ * The badge includes an accessible tooltip with the localized language name.
+ */
+const renderLanguageIdentifier = (resolvedLanguage: string, locale: string | undefined) => {
+  const resolvedLocale = resolvedLanguage as LocaleCodeWithUndetermined;
+  const translationLocale = (locale ?? 'en') as LocaleCodeWithUndetermined;
+  const languageName = languages.getCompositeName(resolvedLocale, translationLocale);
+  return (
+    ` <span class="language-identifier" title="${languageName}">` +
+    `<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>${resolvedLanguage}</span>`
+  );
+};
 
 /**
  * Resolve a thing's display label in the current locale, with safe fallbacks.
@@ -95,8 +132,8 @@ hbs.registerHelper('link', (url: string, title: string, singleQuotes?: boolean) 
 });
 
 // Strips HTML and shortens to specified length
-hbs.registerHelper('summarize', (html: string, length: number) => {
-  const stripped = stripTags(html ?? '');
+hbs.registerHelper('summarize', (html: unknown, length: number) => {
+  const stripped = stripTags(`${html ?? ''}`);
   let shortened = stripped.substr(0, length);
   if (stripped.length > length) shortened += '...';
   return shortened;
@@ -128,12 +165,30 @@ hbs.registerHelper('getSourceURL', sourceID => adapters.getSourceURL(sourceID));
 
 hbs.registerHelper('__', (...args: unknown[]) => {
   const options = args.pop() as HelperOptions;
-  return Reflect.apply(i18n.__, getTemplateContext(options), args);
+
+  // Convert SafeString objects to plain strings for i18n substitution
+  const unwrappedArgs = args.map(arg => {
+    if (arg && typeof arg === 'object' && 'string' in arg) {
+      return String(arg);
+    }
+    return arg;
+  });
+
+  return Reflect.apply(i18n.__, getTemplateContext(options), unwrappedArgs);
 });
 
 hbs.registerHelper('__n', (...args: unknown[]) => {
   const options = args.pop() as HelperOptions;
-  return Reflect.apply(i18n.__n, getTemplateContext(options), args);
+
+  // Convert SafeString objects to plain strings for i18n substitution
+  const unwrappedArgs = args.map(arg => {
+    if (arg && typeof arg === 'object' && 'string' in arg) {
+      return String(arg);
+    }
+    return arg;
+  });
+
+  return Reflect.apply(i18n.__n, getTemplateContext(options), unwrappedArgs);
 });
 
 // Get the language code that will result from resolving a string to the
@@ -156,6 +211,7 @@ hbs.registerHelper(
 hbs.registerHelper('substitute', (...args) => {
   let i = 1,
     string = args.shift();
+  // Note: .replace() coerces SafeString to string via toString()
 
   while (args.length) {
     let sub = args.shift();
@@ -192,6 +248,82 @@ hbs.registerHelper('getLanguageName', (lang: string, options: HelperOptions) => 
 
 hbs.registerHelper('isoDate', (date: { toISOString?: () => string } | null | undefined) =>
   date && typeof date.toISOString === 'function' ? date.toISOString() : undefined
+);
+
+/**
+ * Render HTML-safe multilingual text content.
+ *
+ * Use for text fields (labels, titles, names, descriptions) that store HTML-safe
+ * text format: entities escaped (`My &amp; Co`), tags rejected. This helper
+ * renders the content as-is without additional escaping since it's already safe.
+ *
+ * Storage format: Text is entity-escaped at write time by form handlers/adapters
+ * Browser automatically decodes entities when rendering: `&amp;` displays as `&`
+ *
+ * Usage:
+ *   {{mlSafeText review.title}}          - With language indicator if needed
+ *   {{mlSafeText review.title false}}    - Without language indicator
+ *
+ * For plain text output (emails, etc.): Use decodeHTML() on the field first
+ * For HTML output: Use as-is (this helper)
+ */
+hbs.registerHelper(
+  'mlSafeText',
+  (...raw: [unknown, HelperOptions] | [unknown, boolean, HelperOptions]) => {
+    const [str, addLanguageSpan, options] =
+      raw.length === 2 ? [raw[0], true, raw[1]] : [raw[0], raw[1] as boolean, raw[2]];
+
+    const context = getTemplateContext(options);
+    const mlRv = resolveMultilingual(context.locale, str);
+
+    if (mlRv === undefined || mlRv.str === undefined || mlRv.str === '') return undefined;
+
+    // No escaping - data is already entity-escaped at write time by form handlers/adapters
+    if (!shouldAddLanguageIdentifier(addLanguageSpan, mlRv.lang, context.locale)) {
+      return new hbs.handlebars.SafeString(mlRv.str);
+    }
+
+    return new hbs.handlebars.SafeString(
+      `${mlRv.str}${renderLanguageIdentifier(mlRv.lang ?? 'und', context.locale)}`
+    );
+  }
+);
+
+/**
+ * Render multilingual HTML content.
+ *
+ * Use for HTML fields that contain rendered markup (typically cached markdown output).
+ * These fields store actual HTML tags and should be rendered without escaping.
+ *
+ * Storage format: Contains HTML markup like `<p>My &amp; Co</p>`
+ * Unlike mlText, this is NOT entity-escaped plain text - it's actual HTML.
+ *
+ * Usage:
+ *   {{{mlHTML review.html}}}         - Rendered review content
+ *   {{{mlHTML team.description.html}}} - Rendered description
+ *
+ * Security: Content must be sanitized before storage (e.g., from trusted markdown renderer)
+ * Type safety: Schema validation ensures HTML fields are only used with mlHTML helper
+ */
+hbs.registerHelper(
+  'mlHTML',
+  (...raw: [unknown, HelperOptions] | [unknown, boolean, HelperOptions]) => {
+    const [str, addLanguageSpan, options] =
+      raw.length === 2 ? [raw[0], false, raw[1]] : [raw[0], raw[1] as boolean, raw[2]];
+
+    const context = getTemplateContext(options);
+    const mlRv = resolveMultilingual(context.locale, str);
+
+    if (mlRv === undefined || mlRv.str === undefined || mlRv.str === '') return undefined;
+
+    if (!shouldAddLanguageIdentifier(addLanguageSpan, mlRv.lang, context.locale)) {
+      return new hbs.handlebars.SafeString(mlRv.str);
+    }
+
+    return new hbs.handlebars.SafeString(
+      `${mlRv.str}${renderLanguageIdentifier(mlRv.lang ?? 'und', context.locale)}`
+    );
+  }
 );
 
 // Resolve a multilingual string to the current request language.
@@ -304,15 +436,18 @@ hbs.registerHelper(
   }
 );
 
-hbs.registerHelper('linkify', str =>
-  linkifyHTML(str, {
+hbs.registerHelper('linkify', str => {
+  // Convert to string (handles SafeString objects via toString())
+  const plainStr = String(str ?? '');
+
+  return linkifyHTML(plainStr, {
     defaultProtocol: 'https',
     target: {
       url: '_blank',
       // email links won't get target="_blank"
     },
-  })
-);
+  });
+});
 
 function userLink(user?: { urlName?: string; displayName?: string } | null) {
   return user ? `<a href="/user/${user.urlName ?? ''}">${user.displayName ?? ''}</a>` : '';

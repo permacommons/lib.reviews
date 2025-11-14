@@ -2,6 +2,7 @@
 // - flashHas, to look up whether we have data for a given key in the flash
 // - flashError, to store localized error messages in the flash
 import type { NextFunction, Request, Response } from 'express';
+import { ValidationError } from '../../dal/lib/errors.ts';
 import debug from '../../util/debug.ts';
 import ReportedError from '../../util/reported-error.ts';
 
@@ -21,6 +22,12 @@ export default function flashMiddleware(req: Request, _res: Response, next: Next
         req.flash('pageErrors', req.__(message, ...params));
         return;
       }
+    }
+
+    // Convert ValidationError for HTML in text fields to user-friendly message
+    if (error instanceof ValidationError && error.message?.includes('contains HTML tags')) {
+      req.flash('pageErrors', req.__('html in text field'));
+      return;
     }
 
     req.flash('pageErrors', req.__('unknown error'));

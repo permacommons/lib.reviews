@@ -1,6 +1,5 @@
 import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
-import unescapeHTML from 'unescape-html';
 
 import dal from '../dal/index.ts';
 import {

@@ -7,22 +7,10 @@ import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
 import type { UserViewer } from './user.ts';
 
-const { mlString } = dal as { mlString: Record<string, any> };
+const { mlString } = dal as {
+  mlString: typeof import('../../dal/lib/ml-string.ts').default;
+};
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
-
-function validateTextHtmlObject(value: unknown): boolean {
-  if (value === null || value === undefined) return true;
-
-  if (typeof value !== 'object' || Array.isArray(value))
-    throw new Error('Description/rules must be an object with text and html properties');
-
-  const record = value as Record<string, unknown>;
-  if (record.text !== undefined) mlString.validate(record.text);
-
-  if (record.html !== undefined) mlString.validate(record.html);
-
-  return true;
-}
 
 function validateConfersPermissions(value: unknown): boolean {
   if (value === null || value === undefined) return true;
@@ -54,10 +42,10 @@ const teamManifest = defineModelManifest({
   hasRevisions: true,
   schema: {
     id: types.string().uuid(4),
-    name: mlString.getSchema({ maxLength: 100 }),
-    motto: mlString.getSchema({ maxLength: 200 }),
-    description: types.object().validator(validateTextHtmlObject),
-    rules: types.object().validator(validateTextHtmlObject),
+    name: mlString.getSafeTextSchema({ maxLength: 100 }),
+    motto: mlString.getSafeTextSchema({ maxLength: 200 }),
+    description: mlString.getRichTextSchema(),
+    rules: mlString.getRichTextSchema(),
     modApprovalToJoin: types.boolean().default(false),
     onlyModsCanBlog: types.boolean().default(false),
     createdBy: types.string().uuid(4).required(true),
