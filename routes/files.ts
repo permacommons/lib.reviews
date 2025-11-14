@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { Router } from 'express';
 
@@ -20,8 +19,6 @@ type FileModelType = {
 const router = Router();
 const FileModel = File as unknown as FileModelType;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const rename = promisify(fs.rename);
 
 router.get('/files', (req: FilesRouteRequest, res: FilesRouteResponse, next: HandlerNext) => {

@@ -6,7 +6,6 @@ import https from 'node:https';
 import type { HTTPSConfig } from 'config';
 import config from 'config';
 
-import getApp from '../app.ts';
 import dbPostgres from '../db-postgres.ts';
 
 type NormalizedPort = number | string | false;
@@ -15,6 +14,7 @@ const { getDB } = dbPostgres;
 
 async function runWebsite(): Promise<void> {
   await getDB();
+  const { default: getApp } = await import('../app.ts');
   const app = await getApp();
 
   const httpsConfig: HTTPSConfig | null = config.has('https')

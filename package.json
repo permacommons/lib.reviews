@@ -9,7 +9,7 @@
     "build:frontend": "vite build",
     "build:types:frontend": "tsc -p tsconfig.frontend.dts.json",
     "build:backend": "node scripts/build-backend.mjs",
-    "build:assets:copy": "cp -r locales views build/server/bin/",
+    "build:assets:copy": "cp -r locales views build/server/",
     "build:deploy": "npm run clean && npm run build:frontend && npm run build:backend && npm run build:assets:copy && npm run build:docs",
     "clean": "rm -rf build",
     "deploy": "npm run build:deploy",
