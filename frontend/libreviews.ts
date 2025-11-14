@@ -152,7 +152,7 @@ export function msg(messageKey: string, options?: MessageOptions): string {
 
 /**
  * Resolves a multi-language string to a single language, preferring the
- * specified language but falling back to any available language.
+ * specified language but falling back to English, then any available language.
  *
  * @param lang - Preferred language code
  * @param strObj - Multi-language string object
@@ -161,8 +161,16 @@ export function msg(messageKey: string, options?: MessageOptions): string {
 export function resolveString(lang: string, strObj?: MLString): string | undefined {
   if (strObj === undefined) return undefined;
 
+  // Try the requested language
   if (typeof strObj[lang] === 'string' && strObj[lang] !== '') return strObj[lang];
 
+  // Try fallback languages (English and undetermined)
+  const fallbacks = ['en', 'und'];
+  for (let fallback of fallbacks) {
+    if (typeof strObj[fallback] === 'string' && strObj[fallback] !== '') return strObj[fallback];
+  }
+
+  // Last resort: try any available language
   for (let k in strObj) {
     if (typeof strObj[k] === 'string' && strObj[k] !== '') return strObj[k];
   }
