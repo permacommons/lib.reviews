@@ -245,6 +245,151 @@ test('FilterWhere between participates in OR groups', t => {
   t.is(nested.conjunction, 'AND');
 });
 
+test('whereRelated joins relation and applies predicate with camelCase field', t => {
+  const { qb } = createQueryBuilderHarness({
+    relations: [
+      {
+        name: 'creator',
+        targetTable: 'users',
+        sourceKey: 'created_by',
+        targetKey: 'id',
+        hasRevisions: false,
+        cardinality: 'one',
+      },
+    ],
+  });
+
+  qb.whereRelated('creator', 'isTrusted', '=', true);
+
+  t.true(qb._joins.some(join => join.includes('users')));
+  const predicate = qb._where[qb._where.length - 1];
+  if (!predicate || predicate.type !== 'basic') {
+    t.fail('Expected basic predicate for related join');
+    return;
+  }
+  t.is(predicate.column, 'is_trusted');
+  t.is(predicate.operator, '=');
+  t.true(predicate.value);
+});
+
+test('chronologicalFeed applies revision guards, cursor predicate, and trims to limit', async t => {
+  type Data = { id: string; createdOn: Date };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema: {
+      id: typesLib.string(),
+      created_on: typesLib.date(),
+    } as unknown as ModelSchema<JsonObject, JsonObject>,
+    camelToSnake: { createdOn: 'created_on' },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
+
+  const fakeRows: Instance[] = [
+    {
+      id: 'a',
+      createdOn: new Date('2025-01-03'),
+      _data: {},
+      _changed: new Set(),
+      _isNew: false,
+      _originalData: {},
+      save: async () => null as never,
+      saveAll: async () => null as never,
+      delete: async () => false,
+      getValue: () => null as never,
+      setValue: () => undefined,
+      generateVirtualValues: () => undefined,
+    },
+    {
+      id: 'b',
+      createdOn: new Date('2025-01-02'),
+      _data: {},
+      _changed: new Set(),
+      _isNew: false,
+      _originalData: {},
+      save: async () => null as never,
+      saveAll: async () => null as never,
+      delete: async () => false,
+      getValue: () => null as never,
+      setValue: () => undefined,
+      generateVirtualValues: () => undefined,
+    },
+    {
+      id: 'c',
+      createdOn: new Date('2025-01-01'),
+      _data: {},
+      _changed: new Set(),
+      _isNew: false,
+      _originalData: {},
+      save: async () => null as never,
+      saveAll: async () => null as never,
+      delete: async () => false,
+      getValue: () => null as never,
+      setValue: () => undefined,
+      generateVirtualValues: () => undefined,
+    },
+  ];
+
+  let runCalled = false;
+  qb.run = (async () => {
+    runCalled = true;
+    return fakeRows as unknown as Awaited<ReturnType<typeof qb.run>>;
+  }) as typeof qb.run;
+
+  const result = await builder.chronologicalFeed({
+    cursorField: 'createdOn',
+    cursor: new Date('2025-01-04'),
+    limit: 2,
+  });
+
+  t.true(runCalled);
+  t.deepEqual(qb._orderBy, ['created_on DESC']);
+  t.is(qb._limit, 3);
+  t.is(result.hasMore, true);
+  t.deepEqual(
+    result.rows.map(row => row.id),
+    ['a', 'b']
+  );
+  t.deepEqual(result.nextCursor, fakeRows[1].createdOn);
+
+  t.is(qb._where[0]?.column, '_old_rev_of');
+  t.is(qb._where[0]?.operator, 'IS');
+  t.is(qb._where[1]?.column, '_rev_deleted');
+  t.is(qb._where[1]?.operator, '=');
+  t.is(qb._where[2]?.column, 'created_on');
+  t.is(qb._where[2]?.operator, '<');
+});
+
+test('chronologicalFeed short-circuits when limit is zero', async t => {
+  type Data = { id: string; createdOn: Date };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema: {
+      id: typesLib.string(),
+      created_on: typesLib.date(),
+    } as unknown as ModelSchema<JsonObject, JsonObject>,
+    camelToSnake: { createdOn: 'created_on' },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
+
+  qb.run = (async () => {
+    t.fail('run should not be called when limit is zero');
+    return [] as unknown as Awaited<ReturnType<typeof qb.run>>;
+  }) as typeof qb.run;
+
+  const result = await builder.chronologicalFeed({
+    cursorField: 'createdOn',
+    limit: 0,
+  });
+
+  t.deepEqual(result.rows, []);
+  t.false(result.hasMore);
+  t.is(result.nextCursor, undefined);
+});
+
 test('QueryBuilder supports limit method', t => {
   const { qb } = createQueryBuilderHarness();
   const result = qb.limit(10);

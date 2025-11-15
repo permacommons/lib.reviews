@@ -54,27 +54,14 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
     this: FileModel,
     { offsetDate, limit = 10 }: FileFeedOptions = {}
   ): Promise<FileFeedResult<Record<string, any>>> {
-    let query = this.filterWhere({ completed: true })
+    const feedPage = await this.filterWhere({ completed: true })
       .getJoin({ uploader: true })
-      .orderBy('uploadedOn', 'DESC');
+      .chronologicalFeed({ cursorField: 'uploadedOn', cursor: offsetDate ?? undefined, limit });
 
-    if (offsetDate?.valueOf) {
-      query = query.and({ uploadedOn: this.ops.lt(offsetDate) });
-    }
-
-    const items = await query.limit(limit + 1).run();
-    const slicedItems = items.slice(0, limit);
-
-    const feed: FileFeedResult<Record<string, any>> = {
-      items: slicedItems,
+    return {
+      items: feedPage.rows,
+      offsetDate: feedPage.hasMore ? feedPage.nextCursor : undefined,
     };
-
-    if (items.length === limit + 1 && limit > 0) {
-      const lastVisible = slicedItems[limit - 1] as { uploadedOn?: Date };
-      feed.offsetDate = lastVisible?.uploadedOn;
-    }
-
-    return feed;
   },
 }) satisfies FileStaticMethods;
 

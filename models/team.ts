@@ -358,50 +358,20 @@ async function getTeamReviews(
   offsetDate?: Date | null
 ): Promise<{ reviews: ModelInstance[]; totalCount: number; hasMore: boolean }> {
   try {
-    const dal = (
-      model as unknown as {
-        dal: {
-          query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
-          schemaNamespace?: string;
-        };
-      }
-    ).dal;
-    const reviewTeamTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}review_teams`
-      : 'review_teams';
-    const reviewTableName = dal.schemaNamespace ? `${dal.schemaNamespace}reviews` : 'reviews';
-    let query = `
-      SELECT r.id, r.created_on FROM ${reviewTableName} r
-      JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id
-      WHERE rt.team_id = $1
-        AND (r._old_rev_of IS NULL)
-        AND (r._rev_deleted IS NULL OR r._rev_deleted = false)
-    `;
+    const feedPage = await Review.filterWhere({})
+      .whereRelated('teams', 'id', teamId)
+      .chronologicalFeed({ cursorField: 'createdOn', cursor: offsetDate ?? undefined, limit });
 
-    const params: (string | Date | number)[] = [teamId];
-    let paramIndex = 2;
-
-    if (offsetDate) {
-      query += ` AND r.created_on < $${paramIndex}`;
-      params.push(offsetDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY r.created_on DESC LIMIT $${paramIndex}`;
-    params.push(limit + 1);
-
-    const reviewResult = await dal.query(query, params);
-    const reviewIDs = reviewResult.rows.map((row: Record<string, unknown>) => row.id as string);
     const reviews: ModelInstance[] = [];
-    const hasMoreRows = reviewResult.rows.length > limit;
-
-    if (reviewIDs.length) {
-      for (const reviewId of reviewIDs) {
+    if (feedPage.rows.length) {
+      for (const row of feedPage.rows) {
         try {
           const review = await (
             Review as unknown as { getWithData(id: string): Promise<ModelInstance> }
-          ).getWithData(reviewId);
-          if (review) reviews.push(review);
+          ).getWithData(row.id as string);
+          if (review) {
+            reviews.push(review);
+          }
         } catch (error) {
           debug.error('Error loading review for team');
           debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
@@ -409,22 +379,12 @@ async function getTeamReviews(
       }
     }
 
-    if (hasMoreRows && reviews.length > limit) reviews.length = limit;
-
-    const countQuery = `
-      SELECT COUNT(*) as total FROM ${reviewTableName} r
-      JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id
-      WHERE rt.team_id = $1
-        AND (r._old_rev_of IS NULL)
-        AND (r._rev_deleted IS NULL OR r._rev_deleted = false)
-    `;
-
-    const countResult = await dal.query(countQuery, [teamId]);
+    const totalCount = await Review.filterWhere({}).whereRelated('teams', 'id', teamId).count();
 
     return {
       reviews,
-      totalCount: parseInt((countResult.rows[0] as { total?: string })?.total ?? '0', 10),
-      hasMore: hasMoreRows && reviews.length === limit,
+      totalCount,
+      hasMore: feedPage.hasMore,
     };
   } catch (error) {
     debug.error('Error getting team reviews');

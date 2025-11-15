@@ -281,68 +281,34 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
       limit = 10,
     }: ReviewFeedOptions = {}
   ): Promise<ReviewFeedResult> {
-    let query = `
-      SELECT r.* FROM ${this.tableName} r
-      WHERE (_old_rev_of IS NULL)
-        AND (_rev_deleted IS NULL OR _rev_deleted = false)
-    `;
+    const builder = this.filterWhere({});
 
-    const params: Array<string | number | Date | undefined> = [];
-    let paramIndex = 1;
-
-    if (offsetDate && offsetDate.valueOf) {
-      query += ` AND created_on < $${paramIndex}`;
-      params.push(offsetDate);
-      paramIndex++;
+    if (offsetDate) {
+      builder.and({ createdOn: this.ops.lt(offsetDate) });
     }
 
     if (thingID) {
-      query += ` AND thing_id = $${paramIndex}`;
-      params.push(thingID);
-      paramIndex++;
+      builder.and({ thingID });
     }
 
     if (withoutCreator) {
-      query += ` AND created_by != $${paramIndex}`;
-      params.push(withoutCreator);
-      paramIndex++;
+      builder.and({ createdBy: this.ops.neq(withoutCreator) });
     }
 
     if (createdBy) {
-      query += ` AND created_by = $${paramIndex}`;
-      params.push(createdBy);
-      paramIndex++;
+      builder.and({ createdBy });
     }
 
     if (onlyTrusted) {
-      query += `
-        AND EXISTS (
-          SELECT 1 FROM users u
-          WHERE u.id = r.created_by
-            AND u.is_trusted = true
-        )`;
+      builder.whereRelated('creator', 'isTrusted', true);
     }
 
-    query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
-    params.push(limit + 1);
-
-    const result = await this.dal.query(query, params);
-    const feedItems: Array<ReviewInstance & Record<string, any>> = result.rows
-      .slice(0, limit)
-      .map(
-        row =>
-          this.createFromRow(row as Record<string, unknown>) as ReviewInstance & Record<string, any>
-      );
+    const feedPage = await builder.chronologicalFeed({ cursorField: 'createdOn', limit });
+    const feedItems = feedPage.rows as Array<ReviewInstance & Record<string, any>>;
     const feedResult: ReviewFeedResult = { feedItems };
 
-    if (result.rows.length === limit + 1 && feedItems.length > 0 && limit > 0) {
-      const lastVisible = feedItems[feedItems.length - 1];
-      const offsetCandidate = lastVisible.createdOn || (lastVisible as any).created_on;
-      if (offsetCandidate instanceof Date) {
-        feedResult.offsetDate = offsetCandidate;
-      } else if (offsetCandidate) {
-        feedResult.offsetDate = new Date(offsetCandidate);
-      }
+    if (feedPage.hasMore) {
+      feedResult.offsetDate = feedPage.nextCursor;
     }
 
     if (withThing || withTeams) {

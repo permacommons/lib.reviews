@@ -1,6 +1,9 @@
 import type { ModelRuntime } from './model.ts';
 import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
 import type {
+  ChronologicalFeedOptions,
+  ChronologicalFeedPage,
+  DateKeys,
   FilterWhereJoinSpec,
   FilterWhereLiteral,
   FilterWhereOperators,
@@ -572,6 +575,62 @@ class FilterWhereBuilder<
     return this;
   }
 
+  /**
+   * Run a chronological feed query against a date-backed field using limit+1 cursor pagination.
+   *
+   * @param options Cursor pagination options.
+   */
+  async chronologicalFeed<K extends Extract<DateKeys<TData>, string>>(
+    options: ChronologicalFeedOptions<TData, K>
+  ): Promise<ChronologicalFeedPage<NonNullable<TData[K]>, TInstance>> {
+    const { cursorField, cursor, direction = 'DESC' as const, limit = 10 } = options ?? {};
+    const normalizedLimit = Math.max(0, Math.floor(limit));
+
+    this._ensureRevisionFilters();
+
+    if (normalizedLimit === 0) {
+      return {
+        rows: [],
+        hasMore: false,
+        nextCursor: undefined,
+      };
+    }
+
+    const dbField = this._builder._resolveFieldName(cursorField as string | symbol);
+    this._builder._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError(
+        'FilterWhereBuilder.chronologicalFeed requires a string column reference.'
+      );
+    }
+
+    if (cursor !== undefined && cursor !== null) {
+      const operator = direction === 'ASC' ? '>' : '<';
+      this._builder._addWhereCondition(dbField, operator, cursor);
+    }
+
+    this._builder.orderBy(dbField, direction);
+    this._builder.limit(normalizedLimit + 1);
+
+    const results = (await this._builder.run()) as unknown as TInstance[];
+    const hasMore = results.length > normalizedLimit;
+    const rows = hasMore ? results.slice(0, normalizedLimit) : results;
+
+    let nextCursor: NonNullable<TData[K]> | undefined;
+    if (hasMore && rows.length > 0) {
+      const cursorValue = rows[rows.length - 1]?.[cursorField];
+      if (cursorValue !== undefined && cursorValue !== null) {
+        nextCursor = cursorValue as unknown as NonNullable<TData[K]>;
+      }
+    }
+
+    return {
+      rows,
+      hasMore,
+      nextCursor,
+    };
+  }
+
   getJoin(joinSpec: FilterWhereJoinSpec<TRelations>): this {
     this._builder.getJoin(joinSpec);
     return this;
@@ -588,6 +647,11 @@ class FilterWhereBuilder<
       throw new TypeError('FilterWhereBuilder.whereIn requires a string column reference.');
     }
     this._builder.whereIn(dbField, values, options);
+    return this;
+  }
+
+  whereRelated(relation: TRelations, field: string, value: unknown, operator = '='): this {
+    (this._builder as QueryBuilder).whereRelated(relation as string, field, operator, value);
     return this;
   }
 

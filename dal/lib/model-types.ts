@@ -12,6 +12,40 @@ export interface FilterWhereOperator<K extends PropertyKey, TValue> {
   readonly value: TValue;
 }
 
+/**
+ * Result of a chronological feed query.
+ */
+export interface ChronologicalFeedPage<CursorValue, TInstance> {
+  rows: TInstance[];
+  hasMore: boolean;
+  nextCursor?: CursorValue;
+}
+
+/**
+ * Options for chronological feed pagination on date-backed fields.
+ */
+export interface ChronologicalFeedOptions<
+  TData extends JsonObject,
+  K extends Extract<DateKeys<TData>, string>,
+> {
+  /**
+   * Date-backed manifest key to use as the cursor (camelCase).
+   */
+  cursorField: K;
+  /**
+   * Exclusive cursor value returned by the previous page (Date).
+   */
+  cursor?: NonNullable<TData[K]>;
+  /**
+   * Sort direction; defaults to DESC for newest-first feeds.
+   */
+  direction?: 'ASC' | 'DESC';
+  /**
+   * Page size; defaults to 10.
+   */
+  limit?: number;
+}
+
 type OperatorResultForKey<TOps, K extends PropertyKey> = {
   [P in keyof TOps]: TOps[P] extends (
     ...args: unknown[]
@@ -107,6 +141,10 @@ type ComparablePrimitive = string | number | bigint | Date;
 
 type ComparableKeys<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends ComparablePrimitive ? K : never;
+}[keyof T];
+
+export type DateKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends Date ? K : never;
 }[keyof T];
 
 type EqualityComparablePrimitive = string | number | bigint | boolean | Date;
@@ -296,6 +334,9 @@ export interface ModelQueryBuilder<
   [key: string]: unknown;
 }
 
+/**
+ * Query builder with typed predicates, revision guards, and helpers.
+ */
 export interface FilterWhereQueryBuilder<
   TData extends JsonObject,
   TVirtual extends JsonObject,
@@ -327,6 +368,12 @@ export interface FilterWhereQueryBuilder<
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  whereRelated(
+    relation: TRelations,
+    field: string,
+    value: unknown,
+    operator?: string
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   whereIn(
     field: Extract<keyof TData, string>,
     values: unknown[],
@@ -341,6 +388,9 @@ export interface FilterWhereQueryBuilder<
   average(field: Extract<keyof TData, string>): Promise<number | null>;
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
+  chronologicalFeed<K extends Extract<DateKeys<TData>, string>>(
+    options: ChronologicalFeedOptions<TData, K>
+  ): Promise<ChronologicalFeedPage<NonNullable<TData[K]>, TInstance>>;
 }
 
 /**

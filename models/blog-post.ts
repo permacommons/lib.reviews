@@ -50,45 +50,24 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
       throw new Error('We require a team ID to fetch blog posts.');
     }
 
-    const params: unknown[] = [teamID];
-    let paramIndex = 2;
-
-    let query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE team_id = $1
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-          AND (_old_rev_of IS NULL)
-      `;
-
-    if (offsetDate) {
-      query += ` AND created_on < $${paramIndex}`;
-      params.push(offsetDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
-    params.push(limit + 1);
-
-    const result = await this.dal.query(query, params);
+    const feedPage = await this.filterWhere({ teamID }).chronologicalFeed({
+      cursorField: 'createdOn',
+      cursor: offsetDate ?? undefined,
+      limit,
+    });
 
     const blogPosts = (await Promise.all(
-      result.rows.map(async row => {
-        const post = this.createFromRow(row as Record<string, unknown>) as BlogPostInstance;
+      feedPage.rows.map(async rawPost => {
+        const post = rawPost as BlogPostInstance;
         await attachCreator(this, post);
         return post;
       })
     )) as BlogPostInstance[];
 
-    const response: { blogPosts: BlogPostInstance[]; offsetDate?: Date } = { blogPosts };
-
-    if (blogPosts.length === limit + 1 && limit > 0) {
-      const offsetPost = blogPosts[limit - 1];
-      response.offsetDate = offsetPost.createdOn;
-      blogPosts.pop();
-    }
-
-    return response;
+    return {
+      blogPosts,
+      offsetDate: feedPage.hasMore ? feedPage.nextCursor : undefined,
+    };
   },
   /**
    * Fetch a paginated feed of the most recent blog posts for a team slug.

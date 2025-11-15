@@ -1276,6 +1276,29 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   }
 
   /**
+   * Add a predicate against a column on a joined relation. This will ensure the
+   * relation is joined and apply a WHERE clause to the related table using
+   * camelCase field names.
+   *
+   * @param relationName - Relation key from the manifest
+   * @param field - CamelCase field on the related model
+   * @param operator - Comparison operator (defaults to '=')
+   * @param value - Comparison value
+   */
+  whereRelated(relationName: string, field: string, operator: string, value: unknown): this {
+    const joinInfo = this._getJoinInfo(relationName);
+    if (!joinInfo) {
+      debug.db(`Warning: Unknown relation '${relationName}' for table '${this.tableName}'`);
+      return this;
+    }
+
+    this._addSimpleJoin(relationName);
+    const column = `${joinInfo.table}.${this._normalizeColumnName(field)}`;
+    this._addWhereCondition(column, operator, value);
+    return this;
+  }
+
+  /**
    * Create a predicate descriptor without mutating the WHERE clause
    * @param field - Field reference (optionally qualified)
    * @param operator - Comparison operator
@@ -1572,7 +1595,11 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   _buildCountQuery() {
     let query = `SELECT COUNT(*) as count FROM ${this.tableName}`;
 
-    const where = this._buildWhereClause();
+    if (this._joins.length > 0) {
+      query += ` ${this._joins.join(' ')}`;
+    }
+
+    const where = this._buildWhereClause({ qualifyColumns: this._joins.length > 0 });
     if (where.sql) {
       query += ' WHERE ' + where.sql;
     }
