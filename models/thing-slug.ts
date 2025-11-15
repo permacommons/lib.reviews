@@ -35,9 +35,6 @@ const thingSlugStaticMethods = defineStaticMethods(thingSlugManifest, {
 const thingSlugInstanceMethods = defineInstanceMethods(thingSlugManifest, {
   async qualifiedSave(this: ThingSlugInstance): Promise<ThingSlugInstance | null> {
     const Model = this.constructor as ThingSlugModel;
-    const dal = Model.dal as {
-      query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
-    };
 
     if (!this.baseName) {
       this.baseName = this.name;
@@ -53,12 +50,13 @@ const thingSlugInstanceMethods = defineInstanceMethods(thingSlugManifest, {
     const forceQualifier = (reservedSlugs as readonly string[]).includes(slugName);
 
     const findByName = async (name: string): Promise<ThingSlugInstance | null> => {
-      const existing = await dal.query(`SELECT * FROM ${Model.tableName} WHERE name = $1 LIMIT 1`, [
-        name,
-      ]);
-      return existing.rows.length
-        ? (Model.createFromRow(existing.rows[0] as Record<string, unknown>) as ThingSlugInstance)
-        : null;
+      try {
+        return (await Model.filterWhere({ name }).first()) as ThingSlugInstance | null;
+      } catch (error) {
+        debug.error(`Error checking for existing thing slug '${name}'`);
+        debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
+        return null;
+      }
     };
 
     const attemptSave = async (): Promise<ThingSlugInstance | null> => {
@@ -87,35 +85,21 @@ const thingSlugInstanceMethods = defineInstanceMethods(thingSlugManifest, {
       }
     }
 
-    const reuseQuery = `
-        SELECT *
-        FROM ${Model.tableName}
-        WHERE base_name = $1
-          AND thing_id = $2
-        ORDER BY created_on DESC
-        LIMIT 1
-      `;
-    let result = await dal.query(reuseQuery, [baseName, thingID]);
-    if (result.rows.length) {
-      return Model.createFromRow(result.rows[0] as Record<string, unknown>) as ThingSlugInstance;
+    const reusableSlug = (await Model.filterWhere({ baseName, thingID })
+      .orderBy('createdOn', 'DESC')
+      .first()) as ThingSlugInstance | null;
+    if (reusableSlug) {
+      return reusableSlug;
     }
 
-    const latestQuery = `
-        SELECT qualifier_part
-        FROM ${Model.tableName}
-        WHERE base_name = $1
-        ORDER BY created_on DESC
-        LIMIT 1
-      `;
-    result = await dal.query(latestQuery, [baseName]);
+    const latestQualifier = (await Model.filterWhere({ baseName })
+      .orderBy('createdOn', 'DESC')
+      .first()) as ThingSlugInstance | null;
     let nextQualifier = '2';
-    if (result.rows.length) {
-      const row = result.rows[0] as { qualifier_part?: string };
-      if (row.qualifier_part) {
-        const parsed = parseInt(row.qualifier_part, 10);
-        if (!Number.isNaN(parsed)) {
-          nextQualifier = String(parsed + 1);
-        }
+    if (latestQualifier?.qualifierPart) {
+      const parsed = parseInt(latestQualifier.qualifierPart, 10);
+      if (!Number.isNaN(parsed)) {
+        nextQualifier = String(parsed + 1);
       }
     }
 
