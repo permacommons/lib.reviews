@@ -25,21 +25,12 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
    * @returns File instance for the pending upload, if present
    */
   async getStashedUpload(this: FileModel, userID: string, name: string) {
-    const query = `
-      SELECT *
-      FROM ${this.tableName}
-      WHERE name = $1
-        AND uploaded_by = $2
-        AND completed = false
-        AND (_rev_deleted IS NULL OR _rev_deleted = false)
-        AND (_old_rev_of IS NULL)
-      LIMIT 1
-    `;
-
-    const result = await this.dal.query(query, [name, userID]);
-    return result.rows.length > 0
-      ? (this.createFromRow(result.rows[0] as Record<string, unknown>) as FileInstance)
-      : undefined;
+    const stashedUpload = (await this.filterWhere({
+      name,
+      uploadedBy: userID,
+      completed: false,
+    }).first()) as FileInstance | null;
+    return stashedUpload ?? undefined;
   },
 
   /**
