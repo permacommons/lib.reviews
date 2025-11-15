@@ -1182,6 +1182,42 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   }
 
   /**
+   * Calculate the average for a column.
+   *
+   * @param field - Column to aggregate.
+   * @returns Numeric average or `null` when no rows satisfy the predicates.
+   */
+  async average(field: string): Promise<number | null> {
+    return this._aggregateFunction('AVG', field);
+  }
+
+  /**
+   * Compute an aggregate for the active query.
+   *
+   * @param func - SQL aggregate function identifier (e.g., `AVG`).
+   * @param field - Resolved field/column name to aggregate.
+   * @returns Numeric aggregate result or `null` when no rows match.
+   */
+  async _aggregateFunction(func: 'AVG' | 'SUM' | 'MIN' | 'MAX', field: string) {
+    try {
+      const column =
+        typeof field === 'string' && (field.includes('.') || field.includes('('))
+          ? field
+          : `${this.tableName}.${field}`;
+      const { sql, params } = this._buildAggregateQuery(func, column);
+      const result = await this.dal.query(sql, params);
+      const value = result.rows[0]?.value;
+      if (value === null || value === undefined) {
+        return null;
+      }
+      const numeric = typeof value === 'number' ? value : Number(value);
+      return Number.isNaN(numeric) ? null : numeric;
+    } catch (error) {
+      throw convertPostgreSQLError(error);
+    }
+  }
+
+  /**
    * Delete records matching the query
    * @returns {Promise<Object>} Delete result
    */
@@ -1537,6 +1573,24 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     let query = `SELECT COUNT(*) as count FROM ${this.tableName}`;
 
     const where = this._buildWhereClause();
+    if (where.sql) {
+      query += ' WHERE ' + where.sql;
+    }
+
+    return { sql: query, params: where.params };
+  }
+
+  /**
+   * Build an aggregate query (`AVG`, `COUNT`, etc.) for the current predicates.
+   *
+   * @param func - Aggregate function keyword.
+   * @param column - Fully qualified column expression.
+   * @returns SQL fragment plus bound params.
+   */
+  _buildAggregateQuery(func: string, column: string) {
+    let query = `SELECT ${func}(${column}) as value FROM ${this.tableName}`;
+
+    const where = this._buildWhereClause({ qualifyColumns: true });
     if (where.sql) {
       query += ' WHERE ' + where.sql;
     }

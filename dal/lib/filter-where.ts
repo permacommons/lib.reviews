@@ -608,6 +608,16 @@ class FilterWhereBuilder<
     return this._builder.count();
   }
 
+  async average(field: Extract<keyof TData, string>): Promise<number | null> {
+    this._ensureRevisionFilters();
+    const dbField = this._builder._resolveFieldName(field);
+    this._builder._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError('FilterWhereBuilder.average requires a string column reference.');
+    }
+    return this._builder.average(dbField);
+  }
+
   async delete(): Promise<number> {
     this._ensureRevisionFilters();
     return this._builder.delete();

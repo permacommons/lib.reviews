@@ -182,7 +182,7 @@ Every manifest-based model ships a typed query entry point:
   - Typed predicate literals keyed by manifest fields.
   - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `in`, `between/notBetween`, `containsAll`, `containsAny`, `jsonContains`, `not`).
   - Automatic revision guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) with opt-outs (`includeDeleted()`, `includeStale()`).
-  - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `limit`, `offset`, `getJoin`, `whereIn`, `delete`, `count`).
+- Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `limit`, `offset`, `getJoin`, `whereIn`, `delete`, `count`, `average`).
   - Promise-like behaviour so `await Model.filterWhere({ ... })` works without `.run()`.
 
 Example:
@@ -194,6 +194,10 @@ const things = await Thing.filterWhere({ urls: containsAll(targetUrls) })
   .orderBy('created_on', 'DESC')
   .limit(25)
   .run();
+
+// Aggregates reuse the same revision-safe predicates
+const averageRating = await Review.filterWhere({ thingID }).average('starRating');
+const reviewCount = await Review.filterWhere({ thingID }).count();
 ```
 
 ## Revisions

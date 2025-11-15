@@ -109,11 +109,11 @@ test('QueryBuilder can be instantiated', t => {
 test('Model constructor maps camelCase fields to snake_case columns', async t => {
   const captured: Array<{ sql: string; params: unknown[] }> = [];
   const mockDAL = createMockDAL({
-    async query&lt;TRecord&gt;(sql: string, params: unknown[] = []) {
+    async query<TRecord>(sql: string, params: unknown[] = []) {
       captured.push({ sql, params });
       // Provide a row compatible with caller expectations while satisfying generics
       const row = { id: 'generated-id', camel_case_field: params[0] } as unknown as TRecord;
-      return createQueryResult&lt;TRecord&gt;([row]);
+      return createQueryResult<TRecord>([row]);
     }
   });
 
@@ -123,7 +123,7 @@ test('Model constructor maps camelCase fields to snake_case columns', async t =>
 
 Guidelines:
 
-- Keep query return types generic. When a test needs to synthesize a row, construct a structural object and coerce through `unknown` to `TRecord`. This matches the `DataAccessLayer.query&lt;TRecord&gt;` contract and avoids “could be a different subtype” warnings.
+- Keep query return types generic. When a test needs to synthesize a row, construct a structural object and coerce through `unknown` to `TRecord`. This matches the `DataAccessLayer.query<TRecord>` contract and avoids “could be a different subtype” warnings.
 - Prefer `createQueryBuilderHarness()` for pure QueryBuilder tests. It wires a default schema and registers the model in the mock DAL registry so joins and metadata work without a database.
 - If a test needs to check SQL/params, override `query` in the `createMockDAL({...})` call and push captured entries into a local array.
 

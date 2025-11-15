@@ -485,22 +485,11 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    */
   async getAverageStarRating(this: ThingInstance): Promise<number> {
     try {
-      const runtime = this.constructor as Record<string, any>;
-      const dalInstance = runtime.dal as Record<string, any>;
-      const reviewTableName = dalInstance.schemaNamespace
-        ? `${dalInstance.schemaNamespace}reviews`
-        : 'reviews';
-      const query = `
-        SELECT AVG(star_rating) as avg_rating
-        FROM ${reviewTableName}
-        WHERE thing_id = $1
-          AND (_old_rev_of IS NULL)
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      `;
-
-      const result = await dalInstance.query(query, [String(this.id)]);
-      const avg = result.rows[0]?.avg_rating;
-      return typeof avg === 'number' ? avg : parseFloat(String(avg ?? 0));
+      if (typeof this.id !== 'string' || this.id.length === 0) {
+        return 0;
+      }
+      const avg = await Review.filterWhere({ thingID: this.id }).average('starRating');
+      return typeof avg === 'number' ? avg : 0;
     } catch (error) {
       const serializedError = error instanceof Error ? error : new Error(String(error));
       debug.error('Error calculating average star rating:');
@@ -515,22 +504,10 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    */
   async getReviewCount(this: ThingInstance): Promise<number> {
     try {
-      const runtime = this.constructor as Record<string, any>;
-      const dalInstance = runtime.dal as Record<string, any>;
-      const reviewTableName = dalInstance.schemaNamespace
-        ? `${dalInstance.schemaNamespace}reviews`
-        : 'reviews';
-      const query = `
-        SELECT COUNT(*) as review_count
-        FROM ${reviewTableName}
-        WHERE thing_id = $1
-          AND (_old_rev_of IS NULL)
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      `;
-
-      const result = await dalInstance.query(query, [String(this.id)]);
-      const count = result.rows[0]?.review_count;
-      return parseInt(String(count ?? 0), 10);
+      if (typeof this.id !== 'string' || this.id.length === 0) {
+        return 0;
+      }
+      return await Review.filterWhere({ thingID: this.id }).count();
     } catch (error) {
       const serializedError = error instanceof Error ? error : new Error(String(error));
       debug.error('Error counting reviews:');

@@ -292,6 +292,7 @@ export interface ModelQueryBuilder<
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
   count(): Promise<number>;
+  average(field: string): Promise<number | null>;
   [key: string]: unknown;
 }
 
@@ -337,6 +338,7 @@ export interface FilterWhereQueryBuilder<
   run(): Promise<TInstance[]>;
   first(): Promise<TInstance | null>;
   count(): Promise<number>;
+  average(field: Extract<keyof TData, string>): Promise<number | null>;
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
 }

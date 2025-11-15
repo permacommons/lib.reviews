@@ -1,4 +1,5 @@
 import test from 'ava';
+import type { QueryResult } from 'pg';
 
 import * as dalModule from '../dal/index.ts';
 import { createOperators, FilterWhereBuilder } from '../dal/lib/filter-where.ts';
@@ -488,6 +489,68 @@ test('QueryBuilder builds COUNT queries correctly', t => {
   t.true(countSql.includes('FROM test_table'));
   t.true(countSql.includes('WHERE'));
   t.deepEqual(countParams, ['test-id']);
+});
+
+test('QueryBuilder builds AVG aggregates correctly', async t => {
+  const queries: Array<{ sql: string; params: unknown[] }> = [];
+  const { qb } = createQueryBuilderHarness({
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(
+        sql?: string,
+        params: unknown[] = []
+      ): Promise<QueryResult<TRecord>> {
+        queries.push({ sql: sql ?? '', params });
+        return createQueryResult<{ value: number }>([
+          { value: 3.5 },
+        ]) as unknown as QueryResult<TRecord>;
+      },
+    },
+  });
+
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
+  builder.and({ id: 'test-id' });
+
+  const average = await qb.average('created_on');
+
+  t.is(average, 3.5);
+  t.is(queries.length, 1);
+  t.true(queries[0].sql.includes('SELECT AVG(test_table.created_on) as value'));
+  t.deepEqual(queries[0].params, ['test-id']);
+});
+
+test('FilterWhereBuilder.average resolves manifest columns', async t => {
+  type Data = { createdOn: string };
+  type Instance = ModelInstance<Data, JsonObject>;
+  const schema = {
+    created_on: typesLib.date(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const queries: Array<{ sql: string; params: unknown[] }> = [];
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on' },
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(
+        sql?: string,
+        params: unknown[] = []
+      ): Promise<QueryResult<TRecord>> {
+        queries.push({ sql: sql ?? '', params });
+        return createQueryResult<{ value: number }>([
+          { value: 42 },
+        ]) as unknown as QueryResult<TRecord>;
+      },
+    },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+  const average = await builder.average('createdOn');
+
+  t.is(average, 42);
+  t.is(queries.length, 1);
+  t.true(queries[0].sql.includes('AVG(test_table.created_on)'));
 });
 
 test('QueryBuilder builds DELETE queries correctly', t => {
