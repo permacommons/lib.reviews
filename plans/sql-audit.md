@@ -40,8 +40,9 @@
 
 ## Suggested Next Steps
 1. Use the new `UserView` projection to replace the remaining `SELECT u.* …` statements:
-   - Team membership/moderator loaders in `models/team.ts`.
-   - `_attachUserTeams` and `_attachUploadersToFiles` in `models/user.ts`/`models/thing.ts`.
+   - ✅ Team membership/moderator loaders in `models/team.ts`.
+   - `_attachUserTeams` in `models/user.ts` (still doing manual `SELECT t.*` joins).
+   - `_attachUploadersToFiles` in `models/thing.ts` now reuses the shared helper.
    - Any other spots manually deleting `password`/`email` after raw user queries.
 2. Define additional view shapes (e.g., `TeamView`, `ThingSummaryView`) where repeated column lists still exist, then migrate those raw queries.
 3. Start adapting join-heavy helpers (team-review joins, join requests) to the view-based approach so we can remove duplicated SQL while we build out the relation-aware batch loader.

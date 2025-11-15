@@ -24,7 +24,7 @@ import thingManifest, {
   type ThingStaticMethods,
 } from './manifests/thing.ts';
 import ThingSlug from './thing-slug.ts';
-import User, { type UserAccessContext } from './user.ts';
+import User, { fetchUserPublicProfiles, type UserAccessContext, type UserView } from './user.ts';
 
 const Review = referenceReview();
 const File = referenceFile();
@@ -731,16 +731,7 @@ async function _attachUploadersToFiles(files: Array<Record<string, any>>): Promi
   }
 
   try {
-    // Users don't have revisions, use whereIn for array of IDs
-    const result = await User.filterWhere({}).whereIn('id', uploaderIDs, { cast: 'uuid[]' }).run();
-
-    const uploaderMap = new Map<string, any>();
-    for (const uploader of result || []) {
-      if (!uploader || !uploader.id) {
-        continue;
-      }
-      uploaderMap.set(uploader.id, uploader);
-    }
+    const uploaderMap = await fetchUserPublicProfiles(uploaderIDs);
 
     files.forEach(file => {
       if (!file || !file.uploadedBy) {

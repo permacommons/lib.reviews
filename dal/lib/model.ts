@@ -866,8 +866,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
-   * Save with related data
-   * @param joinOptions - Options for saving related data
+   * Persist this instance and synchronize any many-to-many relations.
+   *
+   * ⚠️ Only `through` relations whose join tables contain *just*
+   * foreign keys are managed automatically. If the join table carries
+   * additional editable columns (role flags, metadata, timestamps that
+   * should be user-controlled, etc.), mutate that table directly instead
+   * of relying on {@link saveAll}, because the DAL currently treats
+   * relation membership as an ID-only diff.
+   *
+   * @param joinOptions - Optional map of relation names to include.
+   *   When omitted, every declared `through` relation is synchronized.
    * @returns This instance
    */
   async saveAll(joinOptions = {}) {
@@ -924,36 +933,63 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     const sourceColumn = through.sourceForeignKey || `${sourceBase.replace(/s$/, '')}_id`;
     const targetColumn = through.targetForeignKey || `${targetBase.replace(/s$/, '')}_id`;
 
-    try {
-      // First, remove existing associations for this record
-      await this.runtime.dal.query(`DELETE FROM ${joinTableName} WHERE ${sourceColumn} = $1`, [
-        this.id,
-      ]);
+    const desiredIds: string[] = [];
+    const desiredSet = new Set<string>();
 
-      // Then add new associations
-      if (relatedData.length > 0) {
+    for (const item of relatedData) {
+      const itemId = typeof item === 'string' ? item : item?.id;
+      if (!itemId) continue;
+      if (desiredSet.has(itemId)) {
+        throw new Error(
+          `Duplicate entry detected while saving ${relationName} relation: ${itemId}`
+        );
+      }
+      desiredIds.push(itemId);
+      desiredSet.add(itemId);
+    }
+
+    try {
+      const existingResult = await this.runtime.dal.query<Record<string, unknown>>(
+        `SELECT ${targetColumn} FROM ${joinTableName} WHERE ${sourceColumn} = $1`,
+        [this.id]
+      );
+      const existingIds = new Set(
+        existingResult.rows
+          .map(row => row && row[targetColumn])
+          .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      );
+
+      const idsToRemove = [...existingIds].filter(id => !desiredSet.has(id));
+      if (idsToRemove.length > 0) {
+        const deleteParams = [this.id, ...idsToRemove];
+        const placeholders = idsToRemove.map((_, index) => `$${index + 2}`).join(', ');
+        const deleteQuery = `
+          DELETE FROM ${joinTableName}
+          WHERE ${sourceColumn} = $1
+            AND ${targetColumn} IN (${placeholders})
+        `;
+        await this.runtime.dal.query(deleteQuery, deleteParams);
+      }
+
+      const idsToAdd = desiredIds.filter(id => !existingIds.has(id));
+      if (idsToAdd.length > 0) {
         const values = [];
         const params = [];
         let paramIndex = 1;
 
-        for (const item of relatedData) {
-          const itemId = typeof item === 'string' ? item : item.id;
-          if (!itemId) continue;
-
+        for (const itemId of idsToAdd) {
           values.push(`($${paramIndex}, $${paramIndex + 1})`);
           params.push(this.id, itemId);
           paramIndex += 2;
         }
 
-        if (values.length > 0) {
-          const insertQuery = `
-            INSERT INTO ${joinTableName} (${sourceColumn}, ${targetColumn})
-            VALUES ${values.join(', ')}
-            ON CONFLICT (${sourceColumn}, ${targetColumn}) DO NOTHING
-          `;
+        const insertQuery = `
+          INSERT INTO ${joinTableName} (${sourceColumn}, ${targetColumn})
+          VALUES ${values.join(', ')}
+          ON CONFLICT (${sourceColumn}, ${targetColumn}) DO NOTHING
+        `;
 
-          await this.runtime.dal.query(insertQuery, params);
-        }
+        await this.runtime.dal.query(insertQuery, params);
       }
     } catch (error) {
       throw new Error(`Failed to save ${relationName} relation: ${error.message}`);

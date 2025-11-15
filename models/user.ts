@@ -357,6 +357,38 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
 }
 
 /**
+ * Batch-load the user public profile view for a set of identifiers.
+ *
+ * @param userIds - Collection of user IDs to hydrate via {@link UserView}
+ * @returns Map of user IDs to their corresponding `UserView`
+ */
+async function fetchUserPublicProfiles(userIds: Iterable<string>): Promise<Map<string, UserView>> {
+  const normalizedIds = [
+    ...new Set(
+      Array.from(userIds).filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+  const userMap = new Map<string, UserView>();
+  if (!normalizedIds.length) {
+    return userMap;
+  }
+
+  const profiles = await User.fetchView<UserView>('publicProfile', {
+    configure(builder) {
+      builder.whereIn('id', normalizedIds, { cast: 'uuid[]' });
+    },
+  });
+
+  profiles.forEach(profile => {
+    if (profile.id) {
+      userMap.set(profile.id, profile);
+    }
+  });
+
+  return userMap;
+}
+
+/**
  * Error class for reporting user registration failures with translated
  * messages derived from DAL errors.
  */
@@ -386,7 +418,7 @@ class NewUserError extends ReportedError {
   }
 }
 
-export { NewUserError };
+export { fetchUserPublicProfiles, NewUserError };
 
 export type {
   CreateUserPayload,
