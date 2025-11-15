@@ -13,7 +13,7 @@ import blogPostManifest, {
   type BlogPostStaticMethods,
 } from './manifests/blog-post.ts';
 import { referenceTeamSlug } from './manifests/team-slug.ts';
-import User, { type UserAccessContext } from './user.ts';
+import User, { type UserAccessContext, type UserView } from './user.ts';
 
 const TeamSlug = referenceTeamSlug();
 
@@ -147,15 +147,19 @@ async function attachCreator(model: BlogPostModel, post: BlogPostInstance) {
   }
 
   try {
-    const user = await User.getWithTeams(post.createdBy);
-    if (!user) {
+    const [creator] = await User.fetchView<UserView>('publicProfile', {
+      configure(builder) {
+        builder.whereIn('id', [post.createdBy as string], { cast: 'uuid[]' });
+      },
+    });
+    if (!creator) {
       return post;
     }
     const postRecord = post as BlogPostInstance & Record<string, any>;
     postRecord.creator = {
-      id: user.id,
-      displayName: user.displayName,
-      urlName: user.urlName,
+      id: creator.id,
+      displayName: creator.displayName,
+      urlName: creator.urlName,
     };
   } catch (error) {
     debug.db('Failed to load blog post creator:', error);

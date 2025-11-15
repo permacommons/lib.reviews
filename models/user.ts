@@ -10,7 +10,7 @@ import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import { referenceTeam, type TeamInstance } from './manifests/team.ts';
+import type { TeamInstance } from './manifests/team.ts';
 import userManifest, {
   type CreateUserPayload,
   canonicalize,
@@ -24,7 +24,6 @@ import userManifest, {
 } from './manifests/user.ts';
 import { referenceUserMeta, type UserMetaInstance } from './manifests/user-meta.ts';
 
-const Team = referenceTeam();
 const UserMeta = referenceUserMeta();
 
 const BCRYPT_ROUNDS = 10; // matches legacy bcrypt-nodejs default cost
@@ -315,9 +314,7 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
       .first();
 
     if (hydrated) {
-      user.teams = Array.isArray(hydrated.teams)
-        ? (hydrated.teams as TeamInstance[])
-        : [];
+      user.teams = Array.isArray(hydrated.teams) ? (hydrated.teams as TeamInstance[]) : [];
       user.moderatorOf = Array.isArray(hydrated.moderatorOf)
         ? (hydrated.moderatorOf as TeamInstance[])
         : [];
