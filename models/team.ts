@@ -21,7 +21,7 @@ import teamManifest, {
 import { type TeamJoinRequestInstance } from './manifests/team-join-request.ts';
 import TeamJoinRequest from './team-join-request.ts';
 import TeamSlug from './team-slug.ts';
-import User, { type UserViewer } from './user.ts';
+import User, { type UserAccessContext } from './user.ts';
 
 const Review = referenceReview();
 
@@ -95,7 +95,7 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
    *
    * @param user - Viewer whose relationship determines permissions
    */
-  populateUserInfo(this: TeamInstance, user: ModelInstance | UserViewer | null | undefined) {
+  populateUserInfo(this: TeamInstance, user: ModelInstance | UserAccessContext | null | undefined) {
     if (!user) return;
 
     if (

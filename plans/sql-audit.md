@@ -39,6 +39,9 @@
 - Tests under `tests/**` intentionally use raw SQL for fixtures/assertions and are outside the DAL migration scope.
 
 ## Suggested Next Steps
-1. Implement “shape” definitions plus relationship metadata inside the DAL so models can ask for structured projections/joins without SQL.
-2. Introduce generic pagination builders and aggregate helpers, then migrate `Review.getFeed`, `Team.getTeamReviews`, and Thing metrics to them.
-3. Once the DAL has the generalized primitives, sweep the remaining raw SQL and swap each call site to the new abstractions, keeping only true edge cases (e.g., maintenance scripts) on raw SQL.
+1. Use the new `UserView` projection to replace the remaining `SELECT u.* …` statements:
+   - Team membership/moderator loaders in `models/team.ts`.
+   - `_attachUserTeams` and `_attachUploadersToFiles` in `models/user.ts`/`models/thing.ts`.
+   - Any other spots manually deleting `password`/`email` after raw user queries.
+2. Define additional view shapes (e.g., `TeamView`, `ThingSummaryView`) where repeated column lists still exist, then migrate those raw queries.
+3. Start adapting join-heavy helpers (team-review joins, join requests) to the view-based approach so we can remove duplicated SQL while we build out the relation-aware batch loader.

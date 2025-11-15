@@ -7,7 +7,7 @@ import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
 import type { ReviewInstance } from './review.ts';
-import type { UserViewer } from './user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const { mlString } = dal as unknown as {
   mlString: typeof import('../../dal/lib/ml-string.ts').default;
@@ -175,7 +175,7 @@ export interface ThingInstanceMethods {
   ): void;
   populateUserInfo(
     this: ThingInstanceBase & ThingInstanceMethods,
-    user: UserViewer | null | undefined
+    user: UserAccessContext | null | undefined
   ): void;
   populateReviewMetrics(this: ThingInstanceBase & ThingInstanceMethods): Promise<ThingInstance>;
   setURLs(this: ThingInstanceBase & ThingInstanceMethods, urls: string[]): void;
@@ -185,7 +185,7 @@ export interface ThingInstanceMethods {
   ): Promise<ThingInstance>;
   getReviewsByUser(
     this: ThingInstanceBase & ThingInstanceMethods,
-    user: UserViewer | null | undefined
+    user: UserAccessContext | null | undefined
   ): Promise<ReviewInstance[]>;
   getAverageStarRating(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;
   getReviewCount(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;

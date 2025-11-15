@@ -21,10 +21,12 @@ import reviewManifest, {
 } from './manifests/review.ts';
 import { referenceTeam, type TeamInstance } from './manifests/team.ts';
 import { referenceThing, type ThingInstance } from './manifests/thing.ts';
-import type { UserViewer } from './user.ts';
+import { referenceUser, type UserView } from './manifests/user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const Thing = referenceThing();
 const Team = referenceTeam();
+const User = referenceUser();
 
 const { revision } = dal as {
   revision: Record<string, any>;
@@ -345,34 +347,28 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
 
     if (withThing || withTeams) {
       try {
-        const userIds = [...new Set(feedItems.map(review => review.createdBy).filter(Boolean))];
+        const userIds = [
+          ...new Set(
+            feedItems
+              .map(review => review.createdBy)
+              .filter((id): id is string => typeof id === 'string' && id.length > 0)
+          ),
+        ];
 
         if (userIds.length > 0) {
           debug.db(`Batch fetching ${userIds.length} unique creators...`);
 
-          const userQuery = `
-            SELECT id, display_name, canonical_name, email, registration_date,
-                   is_trusted, is_site_moderator, is_super_user
-            FROM users
-            WHERE id = ANY($1)
-          `;
+          const creators = await User.fetchView<UserView>('publicProfile', {
+            includeSensitive: ['email'],
+            configure(builder) {
+              builder.whereIn('id', userIds, { cast: 'uuid[]' });
+            },
+          });
 
-          const userResult = await this.dal.query(userQuery, [userIds]);
-
-          const userMap = new Map<string, Record<string, any>>();
-          userResult.rows.forEach(row => {
-            const user = row as Record<string, any>;
-            const displayName = user.display_name;
-            const safeUser = {
-              ...user,
-              displayName,
-              urlName:
-                typeof displayName === 'string'
-                  ? encodeURIComponent(displayName.replace(/ /g, '_'))
-                  : undefined,
-            };
+          const userMap = new Map<string, UserView>();
+          creators.forEach(user => {
             if (typeof user.id === 'string') {
-              userMap.set(user.id, safeUser);
+              userMap.set(user.id, user);
             }
           });
 
@@ -383,7 +379,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
             }
           });
 
-          debug.db(`Successfully populated creators for ${userResult.rows.length} users`);
+          debug.db(`Successfully populated creators for ${creators.length} users`);
         }
       } catch (error) {
         const serializedError = error instanceof Error ? error.message : String(error);
@@ -501,7 +497,7 @@ const reviewInstanceMethods = defineInstanceMethods(reviewManifest, {
    *
    * @param user - Viewer whose permissions should be reflected
    */
-  populateUserInfo(this: ReviewInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: ReviewInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }

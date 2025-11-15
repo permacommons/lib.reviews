@@ -13,7 +13,7 @@ import blogPostManifest, {
   type BlogPostStaticMethods,
 } from './manifests/blog-post.ts';
 import { referenceTeamSlug } from './manifests/team-slug.ts';
-import User, { type UserViewer } from './user.ts';
+import User, { type UserAccessContext } from './user.ts';
 
 const TeamSlug = referenceTeamSlug();
 
@@ -111,7 +111,7 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
 }) satisfies BlogPostStaticMethods;
 
 const blogPostInstanceMethods = defineInstanceMethods(blogPostManifest, {
-  populateUserInfo(this: BlogPostInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: BlogPostInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }

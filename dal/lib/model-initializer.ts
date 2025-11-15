@@ -6,6 +6,7 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance,
+  ModelViewDefinition,
 } from './model-types.ts';
 import type { ModelConstructorLike } from './revision.ts';
 import revision from './revision.ts';
@@ -97,6 +98,7 @@ export interface InitializeModelOptions<
   instanceMethods?: Record<string, InstanceMethod<TInstance>>;
   registryKey?: string;
   relations?: RelationDefinitionInput[] | Record<string, RelationConfig> | null;
+  views?: Record<string, ModelViewDefinition<ModelInstance>>;
 }
 
 /**
@@ -288,6 +290,12 @@ export function initializeModel<
   if (relationDefs.length > 0 && typeof runtimeModel.defineRelation === 'function') {
     for (const { name, config } of relationDefs) {
       runtimeModel.defineRelation(name, config);
+    }
+  }
+
+  if (options.views && typeof runtimeModel.defineView === 'function') {
+    for (const [name, definition] of Object.entries(options.views)) {
+      runtimeModel.defineView(name, definition);
     }
   }
 

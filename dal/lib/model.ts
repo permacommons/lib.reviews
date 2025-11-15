@@ -7,6 +7,9 @@ import type {
   ModelConstructor,
   ModelInstance,
   ModelInstanceCore,
+  ModelViewBuilder,
+  ModelViewDefinition,
+  ModelViewFetchOptions,
   RevisionActor,
   RevisionMetadata,
 } from './model-types.ts';
@@ -173,6 +176,10 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   public _changed: Set<string>;
   public _isNew: boolean;
   public _originalData: Record<string, unknown>;
+  protected static _views: Map<
+    string,
+    ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>
+  > = new Map();
 
   protected static get runtime(): ModelRuntime<JsonObject, JsonObject> {
     return this as unknown as ModelRuntime<JsonObject, JsonObject>;
@@ -351,6 +358,104 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
+   * Register a named projection/view for this model.
+   * @param name - Unique view identifier
+   * @param definition - View configuration
+   */
+  static defineView<TView extends JsonObject = JsonObject>(
+    name: string,
+    definition: ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, TView>
+  ): void {
+    const runtime = this.runtime;
+    if (!runtime._views || !(runtime._views instanceof Map)) {
+      runtime._views = new Map();
+    }
+
+    runtime._views.set(
+      name,
+      definition as ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>
+    );
+  }
+
+  /**
+   * Retrieve the view definition for a registered projection.
+   *
+   * @param name - View identifier
+   * @returns Stored view definition or null if missing
+   */
+  static getView<TView extends JsonObject = JsonObject>(
+    name: string
+  ): ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, TView> | null {
+    const view = this._getViewDefinition<TView>(name);
+    return view || null;
+  }
+
+  /**
+   * Internal helper to access the normalized view definition.
+   *
+   * @param name - View identifier
+   * @returns Registered definition or null
+   * @private
+   */
+  static _getViewDefinition<TView extends JsonObject = JsonObject>(
+    name: string
+  ): ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, TView> | null {
+    const runtime = this.runtime;
+    if (!runtime._views || !(runtime._views instanceof Map)) {
+      return null;
+    }
+
+    return (
+      (runtime._views.get(name) as ModelViewDefinition<
+        ModelInstance<JsonObject, JsonObject>,
+        TView
+      >) || null
+    );
+  }
+
+  /**
+   * Execute a view query using the provided builder configuration.
+   *
+   * @param name - Registered view name
+   * @param options - View fetch options
+   * @returns Array of projected view objects
+   */
+  static async fetchView<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TView extends JsonObject = JsonObject,
+  >(
+    this: ModelRuntime<TData, TVirtual> & typeof Model,
+    name: string,
+    options: ModelViewFetchOptions<TData, TVirtual, ModelInstance<TData, TVirtual>> = {}
+  ): Promise<TView[]> {
+    const viewDef = this._getViewDefinition<TView>(name) as ModelViewDefinition<
+      ModelInstance<TData, TVirtual>,
+      TView
+    >;
+    if (!viewDef) {
+      throw new Error(`View '${name}' not defined for model '${this.tableName}'`);
+    }
+
+    const builder = this.filterWhere({}) as unknown as ModelViewBuilder<
+      TData,
+      TVirtual,
+      ModelInstance<TData, TVirtual>
+    >;
+
+    if (options.includeSensitive && options.includeSensitive.length > 0) {
+      builder.includeSensitive(options.includeSensitive);
+    }
+
+    if (typeof options.configure === 'function') {
+      options.configure(builder);
+    }
+
+    const results = await builder.run();
+    return results.map(instance => viewDef.project(instance as ModelInstance<TData, TVirtual>));
+  }
+
+  /**
    * Get the database field name for a given property name
    * @param propertyName - Property name (camelCase or snake_case)
    * @returns Database field name (snake_case)
@@ -431,6 +536,10 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     class DynamicModel extends Model<TData, TVirtual> {
       static override _fieldMappings = new Map<string, string>();
       static override _relations = new Map<string, NormalizedRelationConfig>();
+      static override _views = new Map<
+        string,
+        ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>
+      >();
       static get tableName() {
         return tableName;
       }
@@ -1243,6 +1352,7 @@ type RuntimeModel<
     dal: DataAccessLayer;
     _fieldMappings: Map<string, string>;
     _relations: Map<string, NormalizedRelationConfig>;
+    _views: Map<string, ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>>;
     _revisionHandlers?: RevisionHandlerMap<TInstance>;
   };
 

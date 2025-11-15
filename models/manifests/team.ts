@@ -5,7 +5,7 @@ import type { InferConstructor, InferInstance } from '../../dal/lib/model-manife
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
-import type { UserViewer } from './user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const { mlString } = dal as {
   mlString: typeof import('../../dal/lib/ml-string.ts').default;
@@ -115,7 +115,7 @@ type TeamModelBase = InferConstructor<typeof teamManifest>;
 export interface TeamInstanceMethods {
   populateUserInfo(
     this: TeamInstanceBase & TeamInstanceMethods,
-    user: ModelInstance | UserViewer | null | undefined
+    user: ModelInstance | UserAccessContext | null | undefined
   ): void;
   updateSlug(
     this: TeamInstanceBase & TeamInstanceMethods,

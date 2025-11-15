@@ -235,6 +235,32 @@ export type FilterWhereJoinSpec<TRelations extends string> = Partial<
   Record<TRelations, boolean | JsonObject>
 >;
 
+export type ModelViewBuilder<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
+> = FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations> &
+  ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+
+export interface ModelViewDefinition<
+  TInstance extends ModelInstance = ModelInstance,
+  TView extends JsonObject = JsonObject,
+> {
+  description?: string;
+  project(instance: TInstance): TView;
+}
+
+export interface ModelViewFetchOptions<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
+> {
+  includeSensitive?: Extract<keyof TData, string>[];
+  configure?: (builder: ModelViewBuilder<TData, TVirtual, TInstance, TRelations>) => void;
+}
+
 export interface ModelQueryBuilder<
   TData extends JsonObject,
   TVirtual extends JsonObject,
@@ -363,8 +389,19 @@ export interface ModelConstructor<
 
   define(name: string, handler: InstanceMethod<TInstance>): void;
   defineRelation(name: string, config: JsonObject): void;
+  defineView<TView extends JsonObject = JsonObject>(
+    name: string,
+    definition: ModelViewDefinition<TInstance, TView>
+  ): void;
 
   readonly ops: FilterWhereOperators<TData>;
+  getView<TView extends JsonObject = JsonObject>(
+    name: string
+  ): ModelViewDefinition<TInstance, TView> | null;
+  fetchView<TView extends JsonObject = JsonObject>(
+    name: string,
+    options?: ModelViewFetchOptions<TData, TVirtual, TInstance, TRelations>
+  ): Promise<TView[]>;
 
   [key: string]: unknown;
 }

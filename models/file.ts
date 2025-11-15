@@ -12,7 +12,7 @@ import fileManifest, {
   type FileStaticMethods,
   fileValidLicenses,
 } from './manifests/file.ts';
-import type { UserViewer } from './user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const validLicenses = fileValidLicenses;
 
@@ -93,7 +93,7 @@ const fileInstanceMethods = defineInstanceMethods(fileManifest, {
    *
    * @param user - User whose permissions should be evaluated
    */
-  populateUserInfo(this: FileInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: FileInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }

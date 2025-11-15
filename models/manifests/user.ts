@@ -1,6 +1,11 @@
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferData, InferVirtual, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferData,
+  InferInstance,
+  InferVirtual,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
 import types from '../../dal/lib/type.ts';
 import type { UserMetaInstance } from './user-meta.ts';
@@ -96,7 +101,7 @@ type UserExtraStatics = {
   options: typeof userOptions;
 };
 
-export type UserViewer = {
+export type UserAccessContext = {
   id: UserData['id'];
   isSuperUser?: UserData['isSuperUser'];
   isSiteModerator?: UserData['isSiteModerator'];
@@ -112,7 +117,7 @@ export interface CreateUserPayload {
 export type UserInstanceMethods = {
   populateUserInfo(
     this: UserInstanceBase & UserInstanceMethods,
-    user: UserViewer | null | undefined
+    user: UserAccessContext | null | undefined
   ): void;
   setName(this: UserInstanceBase & UserInstanceMethods, displayName: string): void;
   setPassword(this: UserInstanceBase & UserInstanceMethods, password: string): Promise<string>;
@@ -125,6 +130,20 @@ export type UserInstance = UserInstanceBase & UserInstanceMethods;
 type UserModelBase = ModelConstructor<UserData, UserVirtual, UserInstance>;
 
 type UserStaticThis = UserModel & UserExtraStatics;
+
+export type UserView = Pick<
+  UserInstance,
+  | 'id'
+  | 'displayName'
+  | 'canonicalName'
+  | 'email'
+  | 'registrationDate'
+  | 'isTrusted'
+  | 'isSiteModerator'
+  | 'isSuperUser'
+> & {
+  urlName?: UserInstance['urlName'];
+};
 
 export type UserStaticMethods = {
   increaseInviteLinkCount(this: UserStaticThis, id: string): Promise<number>;
@@ -203,6 +222,23 @@ const userManifest = defineModelManifest({
       cardinality: 'one',
     },
   ] as const,
+  views: {
+    publicProfile: {
+      project(user: InferInstance<typeof userManifest>) {
+        return {
+          id: user.id,
+          displayName: user.displayName,
+          canonicalName: user.canonicalName,
+          email: user.email,
+          registrationDate: user.registrationDate,
+          isTrusted: user.isTrusted,
+          isSiteModerator: user.isSiteModerator,
+          isSuperUser: user.isSuperUser,
+          urlName: user.urlName,
+        } satisfies UserView;
+      },
+    },
+  },
 } as ModelManifest<UserSchema, false, UserStaticMethods, UserInstanceMethods>);
 
 /**

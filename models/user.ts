@@ -14,11 +14,12 @@ import { referenceTeam } from './manifests/team.ts';
 import userManifest, {
   type CreateUserPayload,
   canonicalize,
+  type UserAccessContext,
   type UserInstance,
   type UserInstanceMethods,
   type UserModel,
   type UserStaticMethods,
-  type UserViewer,
+  type UserView,
   userOptions,
 } from './manifests/user.ts';
 import { referenceUserMeta, type UserMetaInstance } from './manifests/user-meta.ts';
@@ -200,7 +201,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    *
    * @param user - Viewer whose rights should be reflected on the instance
    */
-  populateUserInfo(this: UserInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: UserInstance, user: UserAccessContext | null | undefined) {
     if (!user) return;
     if (user.id === this.id) this.userCanEditMetadata = true;
   },
@@ -389,11 +390,12 @@ export { NewUserError };
 
 export type {
   CreateUserPayload,
+  UserAccessContext,
   UserInstance,
   UserInstanceMethods,
   UserModel,
   UserStaticMethods,
-  UserViewer,
+  UserView,
 } from './manifests/user.ts';
 export {
   canonicalize,

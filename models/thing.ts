@@ -24,7 +24,7 @@ import thingManifest, {
   type ThingStaticMethods,
 } from './manifests/thing.ts';
 import ThingSlug from './thing-slug.ts';
-import User, { type UserViewer } from './user.ts';
+import User, { type UserAccessContext } from './user.ts';
 
 const Review = referenceReview();
 const File = referenceFile();
@@ -77,7 +77,7 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
             .run();
 
           const reviewsByThing = new Map<string, any[]>();
-          const viewerForLookup: UserViewer = { id: lookupUserID };
+          const viewerForLookup: UserAccessContext = { id: lookupUserID };
 
           for (const review of reviews) {
             if (typeof review.populateUserInfo === 'function') {
@@ -228,7 +228,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param user - Viewer whose permissions should be reflected on the instance
    */
-  populateUserInfo(this: ThingInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: ThingInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }
@@ -448,7 +448,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    */
   async getReviewsByUser(
     this: ThingInstance,
-    user: UserViewer | null | undefined
+    user: UserAccessContext | null | undefined
   ): Promise<ReviewInstance[]> {
     if (!user || !user.id) {
       return [];
