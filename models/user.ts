@@ -10,7 +10,7 @@ import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import { referenceTeam } from './manifests/team.ts';
+import { referenceTeam, type TeamInstance } from './manifests/team.ts';
 import userManifest, {
   type CreateUserPayload,
   canonicalize,
@@ -305,53 +305,25 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
   user.teams = [];
   user.moderatorOf = [];
 
-  const teamDal = Team.dal;
-  const teamTable = Team.tableName;
-  const createFromRow = Team.createFromRow;
-  const dalInstance = teamDal;
-  const prefix = dalInstance.schemaNamespace || '';
-  const memberTable = `${prefix}team_members`;
-  const moderatorTable = `${prefix}team_moderators`;
-
-  const currentRevisionFilter = `
-    AND (t._old_rev_of IS NULL)
-    AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
-  `;
-
-  const mapRowsToTeams = (rows: Array<Record<string, unknown>>) =>
-    rows.map(row => createFromRow(row));
-
-  try {
-    const memberResult = await dalInstance.query<Record<string, unknown>>(
-      `
-        SELECT t.*
-        FROM ${teamTable} t
-        JOIN ${memberTable} tm ON t.id = tm.team_id
-        WHERE tm.user_id = $1
-        ${currentRevisionFilter}
-      `,
-      [user.id]
-    );
-    user.teams = mapRowsToTeams(memberResult.rows);
-  } catch (error) {
-    debug.error('Error attaching team memberships to user');
-    debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
+  if (typeof user.id !== 'string' || user.id.length === 0) {
+    return;
   }
 
   try {
-    const moderatorResult = await dalInstance.query<Record<string, unknown>>(
-      `
-        SELECT t.*
-        FROM ${teamTable} t
-        JOIN ${moderatorTable} tm ON t.id = tm.team_id
-        WHERE tm.user_id = $1
-        ${currentRevisionFilter}
-      `,
-      [user.id]
-    );
-    user.moderatorOf = mapRowsToTeams(moderatorResult.rows);
+    const hydrated = await User.filterWhere({ id: user.id })
+      .getJoin({ teams: {}, moderatorOf: {} })
+      .first();
+
+    if (hydrated) {
+      user.teams = Array.isArray(hydrated.teams)
+        ? (hydrated.teams as TeamInstance[])
+        : [];
+      user.moderatorOf = Array.isArray(hydrated.moderatorOf)
+        ? (hydrated.moderatorOf as TeamInstance[])
+        : [];
+    }
   } catch (error) {
-    debug.error('Error attaching moderation teams to user');
+    debug.error('Error attaching teams to user via relations');
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
   }
 }
