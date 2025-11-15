@@ -393,22 +393,12 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
           if (thingIds.length > 0) {
             debug.db(`Batch fetching ${thingIds.length} things for review feed...`);
 
-            const placeholders = thingIds.map((_, index) => `$${index + 1}`).join(', ');
+            const things = (await Thing.filterWhere({})
+              .whereIn('id', thingIds, { cast: 'uuid[]' })
+              .run()) as ThingInstance[];
+            const thingMap = new Map<string, ThingInstance>();
 
-            const thingQuery = `
-              SELECT * FROM ${Thing.tableName}
-              WHERE id IN (${placeholders})
-                AND (_old_rev_of IS NULL)
-                AND (_rev_deleted IS NULL OR _rev_deleted = false)
-            `;
-
-            const thingResult = await Thing.dal.query(thingQuery, thingIds);
-            const thingMap = new Map<string, ThingInstance & Record<string, any>>();
-
-            thingResult.rows.forEach(row => {
-              const thingInstance = Thing.createFromRow(
-                row as Record<string, unknown>
-              ) as ThingInstance & Record<string, any>;
+            things.forEach(thingInstance => {
               if (thingInstance.id) {
                 thingMap.set(thingInstance.id, thingInstance);
               }
