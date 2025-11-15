@@ -89,25 +89,16 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
   ) {
     const thing = await this.findOrCreateThing(reviewObj);
 
-    const existingQuery = `
-      SELECT id FROM ${this.tableName}
-      WHERE thing_id = $1
-        AND created_by = $2
-        AND (_old_rev_of IS NULL)
-        AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      LIMIT 1
-    `;
+    const existingReview = await this.filterWhere({
+      thingID: thing.id,
+      createdBy: reviewObj.createdBy,
+    }).first();
 
-    const existingResult = await this.dal.query(existingQuery, [thing.id, reviewObj.createdBy]);
-
-    if (existingResult.rows.length > 0) {
+    if (existingReview) {
       throw new ReviewError({
         message: 'User has previously reviewed this subject.',
         userMessage: 'previously reviewed submission',
-        userMessageParams: [
-          `/review/${existingResult.rows[0].id}`,
-          `/review/${existingResult.rows[0].id}/edit`,
-        ],
+        userMessageParams: [`/review/${existingReview.id}`, `/review/${existingReview.id}/edit`],
       });
     }
 
