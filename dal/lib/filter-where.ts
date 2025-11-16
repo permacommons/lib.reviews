@@ -150,8 +150,8 @@ function createGroupedPredicate(
  */
 function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRecord> {
   return {
-    neq<K extends keyof TRecord>(value: TRecord[K]) {
-      const operator: InternalFilterOperator<K, TRecord[K]> = {
+    neq<K extends keyof TRecord>(value: TRecord[K] | null) {
+      const operator: InternalFilterOperator<K, TRecord[K] | null> = {
         [FILTER_OPERATOR_TOKEN]: true,
         __allowedKeys: null as unknown as K,
         value,
