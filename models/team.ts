@@ -204,31 +204,11 @@ const Team = defineModel(teamManifest, {
  */
 async function getTeamMembers(model: TeamModel, teamId: string): Promise<UserView[]> {
   try {
-    const dal = model.dal;
-    const memberTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}team_members`
-      : 'team_members';
-
-    const query = `
-      SELECT tm.user_id, tm.joined_on
-      FROM ${memberTableName} tm
-      WHERE tm.team_id = $1
-      ORDER BY tm.joined_on ASC
-    `;
-
-    const result = await dal.query<{ user_id?: string }>(query, [teamId]);
-    const memberRows = result.rows.filter(
-      row => typeof row.user_id === 'string' && (row.user_id as string).length > 0
-    );
-    if (!memberRows.length) {
-      return [];
-    }
-
-    const memberIDs = memberRows.map(row => row.user_id as string);
-    const userMap = await fetchUserPublicProfiles(memberIDs);
-    return memberRows
-      .map(row => userMap.get(row.user_id as string))
-      .filter((user): user is UserView => Boolean(user));
+    const builder = User.filterWhere({});
+    builder.orderByRelation('teams', 'joinedOn', 'ASC').whereRelated('teams', 'id', teamId);
+    const users = await builder.run();
+    const view = User.getView<UserView>('publicProfile');
+    return view ? users.map(user => view.project(user)) : (users as UserView[]);
   } catch (error) {
     debug.error('Error getting team members');
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
@@ -245,32 +225,13 @@ async function getTeamMembers(model: TeamModel, teamId: string): Promise<UserVie
  */
 async function getTeamModerators(model: TeamModel, teamId: string): Promise<UserView[]> {
   try {
-    const dal = model.dal;
-    const moderatorTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}team_moderators`
-      : 'team_moderators';
-
-    const query = `
-      SELECT tm.user_id, tm.appointed_on
-      FROM ${moderatorTableName} tm
-      WHERE tm.team_id = $1
-      ORDER BY tm.appointed_on ASC
-    `;
-
-    const result = await dal.query<{ user_id?: string }>(query, [teamId]);
-    const moderatorRows = result.rows.filter(
-      row => typeof row.user_id === 'string' && (row.user_id as string).length > 0
-    );
-
-    if (!moderatorRows.length) {
-      return [];
-    }
-
-    const moderatorIDs = moderatorRows.map(row => row.user_id as string);
-    const userMap = await fetchUserPublicProfiles(moderatorIDs);
-    return moderatorRows
-      .map(row => userMap.get(row.user_id as string))
-      .filter((user): user is UserView => Boolean(user));
+    const builder = User.filterWhere({});
+    builder
+      .orderByRelation('moderatorOf', 'appointedOn', 'ASC')
+      .whereRelated('moderatorOf', 'id', teamId);
+    const users = await builder.run();
+    const view = User.getView<UserView>('publicProfile');
+    return view ? users.map(user => view.project(user)) : (users as UserView[]);
   } catch (error) {
     debug.error('Error getting team moderators');
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
@@ -292,20 +253,9 @@ async function getTeamJoinRequests(
   teamId: string,
   withDetails = false
 ): Promise<ModelInstance[]> {
-  let query = '';
-
   try {
-    const dal = model.dal;
-    const joinRequestTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}team_join_requests`
-      : 'team_join_requests';
-
-    query = `SELECT * FROM ${joinRequestTableName} WHERE team_id = $1`;
-    const result = await dal.query(query, [teamId]);
-
-    const requests: (TeamJoinRequestInstance & { user?: UserView })[] = result.rows.map(row =>
-      TeamJoinRequest.createFromRow(row as Record<string, unknown>)
-    );
+    const requests: (TeamJoinRequestInstance & { user?: UserView })[] =
+      await TeamJoinRequest.filterWhere({ teamID: teamId }).run();
 
     if (withDetails) {
       const requesterIDs = [
@@ -335,8 +285,6 @@ async function getTeamJoinRequests(
     return requests;
   } catch (error) {
     debug.error('Error getting team join requests');
-    debug.error(`Query: ${query}`);
-    debug.error(`Params: ${JSON.stringify([teamId])}`);
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
     return [];
   }

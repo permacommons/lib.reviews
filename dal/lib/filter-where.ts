@@ -550,13 +550,31 @@ class FilterWhereBuilder<
     return this;
   }
 
-  orderBy(field: Extract<keyof TData, string>, direction: 'ASC' | 'DESC' = 'ASC'): this {
+  /**
+   * Order results by a model column.
+   *
+   * @param field Field to sort by (camelCase or qualified string)
+   * @param direction Sort direction
+   */
+  orderBy(field: Extract<keyof TData, string> | string, direction: 'ASC' | 'DESC' = 'ASC'): this {
     const dbField = this._builder._resolveFieldName(field);
     this._builder._assertResolvedField(dbField);
     if (typeof dbField !== 'string') {
       throw new TypeError('FilterWhereBuilder.orderBy requires a string column reference.');
     }
     this._builder.orderBy(dbField, direction);
+    return this;
+  }
+
+  /**
+   * Order results using a column on a joined relation (through metadata).
+   *
+   * @param relation Relation key from the manifest
+   * @param field Column on the related table (camelCase)
+   * @param direction Sort direction
+   */
+  orderByRelation(relation: TRelations, field: string, direction: 'ASC' | 'DESC' = 'ASC'): this {
+    (this._builder as QueryBuilder).orderByRelation(relation as string, field, direction);
     return this;
   }
 

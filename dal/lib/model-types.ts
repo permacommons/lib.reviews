@@ -321,6 +321,11 @@ export interface ModelQueryBuilder<
     field: string,
     direction?: 'ASC' | 'DESC'
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  orderByRelation(
+    relation: TRelations,
+    field: string,
+    direction?: 'ASC' | 'DESC'
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   limit(count: number): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   between(
     startDate: Date,
@@ -359,7 +364,12 @@ export interface FilterWhereQueryBuilder<
     fields: string | string[]
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   orderBy(
-    field: Extract<keyof TData, string>,
+    field: Extract<keyof TData, string> | string,
+    direction?: 'ASC' | 'DESC'
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  orderByRelation(
+    relation: TRelations,
+    field: string,
     direction?: 'ASC' | 'DESC'
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   increment<

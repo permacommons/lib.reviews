@@ -389,6 +389,28 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     return this;
   }
 
+  orderByRelation(relationName: string, field: string, direction = 'ASC') {
+    const joinInfo = this._getJoinInfo(relationName);
+    if (!joinInfo) {
+      debug.db(`Warning: Unknown relation '${relationName}' for table '${this.tableName}'`);
+      return this;
+    }
+
+    if (!this._simpleJoins || !this._simpleJoins[relationName]) {
+      this._addSimpleJoin(relationName);
+    }
+
+    const targetTable = joinInfo.joinTable || joinInfo.table;
+    if (!targetTable) {
+      debug.db(`Warning: Relation '${relationName}' missing table metadata for ordering`);
+      return this;
+    }
+
+    const column = this._normalizeColumnName(field);
+    this._orderBy.push(`${targetTable}.${column} ${direction.toUpperCase()}`);
+    return this;
+  }
+
   /**
    * Add LIMIT clause
    * @param count - Limit count
@@ -1327,7 +1349,10 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return this;
     }
 
-    this._addSimpleJoin(relationName);
+    if (!this._simpleJoins || !this._simpleJoins[relationName]) {
+      this._addSimpleJoin(relationName);
+    }
+
     const column = `${joinInfo.table}.${this._normalizeColumnName(field)}`;
     this._addWhereCondition(column, operator, value);
     return this;

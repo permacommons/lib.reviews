@@ -77,6 +77,11 @@ npm run test
 Concurrency is controlled by AVA (via config or CPU cores). Use AVA's `--concurrency` flag
 to adjust worker count as needed.
 
+To see detailed debug output during test runs, set `DEBUG` to the relevant namespaces:
+
+- Everything: `DEBUG=libreviews:* npm run test`
+- DAL/tests only: `DEBUG=libreviews:db,libreviews:tests npm run test -- --match "<pattern>"`
+
 ## Caveats & Best Practices
 
 - Use unique `schemaNamespace` values per test file to avoid schema name clashes.
