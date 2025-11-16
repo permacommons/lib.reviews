@@ -8,8 +8,43 @@ import type {
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
+import { NumberType } from './type.ts';
 
 type PredicateValue = unknown;
+
+type IncrementResult<TRow extends JsonObject> = {
+  rowCount: number;
+  rows: TRow[];
+};
+
+/**
+ * Convert a database row with snake_case keys to the model's camelCase schema keys.
+ *
+ * @param row Database row to normalize
+ * @param fieldMappings Camel-to-snake mapping registered on the model
+ * @returns Row keyed by camelCase field names
+ */
+function remapRowToCamelCase<TRow extends JsonObject>(
+  row: JsonObject,
+  fieldMappings?: Map<string, string>
+): TRow {
+  if (!(fieldMappings instanceof Map) || fieldMappings.size === 0) {
+    return row as TRow;
+  }
+
+  const reverseMapping = new Map<string, string>();
+  for (const [camel, snake] of fieldMappings.entries()) {
+    reverseMapping.set(snake, camel);
+  }
+
+  const remapped: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const camelKey = reverseMapping.get(key) ?? key;
+    remapped[camelKey] = value;
+  }
+
+  return remapped as unknown as TRow;
+}
 
 interface BasicPredicate extends JsonObject {
   type: 'basic';
@@ -1639,6 +1674,103 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     }
 
     return { sql: query, params: where.params };
+  }
+
+  /**
+   * Atomically increment a numeric column on rows matching the current predicate.
+   *
+   * @param field Model field (resolved to a DB column) to increment
+   * @param amount Increment step (default: 1)
+   * @param options Optional returning clause
+   * @returns Rows matched/returned plus affected row count.
+   */
+  async increment<TRow extends JsonObject = JsonObject>(
+    field: string,
+    amount = 1,
+    options: { returning?: string[] } = {}
+  ): Promise<IncrementResult<TRow>> {
+    if (!Number.isFinite(amount)) {
+      throw new TypeError('QueryBuilder.increment amount must be a finite number.');
+    }
+
+    if (this._joins.length > 0) {
+      throw new Error('QueryBuilder.increment does not support joined queries.');
+    }
+
+    const dbField = this._resolveFieldName(field);
+    this._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError('QueryBuilder.increment requires a string column reference.');
+    }
+
+    const schema = (this.modelClass as unknown as { schema?: Record<string, unknown> }).schema;
+    const fieldMappings = (this.modelClass as unknown as { _fieldMappings?: Map<string, string> })
+      ._fieldMappings;
+
+    let schemaFieldName: string | null = null;
+    if (typeof field === 'string') {
+      if (schema && field in schema) {
+        schemaFieldName = field;
+      }
+
+      if (!schemaFieldName && fieldMappings instanceof Map) {
+        for (const [schemaKey, dbKey] of fieldMappings.entries()) {
+          if (dbKey === dbField || dbKey === field) {
+            schemaFieldName = schemaKey;
+            break;
+          }
+        }
+      }
+    }
+
+    if (schema && schemaFieldName) {
+      const columnDef = schema[schemaFieldName] as unknown;
+      if (!(columnDef instanceof NumberType)) {
+        throw new TypeError(
+          `QueryBuilder.increment requires a numeric schema field; '${schemaFieldName}' is not numeric.`
+        );
+      }
+    } else {
+      throw new TypeError(
+        `QueryBuilder.increment could not resolve schema metadata for field '${field}'.`
+      );
+    }
+
+    const where = this._buildWhereClause();
+    if (!where.sql) {
+      throw new Error('QueryBuilder.increment requires a WHERE clause to avoid full-table updates.');
+    }
+
+    const params = [...where.params];
+    const amountPlaceholder = `$${params.length + 1}`;
+    params.push(amount);
+
+    let query = `UPDATE ${this.tableName} SET ${dbField} = ${dbField} + ${amountPlaceholder} WHERE ${where.sql}`;
+
+    const returningColumns = Array.isArray(options.returning) ? options.returning : [];
+    if (returningColumns.length > 0) {
+      const resolvedColumns = returningColumns.map(column => {
+        const resolved = this._resolveFieldName(column);
+        this._assertResolvedField(resolved);
+        if (typeof resolved !== 'string') {
+          throw new TypeError('QueryBuilder.increment RETURNING requires string column references.');
+        }
+        return resolved;
+      });
+
+      query += ` RETURNING ${resolvedColumns.join(', ')}`;
+    }
+
+    const result = await this.dal.query<TRow>(query, params);
+    const rows =
+      returningColumns.length > 0
+        ? result.rows.map(row => remapRowToCamelCase<TRow>(row, fieldMappings))
+        : [];
+
+    return {
+      rowCount: result.rowCount ?? result.rows.length,
+      rows,
+    };
   }
 
   /**

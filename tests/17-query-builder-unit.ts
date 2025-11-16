@@ -983,3 +983,86 @@ test('QueryBuilder.includeSensitive accepts string or array', t => {
   qb2.includeSensitive(['password', 'token']);
   t.deepEqual(qb2._includeSensitive, ['password', 'token']);
 });
+
+test('QueryBuilder.increment updates numeric columns with returning support', async t => {
+  type Data = { id: string; counter: number };
+  const schema = {
+    id: typesLib.string(),
+    counter: typesLib.number(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const calls: Array<{ sql?: string; params?: unknown[] }> = [];
+  const { qb } = createQueryBuilderHarness({
+    tableName: 'counters',
+    schema,
+    camelToSnake: { counter: 'counter' },
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(sql?: string, params: unknown[] = []) {
+        calls.push({ sql, params });
+        return createQueryResult([{ counter: 2 } as unknown as TRecord]);
+      },
+    },
+  });
+
+  qb._addWhereCondition('id', '=', 'user-1');
+  const result = await qb.increment('counter', 1, { returning: ['counter'] });
+
+  t.is(result.rowCount, 1);
+  t.deepEqual(result.rows[0], { counter: 2 });
+  t.truthy(calls[0]?.sql?.includes('counter = counter + $2'));
+  t.deepEqual(calls[0]?.params, ['user-1', 1]);
+});
+
+test('QueryBuilder.increment rejects non-numeric schema columns', async t => {
+  type Data = { id: string; title: string };
+  const schema = {
+    id: typesLib.string(),
+    title: typesLib.string(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    tableName: 'posts',
+    schema,
+    camelToSnake: { title: 'title' },
+  });
+
+  await t.throwsAsync(
+    () => qb.increment('title' as unknown as string, 1, { returning: ['title'] }),
+    { message: /numeric schema field/ }
+  );
+});
+
+test('FilterWhereBuilder.decrement delegates to increment with negative amount', async t => {
+  type Data = { id: string; counter: number };
+  const schema = {
+    id: typesLib.string(),
+    counter: typesLib.number(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const calls: Array<{ sql?: string; params?: unknown[] }> = [];
+  const { qb, model } = createQueryBuilderHarness({
+    tableName: 'counters',
+    schema,
+    camelToSnake: { counter: 'counter' },
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(sql?: string, params: unknown[] = []) {
+        calls.push({ sql, params });
+        return createQueryResult([{ counter: 4 } as unknown as TRecord]);
+      },
+    },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, ModelInstance<Data, JsonObject>, string>(
+    qb,
+    false
+  );
+
+  builder.and({ id: 'user-1' });
+  const result = await builder.decrement('counter', { by: 2, returning: ['counter'] });
+
+  t.is(result.rowCount, 1);
+  t.deepEqual(result.rows[0], { counter: 4 });
+  t.truthy(calls[0]?.sql?.includes('counter = counter + $2'));
+  t.deepEqual(calls[0]?.params, ['user-1', -2]);
+  t.is(model.tableName, 'counters');
+});

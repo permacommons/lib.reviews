@@ -39,25 +39,6 @@ const userStatics = {
 
 const userStaticMethods = defineStaticMethods(userManifest, {
   /**
-   * Increase a user's invite link count and return the new total.
-   *
-   * @param id - Identifier of the user to update
-   * @returns The updated invite count
-   */
-  async increaseInviteLinkCount(this: UserModel, id: string) {
-    const query = `
-        UPDATE ${this.tableName ?? 'users'}
-        SET invite_link_count = invite_link_count + 1
-        WHERE id = $1
-        RETURNING invite_link_count
-      `;
-
-    const result = await this.dal.query(query, [id]);
-    if (!result.rows.length) throw new Error(`User with id ${id} not found`);
-
-    return (result.rows[0] as { invite_link_count: number }).invite_link_count;
-  },
-  /**
    * Create a new user record from the supplied payload.
    *
    * @param userObj - User attributes to persist

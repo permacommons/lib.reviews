@@ -199,6 +199,15 @@ const things = await Thing.filterWhere({ urls: containsAll(targetUrls) })
 // Aggregates reuse the same revision-safe predicates
 const averageRating = await Review.filterWhere({ thingID }).average('starRating');
 const reviewCount = await Review.filterWhere({ thingID }).count();
+
+// Atomic counters for numeric schema fields (throws on non-numeric columns)
+const { rows } = await User.filterWhere({ id: someUser }).increment('inviteLinkCount', {
+  by: 1,
+  returning: ['inviteLinkCount'],
+});
+
+// Or decrement the same field atomically
+await User.filterWhere({ id: someUser }).decrement('inviteLinkCount', { by: 1 });
 ```
 
 ## Revisions

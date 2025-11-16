@@ -146,7 +146,6 @@ export type UserView = Pick<
 };
 
 export type UserStaticMethods = {
-  increaseInviteLinkCount(this: UserStaticThis, id: string): Promise<number>;
   create(this: UserStaticThis, userObj: CreateUserPayload): Promise<UserInstance>;
   ensureUnique(this: UserStaticThis, name: string): Promise<boolean>;
   getWithTeams(

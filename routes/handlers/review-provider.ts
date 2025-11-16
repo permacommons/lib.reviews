@@ -295,7 +295,8 @@ class ReviewProvider extends AbstractBREADProvider {
               data: this.getWebHookData(review, this.req.user),
             });
 
-            UserModel.increaseInviteLinkCount(this.req.user.id)
+            UserModel.filterWhere({ id: this.req.user.id })
+              .increment('inviteLinkCount', { by: 1 })
               .then(() => {
                 this.res.redirect(`/${review.thing.id}#your-review`);
                 search.indexReview(review);

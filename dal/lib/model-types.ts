@@ -147,6 +147,10 @@ export type DateKeys<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends Date ? K : never;
 }[keyof T];
 
+export type NumericKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends number | bigint ? K : never;
+}[keyof T];
+
 type EqualityComparablePrimitive = string | number | bigint | boolean | Date;
 
 type EqualityComparableKeys<T> = {
@@ -358,6 +362,14 @@ export interface FilterWhereQueryBuilder<
     field: Extract<keyof TData, string>,
     direction?: 'ASC' | 'DESC'
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  increment<K extends Extract<NumericKeys<TData>, string>, R extends Extract<keyof TData, string> = K>(
+    field: K,
+    options?: { by?: number; returning?: R[] }
+  ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }>;
+  decrement<K extends Extract<NumericKeys<TData>, string>, R extends Extract<keyof TData, string> = K>(
+    field: K,
+    options?: { by?: number; returning?: R[] }
+  ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }>;
   limit(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   sample(count?: number): Promise<TInstance[]>;
   offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;

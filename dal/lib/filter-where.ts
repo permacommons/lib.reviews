@@ -11,6 +11,7 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance,
+  NumericKeys,
   RevisionDataRecord,
 } from './model-types.ts';
 import QueryBuilder from './query-builder.ts';
@@ -680,6 +681,43 @@ class FilterWhereBuilder<
       throw new TypeError('FilterWhereBuilder.average requires a string column reference.');
     }
     return this._builder.average(dbField);
+  }
+
+  /**
+   * Atomically increment a numeric column scoped by the current predicates.
+   *
+   * @param field Numeric model field to increment
+   * @param options Configure the increment step and returned columns
+   */
+  async increment<K extends Extract<NumericKeys<TData>, string>, R extends Extract<keyof TData, string> = K>(
+    field: K,
+    options: { by?: number; returning?: R[] } = {}
+  ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }> {
+    this._ensureRevisionFilters();
+    const result = await (this._builder as QueryBuilder).increment(
+      field as string,
+      options.by ?? 1,
+      { returning: options.returning as string[] | undefined }
+    );
+
+    return result as { rowCount: number; rows: Array<Pick<TData, R>> };
+  }
+
+  /**
+   * Atomically decrement a numeric column scoped by the current predicates.
+   *
+   * @param field Numeric model field to decrement
+   * @param options Configure the decrement step and returned columns
+   */
+  async decrement<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(field: K, options: { by?: number; returning?: R[] } = {}): Promise<{
+    rowCount: number;
+    rows: Array<Pick<TData, R>>;
+  }> {
+    const amount = options.by ?? 1;
+    return this.increment(field, { ...options, by: -Math.abs(amount) });
   }
 
   async delete(): Promise<number> {
