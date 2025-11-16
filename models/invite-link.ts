@@ -28,18 +28,10 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
     }
 
     try {
-      const query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE created_by = $1
-          AND (used_by IS NULL)
-        ORDER BY created_on DESC
-      `;
-
-      const result = await this.dal.query(query, [user.id]);
-      return result.rows.map(row =>
-        normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>))
-      );
+      const invites = await this.filterWhere({ createdBy: user.id, usedBy: null })
+        .orderBy('createdOn', 'DESC')
+        .run();
+      return invites.map(normalizeInviteInstance);
     } catch (error) {
       debug.error('Failed to fetch pending invite links:', error);
       return [];
@@ -58,18 +50,10 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
     }
 
     try {
-      const query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE created_by = $1
-          AND used_by IS NOT NULL
-        ORDER BY created_on DESC
-      `;
-
-      const result = await this.dal.query(query, [user.id]);
-      const invites = result.rows.map(row =>
-        normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>))
-      );
+      const invites = await this.filterWhere({ createdBy: user.id, usedBy: this.ops.neq(null) })
+        .orderBy('createdOn', 'DESC')
+        .run();
+      invites.forEach(normalizeInviteInstance);
 
       const usedByIds = [
         ...new Set(
@@ -128,21 +112,14 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
     }
 
     try {
-      const query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE id = $1
-        LIMIT 1
-      `;
-
-      const result = await this.dal.query(query, [id]);
-      if (result.rows.length === 0) {
+      const invite = await this.filterWhere({ id }).first();
+      if (!invite) {
         const error = new DocumentNotFound(`invite_links with id ${id} not found`);
         error.name = 'DocumentNotFoundError';
         throw error;
       }
 
-      return normalizeInviteInstance(this.createFromRow(result.rows[0] as Record<string, unknown>));
+      return normalizeInviteInstance(invite);
     } catch (error) {
       if (error instanceof DocumentNotFound || (error as Error).name === 'DocumentNotFoundError') {
         throw error;

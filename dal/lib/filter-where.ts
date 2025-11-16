@@ -150,8 +150,8 @@ function createGroupedPredicate(
  */
 function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRecord> {
   return {
-    neq<K extends keyof TRecord>(value: TRecord[K]) {
-      const operator: InternalFilterOperator<K, TRecord[K]> = {
+    neq<K extends keyof TRecord>(value: TRecord[K] | null) {
+      const operator: InternalFilterOperator<K, TRecord[K] | null> = {
         [FILTER_OPERATOR_TOKEN]: true,
         __allowedKeys: null as unknown as K,
         value,
@@ -689,7 +689,10 @@ class FilterWhereBuilder<
    * @param field Numeric model field to increment
    * @param options Configure the increment step and returned columns
    */
-  async increment<K extends Extract<NumericKeys<TData>, string>, R extends Extract<keyof TData, string> = K>(
+  async increment<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(
     field: K,
     options: { by?: number; returning?: R[] } = {}
   ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }> {
@@ -712,7 +715,10 @@ class FilterWhereBuilder<
   async decrement<
     K extends Extract<NumericKeys<TData>, string>,
     R extends Extract<keyof TData, string> = K,
-  >(field: K, options: { by?: number; returning?: R[] } = {}): Promise<{
+  >(
+    field: K,
+    options: { by?: number; returning?: R[] } = {}
+  ): Promise<{
     rowCount: number;
     rows: Array<Pick<TData, R>>;
   }> {

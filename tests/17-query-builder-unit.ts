@@ -985,7 +985,6 @@ test('QueryBuilder.includeSensitive accepts string or array', t => {
 });
 
 test('QueryBuilder.increment updates numeric columns with returning support', async t => {
-  type Data = { id: string; counter: number };
   const schema = {
     id: typesLib.string(),
     counter: typesLib.number(),
@@ -1014,7 +1013,6 @@ test('QueryBuilder.increment updates numeric columns with returning support', as
 });
 
 test('QueryBuilder.increment rejects non-numeric schema columns', async t => {
-  type Data = { id: string; title: string };
   const schema = {
     id: typesLib.string(),
     title: typesLib.string(),

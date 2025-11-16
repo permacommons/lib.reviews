@@ -81,6 +81,7 @@ Replace manual model initialization with declarative manifests that drive type g
 - **Expand manifest-driven inference**
   - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
   - [ ] Thread manifest-derived instance types into `QueryBuilder` so `filterWhere().run()` returns e.g. `ThingInstance[]` without manual casts.
+  - [ ] Make `filterWhere` operator helpers nullability-aware (e.g., only allow `neq(null)` on nullable fields) by threading schema-required flags into the operator typing.
 
 - **Clean up supporting infrastructure**
   - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.

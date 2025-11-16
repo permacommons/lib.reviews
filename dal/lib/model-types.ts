@@ -173,7 +173,7 @@ type NonEmptyArray<T> = readonly [T, ...T[]] | [T, ...T[]];
  * corresponding field; caching helper *results* widens their allowed keys.
  */
 export interface FilterWhereOperators<TRecord extends JsonObject> {
-  neq<K extends keyof TRecord>(value: TRecord[K]): FilterWhereOperator<K, TRecord[K]>;
+  neq<K extends keyof TRecord>(value: TRecord[K] | null): FilterWhereOperator<K, TRecord[K] | null>;
   lt<K extends ComparableKeys<TRecord>>(
     value: NonNullable<TRecord[K]>
   ): FilterWhereOperator<K, NonNullable<TRecord[K]>>;
@@ -362,11 +362,17 @@ export interface FilterWhereQueryBuilder<
     field: Extract<keyof TData, string>,
     direction?: 'ASC' | 'DESC'
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
-  increment<K extends Extract<NumericKeys<TData>, string>, R extends Extract<keyof TData, string> = K>(
+  increment<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(
     field: K,
     options?: { by?: number; returning?: R[] }
   ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }>;
-  decrement<K extends Extract<NumericKeys<TData>, string>, R extends Extract<keyof TData, string> = K>(
+  decrement<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(
     field: K,
     options?: { by?: number; returning?: R[] }
   ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }>;

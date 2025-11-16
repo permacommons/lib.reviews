@@ -1738,7 +1738,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     const where = this._buildWhereClause();
     if (!where.sql) {
-      throw new Error('QueryBuilder.increment requires a WHERE clause to avoid full-table updates.');
+      throw new Error(
+        'QueryBuilder.increment requires a WHERE clause to avoid full-table updates.'
+      );
     }
 
     const params = [...where.params];
@@ -1753,7 +1755,9 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
         const resolved = this._resolveFieldName(column);
         this._assertResolvedField(resolved);
         if (typeof resolved !== 'string') {
-          throw new TypeError('QueryBuilder.increment RETURNING requires string column references.');
+          throw new TypeError(
+            'QueryBuilder.increment RETURNING requires string column references.'
+          );
         }
         return resolved;
       });
