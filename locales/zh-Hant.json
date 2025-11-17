@@ -98,6 +98,7 @@
 	"invalid star rating": "提交的評級「%s」無效。",
 	"review title too long": "提交的評論標題太長。",
 	"invalid language code": "提交的語言代碼「%s」無效且不被認可。",
+	"html in text field": "提交的內容裡包含此欄位不允許使用的 HTML 標籤。請移除所有 HTML 格式內容。",
 	"feed": "最近評論",
 	"one or multiple stars": {
 		"one": "%f顆星",

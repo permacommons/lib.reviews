@@ -98,6 +98,7 @@
 	"invalid star rating": "提交的评级“%s”无效。",
 	"review title too long": "提交的点评标题太长。",
 	"invalid language code": "提交的语言代码“%s”无效或不被认可。",
+	"html in text field": "您所提交的内容包含此字段不允许使用的HTML标签。请移除所有HTML格式。",
 	"feed": "最近点评",
 	"one or multiple stars": {
 		"one": "%f颗星",

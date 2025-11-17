@@ -102,6 +102,7 @@
 	"invalid star rating": "De opgegeven waardering, \"%s\" is niet geldig.",
 	"review title too long": "De opgegeven naam voor de beoordeling is te lang.",
 	"invalid language code": "De opgegeven taalcode, \"%2\", is niet geldig of wordt niet herkend.",
+	"html in text field": "De ingezonden inhoud bevat HTML-tags die in dit veld niet zijn toegestaan. Verwijder alle HTML-opmaak.",
 	"feed": "Recente beoordelingen",
 	"one or multiple stars": {
 		"one": "%f ster",
