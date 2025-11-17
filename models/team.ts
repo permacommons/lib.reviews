@@ -76,7 +76,7 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
 
       if (reviewData.hasMore && reviews.length > 0) {
         const lastReview = reviews[reviews.length - 1];
-        const offsetDate = (lastReview?.createdOn ?? lastReview?.created_on) as Date | undefined;
+        const offsetDate = lastReview?.createdOn as Date | undefined;
         if (offsetDate) {
           team.reviewOffsetDate = offsetDate;
           team.review_offset_date = offsetDate;
