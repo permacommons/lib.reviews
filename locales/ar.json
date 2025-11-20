@@ -102,6 +102,7 @@
 	"invalid star rating": "اللتقييم المقدم , '%s', غير صالح.",
 	"review title too long": "عنوان المراجعة المقدمة طويل جدا.",
 	"invalid language code": "رمز اللغة المقدم , '%s', غير صالح أو لا يمكن التعرف عليه.",
+	"html in text field": "يحتوي المحتوى المُرسل على وسوم HTML غير مسموح بها في هذا الحقل. يُرجى إزالة أي تنسيق HTML.",
 	"feed": "أحدث المراجعات",
 	"one or multiple stars": {
 		"one": "%f نجمة",
