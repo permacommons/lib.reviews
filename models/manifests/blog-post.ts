@@ -9,7 +9,7 @@ import type {
 } from '../../dal/lib/model-manifest.ts';
 import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
-import type { UserViewer } from './user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const { mlString } = dal as {
   mlString: typeof import('../../dal/lib/ml-string.ts').default;
@@ -53,7 +53,7 @@ export type BlogPostVirtual = InferVirtual<(typeof blogPostManifest)['schema']>;
 export interface BlogPostInstanceMethods {
   populateUserInfo(
     this: BlogPostInstanceBase & BlogPostInstanceMethods,
-    user: UserViewer | null | undefined
+    user: UserAccessContext | null | undefined
   ): void;
 }
 

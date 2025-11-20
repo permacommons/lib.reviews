@@ -7,6 +7,9 @@ import type {
   ModelConstructor,
   ModelInstance,
   ModelInstanceCore,
+  ModelViewBuilder,
+  ModelViewDefinition,
+  ModelViewFetchOptions,
   RevisionActor,
   RevisionMetadata,
 } from './model-types.ts';
@@ -173,6 +176,10 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   public _changed: Set<string>;
   public _isNew: boolean;
   public _originalData: Record<string, unknown>;
+  protected static _views: Map<
+    string,
+    ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>
+  > = new Map();
 
   protected static get runtime(): ModelRuntime<JsonObject, JsonObject> {
     return this as unknown as ModelRuntime<JsonObject, JsonObject>;
@@ -351,6 +358,354 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
+   * Register a named projection/view for this model.
+   * @param name - Unique view identifier
+   * @param definition - View configuration
+   */
+  static defineView<TView extends JsonObject = JsonObject>(
+    name: string,
+    definition: ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, TView>
+  ): void {
+    const runtime = this.runtime;
+    if (!runtime._views || !(runtime._views instanceof Map)) {
+      runtime._views = new Map();
+    }
+
+    runtime._views.set(
+      name,
+      definition as ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>
+    );
+  }
+
+  /**
+   * Retrieve the view definition for a registered projection.
+   *
+   * @param name - View identifier
+   * @returns Stored view definition or null if missing
+   */
+  static getView<TView extends JsonObject = JsonObject>(
+    name: string
+  ): ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, TView> | null {
+    const view = this._getViewDefinition<TView>(name);
+    return view || null;
+  }
+
+  /**
+   * Internal helper to access the normalized view definition.
+   *
+   * @param name - View identifier
+   * @returns Registered definition or null
+   * @private
+   */
+  static _getViewDefinition<TView extends JsonObject = JsonObject>(
+    name: string
+  ): ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, TView> | null {
+    const runtime = this.runtime;
+    if (!runtime._views || !(runtime._views instanceof Map)) {
+      return null;
+    }
+
+    return (
+      (runtime._views.get(name) as ModelViewDefinition<
+        ModelInstance<JsonObject, JsonObject>,
+        TView
+      >) || null
+    );
+  }
+
+  /**
+   * Execute a view query using the provided builder configuration.
+   *
+   * @param name - Registered view name
+   * @param options - View fetch options
+   * @returns Array of projected view objects
+   */
+  static async fetchView<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TView extends JsonObject = JsonObject,
+  >(
+    this: ModelRuntime<TData, TVirtual> & typeof Model,
+    name: string,
+    options: ModelViewFetchOptions<TData, TVirtual, ModelInstance<TData, TVirtual>> = {}
+  ): Promise<TView[]> {
+    const viewDef = this._getViewDefinition<TView>(name) as ModelViewDefinition<
+      ModelInstance<TData, TVirtual>,
+      TView
+    >;
+    if (!viewDef) {
+      throw new Error(`View '${name}' not defined for model '${this.tableName}'`);
+    }
+
+    const builder = this.filterWhere({}) as unknown as ModelViewBuilder<
+      TData,
+      TVirtual,
+      ModelInstance<TData, TVirtual>
+    >;
+
+    if (options.includeSensitive && options.includeSensitive.length > 0) {
+      builder.includeSensitive(options.includeSensitive);
+    }
+
+    if (typeof options.configure === 'function') {
+      options.configure(builder);
+    }
+
+    const results = await builder.run();
+    return results.map(instance => viewDef.project(instance as ModelInstance<TData, TVirtual>));
+  }
+
+  /**
+   * Batch-load many-to-many related records through a junction table.
+   *
+   * Given an array of source IDs, fetches all related records and groups them
+   * by source ID. Handles both direct and through (junction table) relations,
+   * automatically applying revision system guards when needed.
+   *
+   * @param relationName - Name of the relation from the manifest
+   * @param sourceIds - Array of source record IDs to load relations for
+   * @returns Map of source ID to array of related model instances
+   *
+   * @example
+   * // Load all teams for multiple reviews
+   * const reviewTeamMap = await Review.loadManyRelated('teams', reviewIds);
+   * reviewTeamMap.get(reviewId) // => TeamInstance[]
+   */
+  static async loadManyRelated<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+  >(
+    this: ModelRuntime<TData, TVirtual> & typeof Model,
+    relationName: string,
+    sourceIds: string[]
+  ): Promise<Map<string, ModelInstance<JsonObject, JsonObject>[]>> {
+    const resultMap = new Map<string, ModelInstance<JsonObject, JsonObject>[]>();
+
+    // Validate inputs
+    const uniqueIds = [
+      ...new Set(sourceIds.filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    ];
+    if (uniqueIds.length === 0) {
+      return resultMap;
+    }
+
+    // Get relation metadata
+    const relationConfig = this.getRelation(relationName);
+    if (!relationConfig) {
+      const availableRelations = this.getRelations().map(r => r.name);
+      const suggestion =
+        availableRelations.length > 0
+          ? ` Available relations: ${availableRelations.join(', ')}`
+          : ' No relations defined for this model.';
+      throw new Error(
+        `Relation '${relationName}' not found for model '${this.tableName}'.${suggestion}`
+      );
+    }
+
+    // Get target model
+    const targetModelKey = relationConfig.targetModelKey || relationConfig.targetTable;
+    let TargetModel: ModelConstructor<JsonObject, JsonObject>;
+    try {
+      TargetModel = this.dal.getModel(targetModelKey);
+    } catch (error) {
+      throw new Error(
+        `Target model '${targetModelKey}' not found for relation '${relationName}': ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    // Resolve table names
+    const schemaNamespace = this.dal.schemaNamespace || '';
+    const targetTableName = schemaNamespace
+      ? `${schemaNamespace}${relationConfig.targetTable}`
+      : relationConfig.targetTable;
+
+    // Build query based on relation type
+    let query: string;
+    const params: unknown[] = uniqueIds;
+
+    if (relationConfig.through && relationConfig.joinType === 'through') {
+      // Many-to-many through junction table
+      const junctionTableName = schemaNamespace
+        ? `${schemaNamespace}${relationConfig.through.table}`
+        : relationConfig.through.table;
+
+      const junctionSourceColumn = relationConfig.through.sourceColumn;
+      const junctionTargetColumn = relationConfig.through.targetColumn;
+      const targetColumn = relationConfig.targetColumn || 'id';
+
+      const placeholders = uniqueIds.map((_, index) => `$${index + 1}`).join(', ');
+
+      // Build SELECT with junction table join
+      query = `
+        SELECT
+          j.${junctionSourceColumn} AS __source_id,
+          t.*
+        FROM ${targetTableName} t
+        JOIN ${junctionTableName} j ON t.${targetColumn} = j.${junctionTargetColumn}
+        WHERE j.${junctionSourceColumn} IN (${placeholders})
+      `;
+
+      // Add revision guards for target table if needed
+      if (relationConfig.hasRevisions) {
+        query += `
+          AND (t._old_rev_of IS NULL)
+          AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
+        `;
+      }
+    } else {
+      // Direct one-to-many relation
+      const targetColumn = relationConfig.targetColumn || 'id';
+
+      const placeholders = uniqueIds.map((_, index) => `$${index + 1}`).join(', ');
+
+      query = `
+        SELECT
+          ${targetColumn} AS __source_id,
+          *
+        FROM ${targetTableName}
+        WHERE ${targetColumn} IN (${placeholders})
+      `;
+
+      // Add revision guards if needed
+      if (relationConfig.hasRevisions) {
+        query += `
+          AND (_old_rev_of IS NULL)
+          AND (_rev_deleted IS NULL OR _rev_deleted = false)
+        `;
+      }
+    }
+
+    // Execute query
+    const result = await this.dal.query(query, params);
+
+    // Group results by source ID
+    result.rows.forEach(row => {
+      const sourceId = (row as Record<string, unknown>).__source_id as string;
+      if (!sourceId || typeof sourceId !== 'string') {
+        return;
+      }
+
+      // Create instance from row (excluding our __source_id marker)
+      const rowData = { ...row };
+      delete (rowData as Record<string, unknown>).__source_id;
+
+      const instance = TargetModel.createFromRow(rowData as JsonObject) as ModelInstance<
+        JsonObject,
+        JsonObject
+      >;
+
+      if (!resultMap.has(sourceId)) {
+        resultMap.set(sourceId, []);
+      }
+      resultMap.get(sourceId)?.push(instance);
+    });
+
+    return resultMap;
+  }
+
+  /**
+   * Batch-insert associations into a many-to-many junction table.
+   *
+   * This helper creates associations between a single source record and multiple target records
+   * by inserting rows into a junction table. It automatically handles:
+   * - Schema namespace prefixing for test isolation
+   * - Duplicate associations via ON CONFLICT DO NOTHING
+   * - Input validation with helpful error messages
+   *
+   * @param relationName - Name of the relation defined in the manifest (must have a `through` junction table)
+   * @param sourceId - ID of the source record to associate from
+   * @param targetIds - Array of target record IDs to associate with
+   * @param options - Optional configuration
+   * @param options.onConflict - How to handle duplicate associations: 'ignore' (default) or 'error'
+   * @throws {Error} If relation not found, has no junction table, or inputs are invalid
+   *
+   * @example
+   * ```ts
+   * // Associate a thing with multiple files
+   * await Thing.addManyRelated('files', thingId, [file1.id, file2.id]);
+   *
+   * // Associate a review with teams
+   * await Review.addManyRelated('teams', reviewId, teamIds, { onConflict: 'error' });
+   * ```
+   */
+  static async addManyRelated<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+  >(
+    this: ModelRuntime<TData, TVirtual> & typeof Model,
+    relationName: string,
+    sourceId: string,
+    targetIds: string[],
+    options?: { onConflict?: 'ignore' | 'error' }
+  ): Promise<void> {
+    // Validate inputs
+    if (!sourceId || typeof sourceId !== 'string') {
+      throw new Error(
+        `Invalid sourceId: expected non-empty string, got ${typeof sourceId === 'string' ? 'empty string' : typeof sourceId}`
+      );
+    }
+
+    const uniqueIds = [
+      ...new Set(targetIds.filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    ];
+    if (uniqueIds.length === 0) {
+      return; // Nothing to insert
+    }
+
+    // Get relation metadata
+    const relationConfig = this.getRelation(relationName);
+    if (!relationConfig) {
+      const availableRelations = this.getRelations().map(r => r.name);
+      const suggestion =
+        availableRelations.length > 0
+          ? ` Available relations: ${availableRelations.join(', ')}`
+          : ' No relations defined for this model.';
+      throw new Error(
+        `Relation '${relationName}' not found for model '${this.tableName}'.${suggestion}`
+      );
+    }
+
+    // Validate that this is a many-to-many relation with junction table
+    if (!relationConfig.through || relationConfig.joinType !== 'through') {
+      throw new Error(
+        `Relation '${relationName}' is not a many-to-many relation with a junction table. ` +
+          `Only relations with 'through' configuration support addManyRelated.`
+      );
+    }
+
+    // Resolve table names with schema namespace
+    const schemaNamespace = this.dal.schemaNamespace || '';
+    const junctionTableName = schemaNamespace
+      ? `${schemaNamespace}${relationConfig.through.table}`
+      : relationConfig.through.table;
+
+    const junctionSourceColumn = relationConfig.through.sourceColumn;
+    const junctionTargetColumn = relationConfig.through.targetColumn;
+
+    // Build parameterized INSERT query
+    const valueClauses: string[] = [];
+    const params: string[] = [];
+    let paramIndex = 1;
+
+    uniqueIds.forEach(targetId => {
+      valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
+      params.push(sourceId, targetId);
+      paramIndex += 2;
+    });
+
+    const onConflictClause = options?.onConflict === 'error' ? '' : 'ON CONFLICT DO NOTHING';
+
+    const query = `
+      INSERT INTO ${junctionTableName} (${junctionSourceColumn}, ${junctionTargetColumn})
+      VALUES ${valueClauses.join(', ')}
+      ${onConflictClause}
+    `;
+
+    // Execute insert
+    await this.dal.query(query, params);
+  }
+
+  /**
    * Get the database field name for a given property name
    * @param propertyName - Property name (camelCase or snake_case)
    * @returns Database field name (snake_case)
@@ -431,6 +786,10 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     class DynamicModel extends Model<TData, TVirtual> {
       static override _fieldMappings = new Map<string, string>();
       static override _relations = new Map<string, NormalizedRelationConfig>();
+      static override _views = new Map<
+        string,
+        ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>
+      >();
       static get tableName() {
         return tableName;
       }
@@ -757,8 +1116,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
-   * Save with related data
-   * @param joinOptions - Options for saving related data
+   * Persist this instance and synchronize any many-to-many relations.
+   *
+   * ⚠️ Only `through` relations whose join tables contain *just*
+   * foreign keys are managed automatically. If the join table carries
+   * additional editable columns (role flags, metadata, timestamps that
+   * should be user-controlled, etc.), mutate that table directly instead
+   * of relying on {@link saveAll}, because the DAL currently treats
+   * relation membership as an ID-only diff.
+   *
+   * @param joinOptions - Optional map of relation names to include.
+   *   When omitted, every declared `through` relation is synchronized.
    * @returns This instance
    */
   async saveAll(joinOptions = {}) {
@@ -815,36 +1183,63 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     const sourceColumn = through.sourceForeignKey || `${sourceBase.replace(/s$/, '')}_id`;
     const targetColumn = through.targetForeignKey || `${targetBase.replace(/s$/, '')}_id`;
 
-    try {
-      // First, remove existing associations for this record
-      await this.runtime.dal.query(`DELETE FROM ${joinTableName} WHERE ${sourceColumn} = $1`, [
-        this.id,
-      ]);
+    const desiredIds: string[] = [];
+    const desiredSet = new Set<string>();
 
-      // Then add new associations
-      if (relatedData.length > 0) {
+    for (const item of relatedData) {
+      const itemId = typeof item === 'string' ? item : item?.id;
+      if (!itemId) continue;
+      if (desiredSet.has(itemId)) {
+        throw new Error(
+          `Duplicate entry detected while saving ${relationName} relation: ${itemId}`
+        );
+      }
+      desiredIds.push(itemId);
+      desiredSet.add(itemId);
+    }
+
+    try {
+      const existingResult = await this.runtime.dal.query<Record<string, unknown>>(
+        `SELECT ${targetColumn} FROM ${joinTableName} WHERE ${sourceColumn} = $1`,
+        [this.id]
+      );
+      const existingIds = new Set(
+        existingResult.rows
+          .map(row => row && row[targetColumn])
+          .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      );
+
+      const idsToRemove = [...existingIds].filter(id => !desiredSet.has(id));
+      if (idsToRemove.length > 0) {
+        const deleteParams = [this.id, ...idsToRemove];
+        const placeholders = idsToRemove.map((_, index) => `$${index + 2}`).join(', ');
+        const deleteQuery = `
+          DELETE FROM ${joinTableName}
+          WHERE ${sourceColumn} = $1
+            AND ${targetColumn} IN (${placeholders})
+        `;
+        await this.runtime.dal.query(deleteQuery, deleteParams);
+      }
+
+      const idsToAdd = desiredIds.filter(id => !existingIds.has(id));
+      if (idsToAdd.length > 0) {
         const values = [];
         const params = [];
         let paramIndex = 1;
 
-        for (const item of relatedData) {
-          const itemId = typeof item === 'string' ? item : item.id;
-          if (!itemId) continue;
-
+        for (const itemId of idsToAdd) {
           values.push(`($${paramIndex}, $${paramIndex + 1})`);
           params.push(this.id, itemId);
           paramIndex += 2;
         }
 
-        if (values.length > 0) {
-          const insertQuery = `
-            INSERT INTO ${joinTableName} (${sourceColumn}, ${targetColumn})
-            VALUES ${values.join(', ')}
-            ON CONFLICT (${sourceColumn}, ${targetColumn}) DO NOTHING
-          `;
+        const insertQuery = `
+          INSERT INTO ${joinTableName} (${sourceColumn}, ${targetColumn})
+          VALUES ${values.join(', ')}
+          ON CONFLICT (${sourceColumn}, ${targetColumn}) DO NOTHING
+        `;
 
-          await this.runtime.dal.query(insertQuery, params);
-        }
+        await this.runtime.dal.query(insertQuery, params);
       }
     } catch (error) {
       throw new Error(`Failed to save ${relationName} relation: ${error.message}`);
@@ -1243,6 +1638,7 @@ type RuntimeModel<
     dal: DataAccessLayer;
     _fieldMappings: Map<string, string>;
     _relations: Map<string, NormalizedRelationConfig>;
+    _views: Map<string, ModelViewDefinition<ModelInstance<JsonObject, JsonObject>, JsonObject>>;
     _revisionHandlers?: RevisionHandlerMap<TInstance>;
   };
 

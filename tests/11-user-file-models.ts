@@ -129,7 +129,7 @@ test.serial('User model: account without password is treated as locked', async t
   t.is(result.info.message, 'account locked', 'Correct locked account message');
 });
 
-test.serial('User model: increaseInviteLinkCount increments atomically', async t => {
+test.serial('User model: invite link count increments atomically', async t => {
   const name = `Invites-${randomUUID()}`;
   const user = await User.create({
     name,
@@ -137,11 +137,17 @@ test.serial('User model: increaseInviteLinkCount increments atomically', async t
     email: `${name.toLowerCase()}@example.com`,
   });
 
-  const first = await User.increaseInviteLinkCount(user.id);
-  const second = await User.increaseInviteLinkCount(user.id);
+  const first = await User.filterWhere({ id: user.id }).increment('inviteLinkCount', {
+    by: 1,
+    returning: ['inviteLinkCount'],
+  });
+  const second = await User.filterWhere({ id: user.id }).increment('inviteLinkCount', {
+    by: 1,
+    returning: ['inviteLinkCount'],
+  });
 
-  t.is(first, 1);
-  t.is(second, 2);
+  t.is(first.rows[0]?.inviteLinkCount, 1);
+  t.is(second.rows[0]?.inviteLinkCount, 2);
 
   const reloaded = await User.get(user.id);
   t.is(reloaded.inviteLinkCount, 2, 'Invite count persisted');

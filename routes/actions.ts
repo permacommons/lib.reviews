@@ -133,10 +133,16 @@ router.post(
         inviteLink.createdBy = user.id;
         const saveInvitePromise = inviteLink.save();
 
-        user.inviteLinkCount--;
-        const saveUserPromise = user.save?.();
+        const updated = await User.filterWhere({ id: user.id }).decrement('inviteLinkCount', {
+          by: 1,
+          returning: ['inviteLinkCount'],
+        });
 
-        await Promise.all([saveInvitePromise, saveUserPromise ?? Promise.resolve()]);
+        if (updated.rows[0]?.inviteLinkCount !== undefined) {
+          user.inviteLinkCount = updated.rows[0].inviteLinkCount as number;
+        }
+
+        await saveInvitePromise;
 
         req.flash('pageMessages', res.__('link generated'));
         return renderInviteLinkPage(req, res, next);

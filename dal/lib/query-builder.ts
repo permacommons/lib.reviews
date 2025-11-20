@@ -8,8 +8,43 @@ import type {
   ModelConstructor,
   ModelInstance,
 } from './model-types.ts';
+import { NumberType } from './type.ts';
 
 type PredicateValue = unknown;
+
+type IncrementResult<TRow extends JsonObject> = {
+  rowCount: number;
+  rows: TRow[];
+};
+
+/**
+ * Convert a database row with snake_case keys to the model's camelCase schema keys.
+ *
+ * @param row Database row to normalize
+ * @param fieldMappings Camel-to-snake mapping registered on the model
+ * @returns Row keyed by camelCase field names
+ */
+function remapRowToCamelCase<TRow extends JsonObject>(
+  row: JsonObject,
+  fieldMappings?: Map<string, string>
+): TRow {
+  if (!(fieldMappings instanceof Map) || fieldMappings.size === 0) {
+    return row as TRow;
+  }
+
+  const reverseMapping = new Map<string, string>();
+  for (const [camel, snake] of fieldMappings.entries()) {
+    reverseMapping.set(snake, camel);
+  }
+
+  const remapped: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const camelKey = reverseMapping.get(key) ?? key;
+    remapped[camelKey] = value;
+  }
+
+  return remapped as unknown as TRow;
+}
 
 interface BasicPredicate extends JsonObject {
   type: 'basic';
@@ -351,6 +386,28 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       }
     }
     this._orderBy.push(`${expression} ${direction.toUpperCase()}`);
+    return this;
+  }
+
+  orderByRelation(relationName: string, field: string, direction = 'ASC') {
+    const joinInfo = this._getJoinInfo(relationName);
+    if (!joinInfo) {
+      debug.db(`Warning: Unknown relation '${relationName}' for table '${this.tableName}'`);
+      return this;
+    }
+
+    if (!this._simpleJoins || !this._simpleJoins[relationName]) {
+      this._addSimpleJoin(relationName);
+    }
+
+    const targetTable = joinInfo.joinTable || joinInfo.table;
+    if (!targetTable) {
+      debug.db(`Warning: Relation '${relationName}' missing table metadata for ordering`);
+      return this;
+    }
+
+    const column = this._normalizeColumnName(field);
+    this._orderBy.push(`${targetTable}.${column} ${direction.toUpperCase()}`);
     return this;
   }
 
@@ -1182,6 +1239,42 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   }
 
   /**
+   * Calculate the average for a column.
+   *
+   * @param field - Column to aggregate.
+   * @returns Numeric average or `null` when no rows satisfy the predicates.
+   */
+  async average(field: string): Promise<number | null> {
+    return this._aggregateFunction('AVG', field);
+  }
+
+  /**
+   * Compute an aggregate for the active query.
+   *
+   * @param func - SQL aggregate function identifier (e.g., `AVG`).
+   * @param field - Resolved field/column name to aggregate.
+   * @returns Numeric aggregate result or `null` when no rows match.
+   */
+  async _aggregateFunction(func: 'AVG' | 'SUM' | 'MIN' | 'MAX', field: string) {
+    try {
+      const column =
+        typeof field === 'string' && (field.includes('.') || field.includes('('))
+          ? field
+          : `${this.tableName}.${field}`;
+      const { sql, params } = this._buildAggregateQuery(func, column);
+      const result = await this.dal.query(sql, params);
+      const value = result.rows[0]?.value;
+      if (value === null || value === undefined) {
+        return null;
+      }
+      const numeric = typeof value === 'number' ? value : Number(value);
+      return Number.isNaN(numeric) ? null : numeric;
+    } catch (error) {
+      throw convertPostgreSQLError(error);
+    }
+  }
+
+  /**
    * Delete records matching the query
    * @returns {Promise<Object>} Delete result
    */
@@ -1237,6 +1330,32 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     const predicate = this._createPredicate(field, effectiveOperator, value, options);
     this._where.push(predicate);
     return predicate;
+  }
+
+  /**
+   * Add a predicate against a column on a joined relation. This will ensure the
+   * relation is joined and apply a WHERE clause to the related table using
+   * camelCase field names.
+   *
+   * @param relationName - Relation key from the manifest
+   * @param field - CamelCase field on the related model
+   * @param operator - Comparison operator (defaults to '=')
+   * @param value - Comparison value
+   */
+  whereRelated(relationName: string, field: string, operator: string, value: unknown): this {
+    const joinInfo = this._getJoinInfo(relationName);
+    if (!joinInfo) {
+      debug.db(`Warning: Unknown relation '${relationName}' for table '${this.tableName}'`);
+      return this;
+    }
+
+    if (!this._simpleJoins || !this._simpleJoins[relationName]) {
+      this._addSimpleJoin(relationName);
+    }
+
+    const column = `${joinInfo.table}.${this._normalizeColumnName(field)}`;
+    this._addWhereCondition(column, operator, value);
+    return this;
   }
 
   /**
@@ -1536,7 +1655,29 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   _buildCountQuery() {
     let query = `SELECT COUNT(*) as count FROM ${this.tableName}`;
 
-    const where = this._buildWhereClause();
+    if (this._joins.length > 0) {
+      query += ` ${this._joins.join(' ')}`;
+    }
+
+    const where = this._buildWhereClause({ qualifyColumns: this._joins.length > 0 });
+    if (where.sql) {
+      query += ' WHERE ' + where.sql;
+    }
+
+    return { sql: query, params: where.params };
+  }
+
+  /**
+   * Build an aggregate query (`AVG`, `COUNT`, etc.) for the current predicates.
+   *
+   * @param func - Aggregate function keyword.
+   * @param column - Fully qualified column expression.
+   * @returns SQL fragment plus bound params.
+   */
+  _buildAggregateQuery(func: string, column: string) {
+    let query = `SELECT ${func}(${column}) as value FROM ${this.tableName}`;
+
+    const where = this._buildWhereClause({ qualifyColumns: true });
     if (where.sql) {
       query += ' WHERE ' + where.sql;
     }
@@ -1558,6 +1699,107 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
     }
 
     return { sql: query, params: where.params };
+  }
+
+  /**
+   * Atomically increment a numeric column on rows matching the current predicate.
+   *
+   * @param field Model field (resolved to a DB column) to increment
+   * @param amount Increment step (default: 1)
+   * @param options Optional returning clause
+   * @returns Rows matched/returned plus affected row count.
+   */
+  async increment<TRow extends JsonObject = JsonObject>(
+    field: string,
+    amount = 1,
+    options: { returning?: string[] } = {}
+  ): Promise<IncrementResult<TRow>> {
+    if (!Number.isFinite(amount)) {
+      throw new TypeError('QueryBuilder.increment amount must be a finite number.');
+    }
+
+    if (this._joins.length > 0) {
+      throw new Error('QueryBuilder.increment does not support joined queries.');
+    }
+
+    const dbField = this._resolveFieldName(field);
+    this._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError('QueryBuilder.increment requires a string column reference.');
+    }
+
+    const schema = (this.modelClass as unknown as { schema?: Record<string, unknown> }).schema;
+    const fieldMappings = (this.modelClass as unknown as { _fieldMappings?: Map<string, string> })
+      ._fieldMappings;
+
+    let schemaFieldName: string | null = null;
+    if (typeof field === 'string') {
+      if (schema && field in schema) {
+        schemaFieldName = field;
+      }
+
+      if (!schemaFieldName && fieldMappings instanceof Map) {
+        for (const [schemaKey, dbKey] of fieldMappings.entries()) {
+          if (dbKey === dbField || dbKey === field) {
+            schemaFieldName = schemaKey;
+            break;
+          }
+        }
+      }
+    }
+
+    if (schema && schemaFieldName) {
+      const columnDef = schema[schemaFieldName] as unknown;
+      if (!(columnDef instanceof NumberType)) {
+        throw new TypeError(
+          `QueryBuilder.increment requires a numeric schema field; '${schemaFieldName}' is not numeric.`
+        );
+      }
+    } else {
+      throw new TypeError(
+        `QueryBuilder.increment could not resolve schema metadata for field '${field}'.`
+      );
+    }
+
+    const where = this._buildWhereClause();
+    if (!where.sql) {
+      throw new Error(
+        'QueryBuilder.increment requires a WHERE clause to avoid full-table updates.'
+      );
+    }
+
+    const params = [...where.params];
+    const amountPlaceholder = `$${params.length + 1}`;
+    params.push(amount);
+
+    let query = `UPDATE ${this.tableName} SET ${dbField} = ${dbField} + ${amountPlaceholder} WHERE ${where.sql}`;
+
+    const returningColumns = Array.isArray(options.returning) ? options.returning : [];
+    if (returningColumns.length > 0) {
+      const resolvedColumns = returningColumns.map(column => {
+        const resolved = this._resolveFieldName(column);
+        this._assertResolvedField(resolved);
+        if (typeof resolved !== 'string') {
+          throw new TypeError(
+            'QueryBuilder.increment RETURNING requires string column references.'
+          );
+        }
+        return resolved;
+      });
+
+      query += ` RETURNING ${resolvedColumns.join(', ')}`;
+    }
+
+    const result = await this.dal.query<TRow>(query, params);
+    const rows =
+      returningColumns.length > 0
+        ? result.rows.map(row => remapRowToCamelCase<TRow>(row, fieldMappings))
+        : [];
+
+    return {
+      rowCount: result.rowCount ?? result.rows.length,
+      rows,
+    };
   }
 
   /**

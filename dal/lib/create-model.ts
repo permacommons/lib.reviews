@@ -87,6 +87,7 @@ function initializeFromManifest<Manifest extends ModelManifest>(
         }
       : false,
     relations: relationDefinitions,
+    views: manifest.views || undefined,
   };
 
   if (manifest.camelToSnake) {

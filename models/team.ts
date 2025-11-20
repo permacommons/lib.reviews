@@ -21,7 +21,7 @@ import teamManifest, {
 import { type TeamJoinRequestInstance } from './manifests/team-join-request.ts';
 import TeamJoinRequest from './team-join-request.ts';
 import TeamSlug from './team-slug.ts';
-import User, { type UserViewer } from './user.ts';
+import User, { fetchUserPublicProfiles, type UserAccessContext, type UserView } from './user.ts';
 
 const Review = referenceReview();
 
@@ -76,7 +76,7 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
 
       if (reviewData.hasMore && reviews.length > 0) {
         const lastReview = reviews[reviews.length - 1];
-        const offsetDate = (lastReview?.createdOn ?? lastReview?.created_on) as Date | undefined;
+        const offsetDate = lastReview?.createdOn as Date | undefined;
         if (offsetDate) {
           team.reviewOffsetDate = offsetDate;
           team.review_offset_date = offsetDate;
@@ -95,7 +95,7 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
    *
    * @param user - Viewer whose relationship determines permissions
    */
-  populateUserInfo(this: TeamInstance, user: ModelInstance | UserViewer | null | undefined) {
+  populateUserInfo(this: TeamInstance, user: ModelInstance | UserAccessContext | null | undefined) {
     if (!user) return;
 
     if (
@@ -202,27 +202,13 @@ const Team = defineModel(teamManifest, {
  * @param teamId - Identifier of the team to query
  * @returns Array of member records
  */
-async function getTeamMembers(model: TeamModel, teamId: string): Promise<ModelInstance[]> {
+async function getTeamMembers(model: TeamModel, teamId: string): Promise<UserView[]> {
   try {
-    const dal = model.dal;
-    const memberTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}team_members`
-      : 'team_members';
-    const userTableName = dal.schemaNamespace ? `${dal.schemaNamespace}users` : 'users';
-
-    const query = `
-      SELECT u.* FROM ${userTableName} u
-      JOIN ${memberTableName} tm ON u.id = tm.user_id
-      WHERE tm.team_id = $1
-    `;
-
-    const result = await dal.query(query, [teamId]);
-    return result.rows.map(row => {
-      const record = row as Record<string, unknown>;
-      delete record.password;
-      delete record.email;
-      return User.createFromRow(record);
-    });
+    const builder = User.filterWhere({});
+    builder.orderByRelation('teams', 'joinedOn', 'ASC').whereRelated('teams', 'id', teamId);
+    const users = await builder.run();
+    const view = User.getView<UserView>('publicProfile');
+    return view ? users.map(user => view.project(user)) : (users as UserView[]);
   } catch (error) {
     debug.error('Error getting team members');
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
@@ -237,27 +223,15 @@ async function getTeamMembers(model: TeamModel, teamId: string): Promise<ModelIn
  * @param teamId - Identifier of the team to query
  * @returns Array of moderator records
  */
-async function getTeamModerators(model: TeamModel, teamId: string): Promise<ModelInstance[]> {
+async function getTeamModerators(model: TeamModel, teamId: string): Promise<UserView[]> {
   try {
-    const dal = model.dal;
-    const moderatorTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}team_moderators`
-      : 'team_moderators';
-    const userTableName = dal.schemaNamespace ? `${dal.schemaNamespace}users` : 'users';
-
-    const query = `
-      SELECT u.* FROM ${userTableName} u
-      JOIN ${moderatorTableName} tm ON u.id = tm.user_id
-      WHERE tm.team_id = $1
-    `;
-
-    const result = await dal.query(query, [teamId]);
-    return result.rows.map(row => {
-      const record = row as Record<string, unknown>;
-      delete record.password;
-      delete record.email;
-      return User.createFromRow(record);
-    });
+    const builder = User.filterWhere({});
+    builder
+      .orderByRelation('moderatorOf', 'appointedOn', 'ASC')
+      .whereRelated('moderatorOf', 'id', teamId);
+    const users = await builder.run();
+    const view = User.getView<UserView>('publicProfile');
+    return view ? users.map(user => view.project(user)) : (users as UserView[]);
   } catch (error) {
     debug.error('Error getting team moderators');
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
@@ -279,37 +253,31 @@ async function getTeamJoinRequests(
   teamId: string,
   withDetails = false
 ): Promise<ModelInstance[]> {
-  let query = '';
-
   try {
-    const dal = model.dal;
-    const joinRequestTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}team_join_requests`
-      : 'team_join_requests';
-
-    query = `SELECT * FROM ${joinRequestTableName} WHERE team_id = $1`;
-    const result = await dal.query(query, [teamId]);
-
-    const requests: (TeamJoinRequestInstance & { user?: ModelInstance })[] = result.rows.map(row =>
-      TeamJoinRequest.createFromRow(row as Record<string, unknown>)
-    );
+    const requests: (TeamJoinRequestInstance & { user?: UserView })[] =
+      await TeamJoinRequest.filterWhere({ teamID: teamId }).run();
 
     if (withDetails) {
-      for (const request of requests) {
-        const userID = request.userID as string | undefined;
-        if (userID) {
-          try {
-            const user = await (User as unknown as { get(id: string): Promise<ModelInstance> }).get(
-              userID
-            );
-            if (user) {
-              delete (user as Record<string, unknown>).password;
-              request.user = user;
+      const requesterIDs = [
+        ...new Set(
+          requests
+            .map(request => request.userID as string | undefined)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        ),
+      ];
+
+      if (requesterIDs.length > 0) {
+        try {
+          const userMap = await fetchUserPublicProfiles(requesterIDs);
+          requests.forEach(request => {
+            const requesterID = request.userID as string | undefined;
+            if (requesterID && userMap.has(requesterID)) {
+              request.user = userMap.get(requesterID);
             }
-          } catch (error) {
-            debug.error(`Error loading user ${request.userID} for join request`);
-            debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
-          }
+          });
+        } catch (error) {
+          debug.error('Error loading users for join requests');
+          debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
         }
       }
     }
@@ -317,8 +285,6 @@ async function getTeamJoinRequests(
     return requests;
   } catch (error) {
     debug.error('Error getting team join requests');
-    debug.error(`Query: ${query}`);
-    debug.error(`Params: ${JSON.stringify([teamId])}`);
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
     return [];
   }
@@ -340,50 +306,20 @@ async function getTeamReviews(
   offsetDate?: Date | null
 ): Promise<{ reviews: ModelInstance[]; totalCount: number; hasMore: boolean }> {
   try {
-    const dal = (
-      model as unknown as {
-        dal: {
-          query(sql: string, params: unknown[]): Promise<{ rows: unknown[] }>;
-          schemaNamespace?: string;
-        };
-      }
-    ).dal;
-    const reviewTeamTableName = dal.schemaNamespace
-      ? `${dal.schemaNamespace}review_teams`
-      : 'review_teams';
-    const reviewTableName = dal.schemaNamespace ? `${dal.schemaNamespace}reviews` : 'reviews';
-    let query = `
-      SELECT r.id, r.created_on FROM ${reviewTableName} r
-      JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id
-      WHERE rt.team_id = $1
-        AND (r._old_rev_of IS NULL)
-        AND (r._rev_deleted IS NULL OR r._rev_deleted = false)
-    `;
+    const feedPage = await Review.filterWhere({})
+      .whereRelated('teams', 'id', teamId)
+      .chronologicalFeed({ cursorField: 'createdOn', cursor: offsetDate ?? undefined, limit });
 
-    const params: (string | Date | number)[] = [teamId];
-    let paramIndex = 2;
-
-    if (offsetDate) {
-      query += ` AND r.created_on < $${paramIndex}`;
-      params.push(offsetDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY r.created_on DESC LIMIT $${paramIndex}`;
-    params.push(limit + 1);
-
-    const reviewResult = await dal.query(query, params);
-    const reviewIDs = reviewResult.rows.map((row: Record<string, unknown>) => row.id as string);
     const reviews: ModelInstance[] = [];
-    const hasMoreRows = reviewResult.rows.length > limit;
-
-    if (reviewIDs.length) {
-      for (const reviewId of reviewIDs) {
+    if (feedPage.rows.length) {
+      for (const row of feedPage.rows) {
         try {
           const review = await (
             Review as unknown as { getWithData(id: string): Promise<ModelInstance> }
-          ).getWithData(reviewId);
-          if (review) reviews.push(review);
+          ).getWithData(row.id as string);
+          if (review) {
+            reviews.push(review);
+          }
         } catch (error) {
           debug.error('Error loading review for team');
           debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
@@ -391,22 +327,12 @@ async function getTeamReviews(
       }
     }
 
-    if (hasMoreRows && reviews.length > limit) reviews.length = limit;
-
-    const countQuery = `
-      SELECT COUNT(*) as total FROM ${reviewTableName} r
-      JOIN ${reviewTeamTableName} rt ON r.id = rt.review_id
-      WHERE rt.team_id = $1
-        AND (r._old_rev_of IS NULL)
-        AND (r._rev_deleted IS NULL OR r._rev_deleted = false)
-    `;
-
-    const countResult = await dal.query(countQuery, [teamId]);
+    const totalCount = await Review.filterWhere({}).whereRelated('teams', 'id', teamId).count();
 
     return {
       reviews,
-      totalCount: parseInt((countResult.rows[0] as { total?: string })?.total ?? '0', 10),
-      hasMore: hasMoreRows && reviews.length === limit,
+      totalCount,
+      hasMore: feedPage.hasMore,
     };
   } catch (error) {
     debug.error('Error getting team reviews');
@@ -415,6 +341,12 @@ async function getTeamReviews(
   }
 }
 
+/**
+ * Batch-load a set of user IDs via the `UserView` projection.
+ *
+ * @param userIds - Raw user identifiers pulled from join tables
+ * @returns Map keyed by user ID with the corresponding `UserView`
+ */
 export type {
   TeamGetWithDataOptions,
   TeamInstance,

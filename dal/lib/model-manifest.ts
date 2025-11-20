@@ -4,6 +4,7 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance,
+  ModelViewDefinition,
   VersionedModelConstructor,
   VersionedModelInstance,
 } from './model-types.ts';
@@ -43,6 +44,7 @@ export interface ModelManifest<
     };
     [key: string]: unknown;
   }[];
+  views?: Record<string, ModelViewDefinition<ModelInstance>>;
   staticMethods?: StaticMethods &
     ThisType<InferConstructor<ModelManifest<Schema, HasRevisions, StaticMethods, InstanceMethods>>>;
   instanceMethods?: InstanceMethods &

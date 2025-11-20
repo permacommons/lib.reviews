@@ -1,4 +1,5 @@
 import test from 'ava';
+import type { QueryResult } from 'pg';
 
 import * as dalModule from '../dal/index.ts';
 import { createOperators, FilterWhereBuilder } from '../dal/lib/filter-where.ts';
@@ -242,6 +243,151 @@ test('FilterWhere between participates in OR groups', t => {
     return;
   }
   t.is(nested.conjunction, 'AND');
+});
+
+test('whereRelated joins relation and applies predicate with camelCase field', t => {
+  const { qb } = createQueryBuilderHarness({
+    relations: [
+      {
+        name: 'creator',
+        targetTable: 'users',
+        sourceKey: 'created_by',
+        targetKey: 'id',
+        hasRevisions: false,
+        cardinality: 'one',
+      },
+    ],
+  });
+
+  qb.whereRelated('creator', 'isTrusted', '=', true);
+
+  t.true(qb._joins.some(join => join.includes('users')));
+  const predicate = qb._where[qb._where.length - 1];
+  if (!predicate || predicate.type !== 'basic') {
+    t.fail('Expected basic predicate for related join');
+    return;
+  }
+  t.is(predicate.column, 'is_trusted');
+  t.is(predicate.operator, '=');
+  t.true(predicate.value);
+});
+
+test('chronologicalFeed applies revision guards, cursor predicate, and trims to limit', async t => {
+  type Data = { id: string; createdOn: Date };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema: {
+      id: typesLib.string(),
+      created_on: typesLib.date(),
+    } as unknown as ModelSchema<JsonObject, JsonObject>,
+    camelToSnake: { createdOn: 'created_on' },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
+
+  const fakeRows: Instance[] = [
+    {
+      id: 'a',
+      createdOn: new Date('2025-01-03'),
+      _data: {},
+      _changed: new Set(),
+      _isNew: false,
+      _originalData: {},
+      save: async () => null as never,
+      saveAll: async () => null as never,
+      delete: async () => false,
+      getValue: () => null as never,
+      setValue: () => undefined,
+      generateVirtualValues: () => undefined,
+    },
+    {
+      id: 'b',
+      createdOn: new Date('2025-01-02'),
+      _data: {},
+      _changed: new Set(),
+      _isNew: false,
+      _originalData: {},
+      save: async () => null as never,
+      saveAll: async () => null as never,
+      delete: async () => false,
+      getValue: () => null as never,
+      setValue: () => undefined,
+      generateVirtualValues: () => undefined,
+    },
+    {
+      id: 'c',
+      createdOn: new Date('2025-01-01'),
+      _data: {},
+      _changed: new Set(),
+      _isNew: false,
+      _originalData: {},
+      save: async () => null as never,
+      saveAll: async () => null as never,
+      delete: async () => false,
+      getValue: () => null as never,
+      setValue: () => undefined,
+      generateVirtualValues: () => undefined,
+    },
+  ];
+
+  let runCalled = false;
+  qb.run = (async () => {
+    runCalled = true;
+    return fakeRows as unknown as Awaited<ReturnType<typeof qb.run>>;
+  }) as typeof qb.run;
+
+  const result = await builder.chronologicalFeed({
+    cursorField: 'createdOn',
+    cursor: new Date('2025-01-04'),
+    limit: 2,
+  });
+
+  t.true(runCalled);
+  t.deepEqual(qb._orderBy, ['created_on DESC']);
+  t.is(qb._limit, 3);
+  t.is(result.hasMore, true);
+  t.deepEqual(
+    result.rows.map(row => row.id),
+    ['a', 'b']
+  );
+  t.deepEqual(result.nextCursor, fakeRows[1].createdOn);
+
+  t.is(qb._where[0]?.column, '_old_rev_of');
+  t.is(qb._where[0]?.operator, 'IS');
+  t.is(qb._where[1]?.column, '_rev_deleted');
+  t.is(qb._where[1]?.operator, '=');
+  t.is(qb._where[2]?.column, 'created_on');
+  t.is(qb._where[2]?.operator, '<');
+});
+
+test('chronologicalFeed short-circuits when limit is zero', async t => {
+  type Data = { id: string; createdOn: Date };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    schema: {
+      id: typesLib.string(),
+      created_on: typesLib.date(),
+    } as unknown as ModelSchema<JsonObject, JsonObject>,
+    camelToSnake: { createdOn: 'created_on' },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
+
+  qb.run = (async () => {
+    t.fail('run should not be called when limit is zero');
+    return [] as unknown as Awaited<ReturnType<typeof qb.run>>;
+  }) as typeof qb.run;
+
+  const result = await builder.chronologicalFeed({
+    cursorField: 'createdOn',
+    limit: 0,
+  });
+
+  t.deepEqual(result.rows, []);
+  t.false(result.hasMore);
+  t.is(result.nextCursor, undefined);
 });
 
 test('QueryBuilder supports limit method', t => {
@@ -488,6 +634,68 @@ test('QueryBuilder builds COUNT queries correctly', t => {
   t.true(countSql.includes('FROM test_table'));
   t.true(countSql.includes('WHERE'));
   t.deepEqual(countParams, ['test-id']);
+});
+
+test('QueryBuilder builds AVG aggregates correctly', async t => {
+  const queries: Array<{ sql: string; params: unknown[] }> = [];
+  const { qb } = createQueryBuilderHarness({
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(
+        sql?: string,
+        params: unknown[] = []
+      ): Promise<QueryResult<TRecord>> {
+        queries.push({ sql: sql ?? '', params });
+        return createQueryResult<{ value: number }>([
+          { value: 3.5 },
+        ]) as unknown as QueryResult<TRecord>;
+      },
+    },
+  });
+
+  const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    qb,
+    false
+  );
+  builder.and({ id: 'test-id' });
+
+  const average = await qb.average('created_on');
+
+  t.is(average, 3.5);
+  t.is(queries.length, 1);
+  t.true(queries[0].sql.includes('SELECT AVG(test_table.created_on) as value'));
+  t.deepEqual(queries[0].params, ['test-id']);
+});
+
+test('FilterWhereBuilder.average resolves manifest columns', async t => {
+  type Data = { createdOn: string };
+  type Instance = ModelInstance<Data, JsonObject>;
+  const schema = {
+    created_on: typesLib.date(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const queries: Array<{ sql: string; params: unknown[] }> = [];
+  const { qb } = createQueryBuilderHarness({
+    schema,
+    camelToSnake: { createdOn: 'created_on' },
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(
+        sql?: string,
+        params: unknown[] = []
+      ): Promise<QueryResult<TRecord>> {
+        queries.push({ sql: sql ?? '', params });
+        return createQueryResult<{ value: number }>([
+          { value: 42 },
+        ]) as unknown as QueryResult<TRecord>;
+      },
+    },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+  const average = await builder.average('createdOn');
+
+  t.is(average, 42);
+  t.is(queries.length, 1);
+  t.true(queries[0].sql.includes('AVG(test_table.created_on)'));
 });
 
 test('QueryBuilder builds DELETE queries correctly', t => {
@@ -774,4 +982,85 @@ test('QueryBuilder.includeSensitive accepts string or array', t => {
   const { qb: qb2 } = createQueryBuilderHarness();
   qb2.includeSensitive(['password', 'token']);
   t.deepEqual(qb2._includeSensitive, ['password', 'token']);
+});
+
+test('QueryBuilder.increment updates numeric columns with returning support', async t => {
+  const schema = {
+    id: typesLib.string(),
+    counter: typesLib.number(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const calls: Array<{ sql?: string; params?: unknown[] }> = [];
+  const { qb } = createQueryBuilderHarness({
+    tableName: 'counters',
+    schema,
+    camelToSnake: { counter: 'counter' },
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(sql?: string, params: unknown[] = []) {
+        calls.push({ sql, params });
+        return createQueryResult([{ counter: 2 } as unknown as TRecord]);
+      },
+    },
+  });
+
+  qb._addWhereCondition('id', '=', 'user-1');
+  const result = await qb.increment('counter', 1, { returning: ['counter'] });
+
+  t.is(result.rowCount, 1);
+  t.deepEqual(result.rows[0], { counter: 2 });
+  t.truthy(calls[0]?.sql?.includes('counter = counter + $2'));
+  t.deepEqual(calls[0]?.params, ['user-1', 1]);
+});
+
+test('QueryBuilder.increment rejects non-numeric schema columns', async t => {
+  const schema = {
+    id: typesLib.string(),
+    title: typesLib.string(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness({
+    tableName: 'posts',
+    schema,
+    camelToSnake: { title: 'title' },
+  });
+
+  await t.throwsAsync(
+    () => qb.increment('title' as unknown as string, 1, { returning: ['title'] }),
+    { message: /numeric schema field/ }
+  );
+});
+
+test('FilterWhereBuilder.decrement delegates to increment with negative amount', async t => {
+  type Data = { id: string; counter: number };
+  const schema = {
+    id: typesLib.string(),
+    counter: typesLib.number(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const calls: Array<{ sql?: string; params?: unknown[] }> = [];
+  const { qb, model } = createQueryBuilderHarness({
+    tableName: 'counters',
+    schema,
+    camelToSnake: { counter: 'counter' },
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(sql?: string, params: unknown[] = []) {
+        calls.push({ sql, params });
+        return createQueryResult([{ counter: 4 } as unknown as TRecord]);
+      },
+    },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, ModelInstance<Data, JsonObject>, string>(
+    qb,
+    false
+  );
+
+  builder.and({ id: 'user-1' });
+  const result = await builder.decrement('counter', { by: 2, returning: ['counter'] });
+
+  t.is(result.rowCount, 1);
+  t.deepEqual(result.rows[0], { counter: 4 });
+  t.truthy(calls[0]?.sql?.includes('counter = counter + $2'));
+  t.deepEqual(calls[0]?.params, ['user-1', -2]);
+  t.is(model.tableName, 'counters');
 });

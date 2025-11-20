@@ -5,7 +5,7 @@ import type { InferConstructor, InferInstance } from '../../dal/lib/model-manife
 import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
 import type { ThingInstance } from './thing.ts';
-import type { UserViewer } from './user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const { mlString } = dal as {
   mlString: Record<string, any>;
@@ -124,7 +124,7 @@ type ReviewModelBase = InferConstructor<typeof reviewManifest>;
 export interface ReviewInstanceMethods {
   populateUserInfo(
     this: ReviewInstanceBase & ReviewInstanceMethods,
-    user: UserViewer | null | undefined
+    user: UserAccessContext | null | undefined
   ): void;
   deleteAllRevisionsWithThing(
     this: ReviewInstanceBase & ReviewInstanceMethods,

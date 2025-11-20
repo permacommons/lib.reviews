@@ -10,20 +10,20 @@ import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
-import { referenceTeam } from './manifests/team.ts';
+import type { TeamInstance } from './manifests/team.ts';
 import userManifest, {
   type CreateUserPayload,
   canonicalize,
+  type UserAccessContext,
   type UserInstance,
   type UserInstanceMethods,
   type UserModel,
   type UserStaticMethods,
-  type UserViewer,
+  type UserView,
   userOptions,
 } from './manifests/user.ts';
 import { referenceUserMeta, type UserMetaInstance } from './manifests/user-meta.ts';
 
-const Team = referenceTeam();
 const UserMeta = referenceUserMeta();
 
 const BCRYPT_ROUNDS = 10; // matches legacy bcrypt-nodejs default cost
@@ -38,25 +38,6 @@ const userStatics = {
 } as const;
 
 const userStaticMethods = defineStaticMethods(userManifest, {
-  /**
-   * Increase a user's invite link count and return the new total.
-   *
-   * @param id - Identifier of the user to update
-   * @returns The updated invite count
-   */
-  async increaseInviteLinkCount(this: UserModel, id: string) {
-    const query = `
-        UPDATE ${this.tableName ?? 'users'}
-        SET invite_link_count = invite_link_count + 1
-        WHERE id = $1
-        RETURNING invite_link_count
-      `;
-
-    const result = await this.dal.query(query, [id]);
-    if (!result.rows.length) throw new Error(`User with id ${id} not found`);
-
-    return (result.rows[0] as { invite_link_count: number }).invite_link_count;
-  },
   /**
    * Create a new user record from the supplied payload.
    *
@@ -200,7 +181,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    *
    * @param user - Viewer whose rights should be reflected on the instance
    */
-  populateUserInfo(this: UserInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: UserInstance, user: UserAccessContext | null | undefined) {
     if (!user) return;
     if (user.id === this.id) this.userCanEditMetadata = true;
   },
@@ -304,55 +285,57 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
   user.teams = [];
   user.moderatorOf = [];
 
-  const teamDal = Team.dal;
-  const teamTable = Team.tableName;
-  const createFromRow = Team.createFromRow;
-  const dalInstance = teamDal;
-  const prefix = dalInstance.schemaNamespace || '';
-  const memberTable = `${prefix}team_members`;
-  const moderatorTable = `${prefix}team_moderators`;
-
-  const currentRevisionFilter = `
-    AND (t._old_rev_of IS NULL)
-    AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
-  `;
-
-  const mapRowsToTeams = (rows: Array<Record<string, unknown>>) =>
-    rows.map(row => createFromRow(row));
-
-  try {
-    const memberResult = await dalInstance.query<Record<string, unknown>>(
-      `
-        SELECT t.*
-        FROM ${teamTable} t
-        JOIN ${memberTable} tm ON t.id = tm.team_id
-        WHERE tm.user_id = $1
-        ${currentRevisionFilter}
-      `,
-      [user.id]
-    );
-    user.teams = mapRowsToTeams(memberResult.rows);
-  } catch (error) {
-    debug.error('Error attaching team memberships to user');
-    debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
+  if (typeof user.id !== 'string' || user.id.length === 0) {
+    return;
   }
 
   try {
-    const moderatorResult = await dalInstance.query<Record<string, unknown>>(
-      `
-        SELECT t.*
-        FROM ${teamTable} t
-        JOIN ${moderatorTable} tm ON t.id = tm.team_id
-        WHERE tm.user_id = $1
-        ${currentRevisionFilter}
-      `,
-      [user.id]
-    );
-    user.moderatorOf = mapRowsToTeams(moderatorResult.rows);
+    const hydrated = await User.filterWhere({ id: user.id })
+      .getJoin({ teams: {}, moderatorOf: {} })
+      .first();
+
+    if (hydrated) {
+      user.teams = Array.isArray(hydrated.teams) ? (hydrated.teams as TeamInstance[]) : [];
+      user.moderatorOf = Array.isArray(hydrated.moderatorOf)
+        ? (hydrated.moderatorOf as TeamInstance[])
+        : [];
+    }
   } catch (error) {
-    debug.error('Error attaching moderation teams to user');
+    debug.error('Error attaching teams to user via relations');
     debug.error({ error: error instanceof Error ? error : new Error(String(error)) });
   }
+}
+
+/**
+ * Batch-load the user public profile view for a set of identifiers.
+ *
+ * @param userIds - Collection of user IDs to hydrate via {@link UserView}
+ * @returns Map of user IDs to their corresponding `UserView`
+ */
+async function fetchUserPublicProfiles(userIds: Iterable<string>): Promise<Map<string, UserView>> {
+  const normalizedIds = [
+    ...new Set(
+      Array.from(userIds).filter((id): id is string => typeof id === 'string' && id.length > 0)
+    ),
+  ];
+  const userMap = new Map<string, UserView>();
+  if (!normalizedIds.length) {
+    return userMap;
+  }
+
+  const profiles = await User.fetchView<UserView>('publicProfile', {
+    configure(builder) {
+      builder.whereIn('id', normalizedIds, { cast: 'uuid[]' });
+    },
+  });
+
+  profiles.forEach(profile => {
+    if (profile.id) {
+      userMap.set(profile.id, profile);
+    }
+  });
+
+  return userMap;
 }
 
 /**
@@ -385,15 +368,16 @@ class NewUserError extends ReportedError {
   }
 }
 
-export { NewUserError };
+export { fetchUserPublicProfiles, NewUserError };
 
 export type {
   CreateUserPayload,
+  UserAccessContext,
   UserInstance,
   UserInstanceMethods,
   UserModel,
   UserStaticMethods,
-  UserViewer,
+  UserView,
 } from './manifests/user.ts';
 export {
   canonicalize,

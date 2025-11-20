@@ -12,6 +12,40 @@ export interface FilterWhereOperator<K extends PropertyKey, TValue> {
   readonly value: TValue;
 }
 
+/**
+ * Result of a chronological feed query.
+ */
+export interface ChronologicalFeedPage<CursorValue, TInstance> {
+  rows: TInstance[];
+  hasMore: boolean;
+  nextCursor?: CursorValue;
+}
+
+/**
+ * Options for chronological feed pagination on date-backed fields.
+ */
+export interface ChronologicalFeedOptions<
+  TData extends JsonObject,
+  K extends Extract<DateKeys<TData>, string>,
+> {
+  /**
+   * Date-backed manifest key to use as the cursor (camelCase).
+   */
+  cursorField: K;
+  /**
+   * Exclusive cursor value returned by the previous page (Date).
+   */
+  cursor?: NonNullable<TData[K]>;
+  /**
+   * Sort direction; defaults to DESC for newest-first feeds.
+   */
+  direction?: 'ASC' | 'DESC';
+  /**
+   * Page size; defaults to 10.
+   */
+  limit?: number;
+}
+
 type OperatorResultForKey<TOps, K extends PropertyKey> = {
   [P in keyof TOps]: TOps[P] extends (
     ...args: unknown[]
@@ -109,6 +143,14 @@ type ComparableKeys<T> = {
   [K in keyof T]-?: NonNullable<T[K]> extends ComparablePrimitive ? K : never;
 }[keyof T];
 
+export type DateKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends Date ? K : never;
+}[keyof T];
+
+export type NumericKeys<T> = {
+  [K in keyof T]-?: NonNullable<T[K]> extends number | bigint ? K : never;
+}[keyof T];
+
 type EqualityComparablePrimitive = string | number | bigint | boolean | Date;
 
 type EqualityComparableKeys<T> = {
@@ -131,7 +173,7 @@ type NonEmptyArray<T> = readonly [T, ...T[]] | [T, ...T[]];
  * corresponding field; caching helper *results* widens their allowed keys.
  */
 export interface FilterWhereOperators<TRecord extends JsonObject> {
-  neq<K extends keyof TRecord>(value: TRecord[K]): FilterWhereOperator<K, TRecord[K]>;
+  neq<K extends keyof TRecord>(value: TRecord[K] | null): FilterWhereOperator<K, TRecord[K] | null>;
   lt<K extends ComparableKeys<TRecord>>(
     value: NonNullable<TRecord[K]>
   ): FilterWhereOperator<K, NonNullable<TRecord[K]>>;
@@ -235,6 +277,32 @@ export type FilterWhereJoinSpec<TRelations extends string> = Partial<
   Record<TRelations, boolean | JsonObject>
 >;
 
+export type ModelViewBuilder<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
+> = FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations> &
+  ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+
+export interface ModelViewDefinition<
+  TInstance extends ModelInstance = ModelInstance,
+  TView extends JsonObject = JsonObject,
+> {
+  description?: string;
+  project(instance: TInstance): TView;
+}
+
+export interface ModelViewFetchOptions<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
+> {
+  includeSensitive?: Extract<keyof TData, string>[];
+  configure?: (builder: ModelViewBuilder<TData, TVirtual, TInstance, TRelations>) => void;
+}
+
 export interface ModelQueryBuilder<
   TData extends JsonObject,
   TVirtual extends JsonObject,
@@ -253,6 +321,11 @@ export interface ModelQueryBuilder<
     field: string,
     direction?: 'ASC' | 'DESC'
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  orderByRelation(
+    relation: TRelations,
+    field: string,
+    direction?: 'ASC' | 'DESC'
+  ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   limit(count: number): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   between(
     startDate: Date,
@@ -266,9 +339,13 @@ export interface ModelQueryBuilder<
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
   count(): Promise<number>;
+  average(field: string): Promise<number | null>;
   [key: string]: unknown;
 }
 
+/**
+ * Query builder with typed predicates, revision guards, and helpers.
+ */
 export interface FilterWhereQueryBuilder<
   TData extends JsonObject,
   TVirtual extends JsonObject,
@@ -287,14 +364,43 @@ export interface FilterWhereQueryBuilder<
     fields: string | string[]
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   orderBy(
-    field: Extract<keyof TData, string>,
+    field: Extract<keyof TData, string> | string,
     direction?: 'ASC' | 'DESC'
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  orderByRelation(
+    relation: TRelations,
+    field: string,
+    direction?: 'ASC' | 'DESC'
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  increment<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(
+    field: K,
+    options?: { by?: number; returning?: R[] }
+  ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }>;
+  decrement<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(
+    field: K,
+    options?: { by?: number; returning?: R[] }
+  ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }>;
   limit(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   sample(count?: number): Promise<TInstance[]>;
   offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  /**
+   * Include related records. Use `true` for inline (single-row) joins and an
+   * object (e.g., `{}`) to trigger the batch loader that hydrates arrays.
+   */
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  whereRelated(
+    relation: TRelations,
+    field: string,
+    value: unknown,
+    operator?: string
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   whereIn(
     field: Extract<keyof TData, string>,
@@ -307,8 +413,12 @@ export interface FilterWhereQueryBuilder<
   run(): Promise<TInstance[]>;
   first(): Promise<TInstance | null>;
   count(): Promise<number>;
+  average(field: Extract<keyof TData, string>): Promise<number | null>;
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
+  chronologicalFeed<K extends Extract<DateKeys<TData>, string>>(
+    options: ChronologicalFeedOptions<TData, K>
+  ): Promise<ChronologicalFeedPage<NonNullable<TData[K]>, TInstance>>;
 }
 
 /**
@@ -345,6 +455,14 @@ export interface ModelConstructor<
     direction?: 'ASC' | 'DESC'
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   limit(count: number): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  /**
+   * Attach related records defined in the manifest.
+   *
+   * Passing `true` joins the related table inline (best for one-to-one relations)
+   * while supplying an object (even `{}`) switches to the batch loader that
+   * hydrates `many` relations via a follow-up query. Use the object form whenever
+   * the relation should populate an array.
+   */
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
@@ -363,8 +481,29 @@ export interface ModelConstructor<
 
   define(name: string, handler: InstanceMethod<TInstance>): void;
   defineRelation(name: string, config: JsonObject): void;
+  defineView<TView extends JsonObject = JsonObject>(
+    name: string,
+    definition: ModelViewDefinition<TInstance, TView>
+  ): void;
 
   readonly ops: FilterWhereOperators<TData>;
+  getView<TView extends JsonObject = JsonObject>(
+    name: string
+  ): ModelViewDefinition<TInstance, TView> | null;
+  fetchView<TView extends JsonObject = JsonObject>(
+    name: string,
+    options?: ModelViewFetchOptions<TData, TVirtual, TInstance, TRelations>
+  ): Promise<TView[]>;
+  loadManyRelated(
+    relationName: TRelations,
+    sourceIds: string[]
+  ): Promise<Map<string, ModelInstance<JsonObject, JsonObject>[]>>;
+  addManyRelated(
+    relationName: TRelations,
+    sourceId: string,
+    targetIds: string[],
+    options?: { onConflict?: 'ignore' | 'error' }
+  ): Promise<void>;
 
   [key: string]: unknown;
 }

@@ -6,6 +6,7 @@ import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
 import types from '../../dal/lib/type.ts';
+import type { UserView } from './user.ts';
 
 const inviteLinkManifest = defineModelManifest({
   tableName: 'invite_links',
@@ -18,6 +19,7 @@ const inviteLinkManifest = defineModelManifest({
     createdBy: types.string().uuid(4).required(true),
     createdOn: types.date().default(() => new Date()),
     usedBy: types.string().uuid(4),
+    usedByUser: types.virtual().returns<UserView | undefined>().default(undefined),
     url: types.virtual().default(function (this: InferInstance<typeof inviteLinkManifest>) {
       const identifier = typeof this.getValue === 'function' ? this.getValue('id') : this.id;
       return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;

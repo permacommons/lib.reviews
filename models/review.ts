@@ -21,10 +21,11 @@ import reviewManifest, {
 } from './manifests/review.ts';
 import { referenceTeam, type TeamInstance } from './manifests/team.ts';
 import { referenceThing, type ThingInstance } from './manifests/thing.ts';
-import type { UserViewer } from './user.ts';
+import { referenceUser, type UserView } from './manifests/user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const Thing = referenceThing();
-const Team = referenceTeam();
+const User = referenceUser();
 
 const { revision } = dal as {
   revision: Record<string, any>;
@@ -87,25 +88,16 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
   ) {
     const thing = await this.findOrCreateThing(reviewObj);
 
-    const existingQuery = `
-      SELECT id FROM ${this.tableName}
-      WHERE thing_id = $1
-        AND created_by = $2
-        AND (_old_rev_of IS NULL)
-        AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      LIMIT 1
-    `;
+    const existingReview = await this.filterWhere({
+      thingID: thing.id,
+      createdBy: reviewObj.createdBy,
+    }).first();
 
-    const existingResult = await this.dal.query(existingQuery, [thing.id, reviewObj.createdBy]);
-
-    if (existingResult.rows.length > 0) {
+    if (existingReview) {
       throw new ReviewError({
         message: 'User has previously reviewed this subject.',
         userMessage: 'previously reviewed submission',
-        userMessageParams: [
-          `/review/${existingResult.rows[0].id}`,
-          `/review/${existingResult.rows[0].id}/edit`,
-        ],
+        userMessageParams: [`/review/${existingReview.id}`, `/review/${existingReview.id}/edit`],
       });
     }
 
@@ -279,100 +271,60 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
       limit = 10,
     }: ReviewFeedOptions = {}
   ): Promise<ReviewFeedResult> {
-    let query = `
-      SELECT r.* FROM ${this.tableName} r
-      WHERE (_old_rev_of IS NULL)
-        AND (_rev_deleted IS NULL OR _rev_deleted = false)
-    `;
+    const builder = this.filterWhere({});
 
-    const params: Array<string | number | Date | undefined> = [];
-    let paramIndex = 1;
-
-    if (offsetDate && offsetDate.valueOf) {
-      query += ` AND created_on < $${paramIndex}`;
-      params.push(offsetDate);
-      paramIndex++;
+    if (offsetDate) {
+      builder.and({ createdOn: this.ops.lt(offsetDate) });
     }
 
     if (thingID) {
-      query += ` AND thing_id = $${paramIndex}`;
-      params.push(thingID);
-      paramIndex++;
+      builder.and({ thingID });
     }
 
     if (withoutCreator) {
-      query += ` AND created_by != $${paramIndex}`;
-      params.push(withoutCreator);
-      paramIndex++;
+      builder.and({ createdBy: this.ops.neq(withoutCreator) });
     }
 
     if (createdBy) {
-      query += ` AND created_by = $${paramIndex}`;
-      params.push(createdBy);
-      paramIndex++;
+      builder.and({ createdBy });
     }
 
     if (onlyTrusted) {
-      query += `
-        AND EXISTS (
-          SELECT 1 FROM users u
-          WHERE u.id = r.created_by
-            AND u.is_trusted = true
-        )`;
+      builder.whereRelated('creator', 'isTrusted', true);
     }
 
-    query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
-    params.push(limit + 1);
-
-    const result = await this.dal.query(query, params);
-    const feedItems: Array<ReviewInstance & Record<string, any>> = result.rows
-      .slice(0, limit)
-      .map(
-        row =>
-          this.createFromRow(row as Record<string, unknown>) as ReviewInstance & Record<string, any>
-      );
+    const feedPage = await builder.chronologicalFeed({ cursorField: 'createdOn', limit });
+    const feedItems = feedPage.rows as Array<ReviewInstance & Record<string, any>>;
     const feedResult: ReviewFeedResult = { feedItems };
 
-    if (result.rows.length === limit + 1 && feedItems.length > 0 && limit > 0) {
-      const lastVisible = feedItems[feedItems.length - 1];
-      const offsetCandidate = lastVisible.createdOn || (lastVisible as any).created_on;
-      if (offsetCandidate instanceof Date) {
-        feedResult.offsetDate = offsetCandidate;
-      } else if (offsetCandidate) {
-        feedResult.offsetDate = new Date(offsetCandidate);
-      }
+    if (feedPage.hasMore) {
+      feedResult.offsetDate = feedPage.nextCursor;
     }
 
     if (withThing || withTeams) {
       try {
-        const userIds = [...new Set(feedItems.map(review => review.createdBy).filter(Boolean))];
+        const userIds = [
+          ...new Set(
+            feedItems
+              .map(review => review.createdBy)
+              .filter((id): id is string => typeof id === 'string' && id.length > 0)
+          ),
+        ];
 
         if (userIds.length > 0) {
           debug.db(`Batch fetching ${userIds.length} unique creators...`);
 
-          const userQuery = `
-            SELECT id, display_name, canonical_name, email, registration_date,
-                   is_trusted, is_site_moderator, is_super_user
-            FROM users
-            WHERE id = ANY($1)
-          `;
+          const creators = await User.fetchView<UserView>('publicProfile', {
+            includeSensitive: ['email'],
+            configure(builder) {
+              builder.whereIn('id', userIds, { cast: 'uuid[]' });
+            },
+          });
 
-          const userResult = await this.dal.query(userQuery, [userIds]);
-
-          const userMap = new Map<string, Record<string, any>>();
-          userResult.rows.forEach(row => {
-            const user = row as Record<string, any>;
-            const displayName = user.display_name;
-            const safeUser = {
-              ...user,
-              displayName,
-              urlName:
-                typeof displayName === 'string'
-                  ? encodeURIComponent(displayName.replace(/ /g, '_'))
-                  : undefined,
-            };
+          const userMap = new Map<string, UserView>();
+          creators.forEach(user => {
             if (typeof user.id === 'string') {
-              userMap.set(user.id, safeUser);
+              userMap.set(user.id, user);
             }
           });
 
@@ -383,7 +335,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
             }
           });
 
-          debug.db(`Successfully populated creators for ${userResult.rows.length} users`);
+          debug.db(`Successfully populated creators for ${creators.length} users`);
         }
       } catch (error) {
         const serializedError = error instanceof Error ? error.message : String(error);
@@ -397,22 +349,12 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
           if (thingIds.length > 0) {
             debug.db(`Batch fetching ${thingIds.length} things for review feed...`);
 
-            const placeholders = thingIds.map((_, index) => `$${index + 1}`).join(', ');
+            const things = (await Thing.filterWhere({})
+              .whereIn('id', thingIds, { cast: 'uuid[]' })
+              .run()) as ThingInstance[];
+            const thingMap = new Map<string, ThingInstance>();
 
-            const thingQuery = `
-              SELECT * FROM ${Thing.tableName}
-              WHERE id IN (${placeholders})
-                AND (_old_rev_of IS NULL)
-                AND (_rev_deleted IS NULL OR _rev_deleted = false)
-            `;
-
-            const thingResult = await Thing.dal.query(thingQuery, thingIds);
-            const thingMap = new Map<string, ThingInstance & Record<string, any>>();
-
-            thingResult.rows.forEach(row => {
-              const thingInstance = Thing.createFromRow(
-                row as Record<string, unknown>
-              ) as ThingInstance & Record<string, any>;
+            things.forEach(thingInstance => {
               if (thingInstance.id) {
                 thingMap.set(thingInstance.id, thingInstance);
               }
@@ -442,38 +384,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
           if (reviewIds.length > 0) {
             debug.db(`Batch fetching teams for ${reviewIds.length} reviews in feed...`);
 
-            const dalInstance = this.dal as Record<string, any>;
-            const reviewTeamTableName = dalInstance.schemaNamespace
-              ? `${dalInstance.schemaNamespace}review_teams`
-              : 'review_teams';
-            const teamTableName = dalInstance.schemaNamespace
-              ? `${dalInstance.schemaNamespace}teams`
-              : 'teams';
-
-            const placeholders = reviewIds.map((_, index) => `$${index + 1}`).join(', ');
-            const teamQuery = `
-              SELECT rt.review_id, t.* FROM ${teamTableName} t
-              JOIN ${reviewTeamTableName} rt ON t.id = rt.team_id
-              WHERE rt.review_id IN (${placeholders})
-                AND (t._old_rev_of IS NULL)
-                AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
-            `;
-
-            const teamResult = await this.dal.query(teamQuery, reviewIds);
-
-            const reviewTeamMap = new Map<string, Record<string, any>[]>();
-            teamResult.rows.forEach(row => {
-              const resultRow = row as Record<string, any>;
-              const reviewId = resultRow.review_id;
-              const teamInstance = Team.createFromRow(resultRow as Record<string, unknown>);
-
-              if (typeof reviewId === 'string') {
-                if (!reviewTeamMap.has(reviewId)) {
-                  reviewTeamMap.set(reviewId, []);
-                }
-                reviewTeamMap.get(reviewId)?.push(teamInstance);
-              }
-            });
+            const reviewTeamMap = await this.loadManyRelated('teams', reviewIds);
 
             feedItems.forEach(review => {
               const reviewId = review.id;
@@ -501,7 +412,7 @@ const reviewInstanceMethods = defineInstanceMethods(reviewManifest, {
    *
    * @param user - Viewer whose permissions should be reflected
    */
-  populateUserInfo(this: ReviewInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: ReviewInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }
@@ -569,26 +480,8 @@ const Review = defineModel(reviewManifest, {
 async function _getReviewTeams(reviewId: string): Promise<TeamInstance[]> {
   try {
     const reviewModel = Review as ReviewModel;
-    const reviewTeamTableName = reviewModel.dal.schemaNamespace
-      ? `${reviewModel.dal.schemaNamespace}review_teams`
-      : 'review_teams';
-    const teamTableName = reviewModel.dal.schemaNamespace
-      ? `${reviewModel.dal.schemaNamespace}teams`
-      : 'teams';
-
-    const query = `
-      SELECT t.* FROM ${teamTableName} t
-      JOIN ${reviewTeamTableName} rt ON t.id = rt.team_id
-      WHERE rt.review_id = $1
-        AND (t._old_rev_of IS NULL)
-        AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
-    `;
-
-    const result = await reviewModel.dal.query(query, [reviewId]);
-
-    return result.rows.map(
-      row => Team.createFromRow(row as Record<string, unknown>) as TeamInstance
-    );
+    const reviewTeamMap = await reviewModel.loadManyRelated('teams', [reviewId]);
+    return (reviewTeamMap.get(reviewId) as TeamInstance[] | undefined) || [];
   } catch (error) {
     debug.error('Failed to get teams for review:', error);
     return [];

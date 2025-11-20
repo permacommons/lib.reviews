@@ -8,6 +8,7 @@ The lib.reviews DAL is a TypeScript-first PostgreSQL abstraction that exposes ty
 - **Model runtime (`dal/lib/model.ts`)** – Implements camelCase ↔︎ snake_case mapping, validation/default handling, change tracking, and persistence primitives consumed by every manifest-driven model.
 - **Manifest system (`dal/lib/create-model.ts`, `dal/lib/model-manifest.ts`)** – Declarative manifests define schema, relations, revision support, and custom methods. `defineModel` returns a lazy proxy constructor whose types are inferred from the manifest.
 - **Query builder (`dal/lib/query-builder.ts`)** – Builds SQL fragments for predicates, joins, ordering, pagination, and deletes. `filterWhere` wraps it with typed predicates for day-to-day usage.
+  - Chainables include `orderBy/limit/offset`, `whereIn`, `getJoin` (inline or batch-loaded relations), `whereRelated` (predicate on a related table via manifest metadata), and `chronologicalFeed` for date-backed limit+1 pagination.
 - **Revision helpers (`dal/lib/revision.ts`)** – Adds static/instance helpers (`createFirstRevision`, `newRevision`, etc.) to models flagged with `hasRevisions: true`.
 - **Type helpers (`dal/lib/type.ts`)** – Fluent schema builders that feed manifest inference, including virtual field descriptors and multilingual string support via `mlString`.
 
@@ -182,7 +183,7 @@ Every manifest-based model ships a typed query entry point:
   - Typed predicate literals keyed by manifest fields.
   - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `in`, `between/notBetween`, `containsAll`, `containsAny`, `jsonContains`, `not`).
   - Automatic revision guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) with opt-outs (`includeDeleted()`, `includeStale()`).
-  - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `limit`, `offset`, `getJoin`, `whereIn`, `delete`, `count`).
+  - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `orderByRelation`, `limit`, `offset`, `getJoin`, `whereRelated`, `whereIn`, `chronologicalFeed`, `delete`, `count`, `average`).
   - Promise-like behaviour so `await Model.filterWhere({ ... })` works without `.run()`.
 
 Example:
@@ -194,6 +195,238 @@ const things = await Thing.filterWhere({ urls: containsAll(targetUrls) })
   .orderBy('created_on', 'DESC')
   .limit(25)
   .run();
+
+// Aggregates reuse the same revision-safe predicates
+const averageRating = await Review.filterWhere({ thingID }).average('starRating');
+const reviewCount = await Review.filterWhere({ thingID }).count();
+
+// Atomic counters for numeric schema fields (throws on non-numeric columns)
+const { rows } = await User.filterWhere({ id: someUser }).increment('inviteLinkCount', {
+  by: 1,
+  returning: ['inviteLinkCount'],
+});
+
+// Or decrement the same field atomically
+await User.filterWhere({ id: someUser }).decrement('inviteLinkCount', { by: 1 });
+```
+
+## Batch Loading Relations
+
+The DAL provides `Model.loadManyRelated()` for efficiently loading many-to-many associations through junction tables. This is especially useful when hydrating lists of records with their related data (the "N+1 query" problem).
+
+### Basic Usage
+
+```ts
+// Load teams for multiple reviews in a single query
+const reviewIds = reviews.map(r => r.id);
+const reviewTeamMap = await Review.loadManyRelated('teams', reviewIds);
+
+// Populate each review with its teams
+reviews.forEach(review => {
+  review.teams = reviewTeamMap.get(review.id) || [];
+});
+```
+
+### How It Works
+
+`loadManyRelated()` uses the relation metadata defined in your manifest to:
+
+1. Build a single SQL query that joins through the junction table
+2. Apply revision system guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) when needed
+3. Group results by source ID
+4. Return a `Map<sourceId, TargetInstance[]>` for easy assignment
+
+**Before** (manual SQL):
+```ts
+const query = `
+  SELECT rt.review_id, t.* FROM teams t
+  JOIN review_teams rt ON t.id = rt.team_id
+  WHERE rt.review_id IN (${placeholders})
+    AND (t._old_rev_of IS NULL)
+    AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
+`;
+const result = await dal.query(query, reviewIds);
+// Manual grouping logic...
+```
+
+**After** (DAL helper):
+```ts
+const reviewTeamMap = await Review.loadManyRelated('teams', reviewIds);
+```
+
+### Requirements
+
+The relation must be defined in your model's manifest with:
+- A `through` object specifying the junction table
+- Proper `sourceForeignKey` and `targetForeignKey` columns
+- Optional `hasRevisions` flag for revision-aware filtering
+
+Example manifest configuration:
+```ts
+const reviewManifest = defineModelManifest({
+  tableName: 'reviews',
+  relations: [
+    {
+      name: 'teams',
+      targetTable: 'teams',
+      sourceKey: 'id',
+      targetKey: 'id',
+      hasRevisions: true,
+      through: {
+        table: 'review_teams',
+        sourceForeignKey: 'review_id',
+        targetForeignKey: 'team_id',
+      },
+      cardinality: 'many',
+    },
+  ],
+});
+```
+
+### Edge Cases
+
+- **Empty input**: Returns empty `Map` when given `[]`
+- **No matches**: Returns empty `Map` when no associations exist
+- **Deleted records**: Automatically excludes soft-deleted related records when `hasRevisions: true`
+- **Type safety**: Results are typed as `Map<string, ModelInstance<JsonObject, JsonObject>[]>`, requiring a cast to the specific target type when needed
+
+## Writing Many-to-Many Associations
+
+The DAL provides `Model.addManyRelated()` for batch-inserting associations into many-to-many junction tables. This complements `loadManyRelated()` by handling the write side of many-to-many relationships.
+
+### Basic Usage
+
+```ts
+// Associate a thing with multiple files
+const Thing = dalFixture.getModel('things');
+await Thing.addManyRelated('files', thingId, [file1.id, file2.id]);
+
+// Associate a review with teams
+const Review = dalFixture.getModel('reviews');
+await Review.addManyRelated('teams', reviewId, teamIds);
+```
+
+### How It Works
+
+`addManyRelated()` uses the relation metadata defined in your manifest to:
+
+1. Build a parameterized INSERT query for the junction table
+2. Apply schema namespace prefixing for test isolation
+3. Handle duplicate associations gracefully via `ON CONFLICT DO NOTHING` (default)
+4. Validate inputs and provide helpful error messages
+
+**Before** (manual SQL):
+```ts
+const runtime = this.constructor as Record<string, any>;
+const dalInstance = runtime.dal as Record<string, any>;
+const junctionTable = dalInstance.schemaNamespace
+  ? `${dalInstance.schemaNamespace}thing_files`
+  : 'thing_files';
+const insertValues: Array<string | undefined> = [];
+const valueClauses: string[] = [];
+let paramIndex = 1;
+
+validFiles.forEach(file => {
+  valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
+  insertValues.push(this.id, file.id);
+  paramIndex += 2;
+});
+
+if (valueClauses.length) {
+  const insertQuery = `
+    INSERT INTO ${junctionTable} (thing_id, file_id)
+    VALUES ${valueClauses.join(', ')}
+    ON CONFLICT DO NOTHING
+  `;
+  await dalInstance.query(insertQuery, insertValues);
+}
+```
+
+**After** (DAL helper):
+```ts
+const Thing = this.constructor as ThingModel;
+await Thing.addManyRelated('files', this.id!, validFiles.map(f => f.id!));
+```
+
+### Requirements
+
+The relation must be defined in your model's manifest with:
+- A `through` object specifying the junction table
+- Proper `sourceForeignKey` and `targetForeignKey` columns
+- `cardinality: 'many'`
+
+Example manifest configuration:
+```ts
+const thingManifest = defineModelManifest({
+  tableName: 'things',
+  relations: [
+    {
+      name: 'files',
+      targetTable: 'files',
+      sourceKey: 'id',
+      targetKey: 'id',
+      hasRevisions: true,
+      through: {
+        table: 'thing_files',
+        sourceForeignKey: 'thing_id',
+        targetForeignKey: 'file_id',
+      },
+      cardinality: 'many',
+    },
+  ],
+});
+```
+
+### Conflict Handling
+
+By default, duplicate associations are silently ignored:
+
+```ts
+// Associate once
+await Review.addManyRelated('teams', reviewId, [teamId]);
+
+// Associate again - no error, no duplicate row
+await Review.addManyRelated('teams', reviewId, [teamId]);
+```
+
+For strict validation, use `{ onConflict: 'error' }`:
+
+```ts
+await Review.addManyRelated('teams', reviewId, [teamId], { onConflict: 'error' });
+// Throws if association already exists
+```
+
+### Edge Cases
+
+- **Empty input**: Returns immediately when given `[]` with no database query
+- **Invalid relation**: Throws helpful error listing available relations
+- **Non-junction relation**: Throws error if relation doesn't have a `through` table
+- **Invalid source ID**: Throws error for empty or non-string source IDs
+- **Schema isolation**: Automatically handles test namespace prefixing
+
+### Instance Method Pattern
+
+When writing instance methods that create associations, follow this pattern:
+
+```ts
+async addFilesByIDsAndSave(this: ThingInstance, fileIDs: string[]): Promise<ThingInstance> {
+  // 1. Validate and fetch related records
+  const { in: inOp } = File.ops;
+  const validFiles = await File.filterWhere({ id: inOp(fileIDs as [string, ...string[]]) }).run();
+
+  if (!validFiles.length) {
+    return this;
+  }
+
+  // 2. Insert associations using static helper
+  const Thing = this.constructor as ThingModel;
+  await Thing.addManyRelated('files', this.id!, validFiles.map(f => f.id!));
+
+  // 3. Update in-memory representation
+  this.files = [...(this.files ?? []), ...validFiles];
+
+  return this;
+}
 ```
 
 ## Revisions

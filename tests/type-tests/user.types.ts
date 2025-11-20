@@ -72,11 +72,6 @@ expectTypeOf(user.checkPassword).returns.toEqualTypeOf<Promise<boolean>>();
 expectTypeOf(user.getValidPreferences).toBeFunction();
 expectTypeOf(user.getValidPreferences).returns.toEqualTypeOf<string[]>();
 
-// Test static method return types - these come from the manifest's staticMethods
-expectTypeOf(User.increaseInviteLinkCount).toBeFunction();
-expectTypeOf(User.increaseInviteLinkCount).parameter(0).toEqualTypeOf<string>();
-expectTypeOf(User.increaseInviteLinkCount).returns.toEqualTypeOf<Promise<number>>();
-
 expectTypeOf(User.create).toBeFunction();
 expectTypeOf(User.create).toBeCallableWith({ name: 'test', password: 'test123' });
 // For proxy-wrapped static methods, we test return types via ReturnType extraction

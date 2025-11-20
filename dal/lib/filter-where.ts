@@ -1,6 +1,9 @@
 import type { ModelRuntime } from './model.ts';
 import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
 import type {
+  ChronologicalFeedOptions,
+  ChronologicalFeedPage,
+  DateKeys,
   FilterWhereJoinSpec,
   FilterWhereLiteral,
   FilterWhereOperators,
@@ -8,6 +11,7 @@ import type {
   JsonObject,
   ModelConstructor,
   ModelInstance,
+  NumericKeys,
   RevisionDataRecord,
 } from './model-types.ts';
 import QueryBuilder from './query-builder.ts';
@@ -146,8 +150,8 @@ function createGroupedPredicate(
  */
 function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRecord> {
   return {
-    neq<K extends keyof TRecord>(value: TRecord[K]) {
-      const operator: InternalFilterOperator<K, TRecord[K]> = {
+    neq<K extends keyof TRecord>(value: TRecord[K] | null) {
+      const operator: InternalFilterOperator<K, TRecord[K] | null> = {
         [FILTER_OPERATOR_TOKEN]: true,
         __allowedKeys: null as unknown as K,
         value,
@@ -546,13 +550,31 @@ class FilterWhereBuilder<
     return this;
   }
 
-  orderBy(field: Extract<keyof TData, string>, direction: 'ASC' | 'DESC' = 'ASC'): this {
+  /**
+   * Order results by a model column.
+   *
+   * @param field Field to sort by (camelCase or qualified string)
+   * @param direction Sort direction
+   */
+  orderBy(field: Extract<keyof TData, string> | string, direction: 'ASC' | 'DESC' = 'ASC'): this {
     const dbField = this._builder._resolveFieldName(field);
     this._builder._assertResolvedField(dbField);
     if (typeof dbField !== 'string') {
       throw new TypeError('FilterWhereBuilder.orderBy requires a string column reference.');
     }
     this._builder.orderBy(dbField, direction);
+    return this;
+  }
+
+  /**
+   * Order results using a column on a joined relation (through metadata).
+   *
+   * @param relation Relation key from the manifest
+   * @param field Column on the related table (camelCase)
+   * @param direction Sort direction
+   */
+  orderByRelation(relation: TRelations, field: string, direction: 'ASC' | 'DESC' = 'ASC'): this {
+    (this._builder as QueryBuilder).orderByRelation(relation as string, field, direction);
     return this;
   }
 
@@ -570,6 +592,62 @@ class FilterWhereBuilder<
   offset(count: number): this {
     this._builder.offset(count);
     return this;
+  }
+
+  /**
+   * Run a chronological feed query against a date-backed field using limit+1 cursor pagination.
+   *
+   * @param options Cursor pagination options.
+   */
+  async chronologicalFeed<K extends Extract<DateKeys<TData>, string>>(
+    options: ChronologicalFeedOptions<TData, K>
+  ): Promise<ChronologicalFeedPage<NonNullable<TData[K]>, TInstance>> {
+    const { cursorField, cursor, direction = 'DESC' as const, limit = 10 } = options ?? {};
+    const normalizedLimit = Math.max(0, Math.floor(limit));
+
+    this._ensureRevisionFilters();
+
+    if (normalizedLimit === 0) {
+      return {
+        rows: [],
+        hasMore: false,
+        nextCursor: undefined,
+      };
+    }
+
+    const dbField = this._builder._resolveFieldName(cursorField as string | symbol);
+    this._builder._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError(
+        'FilterWhereBuilder.chronologicalFeed requires a string column reference.'
+      );
+    }
+
+    if (cursor !== undefined && cursor !== null) {
+      const operator = direction === 'ASC' ? '>' : '<';
+      this._builder._addWhereCondition(dbField, operator, cursor);
+    }
+
+    this._builder.orderBy(dbField, direction);
+    this._builder.limit(normalizedLimit + 1);
+
+    const results = (await this._builder.run()) as unknown as TInstance[];
+    const hasMore = results.length > normalizedLimit;
+    const rows = hasMore ? results.slice(0, normalizedLimit) : results;
+
+    let nextCursor: NonNullable<TData[K]> | undefined;
+    if (hasMore && rows.length > 0) {
+      const cursorValue = rows[rows.length - 1]?.[cursorField];
+      if (cursorValue !== undefined && cursorValue !== null) {
+        nextCursor = cursorValue as unknown as NonNullable<TData[K]>;
+      }
+    }
+
+    return {
+      rows,
+      hasMore,
+      nextCursor,
+    };
   }
 
   getJoin(joinSpec: FilterWhereJoinSpec<TRelations>): this {
@@ -591,6 +669,11 @@ class FilterWhereBuilder<
     return this;
   }
 
+  whereRelated(relation: TRelations, field: string, value: unknown, operator = '='): this {
+    (this._builder as QueryBuilder).whereRelated(relation as string, field, operator, value);
+    return this;
+  }
+
   async run(): Promise<TInstance[]> {
     this._ensureRevisionFilters();
     const results = await this._builder.run();
@@ -606,6 +689,59 @@ class FilterWhereBuilder<
   async count(): Promise<number> {
     this._ensureRevisionFilters();
     return this._builder.count();
+  }
+
+  async average(field: Extract<keyof TData, string>): Promise<number | null> {
+    this._ensureRevisionFilters();
+    const dbField = this._builder._resolveFieldName(field);
+    this._builder._assertResolvedField(dbField);
+    if (typeof dbField !== 'string') {
+      throw new TypeError('FilterWhereBuilder.average requires a string column reference.');
+    }
+    return this._builder.average(dbField);
+  }
+
+  /**
+   * Atomically increment a numeric column scoped by the current predicates.
+   *
+   * @param field Numeric model field to increment
+   * @param options Configure the increment step and returned columns
+   */
+  async increment<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(
+    field: K,
+    options: { by?: number; returning?: R[] } = {}
+  ): Promise<{ rowCount: number; rows: Array<Pick<TData, R>> }> {
+    this._ensureRevisionFilters();
+    const result = await (this._builder as QueryBuilder).increment(
+      field as string,
+      options.by ?? 1,
+      { returning: options.returning as string[] | undefined }
+    );
+
+    return result as { rowCount: number; rows: Array<Pick<TData, R>> };
+  }
+
+  /**
+   * Atomically decrement a numeric column scoped by the current predicates.
+   *
+   * @param field Numeric model field to decrement
+   * @param options Configure the decrement step and returned columns
+   */
+  async decrement<
+    K extends Extract<NumericKeys<TData>, string>,
+    R extends Extract<keyof TData, string> = K,
+  >(
+    field: K,
+    options: { by?: number; returning?: R[] } = {}
+  ): Promise<{
+    rowCount: number;
+    rows: Array<Pick<TData, R>>;
+  }> {
+    const amount = options.by ?? 1;
+    return this.increment(field, { ...options, by: -Math.abs(amount) });
   }
 
   async delete(): Promise<number> {

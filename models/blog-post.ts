@@ -13,7 +13,7 @@ import blogPostManifest, {
   type BlogPostStaticMethods,
 } from './manifests/blog-post.ts';
 import { referenceTeamSlug } from './manifests/team-slug.ts';
-import User, { type UserViewer } from './user.ts';
+import User, { type UserAccessContext, type UserView } from './user.ts';
 
 const TeamSlug = referenceTeamSlug();
 
@@ -50,45 +50,24 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
       throw new Error('We require a team ID to fetch blog posts.');
     }
 
-    const params: unknown[] = [teamID];
-    let paramIndex = 2;
-
-    let query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE team_id = $1
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-          AND (_old_rev_of IS NULL)
-      `;
-
-    if (offsetDate) {
-      query += ` AND created_on < $${paramIndex}`;
-      params.push(offsetDate);
-      paramIndex++;
-    }
-
-    query += ` ORDER BY created_on DESC LIMIT $${paramIndex}`;
-    params.push(limit + 1);
-
-    const result = await this.dal.query(query, params);
+    const feedPage = await this.filterWhere({ teamID }).chronologicalFeed({
+      cursorField: 'createdOn',
+      cursor: offsetDate ?? undefined,
+      limit,
+    });
 
     const blogPosts = (await Promise.all(
-      result.rows.map(async row => {
-        const post = this.createFromRow(row as Record<string, unknown>) as BlogPostInstance;
+      feedPage.rows.map(async rawPost => {
+        const post = rawPost as BlogPostInstance;
         await attachCreator(this, post);
         return post;
       })
     )) as BlogPostInstance[];
 
-    const response: { blogPosts: BlogPostInstance[]; offsetDate?: Date } = { blogPosts };
-
-    if (blogPosts.length === limit + 1 && limit > 0) {
-      const offsetPost = blogPosts[limit - 1];
-      response.offsetDate = offsetPost.createdOn;
-      blogPosts.pop();
-    }
-
-    return response;
+    return {
+      blogPosts,
+      offsetDate: feedPage.hasMore ? feedPage.nextCursor : undefined,
+    };
   },
   /**
    * Fetch a paginated feed of the most recent blog posts for a team slug.
@@ -111,7 +90,7 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
 }) satisfies BlogPostStaticMethods;
 
 const blogPostInstanceMethods = defineInstanceMethods(blogPostManifest, {
-  populateUserInfo(this: BlogPostInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: BlogPostInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }
@@ -147,15 +126,19 @@ async function attachCreator(model: BlogPostModel, post: BlogPostInstance) {
   }
 
   try {
-    const user = await User.getWithTeams(post.createdBy);
-    if (!user) {
+    const [creator] = await User.fetchView<UserView>('publicProfile', {
+      configure(builder) {
+        builder.whereIn('id', [post.createdBy as string], { cast: 'uuid[]' });
+      },
+    });
+    if (!creator) {
       return post;
     }
     const postRecord = post as BlogPostInstance & Record<string, any>;
     postRecord.creator = {
-      id: user.id,
-      displayName: user.displayName,
-      urlName: user.urlName,
+      id: creator.id,
+      displayName: creator.displayName,
+      urlName: creator.urlName,
     };
   } catch (error) {
     debug.db('Failed to load blog post creator:', error);

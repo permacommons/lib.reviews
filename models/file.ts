@@ -12,7 +12,7 @@ import fileManifest, {
   type FileStaticMethods,
   fileValidLicenses,
 } from './manifests/file.ts';
-import type { UserViewer } from './user.ts';
+import type { UserAccessContext } from './user.ts';
 
 const validLicenses = fileValidLicenses;
 
@@ -25,21 +25,12 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
    * @returns File instance for the pending upload, if present
    */
   async getStashedUpload(this: FileModel, userID: string, name: string) {
-    const query = `
-      SELECT *
-      FROM ${this.tableName}
-      WHERE name = $1
-        AND uploaded_by = $2
-        AND completed = false
-        AND (_rev_deleted IS NULL OR _rev_deleted = false)
-        AND (_old_rev_of IS NULL)
-      LIMIT 1
-    `;
-
-    const result = await this.dal.query(query, [name, userID]);
-    return result.rows.length > 0
-      ? (this.createFromRow(result.rows[0] as Record<string, unknown>) as FileInstance)
-      : undefined;
+    const stashedUpload = (await this.filterWhere({
+      name,
+      uploadedBy: userID,
+      completed: false,
+    }).first()) as FileInstance | null;
+    return stashedUpload ?? undefined;
   },
 
   /**
@@ -63,27 +54,14 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
     this: FileModel,
     { offsetDate, limit = 10 }: FileFeedOptions = {}
   ): Promise<FileFeedResult<Record<string, any>>> {
-    let query = this.filterWhere({ completed: true })
+    const feedPage = await this.filterWhere({ completed: true })
       .getJoin({ uploader: true })
-      .orderBy('uploadedOn', 'DESC');
+      .chronologicalFeed({ cursorField: 'uploadedOn', cursor: offsetDate ?? undefined, limit });
 
-    if (offsetDate?.valueOf) {
-      query = query.and({ uploadedOn: this.ops.lt(offsetDate) });
-    }
-
-    const items = await query.limit(limit + 1).run();
-    const slicedItems = items.slice(0, limit);
-
-    const feed: FileFeedResult<Record<string, any>> = {
-      items: slicedItems,
+    return {
+      items: feedPage.rows,
+      offsetDate: feedPage.hasMore ? feedPage.nextCursor : undefined,
     };
-
-    if (items.length === limit + 1 && limit > 0) {
-      const lastVisible = slicedItems[limit - 1] as { uploadedOn?: Date };
-      feed.offsetDate = lastVisible?.uploadedOn;
-    }
-
-    return feed;
   },
 }) satisfies FileStaticMethods;
 
@@ -93,7 +71,7 @@ const fileInstanceMethods = defineInstanceMethods(fileManifest, {
    *
    * @param user - User whose permissions should be evaluated
    */
-  populateUserInfo(this: FileInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: FileInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }

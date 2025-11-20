@@ -11,6 +11,9 @@ import inviteLinkManifest, {
   type InviteLinkModel,
   type InviteLinkStaticMethods,
 } from './manifests/invite-link.ts';
+import { referenceUser, type UserView } from './manifests/user.ts';
+
+const User = referenceUser();
 
 const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
   /**
@@ -25,18 +28,10 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
     }
 
     try {
-      const query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE created_by = $1
-          AND (used_by IS NULL)
-        ORDER BY created_on DESC
-      `;
-
-      const result = await this.dal.query(query, [user.id]);
-      return result.rows.map(row =>
-        normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>))
-      );
+      const invites = await this.filterWhere({ createdBy: user.id, usedBy: null })
+        .orderBy('createdOn', 'DESC')
+        .run();
+      return invites.map(normalizeInviteInstance);
     } catch (error) {
       debug.error('Failed to fetch pending invite links:', error);
       return [];
@@ -55,43 +50,32 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
     }
 
     try {
-      const query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE created_by = $1
-          AND used_by IS NOT NULL
-        ORDER BY created_on DESC
-      `;
+      const invites = await this.filterWhere({ createdBy: user.id, usedBy: this.ops.neq(null) })
+        .orderBy('createdOn', 'DESC')
+        .run();
+      invites.forEach(normalizeInviteInstance);
 
-      const result = await this.dal.query(query, [user.id]);
-      const invites = result.rows.map(row =>
-        normalizeInviteInstance(this.createFromRow(row as Record<string, unknown>))
-      );
-
-      const usedByIds = [...new Set(invites.map(invite => invite.usedBy).filter(Boolean))];
+      const usedByIds = [
+        ...new Set(
+          invites
+            .map(invite => invite.usedBy)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        ),
+      ];
       if (usedByIds.length === 0) {
         return invites;
       }
 
-      const userQuery = `
-        SELECT id, display_name, canonical_name, registration_date, is_trusted, is_site_moderator, is_super_user
-        FROM users
-        WHERE id = ANY($1)
-      `;
-      const userResult = await this.dal.query(userQuery, [usedByIds]);
-      const userMap = new Map();
-
-      userResult.rows.forEach((row: Record<string, unknown>) => {
-        userMap.set(row.id, {
-          ...row,
-          displayName: row.display_name,
-          urlName:
-            row.canonical_name ||
-            (row.display_name
-              ? encodeURIComponent(String(row.display_name).replace(/ /g, '_'))
-              : undefined),
-          registrationDate: row.registration_date,
-        });
+      const users = await User.fetchView<UserView>('publicProfile', {
+        configure(builder) {
+          builder.whereIn('id', usedByIds, { cast: 'uuid[]' });
+        },
+      });
+      const userMap = new Map<string, UserView>();
+      users.forEach(user => {
+        if (user.id) {
+          userMap.set(user.id, user);
+        }
       });
 
       invites.forEach(invite => {
@@ -128,21 +112,14 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
     }
 
     try {
-      const query = `
-        SELECT *
-        FROM ${this.tableName}
-        WHERE id = $1
-        LIMIT 1
-      `;
-
-      const result = await this.dal.query(query, [id]);
-      if (result.rows.length === 0) {
+      const invite = await this.filterWhere({ id }).first();
+      if (!invite) {
         const error = new DocumentNotFound(`invite_links with id ${id} not found`);
         error.name = 'DocumentNotFoundError';
         throw error;
       }
 
-      return normalizeInviteInstance(this.createFromRow(result.rows[0] as Record<string, unknown>));
+      return normalizeInviteInstance(invite);
     } catch (error) {
       if (error instanceof DocumentNotFound || (error as Error).name === 'DocumentNotFoundError') {
         throw error;

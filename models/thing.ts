@@ -24,7 +24,7 @@ import thingManifest, {
   type ThingStaticMethods,
 } from './manifests/thing.ts';
 import ThingSlug from './thing-slug.ts';
-import User, { type UserViewer } from './user.ts';
+import User, { fetchUserPublicProfiles, type UserAccessContext, type UserView } from './user.ts';
 
 const Review = referenceReview();
 const File = referenceFile();
@@ -77,7 +77,7 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
             .run();
 
           const reviewsByThing = new Map<string, any[]>();
-          const viewerForLookup: UserViewer = { id: lookupUserID };
+          const viewerForLookup: UserAccessContext = { id: lookupUserID };
 
           for (const review of reviews) {
             if (typeof review.populateUserInfo === 'function') {
@@ -228,7 +228,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param user - Viewer whose permissions should be reflected on the instance
    */
-  populateUserInfo(this: ThingInstance, user: UserViewer | null | undefined) {
+  populateUserInfo(this: ThingInstance, user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }
@@ -448,7 +448,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    */
   async getReviewsByUser(
     this: ThingInstance,
-    user: UserViewer | null | undefined
+    user: UserAccessContext | null | undefined
   ): Promise<ReviewInstance[]> {
     if (!user || !user.id) {
       return [];
@@ -485,22 +485,11 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    */
   async getAverageStarRating(this: ThingInstance): Promise<number> {
     try {
-      const runtime = this.constructor as Record<string, any>;
-      const dalInstance = runtime.dal as Record<string, any>;
-      const reviewTableName = dalInstance.schemaNamespace
-        ? `${dalInstance.schemaNamespace}reviews`
-        : 'reviews';
-      const query = `
-        SELECT AVG(star_rating) as avg_rating
-        FROM ${reviewTableName}
-        WHERE thing_id = $1
-          AND (_old_rev_of IS NULL)
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      `;
-
-      const result = await dalInstance.query(query, [String(this.id)]);
-      const avg = result.rows[0]?.avg_rating;
-      return typeof avg === 'number' ? avg : parseFloat(String(avg ?? 0));
+      if (typeof this.id !== 'string' || this.id.length === 0) {
+        return 0;
+      }
+      const avg = await Review.filterWhere({ thingID: this.id }).average('starRating');
+      return typeof avg === 'number' ? avg : 0;
     } catch (error) {
       const serializedError = error instanceof Error ? error : new Error(String(error));
       debug.error('Error calculating average star rating:');
@@ -515,22 +504,10 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    */
   async getReviewCount(this: ThingInstance): Promise<number> {
     try {
-      const runtime = this.constructor as Record<string, any>;
-      const dalInstance = runtime.dal as Record<string, any>;
-      const reviewTableName = dalInstance.schemaNamespace
-        ? `${dalInstance.schemaNamespace}reviews`
-        : 'reviews';
-      const query = `
-        SELECT COUNT(*) as review_count
-        FROM ${reviewTableName}
-        WHERE thing_id = $1
-          AND (_old_rev_of IS NULL)
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      `;
-
-      const result = await dalInstance.query(query, [String(this.id)]);
-      const count = result.rows[0]?.review_count;
-      return parseInt(String(count ?? 0), 10);
+      if (typeof this.id !== 'string' || this.id.length === 0) {
+        return 0;
+      }
+      return await Review.filterWhere({ thingID: this.id }).count();
     } catch (error) {
       const serializedError = error instanceof Error ? error : new Error(String(error));
       debug.error('Error counting reviews:');
@@ -641,48 +618,24 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
     }
 
     try {
-      const placeholders = uniqueIDs.map((_, index) => `$${index + 1}`).join(', ');
-      const query = `
-        SELECT *
-        FROM ${File.tableName}
-        WHERE id IN (${placeholders})
-          AND (_old_rev_of IS NULL)
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      `;
-
-      const result = await File.dal.query(query, uniqueIDs);
-      const validFiles = result.rows
-        .map(row => File.createFromRow(row as Record<string, unknown>))
-        .filter(file => !userID || file.uploadedBy === userID);
+      const { in: inOp } = File.ops;
+      const validFiles = (
+        await File.filterWhere({ id: inOp(uniqueIDs as [string, ...string[]]) }).run()
+      ).filter(file => !userID || file.uploadedBy === userID);
 
       if (!validFiles.length) {
         return this;
       }
 
-      const runtime = this.constructor as Record<string, any>;
-      const dalInstance = runtime.dal as Record<string, any>;
-      const junctionTable = dalInstance.schemaNamespace
-        ? `${dalInstance.schemaNamespace}thing_files`
-        : 'thing_files';
-      const insertValues: Array<string | undefined> = [];
-      const valueClauses: string[] = [];
-      let paramIndex = 1;
+      // Insert associations into junction table using DAL helper
+      const Thing = this.constructor as ThingModel;
+      await Thing.addManyRelated(
+        'files',
+        this.id!,
+        validFiles.map(f => f.id!)
+      );
 
-      validFiles.forEach(file => {
-        valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
-        insertValues.push(this.id, file.id);
-        paramIndex += 2;
-      });
-
-      if (valueClauses.length) {
-        const insertQuery = `
-          INSERT INTO ${junctionTable} (thing_id, file_id)
-          VALUES ${valueClauses.join(', ')}
-          ON CONFLICT DO NOTHING
-        `;
-        await dalInstance.query(insertQuery, insertValues);
-      }
-
+      // Update in-memory representation
       const record = this as Record<string, any>;
       const currentFiles = (record.files ?? []) as Array<Record<string, any>>;
       const existingIDs = new Set(currentFiles.map(file => file.id));
@@ -731,16 +684,7 @@ async function _attachUploadersToFiles(files: Array<Record<string, any>>): Promi
   }
 
   try {
-    // Users don't have revisions, use whereIn for array of IDs
-    const result = await User.filterWhere({}).whereIn('id', uploaderIDs, { cast: 'uuid[]' }).run();
-
-    const uploaderMap = new Map<string, any>();
-    for (const uploader of result || []) {
-      if (!uploader || !uploader.id) {
-        continue;
-      }
-      uploaderMap.set(uploader.id, uploader);
-    }
+    const uploaderMap = await fetchUserPublicProfiles(uploaderIDs);
 
     files.forEach(file => {
       if (!file || !file.uploadedBy) {
