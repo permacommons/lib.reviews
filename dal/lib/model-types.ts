@@ -498,6 +498,12 @@ export interface ModelConstructor<
     relationName: TRelations,
     sourceIds: string[]
   ): Promise<Map<string, ModelInstance<JsonObject, JsonObject>[]>>;
+  addManyRelated(
+    relationName: TRelations,
+    sourceId: string,
+    targetIds: string[],
+    options?: { onConflict?: 'ignore' | 'error' }
+  ): Promise<void>;
 
   [key: string]: unknown;
 }

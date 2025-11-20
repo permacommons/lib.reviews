@@ -706,6 +706,180 @@ test.serial('Model.loadManyRelated respects revision system guards', async t => 
   t.is(reviewTeamMap.get(review.id)?.length ?? 0, 0);
 });
 
+test.serial('Model.addManyRelated creates junction table associations', async t => {
+  // Create a thing and review
+  const userId = randomUUID();
+  await ensureUserExists(dalFixture, userId);
+
+  const thing = await Thing.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['addmanyrelated-test'] }
+  );
+  thing.urls = [`https://example.com/${randomUUID()}`];
+  thing.label = { en: 'Test Thing' };
+  thing.createdOn = new Date();
+  thing.createdBy = userId;
+  await thing.save();
+
+  const review = await Review.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['addmanyrelated-test'] }
+  );
+  review.thingID = thing.id;
+  review.title = { en: 'Test Review for addManyRelated' };
+  review.text = { en: 'Test content' };
+  review.starRating = 4;
+  review.createdOn = new Date();
+  review.createdBy = userId;
+  await review.save();
+
+  // Create two teams
+  const team1 = await Team.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['addmanyrelated-test'] }
+  );
+  team1.name = { en: 'Team One' };
+  team1.teamType = 'trusted users';
+  team1.createdOn = new Date();
+  team1.createdBy = userId;
+  await team1.save();
+
+  const team2 = await Team.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['addmanyrelated-test'] }
+  );
+  team2.name = { en: 'Team Two' };
+  team2.teamType = 'moderators';
+  team2.createdOn = new Date();
+  team2.createdBy = userId;
+  await team2.save();
+
+  // Associate review with both teams using addManyRelated
+  await Review.addManyRelated('teams', review.id!, [team1.id!, team2.id!]);
+
+  // Verify associations were created
+  const reviewTeamMap = await Review.loadManyRelated('teams', [review.id!]);
+  t.is(reviewTeamMap.get(review.id!)?.length, 2);
+
+  const teamIds = reviewTeamMap
+    .get(review.id!)
+    ?.map(t => t.id)
+    .sort();
+  t.deepEqual(teamIds, [team1.id, team2.id].sort());
+});
+
+test.serial('Model.addManyRelated handles duplicates with ON CONFLICT DO NOTHING', async t => {
+  // Create a thing and review
+  const userId = randomUUID();
+  await ensureUserExists(dalFixture, userId);
+
+  const thing = await Thing.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['duplicate-test'] }
+  );
+  thing.urls = [`https://example.com/${randomUUID()}`];
+  thing.label = { en: 'Duplicate Test Thing' };
+  thing.createdOn = new Date();
+  thing.createdBy = userId;
+  await thing.save();
+
+  const review = await Review.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['duplicate-test'] }
+  );
+  review.thingID = thing.id;
+  review.title = { en: 'Duplicate Test Review' };
+  review.text = { en: 'Test content' };
+  review.starRating = 5;
+  review.createdOn = new Date();
+  review.createdBy = userId;
+  await review.save();
+
+  // Create a team
+  const team = await Team.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['duplicate-test'] }
+  );
+  team.name = { en: 'Duplicate Test Team' };
+  team.teamType = 'trusted users';
+  team.createdOn = new Date();
+  team.createdBy = userId;
+  await team.save();
+
+  // Associate once
+  await Review.addManyRelated('teams', review.id!, [team.id!]);
+
+  // Associate again (should not throw error due to ON CONFLICT DO NOTHING)
+  await t.notThrowsAsync(async () => {
+    await Review.addManyRelated('teams', review.id!, [team.id!]);
+  });
+
+  // Verify only one association exists
+  const reviewTeamMap = await Review.loadManyRelated('teams', [review.id!]);
+  t.is(reviewTeamMap.get(review.id!)?.length, 1);
+});
+
+test.serial('Model.addManyRelated handles empty target array gracefully', async t => {
+  // Create a thing and review
+  const userId = randomUUID();
+  await ensureUserExists(dalFixture, userId);
+
+  const thing = await Thing.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['empty-array-test'] }
+  );
+  thing.urls = [`https://example.com/${randomUUID()}`];
+  thing.label = { en: 'Empty Array Test Thing' };
+  thing.createdOn = new Date();
+  thing.createdBy = userId;
+  await thing.save();
+
+  const review = await Review.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['empty-array-test'] }
+  );
+  review.thingID = thing.id;
+  review.title = { en: 'Empty Array Test Review' };
+  review.text = { en: 'Test content' };
+  review.starRating = 3;
+  review.createdOn = new Date();
+  review.createdBy = userId;
+  await review.save();
+
+  // Call with empty array - should not throw
+  await t.notThrowsAsync(async () => {
+    await Review.addManyRelated('teams', review.id!, []);
+  });
+
+  // Verify no associations created
+  const reviewTeamMap = await Review.loadManyRelated('teams', [review.id!]);
+  t.is(reviewTeamMap.get(review.id!)?.length ?? 0, 0);
+});
+
+test.serial('Model.addManyRelated throws helpful error for invalid relation', async t => {
+  const error = await t.throwsAsync(
+    async () => await Review.addManyRelated('nonExistentRelation', 'some-id', ['target-id']),
+    { instanceOf: Error }
+  );
+
+  t.true(error?.message.includes("Relation 'nonExistentRelation' not found"));
+  t.true(error?.message.includes('Available relations:'));
+});
+
+test.serial('Model.addManyRelated throws error for non-junction relations', async t => {
+  // Try to use addManyRelated on a direct relation (not through a junction table)
+  // Using Thing model's 'reviews' relation which is a direct one-to-many
+  const Thing = dalFixture.getModel('things');
+
+  const error = await t.throwsAsync(
+    async () => await Thing.addManyRelated('reviews', 'some-thing-id', ['review-id']),
+    { instanceOf: Error }
+  );
+
+  t.true(error?.message.includes('not a many-to-many relation with a junction table'));
+  t.true(error?.message.includes("Only relations with 'through' configuration"));
+});
+
 test.after.always(async () => {
   unmockSearch();
   await dalFixture.cleanup();

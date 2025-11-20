@@ -627,30 +627,15 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
         return this;
       }
 
-      const runtime = this.constructor as Record<string, any>;
-      const dalInstance = runtime.dal as Record<string, any>;
-      const junctionTable = dalInstance.schemaNamespace
-        ? `${dalInstance.schemaNamespace}thing_files`
-        : 'thing_files';
-      const insertValues: Array<string | undefined> = [];
-      const valueClauses: string[] = [];
-      let paramIndex = 1;
+      // Insert associations into junction table using DAL helper
+      const Thing = this.constructor as ThingModel;
+      await Thing.addManyRelated(
+        'files',
+        this.id!,
+        validFiles.map(f => f.id!)
+      );
 
-      validFiles.forEach(file => {
-        valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
-        insertValues.push(this.id, file.id);
-        paramIndex += 2;
-      });
-
-      if (valueClauses.length) {
-        const insertQuery = `
-          INSERT INTO ${junctionTable} (thing_id, file_id)
-          VALUES ${valueClauses.join(', ')}
-          ON CONFLICT DO NOTHING
-        `;
-        await dalInstance.query(insertQuery, insertValues);
-      }
-
+      // Update in-memory representation
       const record = this as Record<string, any>;
       const currentFiles = (record.files ?? []) as Array<Record<string, any>>;
       const existingIDs = new Set(currentFiles.map(file => file.id));

@@ -594,9 +594,10 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
       const rowData = { ...row };
       delete (rowData as Record<string, unknown>).__source_id;
 
-      const instance = TargetModel.createFromRow(
-        rowData as JsonObject
-      ) as ModelInstance<JsonObject, JsonObject>;
+      const instance = TargetModel.createFromRow(rowData as JsonObject) as ModelInstance<
+        JsonObject,
+        JsonObject
+      >;
 
       if (!resultMap.has(sourceId)) {
         resultMap.set(sourceId, []);
@@ -605,6 +606,108 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     });
 
     return resultMap;
+  }
+
+  /**
+   * Batch-insert associations into a many-to-many junction table.
+   *
+   * This helper creates associations between a single source record and multiple target records
+   * by inserting rows into a junction table. It automatically handles:
+   * - Schema namespace prefixing for test isolation
+   * - Duplicate associations via ON CONFLICT DO NOTHING
+   * - Input validation with helpful error messages
+   *
+   * @param relationName - Name of the relation defined in the manifest (must have a `through` junction table)
+   * @param sourceId - ID of the source record to associate from
+   * @param targetIds - Array of target record IDs to associate with
+   * @param options - Optional configuration
+   * @param options.onConflict - How to handle duplicate associations: 'ignore' (default) or 'error'
+   * @throws {Error} If relation not found, has no junction table, or inputs are invalid
+   *
+   * @example
+   * ```ts
+   * // Associate a thing with multiple files
+   * await Thing.addManyRelated('files', thingId, [file1.id, file2.id]);
+   *
+   * // Associate a review with teams
+   * await Review.addManyRelated('teams', reviewId, teamIds, { onConflict: 'error' });
+   * ```
+   */
+  static async addManyRelated<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+  >(
+    this: ModelRuntime<TData, TVirtual> & typeof Model,
+    relationName: string,
+    sourceId: string,
+    targetIds: string[],
+    options?: { onConflict?: 'ignore' | 'error' }
+  ): Promise<void> {
+    // Validate inputs
+    if (!sourceId || typeof sourceId !== 'string') {
+      throw new Error(
+        `Invalid sourceId: expected non-empty string, got ${typeof sourceId === 'string' ? 'empty string' : typeof sourceId}`
+      );
+    }
+
+    const uniqueIds = [
+      ...new Set(targetIds.filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    ];
+    if (uniqueIds.length === 0) {
+      return; // Nothing to insert
+    }
+
+    // Get relation metadata
+    const relationConfig = this.getRelation(relationName);
+    if (!relationConfig) {
+      const availableRelations = this.getRelations().map(r => r.name);
+      const suggestion =
+        availableRelations.length > 0
+          ? ` Available relations: ${availableRelations.join(', ')}`
+          : ' No relations defined for this model.';
+      throw new Error(
+        `Relation '${relationName}' not found for model '${this.tableName}'.${suggestion}`
+      );
+    }
+
+    // Validate that this is a many-to-many relation with junction table
+    if (!relationConfig.through || relationConfig.joinType !== 'through') {
+      throw new Error(
+        `Relation '${relationName}' is not a many-to-many relation with a junction table. ` +
+          `Only relations with 'through' configuration support addManyRelated.`
+      );
+    }
+
+    // Resolve table names with schema namespace
+    const schemaNamespace = this.dal.schemaNamespace || '';
+    const junctionTableName = schemaNamespace
+      ? `${schemaNamespace}${relationConfig.through.table}`
+      : relationConfig.through.table;
+
+    const junctionSourceColumn = relationConfig.through.sourceColumn;
+    const junctionTargetColumn = relationConfig.through.targetColumn;
+
+    // Build parameterized INSERT query
+    const valueClauses: string[] = [];
+    const params: string[] = [];
+    let paramIndex = 1;
+
+    uniqueIds.forEach(targetId => {
+      valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
+      params.push(sourceId, targetId);
+      paramIndex += 2;
+    });
+
+    const onConflictClause = options?.onConflict === 'error' ? '' : 'ON CONFLICT DO NOTHING';
+
+    const query = `
+      INSERT INTO ${junctionTableName} (${junctionSourceColumn}, ${junctionTargetColumn})
+      VALUES ${valueClauses.join(', ')}
+      ${onConflictClause}
+    `;
+
+    // Execute insert
+    await this.dal.query(query, params);
   }
 
   /**

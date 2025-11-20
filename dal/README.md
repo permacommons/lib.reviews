@@ -290,6 +290,145 @@ const reviewManifest = defineModelManifest({
 - **Deleted records**: Automatically excludes soft-deleted related records when `hasRevisions: true`
 - **Type safety**: Results are typed as `Map<string, ModelInstance<JsonObject, JsonObject>[]>`, requiring a cast to the specific target type when needed
 
+## Writing Many-to-Many Associations
+
+The DAL provides `Model.addManyRelated()` for batch-inserting associations into many-to-many junction tables. This complements `loadManyRelated()` by handling the write side of many-to-many relationships.
+
+### Basic Usage
+
+```ts
+// Associate a thing with multiple files
+const Thing = dalFixture.getModel('things');
+await Thing.addManyRelated('files', thingId, [file1.id, file2.id]);
+
+// Associate a review with teams
+const Review = dalFixture.getModel('reviews');
+await Review.addManyRelated('teams', reviewId, teamIds);
+```
+
+### How It Works
+
+`addManyRelated()` uses the relation metadata defined in your manifest to:
+
+1. Build a parameterized INSERT query for the junction table
+2. Apply schema namespace prefixing for test isolation
+3. Handle duplicate associations gracefully via `ON CONFLICT DO NOTHING` (default)
+4. Validate inputs and provide helpful error messages
+
+**Before** (manual SQL):
+```ts
+const runtime = this.constructor as Record<string, any>;
+const dalInstance = runtime.dal as Record<string, any>;
+const junctionTable = dalInstance.schemaNamespace
+  ? `${dalInstance.schemaNamespace}thing_files`
+  : 'thing_files';
+const insertValues: Array<string | undefined> = [];
+const valueClauses: string[] = [];
+let paramIndex = 1;
+
+validFiles.forEach(file => {
+  valueClauses.push(`($${paramIndex}, $${paramIndex + 1})`);
+  insertValues.push(this.id, file.id);
+  paramIndex += 2;
+});
+
+if (valueClauses.length) {
+  const insertQuery = `
+    INSERT INTO ${junctionTable} (thing_id, file_id)
+    VALUES ${valueClauses.join(', ')}
+    ON CONFLICT DO NOTHING
+  `;
+  await dalInstance.query(insertQuery, insertValues);
+}
+```
+
+**After** (DAL helper):
+```ts
+const Thing = this.constructor as ThingModel;
+await Thing.addManyRelated('files', this.id!, validFiles.map(f => f.id!));
+```
+
+### Requirements
+
+The relation must be defined in your model's manifest with:
+- A `through` object specifying the junction table
+- Proper `sourceForeignKey` and `targetForeignKey` columns
+- `cardinality: 'many'`
+
+Example manifest configuration:
+```ts
+const thingManifest = defineModelManifest({
+  tableName: 'things',
+  relations: [
+    {
+      name: 'files',
+      targetTable: 'files',
+      sourceKey: 'id',
+      targetKey: 'id',
+      hasRevisions: true,
+      through: {
+        table: 'thing_files',
+        sourceForeignKey: 'thing_id',
+        targetForeignKey: 'file_id',
+      },
+      cardinality: 'many',
+    },
+  ],
+});
+```
+
+### Conflict Handling
+
+By default, duplicate associations are silently ignored:
+
+```ts
+// Associate once
+await Review.addManyRelated('teams', reviewId, [teamId]);
+
+// Associate again - no error, no duplicate row
+await Review.addManyRelated('teams', reviewId, [teamId]);
+```
+
+For strict validation, use `{ onConflict: 'error' }`:
+
+```ts
+await Review.addManyRelated('teams', reviewId, [teamId], { onConflict: 'error' });
+// Throws if association already exists
+```
+
+### Edge Cases
+
+- **Empty input**: Returns immediately when given `[]` with no database query
+- **Invalid relation**: Throws helpful error listing available relations
+- **Non-junction relation**: Throws error if relation doesn't have a `through` table
+- **Invalid source ID**: Throws error for empty or non-string source IDs
+- **Schema isolation**: Automatically handles test namespace prefixing
+
+### Instance Method Pattern
+
+When writing instance methods that create associations, follow this pattern:
+
+```ts
+async addFilesByIDsAndSave(this: ThingInstance, fileIDs: string[]): Promise<ThingInstance> {
+  // 1. Validate and fetch related records
+  const { in: inOp } = File.ops;
+  const validFiles = await File.filterWhere({ id: inOp(fileIDs as [string, ...string[]]) }).run();
+
+  if (!validFiles.length) {
+    return this;
+  }
+
+  // 2. Insert associations using static helper
+  const Thing = this.constructor as ThingModel;
+  await Thing.addManyRelated('files', this.id!, validFiles.map(f => f.id!));
+
+  // 3. Update in-memory representation
+  this.files = [...(this.files ?? []), ...validFiles];
+
+  return this;
+}
+```
+
 ## Revisions
 
 Models with `hasRevisions: true` gain revision metadata fields and helpers:
