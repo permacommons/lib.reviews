@@ -515,9 +515,6 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
 
     // Resolve table names
     const schemaNamespace = this.dal.schemaNamespace || '';
-    const sourceTableName = schemaNamespace
-      ? `${schemaNamespace}${this.tableName}`
-      : this.tableName;
     const targetTableName = schemaNamespace
       ? `${schemaNamespace}${relationConfig.targetTable}`
       : relationConfig.targetTable;
@@ -532,7 +529,6 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
         ? `${schemaNamespace}${relationConfig.through.table}`
         : relationConfig.through.table;
 
-      const sourceColumn = relationConfig.sourceColumn || 'id';
       const junctionSourceColumn = relationConfig.through.sourceColumn;
       const junctionTargetColumn = relationConfig.through.targetColumn;
       const targetColumn = relationConfig.targetColumn || 'id';
@@ -559,7 +555,6 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
     } else {
       // Direct one-to-many relation
       const targetColumn = relationConfig.targetColumn || 'id';
-      const sourceColumn = relationConfig.sourceColumn || 'id';
 
       const placeholders = uniqueIds.map((_, index) => `$${index + 1}`).join(', ');
 

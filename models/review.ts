@@ -25,7 +25,6 @@ import { referenceUser, type UserView } from './manifests/user.ts';
 import type { UserAccessContext } from './user.ts';
 
 const Thing = referenceThing();
-const Team = referenceTeam();
 const User = referenceUser();
 
 const { revision } = dal as {
