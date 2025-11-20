@@ -618,19 +618,10 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
     }
 
     try {
-      const placeholders = uniqueIDs.map((_, index) => `$${index + 1}`).join(', ');
-      const query = `
-        SELECT *
-        FROM ${File.tableName}
-        WHERE id IN (${placeholders})
-          AND (_old_rev_of IS NULL)
-          AND (_rev_deleted IS NULL OR _rev_deleted = false)
-      `;
-
-      const result = await File.dal.query(query, uniqueIDs);
-      const validFiles = result.rows
-        .map(row => File.createFromRow(row as Record<string, unknown>))
-        .filter(file => !userID || file.uploadedBy === userID);
+      const { in: inOp } = File.ops;
+      const validFiles = (
+        await File.filterWhere({ id: inOp(uniqueIDs as [string, ...string[]]) }).run()
+      ).filter(file => !userID || file.uploadedBy === userID);
 
       if (!validFiles.length) {
         return this;
