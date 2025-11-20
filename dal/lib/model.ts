@@ -456,6 +456,158 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
+   * Batch-load many-to-many related records through a junction table.
+   *
+   * Given an array of source IDs, fetches all related records and groups them
+   * by source ID. Handles both direct and through (junction table) relations,
+   * automatically applying revision system guards when needed.
+   *
+   * @param relationName - Name of the relation from the manifest
+   * @param sourceIds - Array of source record IDs to load relations for
+   * @returns Map of source ID to array of related model instances
+   *
+   * @example
+   * // Load all teams for multiple reviews
+   * const reviewTeamMap = await Review.loadManyRelated('teams', reviewIds);
+   * reviewTeamMap.get(reviewId) // => TeamInstance[]
+   */
+  static async loadManyRelated<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+  >(
+    this: ModelRuntime<TData, TVirtual> & typeof Model,
+    relationName: string,
+    sourceIds: string[]
+  ): Promise<Map<string, ModelInstance<JsonObject, JsonObject>[]>> {
+    const resultMap = new Map<string, ModelInstance<JsonObject, JsonObject>[]>();
+
+    // Validate inputs
+    const uniqueIds = [
+      ...new Set(sourceIds.filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    ];
+    if (uniqueIds.length === 0) {
+      return resultMap;
+    }
+
+    // Get relation metadata
+    const relationConfig = this.getRelation(relationName);
+    if (!relationConfig) {
+      const availableRelations = this.getRelations().map(r => r.name);
+      const suggestion =
+        availableRelations.length > 0
+          ? ` Available relations: ${availableRelations.join(', ')}`
+          : ' No relations defined for this model.';
+      throw new Error(
+        `Relation '${relationName}' not found for model '${this.tableName}'.${suggestion}`
+      );
+    }
+
+    // Get target model
+    const targetModelKey = relationConfig.targetModelKey || relationConfig.targetTable;
+    let TargetModel: ModelConstructor<JsonObject, JsonObject>;
+    try {
+      TargetModel = this.dal.getModel(targetModelKey);
+    } catch (error) {
+      throw new Error(
+        `Target model '${targetModelKey}' not found for relation '${relationName}': ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    // Resolve table names
+    const schemaNamespace = this.dal.schemaNamespace || '';
+    const sourceTableName = schemaNamespace
+      ? `${schemaNamespace}${this.tableName}`
+      : this.tableName;
+    const targetTableName = schemaNamespace
+      ? `${schemaNamespace}${relationConfig.targetTable}`
+      : relationConfig.targetTable;
+
+    // Build query based on relation type
+    let query: string;
+    const params: unknown[] = uniqueIds;
+
+    if (relationConfig.through && relationConfig.joinType === 'through') {
+      // Many-to-many through junction table
+      const junctionTableName = schemaNamespace
+        ? `${schemaNamespace}${relationConfig.through.table}`
+        : relationConfig.through.table;
+
+      const sourceColumn = relationConfig.sourceColumn || 'id';
+      const junctionSourceColumn = relationConfig.through.sourceColumn;
+      const junctionTargetColumn = relationConfig.through.targetColumn;
+      const targetColumn = relationConfig.targetColumn || 'id';
+
+      const placeholders = uniqueIds.map((_, index) => `$${index + 1}`).join(', ');
+
+      // Build SELECT with junction table join
+      query = `
+        SELECT
+          j.${junctionSourceColumn} AS __source_id,
+          t.*
+        FROM ${targetTableName} t
+        JOIN ${junctionTableName} j ON t.${targetColumn} = j.${junctionTargetColumn}
+        WHERE j.${junctionSourceColumn} IN (${placeholders})
+      `;
+
+      // Add revision guards for target table if needed
+      if (relationConfig.hasRevisions) {
+        query += `
+          AND (t._old_rev_of IS NULL)
+          AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
+        `;
+      }
+    } else {
+      // Direct one-to-many relation
+      const targetColumn = relationConfig.targetColumn || 'id';
+      const sourceColumn = relationConfig.sourceColumn || 'id';
+
+      const placeholders = uniqueIds.map((_, index) => `$${index + 1}`).join(', ');
+
+      query = `
+        SELECT
+          ${targetColumn} AS __source_id,
+          *
+        FROM ${targetTableName}
+        WHERE ${targetColumn} IN (${placeholders})
+      `;
+
+      // Add revision guards if needed
+      if (relationConfig.hasRevisions) {
+        query += `
+          AND (_old_rev_of IS NULL)
+          AND (_rev_deleted IS NULL OR _rev_deleted = false)
+        `;
+      }
+    }
+
+    // Execute query
+    const result = await this.dal.query(query, params);
+
+    // Group results by source ID
+    result.rows.forEach(row => {
+      const sourceId = (row as Record<string, unknown>).__source_id as string;
+      if (!sourceId || typeof sourceId !== 'string') {
+        return;
+      }
+
+      // Create instance from row (excluding our __source_id marker)
+      const rowData = { ...row };
+      delete (rowData as Record<string, unknown>).__source_id;
+
+      const instance = TargetModel.createFromRow(
+        rowData as JsonObject
+      ) as ModelInstance<JsonObject, JsonObject>;
+
+      if (!resultMap.has(sourceId)) {
+        resultMap.set(sourceId, []);
+      }
+      resultMap.get(sourceId)?.push(instance);
+    });
+
+    return resultMap;
+  }
+
+  /**
    * Get the database field name for a given property name
    * @param propertyName - Property name (camelCase or snake_case)
    * @returns Database field name (snake_case)

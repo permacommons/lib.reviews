@@ -385,38 +385,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
           if (reviewIds.length > 0) {
             debug.db(`Batch fetching teams for ${reviewIds.length} reviews in feed...`);
 
-            const dalInstance = this.dal as Record<string, any>;
-            const reviewTeamTableName = dalInstance.schemaNamespace
-              ? `${dalInstance.schemaNamespace}review_teams`
-              : 'review_teams';
-            const teamTableName = dalInstance.schemaNamespace
-              ? `${dalInstance.schemaNamespace}teams`
-              : 'teams';
-
-            const placeholders = reviewIds.map((_, index) => `$${index + 1}`).join(', ');
-            const teamQuery = `
-              SELECT rt.review_id, t.* FROM ${teamTableName} t
-              JOIN ${reviewTeamTableName} rt ON t.id = rt.team_id
-              WHERE rt.review_id IN (${placeholders})
-                AND (t._old_rev_of IS NULL)
-                AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
-            `;
-
-            const teamResult = await this.dal.query(teamQuery, reviewIds);
-
-            const reviewTeamMap = new Map<string, Record<string, any>[]>();
-            teamResult.rows.forEach(row => {
-              const resultRow = row as Record<string, any>;
-              const reviewId = resultRow.review_id;
-              const teamInstance = Team.createFromRow(resultRow as Record<string, unknown>);
-
-              if (typeof reviewId === 'string') {
-                if (!reviewTeamMap.has(reviewId)) {
-                  reviewTeamMap.set(reviewId, []);
-                }
-                reviewTeamMap.get(reviewId)?.push(teamInstance);
-              }
-            });
+            const reviewTeamMap = await this.loadManyRelated('teams', reviewIds);
 
             feedItems.forEach(review => {
               const reviewId = review.id;
@@ -512,26 +481,8 @@ const Review = defineModel(reviewManifest, {
 async function _getReviewTeams(reviewId: string): Promise<TeamInstance[]> {
   try {
     const reviewModel = Review as ReviewModel;
-    const reviewTeamTableName = reviewModel.dal.schemaNamespace
-      ? `${reviewModel.dal.schemaNamespace}review_teams`
-      : 'review_teams';
-    const teamTableName = reviewModel.dal.schemaNamespace
-      ? `${reviewModel.dal.schemaNamespace}teams`
-      : 'teams';
-
-    const query = `
-      SELECT t.* FROM ${teamTableName} t
-      JOIN ${reviewTeamTableName} rt ON t.id = rt.team_id
-      WHERE rt.review_id = $1
-        AND (t._old_rev_of IS NULL)
-        AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
-    `;
-
-    const result = await reviewModel.dal.query(query, [reviewId]);
-
-    return result.rows.map(
-      row => Team.createFromRow(row as Record<string, unknown>) as TeamInstance
-    );
+    const reviewTeamMap = await reviewModel.loadManyRelated('teams', [reviewId]);
+    return (reviewTeamMap.get(reviewId) as TeamInstance[] | undefined) || [];
   } catch (error) {
     debug.error('Failed to get teams for review:', error);
     return [];

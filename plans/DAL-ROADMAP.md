@@ -82,6 +82,9 @@ Replace manual model initialization with declarative manifests that drive type g
   - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
   - [ ] Thread manifest-derived instance types into `QueryBuilder` so `filterWhere().run()` returns e.g. `ThingInstance[]` without manual casts.
   - [ ] Make `filterWhere` operator helpers nullability-aware (e.g., only allow `neq(null)` on nullable fields) by threading schema-required flags into the operator typing.
+  - [ ] Add explicit relation type maps to manifests—each manifest exports a `Relations` interface mapping relation names to target instance types. Use this to type helpers like `loadManyRelated<R extends keyof Relations>()` for full inference without code generation. Validate that relation names stay in sync via extracted literal types from the `relations` array.
+  - [ ] Type-constrain relation names—extract relation names from manifest via `typeof manifest.relations[number]['name']` to constrain methods like `whereRelated()`, `orderByRelation()`, and `loadManyRelated()` to known relations, catching typos at compile time.
+  - [ ] Explore relation-aware virtual field inference—investigate whether virtual fields for relations (`teams: TeamInstance[]`) can be derived from the relations array + type map, reducing manual `types.virtual().returns<...>()` declarations.
 
 - **Clean up supporting infrastructure**
   - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.

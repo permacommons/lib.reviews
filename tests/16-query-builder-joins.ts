@@ -512,6 +512,200 @@ test('QueryBuilder handles empty results gracefully', async t => {
   t.is(count, 0);
 });
 
+test.serial('Model.loadManyRelated batch-loads through junction tables', async t => {
+  // Create test users
+  const user1 = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  const user2 = { id: randomUUID(), is_super_user: false, is_trusted: true };
+  await ensureUserExists(dalFixture, user1.id, 'Batch Load User 1');
+  await ensureUserExists(dalFixture, user2.id, 'Batch Load User 2');
+
+  // Create test teams
+  const team1Draft = await Team.createFirstRevision(user1, { tags: ['batch-test'] });
+  team1Draft.name = { en: 'Team Alpha' };
+  team1Draft.motto = { en: 'First' };
+  team1Draft.description = { text: { en: 'Team 1' }, html: { en: '<p>Team 1</p>' } };
+  team1Draft.rules = { text: { en: 'Rule 1' }, html: { en: '<p>Rule 1</p>' } };
+  team1Draft.createdBy = user1.id;
+  team1Draft.createdOn = new Date();
+  team1Draft.originalLanguage = 'en';
+  team1Draft.confersPermissions = {};
+  await team1Draft.save();
+
+  const team2Draft = await Team.createFirstRevision(user1, { tags: ['batch-test'] });
+  team2Draft.name = { en: 'Team Beta' };
+  team2Draft.motto = { en: 'Second' };
+  team2Draft.description = { text: { en: 'Team 2' }, html: { en: '<p>Team 2</p>' } };
+  team2Draft.rules = { text: { en: 'Rule 2' }, html: { en: '<p>Rule 2</p>' } };
+  team2Draft.createdBy = user1.id;
+  team2Draft.createdOn = new Date();
+  team2Draft.originalLanguage = 'en';
+  team2Draft.confersPermissions = {};
+  await team2Draft.save();
+
+  // Create test things and reviews
+  const thing1 = await Thing.createFirstRevision(user1, { tags: ['batch-test'] });
+  thing1.urls = [`https://example.com/${randomUUID()}`];
+  thing1.label = { en: 'Batch Test Thing 1' };
+  thing1.createdOn = new Date();
+  thing1.createdBy = user1.id;
+  await thing1.save();
+
+  const thing2 = await Thing.createFirstRevision(user2, { tags: ['batch-test'] });
+  thing2.urls = [`https://example.com/${randomUUID()}`];
+  thing2.label = { en: 'Batch Test Thing 2' };
+  thing2.createdOn = new Date();
+  thing2.createdBy = user2.id;
+  await thing2.save();
+
+  const review1 = await Review.createFirstRevision(user1, { tags: ['batch-test'] });
+  review1.thingID = thing1.id;
+  review1.title = { en: 'Review 1' };
+  review1.text = { en: 'Review 1 text' };
+  review1.starRating = 5;
+  review1.createdOn = new Date();
+  review1.createdBy = user1.id;
+  await review1.save();
+
+  const review2 = await Review.createFirstRevision(user2, { tags: ['batch-test'] });
+  review2.thingID = thing2.id;
+  review2.title = { en: 'Review 2' };
+  review2.text = { en: 'Review 2 text' };
+  review2.starRating = 4;
+  review2.createdOn = new Date();
+  review2.createdBy = user2.id;
+  await review2.save();
+
+  // Associate reviews with teams
+  const reviewTeamsTable = dalFixture.getTableName('review_teams');
+  await dalFixture.query(`INSERT INTO ${reviewTeamsTable} (review_id, team_id) VALUES ($1, $2)`, [
+    review1.id,
+    team1Draft.id,
+  ]);
+  await dalFixture.query(`INSERT INTO ${reviewTeamsTable} (review_id, team_id) VALUES ($1, $2)`, [
+    review1.id,
+    team2Draft.id,
+  ]);
+  await dalFixture.query(`INSERT INTO ${reviewTeamsTable} (review_id, team_id) VALUES ($1, $2)`, [
+    review2.id,
+    team2Draft.id,
+  ]);
+
+  // Test batch loading teams for multiple reviews
+  const reviewTeamMap = await Review.loadManyRelated('teams', [review1.id, review2.id]);
+
+  // Verify structure
+  t.true(reviewTeamMap instanceof Map);
+  t.is(reviewTeamMap.size, 2);
+
+  // Verify review1 has 2 teams
+  const review1Teams = reviewTeamMap.get(review1.id);
+  t.truthy(review1Teams);
+  t.is(review1Teams.length, 2);
+  t.true(review1Teams[0] instanceof Team);
+  t.true(review1Teams[1] instanceof Team);
+  const review1TeamIds = review1Teams.map(team => team.id).sort();
+  t.deepEqual(review1TeamIds, [team1Draft.id, team2Draft.id].sort());
+
+  // Verify review2 has 1 team
+  const review2Teams = reviewTeamMap.get(review2.id);
+  t.truthy(review2Teams);
+  t.is(review2Teams.length, 1);
+  t.true(review2Teams[0] instanceof Team);
+  t.is(review2Teams[0].id, team2Draft.id);
+});
+
+test.serial('Model.loadManyRelated returns empty map for no results', async t => {
+  const nonExistentId = randomUUID();
+  const reviewTeamMap = await Review.loadManyRelated('teams', [nonExistentId]);
+
+  t.true(reviewTeamMap instanceof Map);
+  t.is(reviewTeamMap.size, 0);
+});
+
+test.serial('Model.loadManyRelated handles empty input array', async t => {
+  const reviewTeamMap = await Review.loadManyRelated('teams', []);
+
+  t.true(reviewTeamMap instanceof Map);
+  t.is(reviewTeamMap.size, 0);
+});
+
+test.serial('Model.loadManyRelated throws helpful error for unknown relation', async t => {
+  const error = await t.throwsAsync(
+    async () => await Review.loadManyRelated('nonExistentRelation', ['some-id']),
+    { instanceOf: Error }
+  );
+
+  t.truthy(error);
+  t.true(error.message.includes("Relation 'nonExistentRelation' not found"));
+  t.true(error.message.includes('Available relations:'));
+  t.true(error.message.includes('teams'));
+  t.true(error.message.includes('reviews'));
+});
+
+test.serial('Model.loadManyRelated respects revision system guards', async t => {
+  const userId = randomUUID();
+  await ensureUserExists(dalFixture, userId, 'Revision Guard User');
+
+  // Create a team
+  const teamDraft = await Team.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['revision-test'] }
+  );
+  teamDraft.name = { en: 'Revision Test Team' };
+  teamDraft.motto = { en: 'Test' };
+  teamDraft.description = { text: { en: 'Test' }, html: { en: '<p>Test</p>' } };
+  teamDraft.rules = { text: { en: 'Test' }, html: { en: '<p>Test</p>' } };
+  teamDraft.createdBy = userId;
+  teamDraft.createdOn = new Date();
+  teamDraft.originalLanguage = 'en';
+  teamDraft.confersPermissions = {};
+  await teamDraft.save();
+
+  // Create a thing and review
+  const thing = await Thing.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['revision-test'] }
+  );
+  thing.urls = [`https://example.com/${randomUUID()}`];
+  thing.label = { en: 'Revision Test Thing' };
+  thing.createdOn = new Date();
+  thing.createdBy = userId;
+  await thing.save();
+
+  const review = await Review.createFirstRevision(
+    { id: userId, is_super_user: false, is_trusted: true },
+    { tags: ['revision-test'] }
+  );
+  review.thingID = thing.id;
+  review.title = { en: 'Revision Test Review' };
+  review.text = { en: 'Test' };
+  review.starRating = 3;
+  review.createdOn = new Date();
+  review.createdBy = userId;
+  await review.save();
+
+  // Associate review with team
+  const reviewTeamsTable = dalFixture.getTableName('review_teams');
+  await dalFixture.query(`INSERT INTO ${reviewTeamsTable} (review_id, team_id) VALUES ($1, $2)`, [
+    review.id,
+    teamDraft.id,
+  ]);
+
+  // Verify team is loaded
+  let reviewTeamMap = await Review.loadManyRelated('teams', [review.id]);
+  t.is(reviewTeamMap.get(review.id)?.length, 1);
+
+  // Mark team as deleted
+  const teamsTable = dalFixture.getTableName('teams');
+  await dalFixture.query(`UPDATE ${teamsTable} SET _rev_deleted = true WHERE id = $1`, [
+    teamDraft.id,
+  ]);
+
+  // Verify deleted team is excluded
+  reviewTeamMap = await Review.loadManyRelated('teams', [review.id]);
+  t.is(reviewTeamMap.get(review.id)?.length ?? 0, 0);
+});
+
 test.after.always(async () => {
   unmockSearch();
   await dalFixture.cleanup();

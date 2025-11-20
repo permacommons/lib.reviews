@@ -210,6 +210,86 @@ const { rows } = await User.filterWhere({ id: someUser }).increment('inviteLinkC
 await User.filterWhere({ id: someUser }).decrement('inviteLinkCount', { by: 1 });
 ```
 
+## Batch Loading Relations
+
+The DAL provides `Model.loadManyRelated()` for efficiently loading many-to-many associations through junction tables. This is especially useful when hydrating lists of records with their related data (the "N+1 query" problem).
+
+### Basic Usage
+
+```ts
+// Load teams for multiple reviews in a single query
+const reviewIds = reviews.map(r => r.id);
+const reviewTeamMap = await Review.loadManyRelated('teams', reviewIds);
+
+// Populate each review with its teams
+reviews.forEach(review => {
+  review.teams = reviewTeamMap.get(review.id) || [];
+});
+```
+
+### How It Works
+
+`loadManyRelated()` uses the relation metadata defined in your manifest to:
+
+1. Build a single SQL query that joins through the junction table
+2. Apply revision system guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) when needed
+3. Group results by source ID
+4. Return a `Map<sourceId, TargetInstance[]>` for easy assignment
+
+**Before** (manual SQL):
+```ts
+const query = `
+  SELECT rt.review_id, t.* FROM teams t
+  JOIN review_teams rt ON t.id = rt.team_id
+  WHERE rt.review_id IN (${placeholders})
+    AND (t._old_rev_of IS NULL)
+    AND (t._rev_deleted IS NULL OR t._rev_deleted = false)
+`;
+const result = await dal.query(query, reviewIds);
+// Manual grouping logic...
+```
+
+**After** (DAL helper):
+```ts
+const reviewTeamMap = await Review.loadManyRelated('teams', reviewIds);
+```
+
+### Requirements
+
+The relation must be defined in your model's manifest with:
+- A `through` object specifying the junction table
+- Proper `sourceForeignKey` and `targetForeignKey` columns
+- Optional `hasRevisions` flag for revision-aware filtering
+
+Example manifest configuration:
+```ts
+const reviewManifest = defineModelManifest({
+  tableName: 'reviews',
+  relations: [
+    {
+      name: 'teams',
+      targetTable: 'teams',
+      sourceKey: 'id',
+      targetKey: 'id',
+      hasRevisions: true,
+      through: {
+        table: 'review_teams',
+        sourceForeignKey: 'review_id',
+        targetForeignKey: 'team_id',
+      },
+      cardinality: 'many',
+    },
+  ],
+});
+```
+
+### Edge Cases
+
+- **Empty input**: Returns empty `Map` when given `[]`
+- **No matches**: Returns empty `Map` when no associations exist
+- **Deleted records**: Automatically excludes soft-deleted related records when `hasRevisions: true`
+- **Type safety**: Results are typed as `Map<string, ModelInstance<JsonObject, JsonObject>[]>`, requiring a cast to the specific target type when needed
+
 ## Revisions
 
 Models with `hasRevisions: true` gain revision metadata fields and helpers:

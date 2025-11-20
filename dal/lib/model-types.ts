@@ -494,6 +494,10 @@ export interface ModelConstructor<
     name: string,
     options?: ModelViewFetchOptions<TData, TVirtual, TInstance, TRelations>
   ): Promise<TView[]>;
+  loadManyRelated(
+    relationName: TRelations,
+    sourceIds: string[]
+  ): Promise<Map<string, ModelInstance<JsonObject, JsonObject>[]>>;
 
   [key: string]: unknown;
 }
