@@ -71,7 +71,7 @@ Replace manual model initialization with declarative manifests that drive type g
 ### Phase 5 – Increase typing surface; remove raw SQL
 
 - **Harden the DAL typing surface**
-  - [ ] Expose DAL helper namespaces (`mlString`, `revision`, `QueryBuilder`) with concrete typings so model modules can drop casts like `const { mlString } = dal as { ... }`.
+  - ✅ Expose DAL helper namespaces (`mlString`, `revision`, `types`) with concrete typings so model modules can drop casts like `const { mlString } = dal as { ... }`. Cleaned up 14 files (11 manifests + 2 implementations + DAL core) to use `const { mlString, types } = dal;` pattern, eliminating all manual type casts.
   - [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`, closing escape hatches around manifest initialisation.
 
 - **Eliminate `Record<string, any>` fallbacks from hot paths**
