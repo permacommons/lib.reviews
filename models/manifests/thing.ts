@@ -1,3 +1,7 @@
+import type {
+  AdapterLookupData,
+  AdapterLookupResult,
+} from '../../adapters/abstract-backend-adapter.ts';
 import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
@@ -5,10 +9,43 @@ import type { InferConstructor, InferInstance } from '../../dal/lib/model-manife
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
+import type { FileInstance } from './file.ts';
+// Note: Use ModelInstance for virtual field types to avoid circular type inference.
+// This should be revisited when relation types are derived from manifest metadata.
+import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import type { ReviewInstance } from './review.ts';
 import type { UserAccessContext } from './user.ts';
 
 const { mlString, types } = dal;
+
+/**
+ * Entry for a single synced field, tracking its source and update state.
+ */
+export interface SyncEntry {
+  active: boolean;
+  source: string;
+  updated?: Date;
+}
+
+/**
+ * Fields that can be synced from adapters, derived from AdapterLookupData.
+ * Excludes 'thing' which is a domain object reference, not a syncable field.
+ */
+export type SyncField = Exclude<keyof AdapterLookupData, 'thing'>;
+
+/**
+ * The full sync configuration object, keyed by syncable field name.
+ */
+export type SyncData = Partial<Record<SyncField, SyncEntry>>;
+
+/**
+ * Structured metadata stored in the JSONB `metadata` column.
+ */
+export interface MetadataData {
+  description?: Record<string, string>;
+  subtitle?: Record<string, string>;
+  authors?: Array<Record<string, string>>;
+}
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
 
 const metadataDescriptionSchema = mlString.getSafeTextSchema({ maxLength: 512 });
@@ -25,7 +62,7 @@ function validateMetadata(metadata: unknown): boolean {
   }
 
   const validFields = ['description', 'subtitle', 'authors'];
-  const entries = Object.entries(metadata as Record<string, any>);
+  const entries = Object.entries(metadata as Partial<MetadataData>);
   for (const [key, value] of entries) {
     if (validFields.includes(key)) {
       if (value === null || value === undefined) {
@@ -130,6 +167,10 @@ const thingManifest = defineModelManifest({
         typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
       return metadata?.authors;
     }),
+
+    // Virtual relation fields (populated by getWithData/lookupByURL)
+    reviews: types.virtual<ModelInstance[]>().default(undefined),
+    files: types.virtual<FileInstance[]>().default(undefined),
   },
   camelToSnake: {
     originalLanguage: 'original_language',
@@ -168,7 +209,7 @@ type ThingModelBase = InferConstructor<typeof thingManifest>;
 export interface ThingInstanceMethods {
   initializeFieldsFromAdapter(
     this: ThingInstanceBase & ThingInstanceMethods,
-    adapterResult: Record<string, any>
+    adapterResult: AdapterLookupResult
   ): void;
   populateUserInfo(
     this: ThingInstanceBase & ThingInstanceMethods,
@@ -186,7 +227,7 @@ export interface ThingInstanceMethods {
   ): Promise<ReviewInstance[]>;
   getAverageStarRating(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;
   getReviewCount(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;
-  addFile(this: ThingInstanceBase & ThingInstanceMethods, file: Record<string, any>): void;
+  addFile(this: ThingInstanceBase & ThingInstanceMethods, file: FileInstance): void;
   updateSlug(
     this: ThingInstanceBase & ThingInstanceMethods,
     userID: string,

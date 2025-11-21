@@ -75,11 +75,12 @@ Replace manual model initialization with declarative manifests that drive type g
   - ✅ Consolidate inline static method type definitions in `create-model.ts` and `model-manifest.ts` to use the exported `StaticMethod` type from `model-initializer.ts`, eliminating redundant type aliases.
 
 - **Eliminate `Record<string, any>` fallbacks from hot paths**
-  - [ ] Replace `Record<string, any>` fallbacks in core models (`review`, `thing`, `blog-post`, `team`, `file`) and their callers (`routes/things.ts`, `routes/uploads.ts`, action handlers) by threading manifest-derived types through statics/instance helpers and exposing typed payload shims where unavoidable.
+  - [x] Replace `Record<string, any>` fallbacks in core models (`review`, `thing`, `blog-post`, `team`, `file`) by threading manifest-derived types through statics/instance helpers. Added typed interfaces (`SyncData`, `SyncField`, `MetadataData`, `ReviewInputObject`, etc.), virtual fields for relations, and proper query result casts. Derived `SyncField` from `AdapterLookupData` keys for single-source-of-truth sync field typing.
   - [x] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations, and cascade the stricter payloads into upload/action handlers. (Completed via form parsing migration from custom `keyValueMap` to standard qs bracket notation.)
+  - [ ] Thread typed payloads into route handlers (`routes/things.ts`, `routes/uploads.ts`, action handlers) to complete end-to-end type coverage.
 
 - **Expand manifest-driven inference**
-  - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.
+  - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders. This would also resolve the circular type inference issue where cross-model virtual fields (e.g., `Thing.reviews`, `Review.thing`) currently require `ModelInstance` fallbacks to avoid `InferInstance` cycles.
   - [ ] Thread manifest-derived instance types into `QueryBuilder` so `filterWhere().run()` returns e.g. `ThingInstance[]` without manual casts.
   - [ ] Make `filterWhere` operator helpers nullability-aware (e.g., only allow `neq(null)` on nullable fields) by threading schema-required flags into the operator typing.
   - [ ] Add explicit relation type maps to manifests—each manifest exports a `Relations` interface mapping relation names to target instance types. Use this to type helpers like `loadManyRelated<R extends keyof Relations>()` for full inference without code generation. Validate that relation names stay in sync via extracted literal types from the `relations` array.
@@ -89,6 +90,7 @@ Replace manual model initialization with declarative manifests that drive type g
 - **Clean up supporting infrastructure**
   - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
   - [ ] Audit remaining scattered raw SQL usage and design targeted query helpers that build on `filterWhere`.
+  - [ ] Export a typed `JoinOptions` interface from the DAL with proper `_apply` callback typing to eliminate `any` in join option objects (see FIXME in `models/thing.ts:getWithData`).
 
 ### Phase 6 – Optional Backend Generalisation (future, only if needed)
 

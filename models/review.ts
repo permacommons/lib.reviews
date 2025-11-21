@@ -6,12 +6,15 @@ import {
   defineModel,
   defineStaticMethods,
 } from '../dal/lib/create-model.ts';
+import type { RevisionActor } from '../dal/lib/model-types.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
+import { type FileInstance } from './manifests/file.ts';
 import reviewManifest, {
   type ReviewCreateOptions,
   type ReviewFeedOptions,
   type ReviewFeedResult,
+  type ReviewInputObject,
   type ReviewInstance,
   type ReviewInstanceMethods,
   type ReviewModel,
@@ -42,9 +45,9 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
       creator: true,
     };
 
-    const review = (await this.getNotStaleOrDeleted(id, joinOptions)) as
-      | (ReviewInstance & Record<string, any>)
-      | null;
+    // Cast required: query builder returns base instance type, but runtime
+    // attaches instance methods defined in the manifest.
+    const review = (await this.getNotStaleOrDeleted(id, joinOptions)) as ReviewInstance | null;
 
     if (!review) {
       return null;
@@ -54,7 +57,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
       try {
         const thing = await Thing.getWithData(review.thingID);
         if (thing) {
-          (review as Record<string, any>).thing = thing;
+          review.thing = thing;
         }
       } catch (error) {
         debug.db('Failed to fetch thing for review:', error);
@@ -64,7 +67,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
     try {
       const teams = await _getReviewTeams(review.id);
       if (teams.length > 0) {
-        (review as Record<string, any>).teams = teams;
+        review.teams = teams;
       }
     } catch (error) {
       debug.db('Failed to fetch teams for review:', error);
@@ -81,7 +84,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    */
   async create(
     this: ReviewModel,
-    reviewObj: Record<string, any>,
+    reviewObj: ReviewInputObject,
     { tags, files }: ReviewCreateOptions = {}
   ) {
     const thing = await this.findOrCreateThing(reviewObj);
@@ -102,15 +105,15 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
     this.validateSocialImage({
       socialImageID: reviewObj.socialImageID,
       newFileIDs: files,
-      fileObjects: (thing.files ?? []) as Array<Record<string, any>>,
+      // files is a runtime-populated relation on ThingInstance
+      fileObjects: (thing as ThingInstance & { files?: FileInstance[] }).files ?? [],
     });
 
     if (Array.isArray(files)) {
       await thing.addFilesByIDsAndSave(files, reviewObj.createdBy);
     }
 
-    const ReviewConstructor = this as unknown as new () => ReviewInstance & Record<string, any>;
-    const review = new ReviewConstructor();
+    const review = new this() as ReviewInstance;
     review.thingID = thing.id;
     review.title = reviewObj.title;
     review.text = reviewObj.text;
@@ -127,15 +130,15 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
     });
 
     try {
-      if (reviewObj.teams && Array.isArray(reviewObj.teams)) {
-        (review as Record<string, any>).teams = reviewObj.teams;
+      if (reviewObj.teams) {
+        review.teams = reviewObj.teams;
       }
 
       await review.saveAll({
         teams: true,
       });
 
-      (review as Record<string, any>).thing = thing;
+      review.thing = thing;
 
       return review;
     } catch (error) {
@@ -188,7 +191,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    * @param reviewObj - Data describing the review target
    * @returns The located or newly created Thing
    */
-  async findOrCreateThing(this: ReviewModel, reviewObj: Record<string, any>) {
+  async findOrCreateThing(this: ReviewModel, reviewObj: ReviewInputObject): Promise<ThingInstance> {
     if (reviewObj.thing) {
       return reviewObj.thing;
     }
@@ -199,15 +202,17 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
       debug.db('Review.findOrCreateThing: existing thing found', {
         thingID: existingThings[0].id,
       });
-      return existingThings[0];
+      return existingThings[0] as ThingInstance;
     }
 
     const date = new Date();
 
-    const thing = await Thing.createFirstRevision(
+    // Cast required: query builder returns base instance type, but runtime
+    // attaches instance methods defined in the manifest.
+    const thing = (await Thing.createFirstRevision(
       { id: reviewObj.createdBy },
       { tags: ['create-via-review'], date }
-    );
+    )) as ThingInstance;
     debug.db('Review.findOrCreateThing: created first revision', {
       provisionalThingID: thing.id,
     });
@@ -292,7 +297,9 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
     }
 
     const feedPage = await builder.chronologicalFeed({ cursorField: 'createdOn', limit });
-    const feedItems = feedPage.rows as Array<ReviewInstance & Record<string, any>>;
+    // Cast required: query builder returns base instance type, but runtime
+    // attaches instance methods defined in the manifest.
+    const feedItems = feedPage.rows as ReviewInstance[];
     const feedResult: ReviewFeedResult = { feedItems };
 
     if (feedPage.hasMore) {
@@ -329,7 +336,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
           feedItems.forEach(review => {
             const createdBy = review.createdBy;
             if (typeof createdBy === 'string' && userMap.has(createdBy)) {
-              (review as Record<string, any>).creator = userMap.get(createdBy);
+              review.creator = userMap.get(createdBy);
             }
           });
 
@@ -361,7 +368,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
             feedItems.forEach(review => {
               const thingID = review.thingID;
               if (typeof thingID === 'string' && thingMap.has(thingID)) {
-                (review as Record<string, any>).thing = thingMap.get(thingID);
+                review.thing = thingMap.get(thingID);
               }
             });
 
@@ -387,7 +394,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
             feedItems.forEach(review => {
               const reviewId = review.id;
               if (typeof reviewId === 'string' && reviewTeamMap.has(reviewId)) {
-                (review as Record<string, any>).teams = reviewTeamMap.get(reviewId);
+                review.teams = reviewTeamMap.get(reviewId) as TeamInstance[];
               }
             });
 
@@ -437,21 +444,15 @@ const reviewInstanceMethods = defineInstanceMethods(reviewManifest, {
    * @param user - User initiating the deletion
    * @returns Promise that resolves once all deletions succeed
    */
-  async deleteAllRevisionsWithThing(this: ReviewInstance, user: Record<string, any>) {
-    const revisionActor = (
-      typeof user.id === 'string' ? { id: user.id } : { id: String(user.id ?? '') }
-    ) as { id: string };
-
-    const p1 = this.deleteAllRevisions(revisionActor, {
+  async deleteAllRevisionsWithThing(this: ReviewInstance, user: RevisionActor) {
+    const p1 = this.deleteAllRevisions(user, {
       tags: ['delete-with-thing'],
     });
 
     let p2: Promise<unknown> = Promise.resolve();
-    const relatedThing = (this as Record<string, any>).thing as
-      | (ThingInstance & Record<string, any>)
-      | undefined;
+    const relatedThing = this.thing;
     if (relatedThing && typeof relatedThing.deleteAllRevisions === 'function') {
-      p2 = relatedThing.deleteAllRevisions(revisionActor, {
+      p2 = relatedThing.deleteAllRevisions(user, {
         tags: ['delete-via-review'],
       });
     }

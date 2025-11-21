@@ -53,13 +53,15 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
   async getFileFeed(
     this: FileModel,
     { offsetDate, limit = 10 }: FileFeedOptions = {}
-  ): Promise<FileFeedResult<Record<string, any>>> {
+  ): Promise<FileFeedResult<FileInstance>> {
     const feedPage = await this.filterWhere({ completed: true })
       .getJoin({ uploader: true })
       .chronologicalFeed({ cursorField: 'uploadedOn', cursor: offsetDate ?? undefined, limit });
 
+    // Cast required: query builder returns base instance type, but runtime
+    // attaches instance methods defined in the manifest.
     return {
-      items: feedPage.rows,
+      items: feedPage.rows as FileInstance[],
       offsetDate: feedPage.hasMore ? feedPage.nextCursor : undefined,
     };
   },

@@ -2,7 +2,7 @@ import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import type { UserAccessContext } from './user.ts';
+import type { UserAccessContext, UserView } from './user.ts';
 
 const { mlString, types } = dal;
 const validLicenseValues = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'] as const;
@@ -23,6 +23,9 @@ const fileManifest = defineModelManifest({
     completed: types.boolean().default(false),
     userCanDelete: types.virtual().default(false),
     userIsCreator: types.virtual().default(false),
+
+    // Virtual relation field (populated by joins/helpers)
+    uploader: types.virtual<UserView>().default(undefined),
   },
   camelToSnake: {
     uploadedBy: 'uploaded_by',
@@ -84,7 +87,7 @@ export interface FileStaticMethods {
   getFileFeed(
     this: FileModelBase & FileStaticMethods,
     options?: FileFeedOptions
-  ): Promise<FileFeedResult<Record<string, any>>>;
+  ): Promise<FileFeedResult<FileInstance>>;
 }
 
 export type FileInstance = FileInstanceBase & FileInstanceMethods;

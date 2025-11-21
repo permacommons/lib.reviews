@@ -1,10 +1,13 @@
 import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferData, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { RevisionActor } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
+import type { FileInstance } from './file.ts';
+import type { TeamInstance } from './team.ts';
 import type { ThingInstance } from './thing.ts';
-import type { UserAccessContext } from './user.ts';
+import type { UserAccessContext, UserView } from './user.ts';
 
 const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
@@ -37,7 +40,7 @@ export interface ReviewCreateOptions {
 export interface ReviewValidateSocialImageOptions {
   socialImageID?: string;
   newFileIDs?: string[];
-  fileObjects?: Record<string, any>[];
+  fileObjects?: Array<FileInstance | { id: string }>;
 }
 
 const reviewManifest = defineModelManifest({
@@ -65,6 +68,11 @@ const reviewManifest = defineModelManifest({
     userCanDelete: types.virtual().default(false),
     userCanEdit: types.virtual().default(false),
     userIsAuthor: types.virtual().default(false),
+
+    // Virtual relation fields (populated by getWithData/getFeed)
+    thing: types.virtual<ThingInstance>().default(undefined),
+    teams: types.virtual<TeamInstance[]>().default(undefined),
+    creator: types.virtual<UserView>().default(undefined),
   },
   camelToSnake: {
     thingID: 'thing_id',
@@ -117,6 +125,17 @@ const reviewManifest = defineModelManifest({
 
 type ReviewInstanceBase = InferInstance<typeof reviewManifest>;
 type ReviewModelBase = InferConstructor<typeof reviewManifest>;
+type ReviewData = InferData<(typeof reviewManifest)['schema']>;
+
+/**
+ * Input for creating a review - combines schema fields with additional create-time data.
+ */
+export type ReviewInputObject = Partial<ReviewData> & {
+  url?: string;
+  thing?: ThingInstance;
+  label?: Record<string, string>;
+  teams?: TeamInstance[];
+};
 
 export interface ReviewInstanceMethods {
   populateUserInfo(
@@ -125,7 +144,7 @@ export interface ReviewInstanceMethods {
   ): void;
   deleteAllRevisionsWithThing(
     this: ReviewInstanceBase & ReviewInstanceMethods,
-    user: Record<string, any>
+    user: RevisionActor
   ): Promise<[unknown, unknown]>;
 }
 
@@ -136,7 +155,7 @@ export interface ReviewStaticMethods {
   ): Promise<ReviewInstance | null>;
   create(
     this: ReviewModelBase & ReviewStaticMethods,
-    reviewObj: Record<string, any>,
+    reviewObj: ReviewInputObject,
     options?: ReviewCreateOptions
   ): Promise<ReviewInstance>;
   validateSocialImage(
@@ -145,7 +164,7 @@ export interface ReviewStaticMethods {
   ): void;
   findOrCreateThing(
     this: ReviewModelBase & ReviewStaticMethods,
-    reviewObj: Record<string, any>
+    reviewObj: ReviewInputObject
   ): Promise<ThingInstance>;
   getFeed(
     this: ReviewModelBase & ReviewStaticMethods,

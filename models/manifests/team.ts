@@ -4,7 +4,7 @@ import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
-import type { UserAccessContext } from './user.ts';
+import type { UserAccessContext, UserView } from './user.ts';
 
 const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
@@ -50,7 +50,7 @@ const teamManifest = defineModelManifest({
     canonicalSlugName: types.string(),
     originalLanguage: types.string().max(4).validator(isValidLanguage),
     confersPermissions: types.object().validator(validateConfersPermissions),
-    reviewOffsetDate: types.virtual().default(null),
+    reviewOffsetDate: types.virtual<Date>().default(null),
     userIsFounder: types.virtual().default(false),
     userIsMember: types.virtual().default(false),
     userIsModerator: types.virtual().default(false),
@@ -59,6 +59,11 @@ const teamManifest = defineModelManifest({
     userCanLeave: types.virtual().default(false),
     userCanEdit: types.virtual().default(false),
     userCanDelete: types.virtual().default(false),
+    members: types.virtual<UserView[]>().default(undefined),
+    moderators: types.virtual<UserView[]>().default(undefined),
+    joinRequests: types.virtual<ModelInstance[]>().default(undefined),
+    reviews: types.virtual<ModelInstance[]>().default(undefined),
+    reviewCount: types.virtual<number>().default(undefined),
     urlID: types.virtual().default(function (this: InferInstance<typeof teamManifest>) {
       const slugName =
         typeof this.getValue === 'function'

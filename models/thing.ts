@@ -1,6 +1,10 @@
 import { randomUUID } from 'crypto';
 import { decodeHTML } from 'entities';
 import isUUID from 'is-uuid';
+import type {
+  AdapterLookupData,
+  AdapterLookupResult,
+} from '../adapters/abstract-backend-adapter.ts';
 import adapters from '../adapters/adapters.ts';
 import dal from '../dal/index.ts';
 import {
@@ -16,7 +20,12 @@ import { generateSlugName } from '../util/slug.ts';
 import urlUtils from '../util/url-utils.ts';
 import { referenceFile } from './manifests/file.ts';
 import { type ReviewInstance, referenceReview } from './manifests/review.ts';
+import type { FileInstance } from './manifests/file.ts';
 import thingManifest, {
+  type MetadataData,
+  type SyncData,
+  type SyncEntry,
+  type SyncField,
   type ThingInstance,
   type ThingInstanceMethods,
   type ThingLabelSource,
@@ -51,10 +60,9 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
     `;
 
     const result = await this.dal.query(query, [url]);
-    const things: Array<ThingInstance & Record<string, any>> = result.rows.map(
-      row =>
-        this.createFromRow(row as Record<string, unknown>) as ThingInstance & Record<string, any>
-    );
+    // Cast required: createFromRow returns base instance type, but runtime
+    // attaches instance methods defined in the manifest.
+    const things = result.rows.map(row => this.createFromRow(row) as ThingInstance);
 
     if (typeof userID === 'string') {
       const lookupUserID = typeof userID.trim === 'function' ? userID.trim() : userID;
@@ -63,24 +71,24 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
         .filter(id => typeof id === 'string' && id.length > 0);
 
       things.forEach(thing => {
-        (thing as Record<string, any>).reviews = [];
+        thing.reviews = [];
       });
 
       if (thingIDs.length > 0) {
         try {
-          const reviews = await Review.filterWhere({ createdBy: lookupUserID })
+          // Cast required: query builder returns base instance type, but runtime
+          // attaches instance methods defined in the manifest.
+          const reviews = (await Review.filterWhere({ createdBy: lookupUserID })
             .whereIn('thingID', thingIDs, { cast: 'uuid[]' })
             .orderBy('createdOn', 'DESC')
             .limit(50)
-            .run();
+            .run()) as ReviewInstance[];
 
-          const reviewsByThing = new Map<string, any[]>();
+          const reviewsByThing = new Map<string, ReviewInstance[]>();
           const viewerForLookup: UserAccessContext = { id: lookupUserID };
 
           for (const review of reviews) {
-            if (typeof review.populateUserInfo === 'function') {
-              review.populateUserInfo(viewerForLookup);
-            }
+            review.populateUserInfo(viewerForLookup);
 
             const reviewThingID = review.thingID;
             if (!reviewThingID) {
@@ -97,7 +105,7 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
           things.forEach(thing => {
             const userReviews = reviewsByThing.get(thing.id);
             if (Array.isArray(userReviews)) {
-              (thing as Record<string, any>).reviews = userReviews;
+              thing.reviews = userReviews;
             }
           });
         } catch (error) {
@@ -125,6 +133,8 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
       withReviewMetrics = true,
     }: { withFiles?: boolean; withReviewMetrics?: boolean } = {}
   ) {
+    // FIXME: joinOptions uses `any` because the DAL doesn't export a typed
+    // JoinOptions interface with proper _apply callback typing.
     const joinOptions: Record<string, any> = {};
     if (withFiles) {
       joinOptions.files = {
@@ -132,11 +142,13 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
       };
     }
 
+    // Cast required: query returns base instance type, but runtime
+    // attaches instance methods defined in the manifest.
     const thing = (
       Object.keys(joinOptions).length
         ? await this.getNotStaleOrDeleted(id, joinOptions)
         : await this.getNotStaleOrDeleted(id)
-    ) as ThingInstance & Record<string, any>;
+    ) as ThingInstance;
 
     if (withFiles) {
       thing.files = Array.isArray(thing.files) ? thing.files : [];
@@ -185,40 +197,37 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param adapterResult - Result object returned from a backend adapter
    */
-  initializeFieldsFromAdapter(this: ThingInstance, adapterResult: Record<string, any>) {
+  initializeFieldsFromAdapter(this: ThingInstance, adapterResult: AdapterLookupResult) {
     if (typeof adapterResult !== 'object' || !adapterResult) {
       return;
     }
 
-    const responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID) as Record<
-      string,
-      any
-    >;
-    const supportedFields = Array.isArray(responsibleAdapter?.getSupportedFields?.())
-      ? responsibleAdapter.getSupportedFields()
-      : [];
+    const responsibleAdapter = adapters.getAdapterForSource(adapterResult.sourceID);
+    const supportedFields = responsibleAdapter?.getSupportedFields() ?? [];
 
-    const data = adapterResult.data as Record<string, any>;
-    for (const field in data) {
-      if (supportedFields.includes(field)) {
-        if (['description', 'subtitle', 'authors'].includes(field)) {
-          if (!this.metadata) {
-            this.metadata = {};
-          }
-          (this.metadata as Record<string, any>)[field] = data[field];
-        } else {
-          (this as Record<string, any>)[field] = data[field];
-        }
-
-        if (typeof this.sync !== 'object') {
-          this.sync = {};
-        }
-        (this.sync as Record<string, any>)[field] = {
-          active: true,
-          source: adapterResult.sourceID,
-          updated: new Date(),
-        };
+    const data = adapterResult.data;
+    for (const [field, value] of Object.entries(data)) {
+      if (value === undefined || !supportedFields.includes(field)) {
+        continue;
       }
+
+      if (['description', 'subtitle', 'authors'].includes(field)) {
+        if (!this.metadata) {
+          this.metadata = {};
+        }
+        (this.metadata as Record<string, unknown>)[field] = value;
+      } else {
+        (this as Record<string, unknown>)[field] = value;
+      }
+
+      if (typeof this.sync !== 'object') {
+        this.sync = {};
+      }
+      (this.sync as SyncData)[field] = {
+        active: true,
+        source: adapterResult.sourceID,
+        updated: new Date(),
+      };
     }
   },
   /**
@@ -261,9 +270,9 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    * @param urls - Complete set of URLs to assign
    */
   setURLs(this: ThingInstance, urls: string[]) {
+    const sync = (this.sync ?? {}) as SyncData;
     if (typeof this.sync === 'object' && this.sync) {
-      for (const field in this.sync as Record<string, any>) {
-        const syncValue = (this.sync as Record<string, any>)[field];
+      for (const [, syncValue] of Object.entries(sync) as [SyncField, SyncEntry][]) {
         if (syncValue) {
           syncValue.active = false;
         }
@@ -273,19 +282,14 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
     urls.forEach(url => {
       adapters.getAll().forEach(adapter => {
         if (adapter.ask(url)) {
-          adapter.getSupportedFields().forEach(field => {
-            if (
-              this.sync &&
-              (this.sync as Record<string, any>)[field] &&
-              (this.sync as Record<string, any>)[field].active
-            ) {
+          // getSupportedFields returns SyncField-compatible strings
+          const fields = adapter.getSupportedFields() as SyncField[];
+          fields.forEach(field => {
+            if (sync[field]?.active) {
               return;
             }
-            if (!this.sync) {
-              this.sync = {};
-            }
 
-            (this.sync as Record<string, any>)[field] = {
+            sync[field] = {
               active: true,
               source: adapter.getSourceID(),
             };
@@ -293,6 +297,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
         }
       });
     });
+    this.sync = sync;
     this.urls = urls;
   },
   /**
@@ -302,30 +307,27 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    * @returns The updated Thing instance
    */
   async updateActiveSyncs(this: ThingInstance, userID?: string): Promise<ThingInstance> {
-    const thing = this as ThingInstance & Record<string, any>;
-
-    if (!thing.urls || !thing.urls.length) {
-      return thing;
+    if (!this.urls || !this.urls.length) {
+      return this;
     }
 
-    if (typeof thing.sync !== 'object') {
-      thing.sync = {};
-    }
+    const sync = (this.sync ?? {}) as SyncData;
 
     const sources: string[] = [];
-    for (const field in thing.sync as Record<string, any>) {
-      const syncEntry = (thing.sync as Record<string, any>)[field];
+    for (const [, syncEntry] of Object.entries(sync) as [SyncField, SyncEntry][]) {
       if (syncEntry?.active && syncEntry.source && !sources.includes(syncEntry.source)) {
         sources.push(syncEntry.source);
       }
     }
 
-    const promises: Promise<Record<string, any> | undefined>[] = [];
+    const promises: Promise<AdapterLookupResult | undefined>[] = [];
     const allURLs: string[] = [];
 
     sources.forEach(source => {
-      const adapter = adapters.getAdapterForSource(source) as Record<string, any>;
-      const relevantURLs = thing.urls.filter((url: string) => adapter.ask(url));
+      const adapter = adapters.getAdapterForSource(source);
+      if (!adapter) return;
+
+      const relevantURLs = this.urls!.filter(url => adapter.ask(url));
       allURLs.push(...relevantURLs);
 
       promises.push(
@@ -342,7 +344,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
 
     if (allURLs.length) {
       debug.app(
-        `Retrieving item metadata for ${thing.id} from the following URL(s):\n` + allURLs.join(', ')
+        `Retrieving item metadata for ${this.id} from the following URL(s):\n` + allURLs.join(', ')
       );
     }
 
@@ -352,26 +354,21 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
     const dataBySource = _organizeDataBySource(results);
 
     sources.forEach(source => {
-      for (const field in thing.sync as Record<string, any>) {
-        const syncEntry = (thing.sync as Record<string, any>)[field];
-        if (
-          syncEntry?.active &&
-          syncEntry.source === source &&
-          Array.isArray(dataBySource[source])
-        ) {
-          for (const data of dataBySource[source]) {
-            if (data[field] !== undefined) {
-              const newSync = { ...(thing.sync as Record<string, any>) };
-              newSync[field] = { ...newSync[field], updated: new Date() };
-              thing.sync = newSync;
+      for (const [field, syncEntry] of Object.entries(sync) as [SyncField, SyncEntry][]) {
+        if (syncEntry?.active && syncEntry.source === source && Array.isArray(dataBySource[source])) {
+          for (const adapterData of dataBySource[source]) {
+            const value = adapterData[field];
+            if (value !== undefined) {
+              sync[field] = { ...syncEntry, updated: new Date() };
 
               if (['description', 'subtitle', 'authors'].includes(field)) {
-                if (!thing.metadata) {
-                  thing.metadata = {};
+                if (!this.metadata) {
+                  this.metadata = {};
                 }
-                thing.metadata[field] = data[field];
+                (this.metadata as Record<string, unknown>)[field] = value;
               } else {
-                thing[field] = data[field];
+                // Dynamic field assignment for adapter-synced fields
+                (this as Record<string, unknown>)[field] = value;
               }
 
               if (field === 'label') {
@@ -383,9 +380,11 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
       }
     });
 
+    this.sync = sync;
+
     if (needSlugUpdate && userID) {
       try {
-        await thing.updateSlug(userID, thing.originalLanguage || 'en');
+        await this.updateSlug(userID, this.originalLanguage || 'en');
       } catch (error) {
         const serializedError = error instanceof Error ? error : new Error(String(error));
         debug.error('Failed to update slug after sync:');
@@ -393,23 +392,18 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
       }
     }
 
-    await thing.save();
+    await this.save();
 
-    (search as Record<string, any>).indexThing?.(thing);
+    (search as { indexThing?: (thing: ThingInstance) => void }).indexThing?.(this);
 
-    return thing;
+    return this;
 
     function _organizeDataBySource(
-      results: Array<Record<string, any> | undefined>
-    ): Record<string, any[]> {
-      const rv: Record<string, any[]> = {};
+      results: Array<AdapterLookupResult | undefined>
+    ): Record<string, AdapterLookupData[]> {
+      const rv: Record<string, AdapterLookupData[]> = {};
       results.forEach(result => {
-        if (
-          result &&
-          typeof result === 'object' &&
-          typeof result.sourceID === 'string' &&
-          typeof result.data === 'object'
-        ) {
+        if (result && typeof result.sourceID === 'string' && typeof result.data === 'object') {
           if (!Array.isArray(rv[result.sourceID])) {
             rv[result.sourceID] = [];
           }
@@ -425,14 +419,13 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    * @returns Source identifiers for active sync entries
    */
   getSourceIDsOfActiveSyncs(this: ThingInstance) {
-    const sync = this.sync as Record<string, any> | undefined;
+    const sync = this.sync as SyncData | undefined;
     const rv: string[] = [];
     if (!sync) {
       return rv;
     }
-    for (const key in sync) {
-      const entry = sync[key];
-      if (entry && entry.active && entry.source && !rv.includes(entry.source)) {
+    for (const [, entry] of Object.entries(sync) as [SyncField, SyncEntry][]) {
+      if (entry?.active && entry.source && !rv.includes(entry.source)) {
         rv.push(entry.source);
       }
     }
@@ -519,12 +512,11 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param file - File object to add
    */
-  addFile(this: ThingInstance, file: Record<string, any>) {
-    const record = this as Record<string, any>;
-    if (!Array.isArray(record.files)) {
-      record.files = [];
+  addFile(this: ThingInstance, file: FileInstance) {
+    if (!Array.isArray(this.files)) {
+      this.files = [];
     }
-    (record.files as Array<Record<string, any>>).push(file);
+    this.files.push(file);
   },
   /**
    * Ensure the Thing has a canonical slug, persisting changes when necessary.
@@ -574,16 +566,9 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
     slug.createdBy = userID;
 
     try {
-      const savedSlug = await (slug as Record<string, any>).qualifiedSave();
-      if (savedSlug && savedSlug.name) {
+      const savedSlug = await slug.qualifiedSave();
+      if (savedSlug?.name) {
         this.canonicalSlugName = savedSlug.name;
-        const changedSet = this._changed as Set<string> | undefined;
-        const runtime = this.constructor as Record<string, any>;
-        const dbFieldName =
-          typeof runtime._getDbFieldName === 'function'
-            ? runtime._getDbFieldName('canonicalSlugName')
-            : 'canonical_slug_name';
-        changedSet?.add(dbFieldName);
       }
     } catch (error) {
       const serializedError = error instanceof Error ? error : new Error(String(error));
@@ -617,8 +602,10 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
 
     try {
       const { in: inOp } = File.ops;
+      // Cast required: query builder returns base instance type, but runtime
+      // attaches instance methods defined in the manifest.
       const validFiles = (
-        await File.filterWhere({ id: inOp(uniqueIDs as [string, ...string[]]) }).run()
+        (await File.filterWhere({ id: inOp(uniqueIDs as [string, ...string[]]) }).run()) as FileInstance[]
       ).filter(file => !userID || file.uploadedBy === userID);
 
       if (!validFiles.length) {
@@ -634,8 +621,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
       );
 
       // Update in-memory representation
-      const record = this as Record<string, any>;
-      const currentFiles = (record.files ?? []) as Array<Record<string, any>>;
+      const currentFiles = this.files ?? [];
       const existingIDs = new Set(currentFiles.map(file => file.id));
       validFiles.forEach(file => {
         if (!existingIDs.has(file.id)) {
@@ -643,7 +629,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
           existingIDs.add(file.id);
         }
       });
-      record.files = currentFiles;
+      this.files = currentFiles;
     } catch (error) {
       const serializedError = error instanceof Error ? error : new Error(String(error));
       debug.error('Failed to associate files with Thing:');
@@ -662,7 +648,7 @@ const Thing = defineModel(thingManifest, {
 
 // Helper functions
 
-async function _attachUploadersToFiles(files: Array<Record<string, any>>): Promise<void> {
+async function _attachUploadersToFiles(files: FileInstance[]): Promise<void> {
   if (!Array.isArray(files) || files.length === 0) {
     return;
   }
@@ -670,7 +656,7 @@ async function _attachUploadersToFiles(files: Array<Record<string, any>>): Promi
   const uploaderIDs: string[] = [];
   const seen = new Set<string>();
   files.forEach(file => {
-    const uploaderID = file && file.uploadedBy;
+    const uploaderID = file?.uploadedBy;
     if (typeof uploaderID === 'string' && !seen.has(uploaderID)) {
       seen.add(uploaderID);
       uploaderIDs.push(uploaderID);
@@ -739,7 +725,7 @@ function _validateMetadata(metadata: unknown): boolean {
 
   // Validate known metadata fields
   const validFields = ['description', 'subtitle', 'authors'];
-  const entries = Object.entries(metadata as Record<string, any>);
+  const entries = Object.entries(metadata as Partial<MetadataData>);
   for (const [key, value] of entries) {
     if (validFields.includes(key)) {
       if (key === 'authors') {

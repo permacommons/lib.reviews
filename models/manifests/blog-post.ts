@@ -8,7 +8,9 @@ import type {
   InferVirtual,
 } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
-import type { UserAccessContext } from './user.ts';
+import type { UserAccessContext, UserView } from './user.ts';
+
+export type BlogPostCreator = Pick<UserView, 'id' | 'displayName' | 'urlName'>;
 
 const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
@@ -32,6 +34,7 @@ const blogPostManifest = defineModelManifest({
     originalLanguage: types.string().max(4).required(true).validator(isValidLanguage),
     userCanEdit: types.virtual().default(false),
     userCanDelete: types.virtual().default(false),
+    creator: types.virtual<BlogPostCreator>().default(undefined),
   },
   camelToSnake: {
     teamID: 'team_id',

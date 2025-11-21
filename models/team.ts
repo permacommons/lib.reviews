@@ -41,9 +41,9 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
    * @returns The team instance enriched with the requested data
    */
   async getWithData(this: TeamModel, id: string, options: GetWithDataOptions = {}) {
-    const team = (await this.getNotStaleOrDeleted(id)) as
-      | (TeamInstance & Record<string, any>)
-      | null;
+    // Cast required: query builder returns base instance type, but runtime
+    // attaches instance methods defined in the manifest.
+    const team = (await this.getNotStaleOrDeleted(id)) as TeamInstance;
     if (!team) throw new Error(`Team ${id} not found`);
 
     const {
@@ -79,7 +79,6 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
         const offsetDate = lastReview?.createdOn as Date | undefined;
         if (offsetDate) {
           team.reviewOffsetDate = offsetDate;
-          team.review_offset_date = offsetDate;
         }
       }
     }
@@ -101,14 +100,14 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
     if (
       this.members &&
       Array.isArray(this.members) &&
-      this.members.some((member: ModelInstance) => member.id === user.id)
+      this.members.some(member => member.id === user.id)
     )
       this.userIsMember = true;
 
     if (
       this.moderators &&
       Array.isArray(this.moderators) &&
-      this.moderators.some((moderator: ModelInstance) => moderator.id === user.id)
+      this.moderators.some(moderator => moderator.id === user.id)
     )
       this.userIsModerator = true;
 

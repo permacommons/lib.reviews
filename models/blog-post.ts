@@ -134,8 +134,7 @@ async function attachCreator(model: BlogPostModel, post: BlogPostInstance) {
     if (!creator) {
       return post;
     }
-    const postRecord = post as BlogPostInstance & Record<string, any>;
-    postRecord.creator = {
+    post.creator = {
       id: creator.id,
       displayName: creator.displayName,
       urlName: creator.urlName,
