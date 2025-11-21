@@ -1,7 +1,9 @@
+import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+
+const { types } = dal;
 
 // Reserved slugs that must never be used without qualification
 export const reservedSlugs = [

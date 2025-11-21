@@ -1,6 +1,8 @@
+import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+
+const { types } = dal;
 
 const teamJoinRequestManifest = defineModelManifest({
   tableName: 'team_join_requests',

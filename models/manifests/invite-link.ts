@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto';
 
 import config from 'config';
 
+import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
 import type { UserView } from './user.ts';
+
+const { types } = dal;
 
 const inviteLinkManifest = defineModelManifest({
   tableName: 'invite_links',

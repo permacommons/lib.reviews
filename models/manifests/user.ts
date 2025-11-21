@@ -1,3 +1,4 @@
+import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type {
@@ -7,8 +8,9 @@ import type {
   ModelManifest,
 } from '../../dal/lib/model-manifest.ts';
 import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
-import types from '../../dal/lib/type.ts';
 import type { UserMetaInstance } from './user-meta.ts';
+
+const { types } = dal;
 
 const userOptions = {
   maxChars: 128,
