@@ -1,6 +1,6 @@
 import { createFilterWhereStatics } from './filter-where.ts';
 import { getRegisteredModel } from './model-handle.ts';
-import type { InitializeModelOptions } from './model-initializer.ts';
+import type { InitializeModelOptions, StaticMethod } from './model-initializer.ts';
 import { initializeModel } from './model-initializer.ts';
 import type {
   InferConstructor,
@@ -19,7 +19,7 @@ interface CreateModelOptions {
 }
 
 type EmptyRecord = Record<never, never>;
-type EmptyStaticMethods = Record<never, (...args: unknown[]) => unknown>;
+type EmptyStaticMethods = Record<never, StaticMethod>;
 type EmptyInstanceMethods = Record<never, InstanceMethod>;
 
 type ModelConstructorWithStatics<
@@ -29,7 +29,7 @@ type ModelConstructorWithStatics<
 
 type MergeManifestMethods<
   Manifest extends ModelManifest,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown>,
+  StaticMethods extends Record<string, StaticMethod>,
   InstanceMethods extends Record<string, InstanceMethod>,
 > = Manifest extends ModelManifest<
   infer Schema,
@@ -47,7 +47,7 @@ type MergeManifestMethods<
 
 export interface DefineModelOptions<
   ExtraStatics extends Record<string, unknown>,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown>,
+  StaticMethods extends Record<string, StaticMethod>,
   InstanceMethods extends Record<string, InstanceMethod>,
 > {
   statics?: ExtraStatics;
@@ -269,7 +269,7 @@ export function defineModelManifest<Manifest extends ModelManifest>(manifest: Ma
  */
 export function defineStaticMethods<
   Manifest extends ModelManifest,
-  Methods extends Record<string, (...args: unknown[]) => unknown>,
+  Methods extends Record<string, StaticMethod>,
 >(manifest: Manifest, methods: Methods & ThisType<InferConstructor<Manifest> & Methods>): Methods {
   return methods;
 }
@@ -304,7 +304,7 @@ export function defineModel<Manifest extends ModelManifest>(
 export function defineModel<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = EmptyStaticMethods,
+  StaticMethods extends Record<string, StaticMethod> = EmptyStaticMethods,
   InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
 >(
   manifest: Manifest,
@@ -316,7 +316,7 @@ export function defineModel<
 export function defineModel<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = EmptyStaticMethods,
+  StaticMethods extends Record<string, StaticMethod> = EmptyStaticMethods,
   InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
 >(
   manifest: Manifest,

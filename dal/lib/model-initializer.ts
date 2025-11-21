@@ -59,7 +59,7 @@ export interface NormalizedRelationDefinition {
 
 type RelationDefinitionInput = NormalizedRelationDefinition | (RelationConfig & { name: string });
 
-type StaticMethod = (...args: unknown[]) => unknown;
+export type StaticMethod = (...args: unknown[]) => unknown;
 
 type RuntimeModel<
   TData extends JsonObject,

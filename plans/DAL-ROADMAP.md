@@ -72,7 +72,7 @@ Replace manual model initialization with declarative manifests that drive type g
 
 - **Harden the DAL typing surface**
   - ✅ Expose DAL helper namespaces (`mlString`, `revision`, `types`) with concrete typings so model modules can drop casts like `const { mlString } = dal as { ... }`. Cleaned up 14 files (11 manifests + 2 implementations + DAL core) to use `const { mlString, types } = dal;` pattern, eliminating all manual type casts.
-  - [ ] Replace remaining `any` option bags in `create-model.ts` with the concrete types from `model-initializer.ts`, closing escape hatches around manifest initialisation.
+  - ✅ Consolidate inline static method type definitions in `create-model.ts` and `model-manifest.ts` to use the exported `StaticMethod` type from `model-initializer.ts`, eliminating redundant type aliases.
 
 - **Eliminate `Record<string, any>` fallbacks from hot paths**
   - [ ] Replace `Record<string, any>` fallbacks in core models (`review`, `thing`, `blog-post`, `team`, `file`) and their callers (`routes/things.ts`, `routes/uploads.ts`, action handlers) by threading manifest-derived types through statics/instance helpers and exposing typed payload shims where unavoidable.

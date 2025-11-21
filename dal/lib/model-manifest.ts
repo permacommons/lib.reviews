@@ -1,4 +1,5 @@
 import type { ModelSchemaField } from './model.ts';
+import type { StaticMethod } from './model-initializer.ts';
 import type {
   InstanceMethod,
   JsonObject,
@@ -16,10 +17,7 @@ import type {
 export interface ModelManifest<
   Schema extends Record<string, ModelSchemaField> = Record<string, ModelSchemaField>,
   HasRevisions extends boolean = boolean,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = Record<
-    never,
-    (...args: unknown[]) => unknown
-  >,
+  StaticMethods extends Record<string, StaticMethod> = Record<never, StaticMethod>,
   InstanceMethods extends Record<string, InstanceMethod> = Record<never, InstanceMethod>,
 > {
   tableName: string;
@@ -67,7 +65,7 @@ type StaticMethodsOf<Manifest extends ModelManifest> = Manifest extends ModelMan
   any
 >
   ? Methods
-  : Record<never, (...args: unknown[]) => unknown>;
+  : Record<never, StaticMethod>;
 
 type InferInstanceMethods<Manifest extends ModelManifest> = {
   [K in keyof InstanceMethodsOf<Manifest>]: InstanceMethodsOf<Manifest>[K];
