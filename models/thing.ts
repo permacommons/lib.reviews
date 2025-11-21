@@ -29,9 +29,7 @@ import User, { fetchUserPublicProfiles, type UserAccessContext, type UserView } 
 const Review = referenceReview();
 const File = referenceFile();
 
-const { mlString } = dal as unknown as {
-  mlString: Record<string, any>;
-};
+const { mlString } = dal;
 
 const thingStaticMethods = defineStaticMethods(thingManifest, {
   /**
@@ -165,7 +163,7 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
 
     let str;
     if (thing.label) {
-      const resolved = mlString.resolve(language, thing.label);
+      const resolved = mlString.resolve(language, thing.label as Record<string, string>);
       str = resolved ? resolved.str : undefined;
     }
 
@@ -547,7 +545,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
       return this;
     }
 
-    const resolved = mlString.resolve(slugLanguage, this.label) as { str?: string } | null;
+    const resolved = mlString.resolve(slugLanguage, this.label as Record<string, string>);
     if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) {
       return this;
     }

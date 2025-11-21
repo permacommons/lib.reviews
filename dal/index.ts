@@ -16,7 +16,7 @@ import types from './lib/type.ts';
  * for all database interactions.
  */
 
-type DataAccessLayerClass = new (config?: Partial<PostgresConfig>) => Record<string, unknown>;
+type DataAccessLayerClass = typeof DataAccessLayer;
 
 type DataAccessLayerInstance = InstanceType<DataAccessLayerClass>;
 

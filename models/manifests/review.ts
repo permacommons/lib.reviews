@@ -2,14 +2,11 @@ import dal from '../../dal/index.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
 import type { ThingInstance } from './thing.ts';
 import type { UserAccessContext } from './user.ts';
 
-const { mlString } = dal as {
-  mlString: Record<string, any>;
-};
+const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
 
 export const reviewOptions = {

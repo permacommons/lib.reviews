@@ -27,9 +27,7 @@ import type { UserAccessContext } from './user.ts';
 const Thing = referenceThing();
 const User = referenceUser();
 
-const { revision } = dal as {
-  revision: Record<string, any>;
-};
+const { revision } = dal;
 
 const reviewStaticMethods = defineStaticMethods(reviewManifest, {
   /**
