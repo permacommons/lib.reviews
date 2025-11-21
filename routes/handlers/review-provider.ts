@@ -42,7 +42,7 @@ type ReviewFormValues = {
   starRating?: number;
   files?: string[];
   uploads?: Array<Record<string, unknown>>;
-  teams?: Array<Record<string, unknown>>;
+  teams?: string[] | TeamInstance[]; // UUIDs from form, resolved to TeamInstance[] by resolveTeamData()
   socialImageID?: string;
   createdBy?: string;
   createdOn?: Date;
@@ -256,13 +256,7 @@ class ReviewProvider extends AbstractBREADProvider {
     formValues.originalLanguage = language;
 
     // Files uploaded from the editor
-    if (formValues.files && typeof formValues.files === 'object') {
-      // Handle both plain objects and arrays-with-properties (created by keyValueMap form parsing)
-      // For arrays with properties but no elements, Object.keys() extracts the property keys
-      if (!Array.isArray(formValues.files) || formValues.files.length === 0) {
-        formValues.files = Object.keys(formValues.files);
-      }
-    } else if (!formValues.files) {
+    if (!Array.isArray(formValues.files)) {
       formValues.files = [];
     }
 
@@ -362,13 +356,7 @@ class ReviewProvider extends AbstractBREADProvider {
       this.isPreview = true;
     }
 
-    if (formValues.files && typeof formValues.files === 'object') {
-      // Handle both plain objects and arrays-with-properties (created by keyValueMap form parsing)
-      // For arrays with properties but no elements, Object.keys() extracts the property keys
-      if (!Array.isArray(formValues.files) || formValues.files.length === 0) {
-        formValues.files = Object.keys(formValues.files);
-      }
-    } else if (!formValues.files) {
+    if (!Array.isArray(formValues.files)) {
       formValues.files = [];
     }
 
@@ -444,12 +432,12 @@ class ReviewProvider extends AbstractBREADProvider {
   // Obtain the data for each team submitted in the form and assign it to
   // formValues.
   async resolveTeamData(formValues: ReviewFormValues): Promise<void> {
-    if (typeof formValues.teams !== 'object' || !Object.keys(formValues.teams).length) {
+    if (!Array.isArray(formValues.teams) || !formValues.teams.length) {
       formValues.teams = [];
       return;
     }
 
-    const queries = Object.keys(formValues.teams).map(teamId => TeamModel.getWithData(teamId));
+    const queries = (formValues.teams as string[]).map(teamId => TeamModel.getWithData(teamId));
 
     try {
       formValues.teams = await Promise.all(queries);
@@ -589,10 +577,8 @@ ReviewProvider.formDefs = {
       skipValue: true, // Logic, not saved
     },
     {
-      name: 'review-team-%uuid',
+      name: 'teams',
       required: false,
-      type: 'boolean',
-      keyValueMap: 'teams',
     },
     {
       name: 'review-social-image',
@@ -601,9 +587,8 @@ ReviewProvider.formDefs = {
       required: false,
     },
     {
-      name: 'uploaded-file-%uuid',
+      name: 'files',
       required: false,
-      keyValueMap: 'files',
     },
   ],
   'delete-review': [
@@ -647,14 +632,12 @@ ReviewProvider.formDefs = {
       skipValue: true,
     },
     {
-      name: 'review-team-%uuid',
+      name: 'teams',
       required: false,
-      keyValueMap: 'teams',
     },
     {
-      name: 'uploaded-file-%uuid',
+      name: 'files',
       required: false,
-      keyValueMap: 'files',
     },
     {
       name: 'review-social-image',

@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import config from 'config';
+import escapeHTML from 'escape-html';
 import { Router } from 'express';
 import isSVG from 'is-svg';
 import type { FileFilterCallback } from 'multer';
@@ -88,46 +89,16 @@ const allowedTypes = [
 ];
 
 // You can upload multiple uploads in one batch; this form is used to process
-// the metadata
+// the metadata. With qs bracket notation, the entire upload object is parsed
+// as a nested structure, so we just need to accept the top-level 'upload' key.
 const uploadFormDef = [
   {
     name: 'upload-language',
     required: true,
   },
   {
-    name: 'upload-%uuid',
+    name: 'upload',
     required: false,
-    keyValueMap: 'uploads',
-  },
-  {
-    name: 'upload-%uuid-description',
-    required: false,
-    type: 'text',
-    keyValueMap: 'descriptions',
-  },
-  {
-    name: 'upload-%uuid-by',
-    required: false,
-    type: 'string', // can be 'uploader' or 'other'
-    keyValueMap: 'creators',
-  },
-  {
-    required: false,
-    name: 'upload-%uuid-creator',
-    type: 'text',
-    keyValueMap: 'creatorDetails',
-  },
-  {
-    name: 'upload-%uuid-source',
-    required: false,
-    type: 'text',
-    keyValueMap: 'sources',
-  },
-  {
-    name: 'upload-license-%uuid',
-    required: false,
-    type: 'string', // enum defined in model
-    keyValueMap: 'licenses',
   },
 ];
 
@@ -505,8 +476,8 @@ function processUploadForm(
 
   let uploadIDs;
   let hasUploads =
-    typeof formData.formValues.uploads == 'object' &&
-    (uploadIDs = Object.keys(formData.formValues.uploads)).length;
+    typeof formData.formValues.upload == 'object' &&
+    (uploadIDs = Object.keys(formData.formValues.upload)).length;
 
   if (!hasUploads) return redirectBack({ error: ['data missing'] });
 
@@ -535,20 +506,30 @@ async function processUploads(
   uploadsDir: string
 ): Promise<void> {
   let completeUploadPromises: Promise<unknown>[] = [];
+  const uploadData = formValues.upload || {};
+
   uploads.forEach(upload => {
-    const getVal = (obj: Record<string, any>) =>
-      !Array.isArray(obj) || !obj[upload.id] ? null : obj[upload.id];
+    const data = uploadData[upload.id];
+    if (!data) {
+      throw new ReportedError({
+        message: 'Form data missing for upload %s.',
+        messageParams: [upload.name],
+        userMessage: 'data missing',
+      });
+    }
 
-    upload.description = getVal(formValues.descriptions);
-
-    if (!upload.description || !upload.description[language])
+    // Convert plain text description to multilingual format (escape HTML)
+    const descriptionText = typeof data.description === 'string' ? data.description.trim() : '';
+    if (!descriptionText) {
       throw new ReportedError({
         message: 'Form data for upload %s lacks a description.',
         messageParams: [upload.name],
         userMessage: 'upload needs description',
       });
+    }
+    upload.description = { [language]: escapeHTML(descriptionText) };
 
-    let by = getVal(formValues.creators);
+    let by = data.by;
     if (!by)
       throw new ReportedError({
         message: 'Form data for upload missing creator information.',
@@ -556,25 +537,29 @@ async function processUploads(
       });
 
     if (by === 'other') {
-      upload.creator = getVal(formValues.creatorDetails);
-
-      if (!upload.creator || !upload.creator[language])
+      // Convert plain text creator to multilingual format (escape HTML)
+      const creatorText = typeof data.creator === 'string' ? data.creator.trim() : '';
+      if (!creatorText) {
         throw new ReportedError({
           message: 'Form data for upload %s lacks creator information.',
           messageParams: [upload.name],
           userMessage: 'upload needs creator',
         });
+      }
+      upload.creator = { [language]: escapeHTML(creatorText) };
 
-      upload.source = getVal(formValues.sources);
-
-      if (!upload.source || !upload.source[language])
+      // Convert plain text source to multilingual format (escape HTML)
+      const sourceText = typeof data.source === 'string' ? data.source.trim() : '';
+      if (!sourceText) {
         throw new ReportedError({
           message: 'Form data for upload %s lacks source information.',
           messageParams: [upload.name],
           userMessage: 'upload needs source',
         });
+      }
+      upload.source = { [language]: escapeHTML(sourceText) };
 
-      upload.license = getVal(formValues.licenses);
+      upload.license = data.license;
 
       if (!upload.license)
         throw new ReportedError({
@@ -619,10 +604,11 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
   upload.completed = true;
   try {
     await upload.save();
-  } catch {
+  } catch (error) {
     // Problem saving the metadata. Move upload back to
     // temporary stash.
     await rename(newPath, oldPath);
+    throw error;
   }
 }
 

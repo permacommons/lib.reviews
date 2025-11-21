@@ -504,24 +504,18 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
     name: string;
     type?: string;
     required?: boolean;
-    keyValueMap?: string;
   }> = [
     {
       name: 'primary',
       type: 'number',
       required: true,
     },
+    {
+      name: 'urls[]',
+      type: 'url',
+      required: false,
+    },
   ];
-  // This will parse fields like url-0 to an array of URLs
-  for (let field in req.body) {
-    if (/^url-[0-9]+$/.test(field))
-      formDef.push({
-        name: field,
-        type: 'url',
-        required: false,
-        keyValueMap: 'urls',
-      });
-  }
 
   const parsed = forms.parseSubmission(req, { formDef, formKey: 'thing-urls' });
 
@@ -530,12 +524,10 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
     return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
 
   // Detect additional case of primary pointing to a blank field
-  const submittedURLs = parsed.formValues.urls as unknown[];
+  const submittedURLs = parsed.formValues.urls as string[] | undefined;
   const primaryIndex = Number(parsed.formValues.primary);
   const primaryURL =
-    typeof submittedURLs?.[primaryIndex] === 'string'
-      ? (submittedURLs[primaryIndex] as string)
-      : '';
+    typeof submittedURLs?.[primaryIndex] === 'string' ? submittedURLs[primaryIndex] : '';
   if (!primaryURL.length) {
     req.flash('pageErrors', req.__('need primary'));
     return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
@@ -546,9 +538,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   // is done by the model (and client-side for JS users).
   const normalizedURLs = Array.isArray(submittedURLs) ? submittedURLs : [];
   let thingURLs = [primaryURL].concat(
-    normalizedURLs.filter(
-      url => typeof url === 'string' && url !== primaryURL && url.length
-    ) as string[]
+    normalizedURLs.filter(url => typeof url === 'string' && url !== primaryURL && url.length)
   );
 
   // Now we need to make sure that none of the URLs are currently in use.

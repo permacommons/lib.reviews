@@ -16,7 +16,6 @@ type FormField = {
   required?: boolean;
   skipValue?: boolean;
   key?: string;
-  keyValueMap?: string;
   htmlKey?: string;
   type?: string;
   flat?: boolean;
@@ -117,13 +116,11 @@ const forms = {
       hasCorrectCaptcha = forms.processCaptchaAnswer(req);
     }
 
-    formDef = forms.unpackWildcards(formDef, (req.body ?? {}) as Record<string, unknown>);
-
     for (const field of formDef) {
       const processedIndex = processedKeys.indexOf(field.name);
       if (processedIndex !== -1) processedKeys.splice(processedIndex, 1);
 
-      const key = (field.keyValueMap as string) || (field.key as string) || field.name;
+      const key = (field.key as string) || field.name;
 
       if (resolvedOptions.skipRequiredCheck.indexOf(field.name) === -1) {
         if (!req.body?.[field.name] && field.required) {
@@ -206,20 +203,7 @@ const forms = {
       }
 
       if (val !== undefined) {
-        if (field.keyValueMap) {
-          const id = (field.name.match(uuidRegex) || [])[1];
-
-          // FIXME: This creates an array [] and then adds properties to it like arr['uuid'] = val,
-          // resulting in an array with length 0 but with properties. This is semantically confusing
-          // and requires downstream code to call Object.keys() to extract the property names.
-          // Should initialize as {} for UUID-based key-value maps and [] only for true arrays.
-          if (typeof formValues[key] !== 'object') formValues[key] = [];
-
-          if (id) formValues[key][id] = val;
-          else formValues[key].push(val);
-        } else {
-          formValues[key] = val;
-        }
+        formValues[key] = val;
       }
     }
 
@@ -319,24 +303,6 @@ const forms = {
       return false;
     }
     return true;
-  },
-
-  unpackWildcards(formDef: FormField[], body: Record<string, unknown>) {
-    for (const field of formDef) {
-      if (/%uuid/.test(field.name)) {
-        const regex = new RegExp('^' + field.name.replace('%uuid', uuidRegex) + '$');
-
-        for (const bodyKey in body) {
-          if (regex.test(bodyKey)) {
-            const fd = Object.assign({}, field);
-            fd.name = bodyKey;
-            formDef.push(fd);
-          }
-        }
-      }
-    }
-
-    return formDef.filter(field => !/%uuid/.test(field.name));
   },
 };
 

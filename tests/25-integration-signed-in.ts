@@ -26,7 +26,7 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
   ],
 });
 
-let User, Team, TeamJoinRequest;
+let User, Team, TeamJoinRequest, Review;
 let app;
 
 test.before(async () => {
@@ -37,11 +37,13 @@ test.before(async () => {
     { key: 'teams', alias: 'Team' },
     { key: 'team_slugs', alias: 'TeamSlug' },
     { key: 'team_join_requests', alias: 'TeamJoinRequest' },
+    { key: 'reviews', alias: 'Review' },
   ]);
 
   User = models.User;
   Team = models.Team;
   TeamJoinRequest = models.TeamJoinRequest;
+  Review = models.Review;
 
   await fs.mkdir(config.uploadTempDir, { recursive: true });
 
@@ -403,6 +405,82 @@ test.serial('Team join request workflow: join, approve, leave, rejoin', async t 
   t.is(joinRequests.length, 1, 'Should still only have one request record');
   t.is(joinRequests[0].status, 'pending', 'Status should be back to pending');
   t.is(joinRequests[0].requestMessage, 'I would like to rejoin', 'Message should be updated');
+
+  t.pass();
+});
+
+test.serial('We can create a review with team associations', async t => {
+  const agent = supertest.agent(app);
+  const username = `TeamReviewer-${Date.now()}`;
+  await registerTestUser(agent, {
+    username,
+    password: 'teamPassword123',
+  });
+
+  // Create a team
+  const urlName = username.replace(/ /g, '_');
+  const user = await User.findByURLName(urlName);
+
+  const actor = { id: user.id, is_super_user: false, is_trusted: true };
+  const teamDraft = await Team.createFirstRevision(actor, { tags: ['review-test'] });
+  teamDraft.name = { en: `Test Team for Reviews ${Date.now()}` };
+  teamDraft.motto = { en: 'Testing reviews' };
+  teamDraft.createdBy = user.id;
+  teamDraft.createdOn = new Date();
+  teamDraft.originalLanguage = 'en';
+  teamDraft.confersPermissions = {};
+
+  teamDraft.members = [actor];
+  teamDraft.moderators = [actor];
+
+  const team = await teamDraft.saveAll({ members: true, moderators: true });
+
+  // Create a review with team association
+  const newReviewResponse = await agent.get('/new/review');
+  let csrf = extractCSRF(newReviewResponse.text);
+  if (!csrf) {
+    return t.fail('Could not obtain CSRF token');
+  }
+
+  const postResponse = await agent
+    .post('/new/review')
+    .type('form')
+    .send({
+      _csrf: csrf,
+      'review-url': 'http://example.com/team-review-test',
+      'review-title': 'Team Review Test',
+      'review-text': 'This review is associated with a team.',
+      'review-rating': 4,
+      'review-language': 'en',
+      'teams[]': team.id, // Match the form field naming
+      'review-action': 'publish',
+    })
+    .expect(302);
+
+  // Verify the team association was saved in the database
+  const reviews = await Review.filterWhere({ createdBy: user.id });
+  const latestReview = reviews[reviews.length - 1];
+
+  if (!latestReview) {
+    return t.fail('Could not find created review');
+  }
+
+  const reviewWithTeams = await Review.getWithData(latestReview.id, { withTeams: true });
+
+  t.is(reviewWithTeams.teams?.length, 1, 'Review should have one team association');
+  t.is(reviewWithTeams.teams?.[0].id, team.id, 'Review should be associated with the correct team');
+
+  // Verify the team appears on the page
+  const reviewPageResponse = await agent
+    .get(postResponse.headers.location)
+    .expect(200)
+    .expect(/This review is associated with a team/);
+
+  t.regex(
+    reviewPageResponse.text,
+    /Test Team for Reviews \d+/,
+    'Team name should appear on the page'
+  );
 
   t.pass();
 });

@@ -76,7 +76,7 @@ Replace manual model initialization with declarative manifests that drive type g
 
 - **Eliminate `Record<string, any>` fallbacks from hot paths**
   - [ ] Replace `Record<string, any>` fallbacks in core models (`review`, `thing`, `blog-post`, `team`, `file`) and their callers (`routes/things.ts`, `routes/uploads.ts`, action handlers) by threading manifest-derived types through statics/instance helpers and exposing typed payload shims where unavoidable.
-  - [ ] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations, and cascade the stricter payloads into upload/action handlers.
+  - [x] Tighten `forms` key/value handling so attachment IDs arrive as clean `string[]`, matching typed query helper expectations, and cascade the stricter payloads into upload/action handlers. (Completed via form parsing migration from custom `keyValueMap` to standard qs bracket notation.)
 
 - **Expand manifest-driven inference**
   - [ ] Derive relation result types directly from manifest relation metadata so models no longer need manual `types.virtual().returns<…>()` placeholders.

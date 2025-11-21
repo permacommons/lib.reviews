@@ -173,7 +173,7 @@
       <p>
       {{#if user.teams}}
       {{#each user.teams}}
-      <input type="checkbox" id="review-team-{{this.id}}" name="review-team-{{this.id}}"{{#if (lookup ../formValues.hasTeam this.id)}} checked{{/if}}> <label for="review-team-{{this.id}}" class="inline-label"><span class="team-name" data-team-name="{{mlSafeText this.name false}}">{{mlSafeText this.name}}</span> <a class="team-link" href="/team/{{this.urlID}}" target="_blank">{{{__ "team page"}}}</a></label><br>
+      <input type="checkbox" id="review-team-{{this.id}}" name="teams[]" value="{{this.id}}"{{#if (lookup ../formValues.hasTeam this.id)}} checked{{/if}}> <label for="review-team-{{this.id}}" class="inline-label"><span class="team-name" data-team-name="{{mlSafeText this.name false}}">{{mlSafeText this.name}}</span> <a class="team-link" href="/team/{{this.urlID}}" target="_blank">{{{__ "team page"}}}</a></label><br>
       {{/each}}
       {{else}}
       <span class="fa fa-info-circle fa-fw info-icon">&nbsp;</span> {{{__ "not member of any teams yet"}}}
@@ -201,7 +201,7 @@
     </div>
     </fieldset>
     {{#each formValues.files}}
-    <input name="uploaded-file-{{{this}}}" value="1" type="hidden">
+    <input name="files[]" value="{{{this}}}" type="hidden">
     {{/each}}
 
     <div class="validation-error" id="required-fields-message">

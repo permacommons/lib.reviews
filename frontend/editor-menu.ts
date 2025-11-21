@@ -336,9 +336,7 @@ function uploadModalItem(mediaNodes: MediaNodeTypes, schema: Schema): MenuItem {
         dispatch(tr);
 
         if ($form.length) {
-          $form.append(
-            `<input type="hidden" ` + ` name="uploaded-file-${firstUpload.fileID}" value="1">`
-          );
+          $form.append(`<input type="hidden" name="files[]" value="${firstUpload.fileID}">`);
           if ($form.find('#social-media-image-select').length) {
             const language = config.language ?? 'en';
             const localizedDescription = firstUpload.description[language] ?? '';
