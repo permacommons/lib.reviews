@@ -1,4 +1,5 @@
 import escapeHTML from 'escape-html';
+import type { MultilingualRichText } from '../../dal/lib/ml-string.ts';
 import type { TeamInstance } from '../../models/manifests/team.ts';
 import type { UserMetaInstance } from '../../models/manifests/user-meta.ts';
 import Review from '../../models/review.ts';
@@ -48,9 +49,11 @@ const userHandlers = {
           tags: ['update-bio-via-user'],
         });
 
-        const bioData = (metaRev.bio as Record<string, any>) ?? { text: {}, html: {} };
-        if (!bioData.text || typeof bioData.text !== 'object') bioData.text = {};
-        if (!bioData.html || typeof bioData.html !== 'object') bioData.html = {};
+        const existingBio = metaRev.bio as MultilingualRichText | undefined;
+        const bioData: Required<MultilingualRichText> = {
+          text: existingBio?.text ?? {},
+          html: existingBio?.html ?? {},
+        };
         bioData.text[bioLanguage] = escapeHTML(bio);
         bioData.html[bioLanguage] = md.render(bio, { language: req.locale });
         metaRev.bio = bioData;
