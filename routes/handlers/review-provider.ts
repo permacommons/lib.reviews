@@ -7,6 +7,7 @@ import {
   type ReviewValidateSocialImageOptions,
 } from '../../models/manifests/review.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
+import type { ThingInstance } from '../../models/manifests/thing.ts';
 import Review from '../../models/review.ts';
 import Team from '../../models/team.ts';
 import User from '../../models/user.ts';
@@ -20,16 +21,6 @@ import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
 import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
-
-type ThingInstance = {
-  id: string;
-  label?: Record<string, string>;
-  urls?: string[];
-  files?: Array<Record<string, unknown>>;
-  populateUserInfo: (user: HandlerRequest['user']) => void;
-  addFilesByIDsAndSave?: (files: string[], userId: string) => Promise<unknown>;
-  [key: string]: unknown;
-};
 
 type ReviewFormValues = {
   title?: Record<string, string>;
