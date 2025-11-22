@@ -216,6 +216,81 @@ test.serial('We can edit a thing description', async t => {
   t.pass();
 });
 
+test.serial("We can manage a thing's URLs", async t => {
+  const agent = supertest.agent(app);
+  const username = `ThingUrlManager-${Date.now()}`;
+  await registerTestUser(agent, {
+    username,
+    password: 'password123',
+  });
+
+  const urlName = username.replace(/ /g, '_');
+  const user = await User.findByURLName(urlName);
+  user.isTrusted = true;
+  await user.save();
+
+  const reviewURL = 'https://example.com/original-url';
+  const newPrimaryURL = 'https://example.org/new-primary';
+
+  const newReviewResponse = await agent
+    .get('/new/review')
+    .expect(200)
+    .expect(/New review/);
+
+  let csrf = extractCSRF(newReviewResponse.text);
+
+  const reviewPostResponse = await agent
+    .post('/new/review')
+    .type('form')
+    .send({
+      _csrf: csrf,
+      'review-url': reviewURL,
+      'review-title': 'Thing with links',
+      'review-text': 'This thing will get a new primary link.',
+      'review-rating': '4',
+      'review-language': 'en',
+      'review-action': 'publish',
+    })
+    .expect(302);
+
+  const thingURL = reviewPostResponse.headers.location;
+  const thingResponse = await agent
+    .get(thingURL)
+    .expect(200)
+    .expect(/Manage links/);
+
+  const manageLinksMatch = thingResponse.text.match(/<a href="([^"]*\/manage\/urls)"/);
+  if (!manageLinksMatch) {
+    return t.fail('Could not find manage links form for the thing');
+  }
+
+  const manageURLsPath = manageLinksMatch[1];
+  const manageURLsResponse = await agent.get(manageURLsPath).expect(200);
+  csrf = extractCSRF(manageURLsResponse.text);
+  if (!csrf) {
+    return t.fail('Could not obtain CSRF token for managing URLs');
+  }
+
+  const managePostResponse = await agent
+    .post(manageURLsPath)
+    .type('form')
+    .send({
+      _csrf: csrf,
+      primary: 1,
+      'urls[]': [reviewURL, newPrimaryURL],
+    })
+    .expect(200);
+
+  t.regex(managePostResponse.text, /links associated with this review subject have been updated/i);
+
+  await agent
+    .get(thingURL)
+    .expect(200)
+    .expect(/example\.org\/new-primary/);
+
+  t.pass();
+});
+
 test.serial('We can create a new team', async t => {
   const agent = supertest.agent(app);
   const username = `TeamCreator-${Date.now()}`;

@@ -148,7 +148,14 @@ const forms = {
             break;
 
           case 'url':
-            val = urlUtils.normalize(toStringValue(req.body[field.name]).trim());
+            {
+              const bodyValue = req.body[field.name];
+              if (Array.isArray(bodyValue)) {
+                val = bodyValue.map(value => urlUtils.normalize(toStringValue(value).trim()));
+              } else {
+                val = urlUtils.normalize(toStringValue(bodyValue).trim());
+              }
+            }
             break;
 
           case 'text':

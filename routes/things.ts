@@ -511,7 +511,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
       required: true,
     },
     {
-      name: 'urls[]',
+      name: 'urls',
       type: 'url',
       required: false,
     },
