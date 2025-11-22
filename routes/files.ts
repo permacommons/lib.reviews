@@ -3,10 +3,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { Router } from 'express';
 
-import File, {
-  type FileInstance,
-  type FileFeedResult,
-} from '../models/file.ts';
+import File, { type FileFeedResult, type FileInstance } from '../models/file.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import render from './helpers/render.ts';
@@ -38,7 +35,11 @@ router.get(
   }
 );
 
-function showFiles(req: FilesRouteRequest, res: FilesRouteResponse, feed: FileFeedResult<FileInstance>) {
+function showFiles(
+  req: FilesRouteRequest,
+  res: FilesRouteResponse,
+  feed: FileFeedResult<FileInstance>
+) {
   feed.items.forEach(file => file.populateUserInfo(req.user));
   render.template(req, res, 'files', {
     titleKey: 'uploaded files title',
@@ -91,11 +92,7 @@ router.post(
   }
 );
 
-async function deleteFile(
-  req: FilesRouteRequest,
-  file: FileInstance,
-  user: Express.User
-) {
+async function deleteFile(req: FilesRouteRequest, file: FileInstance, user: Express.User) {
   const { uploadsDir, deletedDir } = req.app.locals.paths as {
     uploadsDir: string;
     deletedDir: string;

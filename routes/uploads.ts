@@ -295,9 +295,7 @@ async function getFileRevs(
   user: Express.User,
   tags: string[] = []
 ): Promise<FileInstance[]> {
-  const fileRevs = await Promise.all(
-    files.map(() => File.createFirstRevision(user, { tags }))
-  );
+  const fileRevs = await Promise.all(files.map(() => File.createFirstRevision(user, { tags })));
   files.forEach((file, index) => {
     fileRevs[index].name = file.filename;
     // We don't use the reported MIME type from the upload
