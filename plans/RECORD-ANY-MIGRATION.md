@@ -97,9 +97,28 @@ fields explicitly. This provides type safety while acknowledging the mutation pa
 
 1. [x] Remove `as any` casts - BlogPost now imported directly
 2. [x] Type `formDefs` as `Record<string, FormField[]>`
-3. [ ] Tighten local `TeamInstance` - replace `Record<string, any>` with specific types
+3. [ ] Tighten local `TeamInstance` - **BLOCKED** (see analysis below)
 4. [ ] Type `TeamFormValues` with explicit fields
 5. [ ] Replace `req.user as Record<string, any>` with UserInstance
+
+#### Analysis: TeamInstance Complexity
+
+Attempted migration revealed manifest-level issues:
+
+1. **Method `this` context breaks with `Omit`** - The local type uses `Omit<TeamManifestInstance, ...>`
+   then re-adds fields. When `Omit` removes fields, method `this` types become incompatible.
+
+2. **Manifest virtual field types are too loose**:
+   - `joinRequests: types.virtual<ModelInstance[]>()` should be `TeamJoinRequestInstance[]`
+   - `reviews: types.virtual<ModelInstance[]>()` should be `ReviewInstance[]`
+
+3. **Some manifest fields appear mis-typed** - Fields like `name`, `motto`, `description`
+   were being inferred as `InstanceMethod` instead of `Record<string, string>` in error messages.
+
+**Prerequisites for migration:**
+- [ ] Fix manifest `team.ts` virtual field types to use specific instance types
+- [ ] Investigate manifest field inference issues
+- [ ] Then retry handler-level type tightening
 
 ---
 
