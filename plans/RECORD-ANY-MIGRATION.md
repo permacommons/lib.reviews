@@ -24,6 +24,33 @@ in route handlers and providers.
 - `ThingInstance` from `models/manifests/thing.ts`
 - `TeamInstance` from `models/manifests/team.ts`
 
+#### Analysis: ReviewFormValues/ReviewInstance Conflation
+
+The local `ReviewFormValues` type conflates two distinct concepts:
+
+1. **Raw form input** - data from `parseForm()`:
+   - `teams` as `string[]` (UUIDs from form checkboxes)
+   - `files` as `string[]` (UUIDs of uploaded files)
+   - Other form fields as parsed strings/values
+
+2. **Resolved/persisted data** - after processing:
+   - `teams` as `TeamInstance[]` (resolved by `resolveTeamData()`)
+   - Files resolved via `File.getMultipleNotStaleOrDeleted()`
+
+**Current flow:**
+```
+parseForm() → formValues (teams: string[])
+     ↓
+resolveTeamData() mutates formValues.teams → TeamInstance[]
+     ↓
+File.getMultipleNotStaleOrDeleted(formValues.files)
+     ↓
+Review.create(reviewObj, ...)
+```
+
+The `[key: string]: any` index signature was added to paper over this type mismatch
+rather than properly separating concerns.
+
 **Migration Plan:**
 
 1. [x] Remove `as any` casts - use models directly (already typed)
@@ -31,10 +58,40 @@ in route handlers and providers.
    - No need for intermediate aliases - `Review`, `User`, `File`, `Team` work as-is
    - Added explicit casts at type boundaries (e.g., `as unknown as ReviewInstance`)
    - This reveals where local types diverge from manifest types
+
 2. [ ] Import `ThingInstance` from manifest instead of local definition
-3. [ ] Import `ReviewInstance` from manifest, remove local definition
-4. [ ] Tighten `ReviewFormValues` - remove index signature, add explicit optional fields
-5. [ ] Consider shared `FormFieldDefinition` type for formDefs
+   - [ ] Add import: `import type { ThingInstance } from '../../models/manifests/thing.ts'`
+   - [ ] Remove local `ThingInstance` type (lines 24-32)
+   - [ ] Fix any type mismatches that surface
+
+3. [ ] Separate form input from model instance types
+   - [ ] Create `ReviewFormInput` for raw form data:
+     ```typescript
+     type ReviewFormInput = {
+       title?: Record<string, string>;
+       text?: Record<string, string>;
+       starRating?: number;
+       teams?: string[];           // UUIDs from form
+       files?: string[];           // UUIDs from form
+       socialImageID?: string;
+       originalLanguage?: string;
+       // ... other form fields
+     };
+     ```
+   - [ ] Import `ReviewInstance` from manifest for resolved/persisted data
+   - [ ] Remove local `ReviewInstance` type (lines 50-65)
+   - [ ] Update `resolveTeamData()` signature to transform types properly
+   - [ ] Consider immutable transform pattern instead of mutation:
+     ```typescript
+     async resolveTeamData(input: ReviewFormInput): Promise<ResolvedReviewData>
+     ```
+
+4. [ ] Remove `[key: string]: any` index signature
+   - [ ] Add any missing explicit fields to `ReviewFormInput`
+   - [ ] Fix call sites that relied on loose typing
+
+5. [ ] Type `formDefs` properly
+   - [ ] Use `FormFieldDefinition[]` from shared types (see below)
 
 ---
 
