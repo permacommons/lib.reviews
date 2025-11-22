@@ -23,19 +23,29 @@ import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 type ReviewFormValues = {
+  // From form parsing
+  url?: string;
   title?: Record<string, string>;
+  label?: Record<string, string>;
   text?: Record<string, string>;
   html?: Record<string, string>;
   starRating?: number;
-  files?: string[];
-  uploads?: Array<Record<string, unknown>>;
+  originalLanguage?: string;
   teams?: string[] | TeamInstance[]; // UUIDs from form, resolved to TeamInstance[] by resolveTeamData()
   socialImageID?: string;
+  files?: string[];
+
+  // Set programmatically for creation/persistence
   createdBy?: string;
   createdOn?: Date;
-  creator?: unknown;
   thing?: ThingInstance;
-  [key: string]: any;
+
+  // Template helpers (for view rendering)
+  hasRating?: Record<number, boolean>;
+  hasTeam?: Record<string, boolean>;
+  hasSocialImageID?: Record<string, boolean>;
+  uploads?: Array<Record<string, unknown>>;
+  creator?: unknown;
 };
 
 type ReviewInstance = ReviewFormValues & {
