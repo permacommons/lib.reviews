@@ -1,6 +1,5 @@
 import config from 'config';
 import BlogPost, { type BlogPostInstance } from '../models/blog-post.ts';
-import type { ReviewFeedResult } from '../models/manifests/review.ts';
 import type { TeamModel as TeamModelType } from '../models/manifests/team.ts';
 import Review from '../models/review.ts';
 import Team from '../models/team.ts';
@@ -13,15 +12,6 @@ import render from './helpers/render.ts';
 type ReviewsRouteRequest = HandlerRequest;
 type ReviewsRouteResponse = HandlerResponse;
 
-// BlogPost model type for getMostRecentBlogPostsBySlug - ideally should be
-// exported from models/blog-post.ts after adding BlogPostModel cast
-type BlogPostModelType = {
-  getMostRecentBlogPostsBySlug(
-    slug: string,
-    options?: Record<string, unknown>
-  ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
-};
-
 // Team model needs filterWhere().sample() chain which isn't typed in DAL yet
 type TeamModelHandle = TeamModelType & {
   filterWhere(criteria: Record<string, never>): { sample: (count?: number) => Promise<unknown[]> };
@@ -29,7 +19,6 @@ type TeamModelHandle = TeamModelType & {
 
 const routes = ReviewProvider.getDefaultRoutes('review');
 const TeamModel = Team as unknown as TeamModelHandle;
-const BlogPostModel = BlogPost as unknown as BlogPostModelType;
 
 routes.addFromThing = {
   path: '/new/review/:id',
@@ -55,7 +44,7 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
   });
   const sampleTeamsPromise = TeamModel.filterWhere({}).sample(3);
   const blogPromise = config.frontPageTeamBlog
-    ? BlogPostModel.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
+    ? BlogPost.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
     : Promise.resolve<{ blogPosts: BlogPostInstance[]; offsetDate?: Date } | undefined>(undefined);
 
   try {
