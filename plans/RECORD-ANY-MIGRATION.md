@@ -124,17 +124,14 @@ Attempted migration revealed manifest-level issues:
 
 ### `routes/handlers/user-handlers.ts`
 
-**Current Issues:**
+✅ All `Record<string, any>` issues resolved for user-handlers.ts
 
-| Line | Code | Issue |
-|------|------|-------|
-| 51 | `(metaRev.bio as Record<string, any>)` | Could use proper bio typing from UserMetaInstance |
-
-**Migration Plan:**
+**Migration Completed:**
 
 1. [x] Remove `as any` casts - models imported directly
 2. [x] Type bioObj inline (now properly typed)
-3. [ ] Type metaRev.bio properly - define Bio type or use UserMetaInstance
+3. [x] Type metaRev.bio properly - imported `MultilingualRichText` from DAL, cast to
+   `MultilingualRichText | undefined`, then construct `Required<MultilingualRichText>`
 
 ---
 
