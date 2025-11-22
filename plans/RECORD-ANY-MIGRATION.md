@@ -11,10 +11,9 @@ in route handlers and providers.
 
 | Line | Code | Issue |
 |------|------|-------|
-| 24-32 | Local `ThingInstance` type | Duplicates `models/manifests/thing.ts` |
-| 50-65 | Local `ReviewInstance` type | Duplicates `models/manifests/review.ts` |
-| 47 | `[key: string]: any;` in ReviewFormValues | Makes entire type loose |
-| 70 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
+| 40-55 | Local `ReviewInstance` type | Duplicates `models/manifests/review.ts` |
+| 37 | `[key: string]: any;` in ReviewFormValues | Makes entire type loose |
+| 60 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
 
 **Available Typed Exports:**
 
@@ -59,10 +58,10 @@ rather than properly separating concerns.
    - Added explicit casts at type boundaries (e.g., `as unknown as ReviewInstance`)
    - This reveals where local types diverge from manifest types
 
-2. [ ] Import `ThingInstance` from manifest instead of local definition
-   - [ ] Add import: `import type { ThingInstance } from '../../models/manifests/thing.ts'`
-   - [ ] Remove local `ThingInstance` type (lines 24-32)
-   - [ ] Fix any type mismatches that surface
+2. [x] Import `ThingInstance` from manifest instead of local definition
+   - [x] Add import: `import type { ThingInstance } from '../../models/manifests/thing.ts'`
+   - [x] Remove local `ThingInstance` type
+   - [x] No type mismatches - clean swap
 
 3. [ ] Separate form input from model instance types
    - [ ] Create `ReviewFormInput` for raw form data:
