@@ -11,13 +11,10 @@ in route handlers and providers.
 
 | Line | Code | Issue |
 |------|------|-------|
-| 23 | `const ReviewModel = Review as any;` | Unnecessary - Review is already typed |
-| 25 | `const UserModel = User as any;` | Unnecessary - User is already typed |
-| 26 | `const FileModel = File as any;` | Unnecessary - File is already typed |
-| 28-36 | Local `ThingInstance` type | Duplicates `models/manifests/thing.ts` |
-| 54-69 | Local `ReviewInstance` type | Duplicates `models/manifests/review.ts` |
-| 51 | `[key: string]: any;` in ReviewFormValues | Makes entire type loose |
-| 74 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
+| 24-32 | Local `ThingInstance` type | Duplicates `models/manifests/thing.ts` |
+| 50-65 | Local `ReviewInstance` type | Duplicates `models/manifests/review.ts` |
+| 47 | `[key: string]: any;` in ReviewFormValues | Makes entire type loose |
+| 70 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
 
 **Available Typed Exports:**
 
@@ -47,23 +44,33 @@ in route handlers and providers.
 
 | Line | Code | Issue |
 |------|------|-------|
-| 24 | `const _TeamJoinRequestModel = TeamJoinRequest as any;` | Needs typed model |
-| 25 | `const BlogPostModel = BlogPost as any;` | Needs typed model |
-| 37-45 | Local `TeamInstance` with `Record<string, any>` | Loose typing for members/moderators/etc |
-| 46 | `type TeamFormValues = Record<string, any>;` | Completely untyped |
-| 49 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
-| 558, 561 | `this.req.user as Record<string, any>` | Should use UserInstance |
+| 19-37 | Local `TeamInstance` with `Record<string, any>` | Loose typing for members/moderators/etc |
+| 38 | `type TeamFormValues = Record<string, any>;` | Completely untyped |
+| 41 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
+| 550, 553 | `this.req.user as Record<string, any>` | Should use UserInstance |
+
+**Migration Plan:**
+
+1. [x] Remove `as any` casts - BlogPost now imported directly
+2. [ ] Tighten local `TeamInstance` - replace `Record<string, any>` with specific types
+3. [ ] Type `TeamFormValues` with explicit fields
+4. [ ] Replace `req.user as Record<string, any>` with UserInstance
 
 ---
 
 ### `routes/handlers/user-handlers.ts`
 
+**Current Issues:**
+
 | Line | Code | Issue |
 |------|------|-------|
-| 11 | `const UserModel = User as any;` | Unnecessary |
-| 12 | `const ReviewModel = Review as any;` | Unnecessary |
-| 35 | `const bioObj: Record<string, any>` | Could be typed bio object |
-| 54 | `(metaRev.bio as Record<string, any>)` | Could use UserMetaInstance typing |
+| 51 | `(metaRev.bio as Record<string, any>)` | Could use proper bio typing from UserMetaInstance |
+
+**Migration Plan:**
+
+1. [x] Remove `as any` casts - models imported directly
+2. [x] Type bioObj inline (now properly typed)
+3. [ ] Type metaRev.bio properly - define Bio type or use UserMetaInstance
 
 ---
 
