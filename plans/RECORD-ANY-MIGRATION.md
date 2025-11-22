@@ -11,9 +11,8 @@ in route handlers and providers.
 
 | Line | Code | Issue |
 |------|------|-------|
-| 40-55 | Local `ReviewInstance` type | Duplicates `models/manifests/review.ts` |
-| 37 | `[key: string]: any;` in ReviewFormValues | Makes entire type loose |
-| 60 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
+| 51-65 | Local `ReviewInstance` type | Duplicates `models/manifests/review.ts` |
+| 70 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
 
 **Available Typed Exports:**
 
@@ -50,6 +49,10 @@ Review.create(reviewObj, ...)
 The `[key: string]: any` index signature was added to paper over this type mismatch
 rather than properly separating concerns.
 
+**Resolution:** Used union type `teams?: string[] | TeamInstance[]` to explicitly
+represent the before/after mutation state. Removed index signature and added all
+fields explicitly. This provides type safety while acknowledging the mutation pattern.
+
 **Migration Plan:**
 
 1. [x] Remove `as any` casts - use models directly (already typed)
@@ -63,31 +66,17 @@ rather than properly separating concerns.
    - [x] Remove local `ThingInstance` type
    - [x] No type mismatches - clean swap
 
-3. [ ] Separate form input from model instance types
-   - [ ] Create `ReviewFormInput` for raw form data:
-     ```typescript
-     type ReviewFormInput = {
-       title?: Record<string, string>;
-       text?: Record<string, string>;
-       starRating?: number;
-       teams?: string[];           // UUIDs from form
-       files?: string[];           // UUIDs from form
-       socialImageID?: string;
-       originalLanguage?: string;
-       // ... other form fields
-     };
-     ```
-   - [ ] Import `ReviewInstance` from manifest for resolved/persisted data
-   - [ ] Remove local `ReviewInstance` type (lines 50-65)
-   - [ ] Update `resolveTeamData()` signature to transform types properly
-   - [ ] Consider immutable transform pattern instead of mutation:
-     ```typescript
-     async resolveTeamData(input: ReviewFormInput): Promise<ResolvedReviewData>
-     ```
+3. [x] Tighten `ReviewFormValues` type
+   - [x] Remove `[key: string]: any` index signature
+   - [x] Add explicit fields for all form data: `url`, `label`, `originalLanguage`
+   - [x] Add template helper fields: `hasRating`, `hasTeam`, `hasSocialImageID`
+   - [x] Keep union type `teams?: string[] | TeamInstance[]` to represent mutation
+   - Typechecks pass with no changes to call sites
 
-4. [ ] Remove `[key: string]: any` index signature
-   - [ ] Add any missing explicit fields to `ReviewFormInput`
-   - [ ] Fix call sites that relied on loose typing
+4. [ ] Import `ReviewInstance` from manifest (optional, lower priority)
+   - Local type extends `ReviewFormValues` with instance methods
+   - Would require separating form values from instance type
+   - Current approach works; revisit if manifest type diverges
 
 5. [ ] Type `formDefs` properly
    - [ ] Use `FormFieldDefinition[]` from shared types (see below)
