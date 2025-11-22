@@ -18,7 +18,7 @@ import urlUtils from '../util/url-utils.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
 import feeds from './helpers/feeds.ts';
-import forms from './helpers/forms.ts';
+import forms, { type FormField } from './helpers/forms.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
 
@@ -500,11 +500,7 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
 // Handle data from a POST request for the "manage URLs" route
 function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   const { req, res, titleKey, thing } = paramsObj;
-  const formDef: Array<{
-    name: string;
-    type?: string;
-    required?: boolean;
-  }> = [
+  const formDef: FormField[] = [
     {
       name: 'primary',
       type: 'number',

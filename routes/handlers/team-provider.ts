@@ -11,6 +11,7 @@ import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/h
 import debug from '../../util/debug.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 import feeds from '../helpers/feeds.ts';
+import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
@@ -38,7 +39,7 @@ type TeamInstance = Omit<
 type TeamFormValues = Record<string, any>;
 
 class TeamProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, any>;
+  static formDefs: Record<string, FormField[]>;
   protected isPreview = false;
   protected editing = false;
   protected declare format?: string;

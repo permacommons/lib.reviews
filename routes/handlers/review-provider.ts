@@ -20,6 +20,7 @@ import getMessages from '../../util/get-messages.ts';
 import md, { getMarkdownMessageKeys } from '../../util/md.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
+import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
@@ -55,7 +56,7 @@ type ReviewInstance = ManifestReviewInstance;
 type TeamInstance = TeamManifestInstance & Record<string, unknown>;
 
 class ReviewProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, any>;
+  static formDefs: Record<string, FormField[]>;
   protected isPreview = false;
   protected editing = false;
 

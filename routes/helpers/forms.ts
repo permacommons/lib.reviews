@@ -11,15 +11,16 @@ const uuidRegex = '([a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89aAbB][a-f0-9]{3}-[a-
 // Used for the UUID type
 const uuidRegexStrict = new RegExp(`^${uuidRegex}$`);
 
-type FormField = {
+export type FormFieldType = 'text' | 'markdown' | 'number' | 'boolean' | 'url' | 'uuid';
+
+export type FormField = {
   name: string;
   required?: boolean;
   skipValue?: boolean;
   key?: string;
   htmlKey?: string;
-  type?: string;
+  type?: FormFieldType;
   flat?: boolean;
-  [key: string]: unknown;
 };
 
 /**

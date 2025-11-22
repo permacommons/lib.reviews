@@ -12,6 +12,7 @@ import type { TeamInstance } from '../../models/manifests/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 import feeds from '../helpers/feeds.ts';
+import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
@@ -23,7 +24,7 @@ type BlogPostFormValues = Required<
   };
 
 class BlogPostProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, any>;
+  static formDefs: Record<string, FormField[]>;
   protected declare language?: LocaleCodeWithUndetermined;
   protected declare utcISODate?: string;
   protected declare postID: string;
