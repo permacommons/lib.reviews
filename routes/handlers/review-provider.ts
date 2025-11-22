@@ -2,10 +2,11 @@
 import config from 'config';
 import mlString from '../../dal/lib/ml-string.ts';
 import File from '../../models/file.ts';
-import type {
-  TeamInstance as TeamManifestInstance,
-  TeamModel as TeamModelType,
-} from '../../models/manifests/team.ts';
+import {
+  type ReviewInputObject,
+  type ReviewValidateSocialImageOptions,
+} from '../../models/manifests/review.ts';
+import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
 import Review from '../../models/review.ts';
 import Team from '../../models/team.ts';
 import User from '../../models/user.ts';
@@ -19,11 +20,6 @@ import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
 import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
-
-const ReviewModel = Review as any;
-const TeamModel = Team as TeamModelType;
-const UserModel = User as any;
-const FileModel = File as any;
 
 type ThingInstance = {
   id: string;
@@ -138,7 +134,7 @@ class ReviewProvider extends AbstractBREADProvider {
     // Load user's teams for the form
     if (user && user.id) {
       try {
-        const userWithTeams = await UserModel.findByURLName(user.urlName, { withTeams: true });
+        const userWithTeams = await User.findByURLName(user.urlName, { withTeams: true });
         user.teams = userWithTeams.teams;
         user.moderatorOf = userWithTeams.moderatorOf;
       } catch (error) {
@@ -261,7 +257,7 @@ class ReviewProvider extends AbstractBREADProvider {
     }
 
     this.resolveTeamData(formValues)
-      .then(() => FileModel.getMultipleNotStaleOrDeleted(formValues.files))
+      .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
       .then(async uploadedFiles => {
         const reviewObj = Object.assign({}, formValues);
 
@@ -269,7 +265,9 @@ class ReviewProvider extends AbstractBREADProvider {
         // can both be selected. (This does not need to be included with the
         // review object that will be created.)
         formValues.uploads =
-          thing && thing?.files ? uploadedFiles.concat(thing.files) : uploadedFiles;
+          thing && thing?.files
+            ? (uploadedFiles as Array<Record<string, unknown>>).concat(thing.files)
+            : uploadedFiles;
 
         if (thing && thing.id) reviewObj.thing = thing;
 
@@ -279,22 +277,24 @@ class ReviewProvider extends AbstractBREADProvider {
           return await this.add_GET(formValues, thing);
         }
 
-        ReviewModel.create(reviewObj, {
+        Review.create(reviewObj as ReviewInputObject, {
           tags: ['create-via-form'],
           files: formValues.files,
         })
-          .then(review => {
+          .then(createdReview => {
+            // Cast to local ReviewInstance for compatibility with existing code
+            const review = createdReview as unknown as ReviewInstance;
             this.req.app.locals.webHooks.trigger('newReview', {
               event: 'new-review',
               data: this.getWebHookData(review, this.req.user),
             });
 
-            UserModel.filterWhere({ id: this.req.user.id })
+            User.filterWhere({ id: this.req.user.id })
               .increment('inviteLinkCount', { by: 1 })
               .then(() => {
                 this.res.redirect(`/${review.thing.id}#your-review`);
-                search.indexReview(review);
-                search.indexThing(review.thing);
+                search.indexReview(createdReview);
+                search.indexThing(createdReview.thing);
               })
               .catch(this.next); // Problem updating invite count
           })
@@ -310,7 +310,7 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
   async loadData(): Promise<ReviewInstance> {
-    const review = (await ReviewModel.getWithData(this.id)) as ReviewInstance;
+    const review = (await Review.getWithData(this.id)) as unknown as ReviewInstance;
     // For permission checks on associated thing
     review.thing.populateUserInfo(this.req.user);
     return review;
@@ -366,10 +366,10 @@ class ReviewProvider extends AbstractBREADProvider {
     };
 
     this.resolveTeamData(formValues)
-      .then(() => FileModel.getMultipleNotStaleOrDeleted(formValues.files))
+      .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
       .then(uploadedFiles => {
         formValues.uploads = review.thing.files
-          ? uploadedFiles.concat(review.thing.files)
+          ? (uploadedFiles as Array<Record<string, unknown>>).concat(review.thing.files)
           : uploadedFiles;
 
         // As with creation, back to edit form if we have errors or
@@ -384,10 +384,10 @@ class ReviewProvider extends AbstractBREADProvider {
           .then(async newRev => {
             const f = formValues;
 
-            ReviewModel.validateSocialImage({
+            Review.validateSocialImage({
               socialImageID: f.socialImageID,
               newFileIDs: f.files,
-              fileObjects: review.thing.files,
+              fileObjects: review.thing.files as ReviewValidateSocialImageOptions['fileObjects'],
             });
 
             const titleTranslations = newRev.title as Record<string, string>;
@@ -437,7 +437,7 @@ class ReviewProvider extends AbstractBREADProvider {
       return;
     }
 
-    const queries = (formValues.teams as string[]).map(teamId => TeamModel.getWithData(teamId));
+    const queries = (formValues.teams as string[]).map(teamId => Team.getWithData(teamId));
 
     try {
       formValues.teams = await Promise.all(queries);
