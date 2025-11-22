@@ -1,6 +1,7 @@
 import escapeHTML from 'escape-html';
 
 import languages from '../../locales/languages.ts';
+import type { FileInstance } from '../../models/file.ts';
 import File from '../../models/file.ts';
 import type { HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import ReportedError from '../../util/reported-error.ts';
@@ -14,16 +15,6 @@ type UploadFile = {
   fieldname?: string;
   size?: number;
   path?: string;
-  [key: string]: unknown;
-};
-
-type FileRevision = {
-  id: string;
-  description?: unknown;
-  license?: string;
-  creator?: unknown;
-  source?: unknown;
-  save: () => Promise<unknown>;
   [key: string]: unknown;
 };
 
@@ -88,16 +79,16 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
     const validationErrors = validateAllMetadata(req.files, req.body ?? {});
     if (validationErrors.length) return abortUpload(validationErrors);
 
-    const persistRevisions = async (fileRevs: FileRevision[]): Promise<FileRevision[]> => {
+    const persistRevisions = async (fileRevs: FileInstance[]): Promise<FileInstance[]> => {
       await Promise.all(fileRevs.map(fileRev => fileRev.save()));
       return fileRevs;
     };
 
     validateFiles(req.files)
       .then(fileTypes => getFileRevs(req.files, fileTypes, req.user, ['upload', 'upload-via-api']))
-      .then(fileRevs => addMetadata(req.files, fileRevs as FileRevision[], req.body ?? {}))
+      .then(fileRevs => addMetadata(req.files, fileRevs as FileInstance[], req.body ?? {}))
       .then(fileRevs =>
-        completeUploads(fileRevs as unknown as FileRevision[], req.app.locals.paths.uploadsDir)
+        completeUploads(fileRevs as unknown as FileInstance[], req.app.locals.paths.uploadsDir)
       )
       .then(persistRevisions)
       .then(fileRevs => reportUploadSuccess(req, res, fileRevs))
@@ -234,7 +225,7 @@ function checkRequired(
  * @returns
  *  the revisions for further processing
  */
-function addMetadata(files: UploadFile[], fileRevs: FileRevision[], data: Record<string, any>) {
+function addMetadata(files: UploadFile[], fileRevs: FileInstance[], data: Record<string, any>) {
   const multiple = Boolean(data.multiple);
   fileRevs.forEach((fileRev, index) =>
     addMetadataToFileRev(files[index], fileRevs[index], data, { addSuffix: multiple })
@@ -258,7 +249,7 @@ function addMetadata(files: UploadFile[], fileRevs: FileRevision[], data: Record
  */
 function addMetadataToFileRev(
   file: UploadFile,
-  fileRev: FileRevision,
+  fileRev: FileInstance,
   data: Record<string, any>,
   { addSuffix = false } = {}
 ) {
@@ -285,7 +276,7 @@ function addMetadataToFileRev(
  * @param fileRevs
  *  the saved file metadata revisions
  */
-function reportUploadSuccess(req: UploadRequest, res: UploadResponse, fileRevs: FileRevision[]) {
+function reportUploadSuccess(req: UploadRequest, res: UploadResponse, fileRevs: FileInstance[]) {
   const uploads = req.files.map((file, index) => ({
     originalName: file.originalname,
     uploadedFileName: file.filename,

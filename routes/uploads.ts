@@ -15,7 +15,9 @@ import type { FileFilterCallback } from 'multer';
 import multer from 'multer';
 import is from 'type-is';
 import languages from '../locales/languages.ts';
+import type { FileInstance } from '../models/file.ts';
 import File from '../models/file.ts';
+import type { ThingInstance } from '../models/manifests/thing.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import {
   generateToken,
@@ -44,16 +46,6 @@ type UploadedFile = {
   size?: number;
   [key: string]: unknown;
 };
-type UploadRevision = Record<string, any>;
-type ThingInstance = Record<string, any>;
-type FileModelType = {
-  createFirstRevision(
-    user: Express.User,
-    options?: Record<string, unknown>
-  ): Promise<UploadRevision>;
-  getNotStaleOrDeleted(id: string): Promise<UploadRevision>;
-  getStashedUpload(userID: string, name: string): Promise<UploadRevision | null>;
-};
 
 // Uploading is a two step process. In the first step, the user simply posts the
 // file or files. In the second step, they provide information such as the
@@ -66,7 +58,6 @@ type FileModelType = {
 // record in the "files" table for it that can be completed later.
 const stage1Router = Router();
 const stage2Router = Router();
-const FileModel = File as unknown as FileModelType;
 
 let fileTypeFromFileFn;
 async function detectFileType(filePath) {
@@ -303,9 +294,9 @@ async function getFileRevs(
   fileTypes: string[],
   user: Express.User,
   tags: string[] = []
-): Promise<UploadRevision[]> {
+): Promise<FileInstance[]> {
   const fileRevs = await Promise.all(
-    files.map(() => FileModel.createFirstRevision(user, { tags }))
+    files.map(() => File.createFirstRevision(user, { tags }))
   );
   files.forEach((file, index) => {
     fileRevs[index].name = file.filename;
@@ -320,9 +311,9 @@ async function getFileRevs(
 }
 
 async function attachFileRevsToThing(
-  fileRevs: UploadRevision[],
+  fileRevs: FileInstance[],
   thing: ThingInstance
-): Promise<UploadRevision[]> {
+): Promise<FileInstance[]> {
   // Note that the file association is stored in a separate table, so we do not
   // create a new Thing revision in this case
   if (!Array.isArray(fileRevs) || !fileRevs.length) {
@@ -429,7 +420,7 @@ stage1Router.get(
 
     if (!userID) return next();
 
-    FileModel.getStashedUpload(userID, req.params.name)
+    File.getStashedUpload(userID, req.params.name)
       .then(upload => {
         if (!upload) return next();
         res.sendFile(path.join(config.uploadTempDir, upload.name));
@@ -482,7 +473,7 @@ function processUploadForm(
   if (!hasUploads) return redirectBack({ error: ['data missing'] });
 
   const getFiles = async (ids: string[]) =>
-    await Promise.all(ids.map(id => FileModel.getNotStaleOrDeleted(id)));
+    await Promise.all(ids.map(id => File.getNotStaleOrDeleted(id)));
 
   // Load file info from stage 1 using the upload IDs from the form. Parse the
   // form and abort if there's a problem with any given upload. If there's no
@@ -500,7 +491,7 @@ function processUploadForm(
 }
 
 async function processUploads(
-  uploads: UploadRevision[],
+  uploads: FileInstance[],
   formValues: Record<string, any>,
   language: string,
   uploadsDir: string
@@ -590,7 +581,7 @@ async function processUploads(
  * @param uploadsDir Destination directory for completed uploads
  * @returns Nothing; resolves once the upload is finalized or rolled back
  */
-async function completeUpload(upload: UploadRevision, uploadsDir: string): Promise<void> {
+async function completeUpload(upload: FileInstance, uploadsDir: string): Promise<void> {
   // File names are sanitized on input but ..
   // This error is not shown to the user but logged, hence native.
   if (!upload.name || /[/<>]/.test(upload.name))
@@ -621,9 +612,9 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
  * @returns The same uploads after being finalized
  */
 async function completeUploads(
-  fileRevs: UploadRevision[],
+  fileRevs: FileInstance[],
   uploadsDir: string
-): Promise<UploadRevision[]> {
+): Promise<FileInstance[]> {
   for (let fileRev of fileRevs) await completeUpload(fileRev, uploadsDir);
   return fileRevs;
 }
