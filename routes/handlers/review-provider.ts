@@ -4,6 +4,7 @@ import mlString from '../../dal/lib/ml-string.ts';
 import File from '../../models/file.ts';
 import {
   type ReviewInputObject,
+  type ReviewInstance as ManifestReviewInstance,
   type ReviewValidateSocialImageOptions,
 } from '../../models/manifests/review.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
@@ -23,37 +24,33 @@ import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 type ReviewFormValues = {
+  // From form parsing
+  url?: string;
   title?: Record<string, string>;
+  label?: Record<string, string>;
   text?: Record<string, string>;
   html?: Record<string, string>;
   starRating?: number;
-  files?: string[];
-  uploads?: Array<Record<string, unknown>>;
+  originalLanguage?: string;
   teams?: string[] | TeamInstance[]; // UUIDs from form, resolved to TeamInstance[] by resolveTeamData()
   socialImageID?: string;
+  files?: string[];
+
+  // Set programmatically for creation/persistence
   createdBy?: string;
   createdOn?: Date;
-  creator?: unknown;
   thing?: ThingInstance;
-  [key: string]: any;
+
+  // Template helpers (for view rendering)
+  hasRating?: Record<number, boolean>;
+  hasTeam?: Record<string, boolean>;
+  hasSocialImageID?: Record<string, boolean>;
+  uploads?: Array<Record<string, unknown>>;
+  creator?: unknown;
 };
 
-type ReviewInstance = ReviewFormValues & {
-  id: string;
-  thing: ThingInstance;
-  socialImage?: { name: string };
-  headerImage?: string;
-  populateUserInfo: (user: HandlerRequest['user']) => void;
-  newRevision: (
-    user: HandlerRequest['user'],
-    options?: Record<string, unknown>
-  ) => Promise<ReviewInstance>;
-  saveAll: (options: Record<string, unknown>) => Promise<unknown>;
-  deleteAllRevisions: (
-    user: HandlerRequest['user'],
-    options?: Record<string, unknown>
-  ) => Promise<unknown>;
-};
+// Use manifest type for actual review instances loaded from DB
+type ReviewInstance = ManifestReviewInstance;
 
 type TeamInstance = TeamManifestInstance & Record<string, unknown>;
 
@@ -391,10 +388,11 @@ class ReviewProvider extends AbstractBREADProvider {
             textTranslations[language] = formTexts[language] ?? '';
             htmlTranslations[language] = formHtml[language] ?? '';
             newRev.starRating = f.starRating;
-            newRev.teams = f.teams;
+            // After resolveTeamData(), teams is always TeamInstance[]
+            newRev.teams = f.teams as TeamInstance[];
             newRev.thing = review.thing;
             newRev.socialImageID = f.socialImageID;
-            this.saveNewRevisionAndFiles(newRev, f.files)
+            this.saveNewRevisionAndFiles(newRev as ReviewInstance, f.files)
               .then(() => {
                 search.indexReview(review);
                 search.indexThing(review.thing);
