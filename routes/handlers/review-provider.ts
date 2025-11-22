@@ -3,8 +3,8 @@ import config from 'config';
 import mlString from '../../dal/lib/ml-string.ts';
 import File from '../../models/file.ts';
 import {
-  type ReviewInputObject,
   type ReviewInstance as ManifestReviewInstance,
+  type ReviewInputObject,
   type ReviewValidateSocialImageOptions,
 } from '../../models/manifests/review.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
