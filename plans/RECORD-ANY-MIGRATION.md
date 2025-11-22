@@ -9,9 +9,7 @@ in route handlers and providers.
 
 **Current Issues:**
 
-| Line | Code | Issue |
-|------|------|-------|
-| 58 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
+✅ All `Record<string, any>` issues resolved for review-provider.ts
 
 **Available Typed Exports:**
 
@@ -78,8 +76,10 @@ fields explicitly. This provides type safety while acknowledging the mutation pa
    - [x] Add `as TeamInstance[]` cast after `resolveTeamData()` (teams resolved)
    - [x] Add `as ReviewInstance` cast for `newRevision()` return (DAL type gap)
 
-5. [ ] Type `formDefs` properly
-   - [ ] Use `FormFieldDefinition[]` from shared types (see below)
+5. [x] Type `formDefs` properly
+   - [x] Export `FormField` type from `routes/helpers/forms.ts`
+   - [x] Change `static formDefs: Record<string, any>` to `Record<string, FormField[]>`
+   - [x] Applied to all three providers (review, team, blog-post)
 
 ---
 
@@ -89,17 +89,17 @@ fields explicitly. This provides type safety while acknowledging the mutation pa
 
 | Line | Code | Issue |
 |------|------|-------|
-| 19-37 | Local `TeamInstance` with `Record<string, any>` | Loose typing for members/moderators/etc |
-| 38 | `type TeamFormValues = Record<string, any>;` | Completely untyped |
-| 41 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
-| 550, 553 | `this.req.user as Record<string, any>` | Should use UserInstance |
+| 20-38 | Local `TeamInstance` with `Record<string, any>` | Loose typing for members/moderators/etc |
+| 39 | `type TeamFormValues = Record<string, any>;` | Completely untyped |
+| 551, 554 | `this.req.user as Record<string, any>` | Should use UserInstance |
 
 **Migration Plan:**
 
 1. [x] Remove `as any` casts - BlogPost now imported directly
-2. [ ] Tighten local `TeamInstance` - replace `Record<string, any>` with specific types
-3. [ ] Type `TeamFormValues` with explicit fields
-4. [ ] Replace `req.user as Record<string, any>` with UserInstance
+2. [x] Type `formDefs` as `Record<string, FormField[]>`
+3. [ ] Tighten local `TeamInstance` - replace `Record<string, any>` with specific types
+4. [ ] Type `TeamFormValues` with explicit fields
+5. [ ] Replace `req.user as Record<string, any>` with UserInstance
 
 ---
 
