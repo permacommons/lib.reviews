@@ -3,16 +3,18 @@ import type {
   AdapterLookupResult,
 } from '../../adapters/abstract-backend-adapter.ts';
 import dal from '../../dal/index.ts';
+import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
+import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+// Note: Use ModelInstance for virtual field types to avoid circular type inference.
+// This should be revisited when relation types are derived from manifest metadata.
+import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
 import type { FileInstance } from './file.ts';
-// Note: Use ModelInstance for virtual field types to avoid circular type inference.
-// This should be revisited when relation types are derived from manifest metadata.
-import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import type { ReviewInstance } from './review.ts';
 import type { UserAccessContext } from './user.ts';
 
@@ -206,7 +208,7 @@ const thingManifest = defineModelManifest({
 type ThingInstanceBase = InferInstance<typeof thingManifest>;
 type ThingModelBase = InferConstructor<typeof thingManifest>;
 
-export interface ThingInstanceMethods {
+export interface ThingInstanceMethods extends Record<string, InstanceMethod<ThingInstanceBase>> {
   initializeFieldsFromAdapter(
     this: ThingInstanceBase & ThingInstanceMethods,
     adapterResult: AdapterLookupResult
@@ -240,7 +242,7 @@ export interface ThingInstanceMethods {
   ): Promise<ThingInstance>;
 }
 
-export interface ThingStaticMethods {
+export interface ThingStaticMethods extends Record<string, StaticMethod> {
   lookupByURL(
     this: ThingModelBase & ThingStaticMethods,
     url: string,
@@ -258,8 +260,8 @@ export interface ThingStaticMethods {
   ): string | undefined;
 }
 
-export type ThingInstance = ThingInstanceBase & ThingInstanceMethods;
-export type ThingModel = ThingModelBase & ThingStaticMethods;
+export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods>;
+export type ThingModel = ManifestModel<typeof thingManifest, ThingStaticMethods, ThingInstanceMethods>;
 
 /**
  * Create a typed reference to the Thing model for use in cross-model dependencies.

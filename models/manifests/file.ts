@@ -1,7 +1,10 @@
 import dal from '../../dal/index.ts';
+import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
+import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InstanceMethod } from '../../dal/lib/model-types.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
 const { mlString, types } = dal;
@@ -70,14 +73,14 @@ export interface FileFeedResult<TItem> {
 type FileInstanceBase = InferInstance<typeof fileManifest>;
 type FileModelBase = InferConstructor<typeof fileManifest>;
 
-export interface FileInstanceMethods {
+export interface FileInstanceMethods extends Record<string, InstanceMethod<FileInstanceBase>> {
   populateUserInfo(
     this: FileInstanceBase & FileInstanceMethods,
     user: UserAccessContext | null | undefined
   ): void;
 }
 
-export interface FileStaticMethods {
+export interface FileStaticMethods extends Record<string, StaticMethod> {
   getStashedUpload(
     this: FileModelBase & FileStaticMethods,
     userID: string,
@@ -90,8 +93,8 @@ export interface FileStaticMethods {
   ): Promise<FileFeedResult<FileInstance>>;
 }
 
-export type FileInstance = FileInstanceBase & FileInstanceMethods;
-export type FileModel = FileModelBase & FileStaticMethods;
+export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethods>;
+export type FileModel = ManifestModel<typeof fileManifest, FileStaticMethods, FileInstanceMethods>;
 export const fileValidLicenses = validLicenseValues;
 
 /**

@@ -5,7 +5,12 @@ import {
   initializeModel,
   type RelationConfig,
 } from '../../dal/lib/model-initializer.ts';
-import type { DataAccessLayer, JsonObject, ModelConstructor } from '../../dal/lib/model-types.ts';
+import type {
+  DataAccessLayer,
+  JsonObject,
+  ModelConstructor,
+  ModelInstance,
+} from '../../dal/lib/model-types.ts';
 import QueryBuilder from '../../dal/lib/query-builder.ts';
 import typesLib from '../../dal/lib/type.ts';
 
@@ -136,9 +141,20 @@ export const createMockModel = (
   return runtimeModel;
 };
 
-export const createQueryBuilderHarness = (options: QueryBuilderSetupOptions = {}) => {
+export const createQueryBuilderHarness = <
+  TData extends JsonObject = JsonObject,
+  TVirtual extends JsonObject = JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
+>(
+  options: QueryBuilderSetupOptions = {}
+) => {
   const dal = createMockDAL(options.dalOverrides);
   const model = createMockModel(dal, options);
   const qb = new QueryBuilder(model as unknown as QueryBuilderArgs[0], dal);
-  return { qb, model, dal };
+  return {
+    qb: qb as unknown as QueryBuilder<TData, TVirtual, TInstance, TRelations>,
+    model,
+    dal,
+  };
 };

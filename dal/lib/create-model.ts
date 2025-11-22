@@ -342,3 +342,30 @@ export function defineModel<
     ExtraStatics
   >;
 }
+
+/**
+ * Infer instance type from a manifest with additional instance methods.
+ * Cleaner alternative to manually using MergeManifestMethods + InferInstance.
+ *
+ * @example
+ * export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods>;
+ */
+export type ManifestInstance<
+  Manifest extends ModelManifest,
+  InstanceMethods extends Record<string, InstanceMethod> = Record<never, InstanceMethod>,
+> = InferInstance<MergeManifestMethods<Manifest, Record<never, StaticMethod>, InstanceMethods>>;
+
+/**
+ * Infer model constructor type from a manifest with additional static and instance methods.
+ * Cleaner alternative to manually using MergeManifestMethods + InferConstructor.
+ *
+ * @example
+ * export type ReviewModel = ManifestModel<typeof reviewManifest, ReviewStaticMethods, ReviewInstanceMethods>;
+ */
+export type ManifestModel<
+  Manifest extends ModelManifest,
+  StaticMethods extends Record<string, StaticMethod> = Record<never, StaticMethod>,
+  InstanceMethods extends Record<string, InstanceMethod> = Record<never, InstanceMethod>,
+> = InferConstructor<MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>>;
+
+export type { ModelConstructorWithStatics, MergeManifestMethods };

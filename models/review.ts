@@ -45,9 +45,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
       creator: true,
     };
 
-    // Cast required: query builder returns base instance type, but runtime
-    // attaches instance methods defined in the manifest.
-    const review = (await this.getNotStaleOrDeleted(id, joinOptions)) as ReviewInstance | null;
+    const review = await this.getNotStaleOrDeleted(id, joinOptions);
 
     if (!review) {
       return null;
@@ -207,12 +205,10 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
 
     const date = new Date();
 
-    // Cast required: query builder returns base instance type, but runtime
-    // attaches instance methods defined in the manifest.
-    const thing = (await Thing.createFirstRevision(
+    const thing = await Thing.createFirstRevision(
       { id: reviewObj.createdBy },
       { tags: ['create-via-review'], date }
-    )) as ThingInstance;
+    );
     debug.db('Review.findOrCreateThing: created first revision', {
       provisionalThingID: thing.id,
     });
@@ -297,9 +293,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
     }
 
     const feedPage = await builder.chronologicalFeed({ cursorField: 'createdOn', limit });
-    // Cast required: query builder returns base instance type, but runtime
-    // attaches instance methods defined in the manifest.
-    const feedItems = feedPage.rows as ReviewInstance[];
+    const feedItems = feedPage.rows;
     const feedResult: ReviewFeedResult = { feedItems };
 
     if (feedPage.hasMore) {
@@ -354,9 +348,9 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
           if (thingIds.length > 0) {
             debug.db(`Batch fetching ${thingIds.length} things for review feed...`);
 
-            const things = (await Thing.filterWhere({})
+            const things = await Thing.filterWhere({})
               .whereIn('id', thingIds, { cast: 'uuid[]' })
-              .run()) as ThingInstance[];
+              .run();
             const thingMap = new Map<string, ThingInstance>();
 
             things.forEach(thingInstance => {

@@ -1,8 +1,10 @@
 import dal from '../../dal/index.ts';
+import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
+import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import type { ModelInstance } from '../../dal/lib/model-types.ts';
+import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
@@ -114,7 +116,7 @@ const teamManifest = defineModelManifest({
 type TeamInstanceBase = InferInstance<typeof teamManifest>;
 type TeamModelBase = InferConstructor<typeof teamManifest>;
 
-export interface TeamInstanceMethods {
+export interface TeamInstanceMethods extends Record<string, InstanceMethod<TeamInstanceBase>> {
   populateUserInfo(
     this: TeamInstanceBase & TeamInstanceMethods,
     user: ModelInstance | UserAccessContext | null | undefined
@@ -126,7 +128,7 @@ export interface TeamInstanceMethods {
   ): Promise<TeamInstance>;
 }
 
-export interface TeamStaticMethods {
+export interface TeamStaticMethods extends Record<string, StaticMethod> {
   getWithData(
     this: TeamModelBase & TeamStaticMethods,
     id: string,
@@ -134,8 +136,8 @@ export interface TeamStaticMethods {
   ): Promise<TeamInstance>;
 }
 
-export type TeamInstance = TeamInstanceBase & TeamInstanceMethods;
-export type TeamModel = TeamModelBase & TeamStaticMethods;
+export type TeamInstance = ManifestInstance<typeof teamManifest, TeamInstanceMethods>;
+export type TeamModel = ManifestModel<typeof teamManifest, TeamStaticMethods, TeamInstanceMethods>;
 
 /**
  * Create a typed reference to the Team model for use in cross-model dependencies.

@@ -3,9 +3,10 @@ import type { QueryResult } from 'pg';
 
 import * as dalModule from '../dal/index.ts';
 import { createOperators, FilterWhereBuilder } from '../dal/lib/filter-where.ts';
+import type { ModelRuntime } from '../dal/lib/model.ts';
 import Model, { type ModelSchema } from '../dal/lib/model.ts';
 import { initializeModel } from '../dal/lib/model-initializer.ts';
-import type { JsonObject, ModelInstance } from '../dal/lib/model-types.ts';
+import type { JsonObject, ModelConstructor, ModelInstance } from '../dal/lib/model-types.ts';
 import QueryBuilder from '../dal/lib/query-builder.ts';
 import typesLib from '../dal/lib/type.ts';
 import type { RuntimeModel } from './helpers/dal-mocks.ts';
@@ -14,8 +15,6 @@ import {
   createQueryBuilderHarness,
   createQueryResult,
 } from './helpers/dal-mocks.ts';
-
-type QueryBuilderArgs = ConstructorParameters<typeof QueryBuilder>;
 
 type DefaultRecord = {
   id: string;
@@ -39,7 +38,7 @@ test('QueryBuilder can be instantiated', t => {
 });
 
 test('FilterWhereBuilder applies literal predicates to QueryBuilder', t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     false
@@ -60,7 +59,7 @@ test('FilterWhereBuilder applies literal predicates to QueryBuilder', t => {
 });
 
 test('QueryBuilder supports orderBy method', t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const result = qb.orderBy('created_on', 'DESC');
 
   t.is(result, qb); // Should return self for chaining
@@ -74,7 +73,7 @@ test('FilterWhereBuilder resolves manifest keys before delegating', t => {
     createdOn: typesLib.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const { qb } = createQueryBuilderHarness({
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({
     schema,
     camelToSnake: { createdOn: 'created_on' },
   });
@@ -112,7 +111,7 @@ test('FilterWhere operator helpers build advanced predicates', t => {
     metadata: typesLib.object(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const { qb } = createQueryBuilderHarness({
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({
     schema,
     camelToSnake: { createdOn: 'created_on', isActive: 'is_active' },
   });
@@ -223,7 +222,7 @@ test('FilterWhere between participates in OR groups', t => {
     value: typesLib.number(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const { qb } = createQueryBuilderHarness({ schema });
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({ schema });
   const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
   const ops = createOperators<Data>();
 
@@ -276,7 +275,7 @@ test('chronologicalFeed applies revision guards, cursor predicate, and trims to 
   type Data = { id: string; createdOn: Date };
   type Instance = ModelInstance<Data, JsonObject>;
 
-  const { qb } = createQueryBuilderHarness({
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({
     schema: {
       id: typesLib.string(),
       created_on: typesLib.date(),
@@ -365,7 +364,7 @@ test('chronologicalFeed short-circuits when limit is zero', async t => {
   type Data = { id: string; createdOn: Date };
   type Instance = ModelInstance<Data, JsonObject>;
 
-  const { qb } = createQueryBuilderHarness({
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({
     schema: {
       id: typesLib.string(),
       created_on: typesLib.date(),
@@ -407,7 +406,7 @@ test('QueryBuilder supports offset method', t => {
 });
 
 test('FilterWhereBuilder enforces revision guards before execution', async t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     true
@@ -426,7 +425,7 @@ test('FilterWhereBuilder enforces revision guards before execution', async t => 
 });
 
 test('FilterWhereBuilder can include deleted and stale revisions on demand', async t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     true
@@ -445,7 +444,7 @@ test('FilterWhereBuilder sample enforces revision guards before delegating', asy
   type Data = JsonObject & { id: string };
   type Instance = ModelInstance<Data, JsonObject>;
 
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>();
   const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
 
   const sampleRows = [{ id: 'example' }];
@@ -482,7 +481,7 @@ test('FilterWhereBuilder.revisionData applies revision predicates', t => {
     _rev_id: typesLib.string(),
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
-  const { qb } = createQueryBuilderHarness({
+  const { qb } = createQueryBuilderHarness<RevisionRecord, JsonObject, RevisionInstance, string>({
     schema,
     camelToSnake: { createdOn: 'created_on', _revID: '_rev_id' },
   });
@@ -599,7 +598,7 @@ test('QueryBuilder supports complex joins with _apply', t => {
 });
 
 test('QueryBuilder builds SELECT queries correctly', t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     false
@@ -621,7 +620,7 @@ test('QueryBuilder builds SELECT queries correctly', t => {
 });
 
 test('QueryBuilder builds COUNT queries correctly', t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     false
@@ -638,7 +637,7 @@ test('QueryBuilder builds COUNT queries correctly', t => {
 
 test('QueryBuilder builds AVG aggregates correctly', async t => {
   const queries: Array<{ sql: string; params: unknown[] }> = [];
-  const { qb } = createQueryBuilderHarness({
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>({
     dalOverrides: {
       async query<TRecord extends JsonObject = JsonObject>(
         sql?: string,
@@ -674,7 +673,7 @@ test('FilterWhereBuilder.average resolves manifest columns', async t => {
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
   const queries: Array<{ sql: string; params: unknown[] }> = [];
-  const { qb } = createQueryBuilderHarness({
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({
     schema,
     camelToSnake: { createdOn: 'created_on' },
     dalOverrides: {
@@ -699,7 +698,7 @@ test('FilterWhereBuilder.average resolves manifest columns', async t => {
 });
 
 test('QueryBuilder builds DELETE queries correctly', t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     false
@@ -772,7 +771,7 @@ test('QueryBuilder handles schema namespace prefixing', t => {
 });
 
 test('FilterWhereBuilder method chaining works correctly', t => {
-  const { qb } = createQueryBuilderHarness();
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     true
@@ -927,7 +926,11 @@ test('QueryBuilder excludes sensitive fields from SELECT by default', t => {
   TestModel._registerFieldMapping('password', 'password');
   TestModel._registerFieldMapping('email', 'email');
 
-  const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
+  const qb = new QueryBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    TestModel as unknown as ModelRuntime<DefaultRecord, JsonObject> &
+      ModelConstructor<DefaultRecord, JsonObject, DefaultInstance, string>,
+    mockDAL
+  );
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     false
@@ -958,7 +961,11 @@ test('QueryBuilder includes sensitive fields when includeSensitive is called', t
   TestModel._registerFieldMapping('password', 'password');
   TestModel._registerFieldMapping('email', 'email');
 
-  const qb = new QueryBuilder(TestModel as unknown as QueryBuilderArgs[0], mockDAL);
+  const qb = new QueryBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
+    TestModel as unknown as ModelRuntime<DefaultRecord, JsonObject> &
+      ModelConstructor<DefaultRecord, JsonObject, DefaultInstance, string>,
+    mockDAL
+  );
   const builder = new FilterWhereBuilder<DefaultRecord, JsonObject, DefaultInstance, string>(
     qb,
     false
@@ -1038,7 +1045,12 @@ test('FilterWhereBuilder.decrement delegates to increment with negative amount',
   } as unknown as ModelSchema<JsonObject, JsonObject>;
 
   const calls: Array<{ sql?: string; params?: unknown[] }> = [];
-  const { qb, model } = createQueryBuilderHarness({
+  const { qb, model } = createQueryBuilderHarness<
+    Data,
+    JsonObject,
+    ModelInstance<Data, JsonObject>,
+    string
+  >({
     tableName: 'counters',
     schema,
     camelToSnake: { counter: 'counter' },

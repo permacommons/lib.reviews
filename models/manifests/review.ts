@@ -1,8 +1,10 @@
 import dal from '../../dal/index.ts';
+import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
+import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type { InferConstructor, InferData, InferInstance } from '../../dal/lib/model-manifest.ts';
-import type { RevisionActor } from '../../dal/lib/model-types.ts';
+import type { InstanceMethod, RevisionActor } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import type { FileInstance } from './file.ts';
 import type { TeamInstance } from './team.ts';
@@ -137,7 +139,7 @@ export type ReviewInputObject = Partial<ReviewData> & {
   teams?: TeamInstance[];
 };
 
-export interface ReviewInstanceMethods {
+export interface ReviewInstanceMethods extends Record<string, InstanceMethod<ReviewInstanceBase>> {
   populateUserInfo(
     this: ReviewInstanceBase & ReviewInstanceMethods,
     user: UserAccessContext | null | undefined
@@ -148,7 +150,7 @@ export interface ReviewInstanceMethods {
   ): Promise<[unknown, unknown]>;
 }
 
-export interface ReviewStaticMethods {
+export interface ReviewStaticMethods extends Record<string, StaticMethod> {
   getWithData(
     this: ReviewModelBase & ReviewStaticMethods,
     id: string
@@ -172,8 +174,12 @@ export interface ReviewStaticMethods {
   ): Promise<ReviewFeedResult>;
 }
 
-export type ReviewInstance = ReviewInstanceBase & ReviewInstanceMethods;
-export type ReviewModel = ReviewModelBase & ReviewStaticMethods & { options: typeof reviewOptions };
+export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods>;
+export type ReviewModel = ManifestModel<
+  typeof reviewManifest,
+  ReviewStaticMethods,
+  ReviewInstanceMethods
+> & { options: typeof reviewOptions };
 
 /**
  * Create a typed reference to the Review model for use in cross-model dependencies.

@@ -927,8 +927,13 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   static async delete<
     TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TData, TVirtual>, id: string): Promise<boolean> {
-    const query = new QueryBuilder(this, this.dal);
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
+    id: string
+  ): Promise<boolean> {
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     const result = await query.deleteById(id);
     return result > 0;
   }
@@ -939,12 +944,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param direction - Sort direction (ASC/DESC)
    * @returns Query builder
    */
-  static orderBy<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static orderBy<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     field: string,
     direction = 'ASC'
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.orderBy(field, direction);
   }
 
@@ -953,11 +963,16 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param count - Limit count
    * @returns Query builder
    */
-  static limit<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static limit<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     count: number
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.limit(count);
   }
 
@@ -966,11 +981,16 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param joinSpec - Join specification
    * @returns Query builder
    */
-  static getJoin<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static getJoin<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     joinSpec: JsonObject
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.getJoin(joinSpec);
   }
 
@@ -981,13 +1001,18 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param options - Options for the range
    * @returns Query builder
    */
-  static between<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static between<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     startDate: Date,
     endDate: Date,
     options: JsonObject = {}
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.between(startDate, endDate, options);
   }
 
@@ -997,12 +1022,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param value - Value to check for
    * @returns Query builder
    */
-  static contains<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static contains<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     field: string,
     value: unknown
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.contains(field, value);
   }
 

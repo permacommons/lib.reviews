@@ -122,9 +122,12 @@ interface PredicateOptions extends JsonObject {
   valueTransform?: (placeholder: string) => string;
 }
 
-type QueryModel = ModelRuntime<JsonObject, JsonObject> &
-  ModelConstructor<JsonObject, JsonObject, ModelInstance>;
-type QueryInstance = Model<JsonObject, JsonObject> & ModelInstance;
+type QueryModel<
+  TData extends JsonObject,
+  TVirtual extends JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual>,
+  TRelations extends string,
+> = ModelRuntime<TData, TVirtual> & ModelConstructor<TData, TVirtual, TInstance, TRelations>;
 
 /**
  * Query Builder for PostgreSQL DAL
@@ -140,8 +143,14 @@ type QueryInstance = Model<JsonObject, JsonObject> & ModelInstance;
  * Instances are model-aware (leveraging table/column metadata) and implement
  * Promise-like behavior so they can be awaited directly.
  */
-class QueryBuilder implements PromiseLike<QueryInstance[]> {
-  modelClass: QueryModel;
+class QueryBuilder<
+  TData extends JsonObject = JsonObject,
+  TVirtual extends JsonObject = JsonObject,
+  TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+  TRelations extends string = string,
+> implements PromiseLike<TInstance[]>
+{
+  modelClass: QueryModel<TData, TVirtual, TInstance, TRelations>;
   dal: DataAccessLayer;
   tableName: string;
   _select: string[];
@@ -157,7 +166,10 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   _simpleJoins?: Record<string, RelationJoinInfo>;
   _complexJoins?: Record<string, ComplexJoinSpec>;
 
-  constructor(modelClass: QueryModel, dal: DataAccessLayer) {
+  constructor(
+    modelClass: QueryModel<TData, TVirtual, TInstance, TRelations>,
+    dal: DataAccessLayer
+  ) {
     this.modelClass = modelClass;
     this.dal = dal;
     this.tableName = modelClass.tableName;
@@ -198,11 +210,16 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
 
     if (
       this.modelClass &&
-      typeof (this.modelClass as QueryModel & { _getDbFieldName?: (field: string) => string })
-        ._getDbFieldName === 'function'
+      typeof (
+        this.modelClass as QueryModel<TData, TVirtual, TInstance, TRelations> & {
+          _getDbFieldName?: (field: string) => string;
+        }
+      )._getDbFieldName === 'function'
     ) {
       return (
-        this.modelClass as QueryModel & { _getDbFieldName?: (field: string) => string }
+        this.modelClass as QueryModel<TData, TVirtual, TInstance, TRelations> & {
+          _getDbFieldName?: (field: string) => string;
+        }
       )._getDbFieldName(fieldName);
     }
 
@@ -669,7 +686,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * Execute query and return all results
    * @returns {Promise<Array>} Query results
    */
-  async run(): Promise<QueryInstance[]> {
+  async run(): Promise<TInstance[]> {
     try {
       // Handle complex joins that require separate queries
       if (this._complexJoins && Object.keys(this._complexJoins).length > 0) {
@@ -692,8 +709,8 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @param onRejected - Error handler
    * @returns {Promise} Promise resolving to query results
    */
-  then<TResult1 = QueryInstance[], TResult2 = never>(
-    onFulfilled?: ((value: QueryInstance[]) => TResult1 | PromiseLike<TResult1>) | null,
+  then<TResult1 = TInstance[], TResult2 = never>(
+    onFulfilled?: ((value: TInstance[]) => TResult1 | PromiseLike<TResult1>) | null,
     onRejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): Promise<TResult1 | TResult2> {
     return this.run().then(onFulfilled, onRejected);
@@ -706,7 +723,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    */
   catch<TResult = never>(
     onRejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
-  ): Promise<QueryInstance[] | TResult> {
+  ): Promise<TInstance[] | TResult> {
     return this.run().catch(onRejected);
   }
 
@@ -715,7 +732,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @param onFinally - Finally handler
    * @returns {Promise} Promise resolving to query results
    */
-  finally(onFinally?: (() => void) | null): Promise<QueryInstance[]> {
+  finally(onFinally?: (() => void) | null): Promise<TInstance[]> {
     return this.run().finally(onFinally ?? undefined);
   }
 
@@ -724,7 +741,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @returns {Promise<Array>} Query results with joined data
    * @private
    */
-  async _runWithComplexJoins(): Promise<QueryInstance[]> {
+  async _runWithComplexJoins(): Promise<TInstance[]> {
     // First get the main results
     const mainQuery = this._buildSelectQuery();
     const mainResult = await this.dal.query(mainQuery.sql, mainQuery.params);
@@ -950,19 +967,19 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
   private _instantiateRelated(
     RelatedModel: (ModelConstructor<JsonObject, JsonObject, ModelInstance> & typeof Model) | null,
     data: Record<string, unknown>
-  ): QueryInstance | Record<string, unknown> {
+  ): ModelInstance | Record<string, unknown> {
     if (!RelatedModel) {
       return data;
     }
 
-    const runtime = RelatedModel as QueryModel & {
-      _createInstance?: (row: JsonObject) => QueryInstance;
+    const runtime = RelatedModel as QueryModel<JsonObject, JsonObject, ModelInstance, string> & {
+      _createInstance?: (row: JsonObject) => ModelInstance;
     };
     if (typeof runtime._createInstance === 'function') {
       return runtime._createInstance(data);
     }
 
-    return new RelatedModel(data) as QueryInstance;
+    return new RelatedModel(data) as ModelInstance;
   }
 
   _getRowValue(row: Record<string, unknown> | ModelInstance, column: string | undefined) {
@@ -1139,7 +1156,11 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       return null;
     }
 
-    return registry as { get(identifier: string): QueryModel | null };
+    return registry as {
+      get(
+        identifier: string
+      ): (ModelConstructor<JsonObject, JsonObject, ModelInstance> & typeof Model) | null;
+    };
   }
 
   /**
@@ -1148,12 +1169,13 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @returns {Promise<Array>} Processed model instances
    * @private
    */
-  async _processResults(rows: Array<Record<string, unknown>>): Promise<QueryInstance[]> {
-    const BaseModel = this.modelClass as QueryModel & typeof Model;
+  async _processResults(rows: Array<Record<string, unknown>>): Promise<TInstance[]> {
+    const BaseModel = this.modelClass as QueryModel<TData, TVirtual, TInstance, TRelations> &
+      typeof Model;
 
     if (!this._simpleJoins || Object.keys(this._simpleJoins).length === 0) {
       // No joins, just create model instances
-      return rows.map(row => this._instantiateRelated(BaseModel, row)) as QueryInstance[];
+      return rows.map(row => this._instantiateRelated(BaseModel, row)) as TInstance[];
     }
 
     // Process rows with joined data
@@ -1183,7 +1205,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
       }
 
       // Create main model instance
-      const instance = this._instantiateRelated(BaseModel, mainData) as QueryInstance;
+      const instance = this._instantiateRelated(BaseModel, mainData) as TInstance;
 
       // Attach joined data
       for (const [relationName, data] of Object.entries(joinedData)) {
@@ -1216,7 +1238,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * Execute query and return first result
    * @returns {Promise<Model|null>} First result or null
    */
-  async first(): Promise<QueryInstance | null> {
+  async first(): Promise<TInstance | null> {
     this.limit(1);
     const results = await this.run();
     return results.length > 0 ? results[0] : null;
@@ -1808,7 +1830,7 @@ class QueryBuilder implements PromiseLike<QueryInstance[]> {
    * @param count - Number of records to sample
    * @returns {Promise<Array>} Array of sampled records
    */
-  async sample(count = 1): Promise<QueryInstance[]> {
+  async sample(count = 1): Promise<TInstance[]> {
     // Add ORDER BY RANDOM() and LIMIT to get random sample
     this._orderBy = ['RANDOM()'];
     this._limit = count;

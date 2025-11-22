@@ -18,9 +18,9 @@ import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import { generateSlugName } from '../util/slug.ts';
 import urlUtils from '../util/url-utils.ts';
+import type { FileInstance } from './manifests/file.ts';
 import { referenceFile } from './manifests/file.ts';
 import { type ReviewInstance, referenceReview } from './manifests/review.ts';
-import type { FileInstance } from './manifests/file.ts';
 import thingManifest, {
   type MetadataData,
   type SyncData,
@@ -76,13 +76,11 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
 
       if (thingIDs.length > 0) {
         try {
-          // Cast required: query builder returns base instance type, but runtime
-          // attaches instance methods defined in the manifest.
-          const reviews = (await Review.filterWhere({ createdBy: lookupUserID })
+          const reviews = await Review.filterWhere({ createdBy: lookupUserID })
             .whereIn('thingID', thingIDs, { cast: 'uuid[]' })
             .orderBy('createdOn', 'DESC')
             .limit(50)
-            .run()) as ReviewInstance[];
+            .run();
 
           const reviewsByThing = new Map<string, ReviewInstance[]>();
           const viewerForLookup: UserAccessContext = { id: lookupUserID };
@@ -142,13 +140,9 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
       };
     }
 
-    // Cast required: query returns base instance type, but runtime
-    // attaches instance methods defined in the manifest.
-    const thing = (
-      Object.keys(joinOptions).length
-        ? await this.getNotStaleOrDeleted(id, joinOptions)
-        : await this.getNotStaleOrDeleted(id)
-    ) as ThingInstance;
+    const thing = Object.keys(joinOptions).length
+      ? await this.getNotStaleOrDeleted(id, joinOptions)
+      : await this.getNotStaleOrDeleted(id);
 
     if (withFiles) {
       thing.files = Array.isArray(thing.files) ? thing.files : [];
@@ -355,7 +349,11 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
 
     sources.forEach(source => {
       for (const [field, syncEntry] of Object.entries(sync) as [SyncField, SyncEntry][]) {
-        if (syncEntry?.active && syncEntry.source === source && Array.isArray(dataBySource[source])) {
+        if (
+          syncEntry?.active &&
+          syncEntry.source === source &&
+          Array.isArray(dataBySource[source])
+        ) {
           for (const adapterData of dataBySource[source]) {
             const value = adapterData[field];
             if (value !== undefined) {
@@ -602,10 +600,8 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
 
     try {
       const { in: inOp } = File.ops;
-      // Cast required: query builder returns base instance type, but runtime
-      // attaches instance methods defined in the manifest.
       const validFiles = (
-        (await File.filterWhere({ id: inOp(uniqueIDs as [string, ...string[]]) }).run()) as FileInstance[]
+        await File.filterWhere({ id: inOp(uniqueIDs as [string, ...string[]]) }).run()
       ).filter(file => !userID || file.uploadedBy === userID);
 
       if (!validFiles.length) {

@@ -41,9 +41,7 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
    * @returns The team instance enriched with the requested data
    */
   async getWithData(this: TeamModel, id: string, options: GetWithDataOptions = {}) {
-    // Cast required: query builder returns base instance type, but runtime
-    // attaches instance methods defined in the manifest.
-    const team = (await this.getNotStaleOrDeleted(id)) as TeamInstance;
+    const team = await this.getNotStaleOrDeleted(id);
     if (!team) throw new Error(`Team ${id} not found`);
 
     const {

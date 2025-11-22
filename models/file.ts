@@ -58,10 +58,8 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
       .getJoin({ uploader: true })
       .chronologicalFeed({ cursorField: 'uploadedOn', cursor: offsetDate ?? undefined, limit });
 
-    // Cast required: query builder returns base instance type, but runtime
-    // attaches instance methods defined in the manifest.
     return {
-      items: feedPage.rows as FileInstance[],
+      items: feedPage.rows,
       offsetDate: feedPage.hasMore ? feedPage.nextCursor : undefined,
     };
   },
