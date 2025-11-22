@@ -261,7 +261,11 @@ export interface ThingStaticMethods extends Record<string, StaticMethod> {
 }
 
 export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods>;
-export type ThingModel = ManifestModel<typeof thingManifest, ThingStaticMethods, ThingInstanceMethods>;
+export type ThingModel = ManifestModel<
+  typeof thingManifest,
+  ThingStaticMethods,
+  ThingInstanceMethods
+>;
 
 /**
  * Create a typed reference to the Thing model for use in cross-model dependencies.

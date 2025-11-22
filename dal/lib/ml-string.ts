@@ -42,6 +42,37 @@ export type MultilingualInput =
   | null
   | undefined;
 
+/**
+ * Interface providing overloaded signatures for mlString schema methods.
+ * Enables proper type inference based on the `array` option.
+ */
+interface MlStringVariants {
+  getSchema(options: MlStringSchemaOptions & { array: true }): ObjectType<string[]>;
+  getSchema(options?: MlStringSchemaOptions & { array?: false }): ObjectType<string>;
+  getSchema(options?: MlStringSchemaOptions): ObjectType<string>;
+
+  getSafeTextSchema(
+    options: MlStringPlainTextSchemaOptions & { array: true }
+  ): ObjectType<string[]>;
+  getSafeTextSchema(options?: MlStringPlainTextSchemaOptions): ObjectType<string>;
+
+  getHTMLSchema(options?: MlStringHTMLSchemaOptions): ObjectType<string>;
+  getRichTextSchema(): ObjectType<MultilingualRichText>;
+
+  resolve(
+    lang: string,
+    strObj: Record<string, string> | null | undefined
+  ): ResolveResult | undefined;
+
+  stripHTML<T extends MultilingualInput>(strObj: T): T;
+  stripHTMLFromArray<T extends MultilingualInput>(strObjArr: T[]): T[];
+  buildQuery(fieldName: string, lang: string, value: string, operator?: string): string;
+  buildMultiLanguageQuery(fieldName: string, searchTerm: string, operator?: string): string;
+  validate(value: unknown, options?: MlStringSchemaOptions): boolean;
+  getValidLanguageKeys(): string[];
+  isValidLanguageKey(langKey: string): boolean;
+}
+
 const mlString = {
   /**
    * Obtain a type definition for a multilingual string object which
@@ -53,7 +84,7 @@ const mlString = {
    *
    * Options:
    * - `maxLength`: maximum length enforced for each value
-   * - `array`: when true, validates string arrays per language
+   * - `array`: when true, validates string arrays per language (returns ObjectType<string[]>)
    * - `allowHTML`: when true, allows HTML tags (default: false for security)
    *
    * Note: HTML entities like `&amp;` are allowed regardless of `allowHTML` setting.
@@ -63,7 +94,7 @@ const mlString = {
     maxLength,
     array = false,
     allowHTML = false,
-  }: MlStringSchemaOptions = {}): ObjectType {
+  }: MlStringSchemaOptions = {}): ObjectType<string> | ObjectType<string[]> {
     const objectType = types.object();
 
     // Add custom validator for multilingual string structure
@@ -137,7 +168,7 @@ const mlString = {
       return true;
     });
 
-    return objectType;
+    return objectType as ObjectType<string> | ObjectType<string[]>;
   },
 
   /**
@@ -152,7 +183,9 @@ const mlString = {
    * Use for: labels, titles, names, descriptions (non-HTML fields)
    * Array validation may be enabled for multiple values per language.
    */
-  getSafeTextSchema(options: MlStringPlainTextSchemaOptions = {}): ObjectType {
+  getSafeTextSchema(
+    options: MlStringPlainTextSchemaOptions = {}
+  ): ObjectType<string> | ObjectType<string[]> {
     return mlString.getSchema({ ...options, allowHTML: false });
   },
 
@@ -167,7 +200,7 @@ const mlString = {
    *
    * Security: Content should be sanitized before storage to prevent XSS.
    */
-  getHTMLSchema(options: MlStringHTMLSchemaOptions = {}): ObjectType {
+  getHTMLSchema(options: MlStringHTMLSchemaOptions = {}) {
     return mlString.getSchema({ ...options, allowHTML: true });
   },
 
@@ -181,7 +214,7 @@ const mlString = {
    * Use for: team.description, team.rules, userMeta.bio
    * (fields that store both markdown source and cached HTML output)
    */
-  getRichTextSchema(): ObjectType {
+  getRichTextSchema() {
     const objectType = types.object();
 
     objectType.validator(value => {
@@ -213,7 +246,7 @@ const mlString = {
       return true;
     });
 
-    return objectType;
+    return objectType as ObjectType<MultilingualRichText>;
   },
 
   /**
@@ -343,8 +376,9 @@ const mlString = {
   },
 };
 
-export type MlStringHelpers = typeof mlString;
+// Export with overloaded type for proper inference at call sites
+const typedMlString: MlStringVariants = mlString as MlStringVariants;
 
-export { mlString };
-
-export default mlString;
+export type { MlStringVariants };
+export { typedMlString as mlString };
+export default typedMlString;
