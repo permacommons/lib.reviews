@@ -5,12 +5,8 @@ import escapeHTML from 'escape-html';
 import i18n from 'i18n';
 import mlString from '../../dal/lib/ml-string.ts';
 import BlogPost from '../../models/blog-post.ts';
-import type {
-  TeamInstance as TeamManifestInstance,
-  TeamModel as TeamModelType,
-} from '../../models/manifests/team.ts';
+import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
 import Team from '../../models/team.ts';
-import TeamJoinRequest from '../../models/team-join-request.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import debug from '../../util/debug.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
@@ -19,10 +15,6 @@ import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 const { getEditorMessages } = frontendMessages;
-
-const TeamModel = Team as TeamModelType;
-const _TeamJoinRequestModel = TeamJoinRequest as any;
-const BlogPostModel = BlogPost as any;
 
 type TeamInstance = Omit<
   TeamManifestInstance,
@@ -95,7 +87,7 @@ class TeamProvider extends AbstractBREADProvider {
   }
 
   browse_GET(): void {
-    TeamModel.filterWhere({})
+    Team.filterWhere({})
       .run()
       .then(teams => {
         this.renderTemplate('teams', {
@@ -347,7 +339,7 @@ class TeamProvider extends AbstractBREADProvider {
       [team.createdBy]: true,
     };
 
-    BlogPostModel.getMostRecentBlogPosts(team.id, {
+    BlogPost.getMostRecentBlogPosts(team.id, {
       limit: 3,
     }).then(result => {
       let blogPosts = result.blogPosts;
@@ -541,7 +533,7 @@ class TeamProvider extends AbstractBREADProvider {
 
     if (this.req.flashHas?.('pageErrors') || this.isPreview) return this.add_GET(formValues);
 
-    TeamModel.createFirstRevision(this.req.user, {
+    Team.createFirstRevision(this.req.user, {
       tags: ['create-via-form'],
     })
       .then(teamRevision => {
