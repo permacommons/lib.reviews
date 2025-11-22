@@ -8,6 +8,7 @@ import type {
   VersionedModelConstructor,
   VersionedModelInstance,
 } from './model-types.ts';
+import type { JoinOptions } from './query-builder.ts';
 import types from './type.ts';
 
 /**
@@ -81,7 +82,7 @@ export interface RevisionHelpers {
     TInstance extends VersionedModelInstance<TData, TVirtual>,
   >(
     ModelClass: ModelConstructorLike<TData, TVirtual, TInstance>
-  ): (id: string, joinOptions?: JsonObject) => Promise<VersionedModelInstance<TData, TVirtual>>;
+  ): (id: string, joinOptions?: JoinOptions) => Promise<VersionedModelInstance<TData, TVirtual>>;
   getFirstRevisionHandler<
     TData extends JsonObject,
     TVirtual extends JsonObject,
@@ -309,7 +310,7 @@ const revision: RevisionHelpers = {
      * @returns Model instance
      * @throws If revision is deleted or stale
      */
-    const getNotStaleOrDeleted = async (id: string, joinOptions: Record<string, unknown> = {}) => {
+    const getNotStaleOrDeleted = async (id: string, joinOptions: JoinOptions = {}) => {
       // Validate UUID format before querying database to avoid PostgreSQL syntax errors
       if (!isUUID.v4(id)) {
         throw new InvalidUUIDError(`Invalid ${ModelClass.tableName} address format`);

@@ -110,6 +110,57 @@ interface JoinApplyAnalysis extends JsonObject {
   limit?: number;
 }
 
+/**
+ * Builder interface passed to `_apply` callbacks in join options.
+ *
+ * Supports a subset of query operations that can be analyzed and applied
+ * to related record queries:
+ * - `filterWhere` / `filter` - add WHERE conditions
+ * - `without` - exclude fields from results
+ * - `limit` - cap number of related records
+ * - `orderBy` / `asc` / `desc` - sort related records
+ */
+export interface JoinApplyBuilder {
+  filterWhere(literal: Record<string, unknown>): JoinApplyBuilder;
+  filter(literal: Record<string, unknown>): JoinApplyBuilder;
+  without(fields: string | string[]): JoinApplyBuilder;
+  limit(count: number): JoinApplyBuilder;
+  orderBy(field: string, direction?: 'ASC' | 'DESC'): JoinApplyBuilder;
+  asc(field: string): JoinApplyBuilder;
+  desc(field: string): JoinApplyBuilder;
+}
+
+/**
+ * Options for a single relation in a join specification.
+ *
+ * @example
+ * // Simple join (load all related records)
+ * { files: true }
+ *
+ * @example
+ * // Complex join with filter
+ * { files: { _apply: (qb) => qb.filterWhere({ completed: true }) } }
+ */
+export type JoinRelationOptions =
+  | boolean
+  | Record<string, never>
+  | {
+      _apply?: (builder: JoinApplyBuilder) => JoinApplyBuilder;
+    };
+
+/**
+ * Typed join specification mapping relation names to join options.
+ *
+ * @example
+ * const joinOptions: JoinOptions = {
+ *   files: { _apply: (qb) => qb.filterWhere({ completed: true }) },
+ *   uploader: true,
+ * };
+ */
+export type JoinOptions<TRelations extends string = string> = {
+  [K in TRelations]?: JoinRelationOptions;
+};
+
 interface BetweenOptions extends JsonObject {
   leftBound?: 'open' | 'closed';
   rightBound?: 'open' | 'closed';

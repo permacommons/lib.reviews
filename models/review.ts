@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import adapters from '../adapters/adapters.ts';
+import type { JoinOptions } from '../dal/index.ts';
 import dal from '../dal/index.ts';
 import {
   defineInstanceMethods,
@@ -40,7 +41,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    * @returns The review instance populated with related data
    */
   async getWithData(this: ReviewModel, id: string) {
-    const joinOptions = {
+    const joinOptions: JoinOptions = {
       socialImage: true,
       creator: true,
     };

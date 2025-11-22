@@ -90,7 +90,7 @@ Replace manual model initialization with declarative manifests that drive type g
 - **Clean up supporting infrastructure**
   - [ ] Refresh DAL fixtures/tests once the new helpers cover outstanding casts and remove lingering TODO breadcrumbs from earlier phases.
   - [ ] Audit remaining scattered raw SQL usage and design targeted query helpers that build on `filterWhere`.
-  - [ ] Export a typed `JoinOptions` interface from the DAL with proper `_apply` callback typing to eliminate `any` in join option objects (see FIXME in `models/thing.ts:getWithData`).
+  - ✅ Export a typed `JoinOptions` interface from the DAL with proper `_apply` callback typing to eliminate `any` in join option objects. Added `JoinApplyBuilder`, `JoinRelationOptions`, and `JoinOptions` types to `query-builder.ts` and exported from `dal/index.ts`. Updated `models/thing.ts:getWithData` to use the new types.
 
 ### Phase 6 – Optional Backend Generalisation (future, only if needed)
 

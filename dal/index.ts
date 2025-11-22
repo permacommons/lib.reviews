@@ -4,6 +4,7 @@ import DataAccessLayer from './lib/data-access-layer.ts';
 import Errors from './lib/errors.ts';
 import mlString from './lib/ml-string.ts';
 import Model from './lib/model.ts';
+import type { JoinApplyBuilder, JoinOptions, JoinRelationOptions } from './lib/query-builder.ts';
 import QueryBuilder from './lib/query-builder.ts';
 import revision from './lib/revision.ts';
 import types from './lib/type.ts';
@@ -64,5 +65,7 @@ export {
   revision,
   createDataAccessLayer,
 };
+
+export type { JoinApplyBuilder, JoinOptions, JoinRelationOptions };
 
 export default createDataAccessLayer;

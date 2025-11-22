@@ -6,6 +6,7 @@ import type {
   AdapterLookupResult,
 } from '../adapters/abstract-backend-adapter.ts';
 import adapters from '../adapters/adapters.ts';
+import type { JoinOptions } from '../dal/index.ts';
 import dal from '../dal/index.ts';
 import {
   defineInstanceMethods,
@@ -131,12 +132,10 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
       withReviewMetrics = true,
     }: { withFiles?: boolean; withReviewMetrics?: boolean } = {}
   ) {
-    // FIXME: joinOptions uses `any` because the DAL doesn't export a typed
-    // JoinOptions interface with proper _apply callback typing.
-    const joinOptions: Record<string, any> = {};
+    const joinOptions: JoinOptions = {};
     if (withFiles) {
       joinOptions.files = {
-        _apply: (seq: any) => seq.filterWhere({ completed: true }),
+        _apply: qb => qb.filterWhere({ completed: true }),
       };
     }
 

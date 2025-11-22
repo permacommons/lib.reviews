@@ -1,5 +1,6 @@
 import type { Pool, PoolClient, QueryResult } from 'pg';
 import type { ModelSchemaField } from './model.ts';
+import type { JoinOptions } from './query-builder.ts';
 
 export type JsonValue = unknown;
 
@@ -101,7 +102,7 @@ export interface ModelInstanceCore<TData extends JsonObject, TVirtual extends Js
   _originalData: Record<string, unknown>;
 
   save(options?: SaveOptions): Promise<ModelInstance<TData, TVirtual>>;
-  saveAll(joinOptions?: JsonObject): Promise<ModelInstance<TData, TVirtual>>;
+  saveAll(joinOptions?: JoinOptions): Promise<ModelInstance<TData, TVirtual>>;
   delete(options?: DeleteOptions): Promise<boolean>;
   getValue<K extends keyof (TData & TVirtual)>(key: K): (TData & TVirtual)[K];
   setValue<K extends keyof (TData & TVirtual)>(key: K, value: (TData & TVirtual)[K]): void;
@@ -518,7 +519,7 @@ export interface VersionedModelConstructor<
   TRelations extends string = string,
 > extends ModelConstructor<TData, TVirtual, TInstance, TRelations> {
   createFirstRevision(user: RevisionActor, options?: RevisionMetadata): Promise<TInstance>;
-  getNotStaleOrDeleted(id: string, joinOptions?: JsonObject): Promise<TInstance>;
+  getNotStaleOrDeleted(id: string, joinOptions?: JoinOptions): Promise<TInstance>;
 }
 
 export interface DataAccessLayer {
