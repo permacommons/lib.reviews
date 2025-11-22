@@ -10,18 +10,6 @@ import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/h
 import feeds from '../helpers/feeds.ts';
 import render from '../helpers/render.ts';
 
-type ReviewThing = {
-  populateUserInfo?: (user: HandlerRequest['user']) => void;
-  [key: string]: unknown;
-};
-
-type ReviewInstance = {
-  populateUserInfo?: (user: HandlerRequest['user']) => void;
-  thing?: ReviewThing;
-  _revDate?: Date;
-  [key: string]: unknown;
-};
-
 const reviewHandlers = {
   getFeedHandler(options) {
     options = Object.assign(

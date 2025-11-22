@@ -1,6 +1,5 @@
 import config from 'config';
 import BlogPost, { type BlogPostInstance } from '../models/blog-post.ts';
-import type { TeamModel as TeamModelType } from '../models/manifests/team.ts';
 import Review from '../models/review.ts';
 import Team from '../models/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
@@ -12,13 +11,7 @@ import render from './helpers/render.ts';
 type ReviewsRouteRequest = HandlerRequest;
 type ReviewsRouteResponse = HandlerResponse;
 
-// Team model needs filterWhere().sample() chain which isn't typed in DAL yet
-type TeamModelHandle = TeamModelType & {
-  filterWhere(criteria: Record<string, never>): { sample: (count?: number) => Promise<unknown[]> };
-};
-
 const routes = ReviewProvider.getDefaultRoutes('review');
-const TeamModel = Team as unknown as TeamModelHandle;
 
 routes.addFromThing = {
   path: '/new/review/:id',
@@ -42,7 +35,7 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
     withThing: true,
     withTeams: true,
   });
-  const sampleTeamsPromise = TeamModel.filterWhere({}).sample(3);
+  const sampleTeamsPromise = Team.filterWhere({}).sample(3);
   const blogPromise = config.frontPageTeamBlog
     ? BlogPost.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
     : Promise.resolve<{ blogPosts: BlogPostInstance[]; offsetDate?: Date } | undefined>(undefined);

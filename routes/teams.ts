@@ -13,10 +13,6 @@ type TeamRouteRequest<Params extends Record<string, string> = Record<string, str
   HandlerRequest<Params>;
 type TeamRouteResponse = HandlerResponse;
 
-const TeamJoinRequestModel = TeamJoinRequest as unknown as {
-  new (args: Record<string, unknown>): any;
-};
-
 const router = TeamProvider.bakeRoutes('team');
 
 router.get('/team', (_req: TeamRouteRequest, res: TeamRouteResponse) => res.redirect('/teams'));
@@ -175,7 +171,7 @@ router.post(
               .catch(next);
           } else {
             // Create new request
-            let teamJoinRequest = new TeamJoinRequestModel({
+            let teamJoinRequest = new TeamJoinRequest({
               teamID: team.id,
               userID: req.user.id,
               requestMessage: escapeHTML(joinRequestMessage),

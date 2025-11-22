@@ -1,7 +1,7 @@
 import escapeHTML from 'escape-html';
-import Review from '../../models/review.ts';
 import type { TeamInstance } from '../../models/manifests/team.ts';
 import type { UserMetaInstance } from '../../models/manifests/user-meta.ts';
+import Review from '../../models/review.ts';
 import User from '../../models/user.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
