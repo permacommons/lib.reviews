@@ -11,8 +11,7 @@ in route handlers and providers.
 
 | Line | Code | Issue |
 |------|------|-------|
-| 51-65 | Local `ReviewInstance` type | Duplicates `models/manifests/review.ts` |
-| 70 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
+| 58 | `static formDefs: Record<string, any>` | Could use FormFieldDefinition[] |
 
 **Available Typed Exports:**
 
@@ -73,10 +72,11 @@ fields explicitly. This provides type safety while acknowledging the mutation pa
    - [x] Keep union type `teams?: string[] | TeamInstance[]` to represent mutation
    - Typechecks pass with no changes to call sites
 
-4. [ ] Import `ReviewInstance` from manifest (optional, lower priority)
-   - Local type extends `ReviewFormValues` with instance methods
-   - Would require separating form values from instance type
-   - Current approach works; revisit if manifest type diverges
+4. [x] Import `ReviewInstance` from manifest
+   - [x] Import as `ManifestReviewInstance`, alias to local `ReviewInstance`
+   - [x] Remove 14-line local type definition
+   - [x] Add `as TeamInstance[]` cast after `resolveTeamData()` (teams resolved)
+   - [x] Add `as ReviewInstance` cast for `newRevision()` return (DAL type gap)
 
 5. [ ] Type `formDefs` properly
    - [ ] Use `FormFieldDefinition[]` from shared types (see below)
