@@ -1,13 +1,12 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
 
-const teamSlugManifest = defineModelManifest({
+const teamSlugManifest = {
   tableName: 'team_slugs',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types.string().uuid(4),
     teamID: types.string().uuid(4).required(true),
@@ -21,7 +20,7 @@ const teamSlugManifest = defineModelManifest({
     createdOn: 'created_on',
     createdBy: 'created_by',
   },
-} as const);
+} as const satisfies ModelManifest;
 
 type TeamSlugInstanceBase = InferInstance<typeof teamSlugManifest>;
 type TeamSlugModelBase = InferConstructor<typeof teamSlugManifest>;

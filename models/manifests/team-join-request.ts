@@ -1,12 +1,11 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
 
-const teamJoinRequestManifest = defineModelManifest({
+const teamJoinRequestManifest = {
   tableName: 'team_join_requests',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types.string().uuid(4),
     teamID: types.string().uuid(4).required(true),
@@ -29,7 +28,7 @@ const teamJoinRequestManifest = defineModelManifest({
     rejectionMessage: 'rejection_message',
     rejectedUntil: 'rejected_until',
   },
-});
+} as const satisfies ModelManifest;
 
 export type TeamJoinRequestInstance = InferInstance<typeof teamJoinRequestManifest>;
 export type TeamJoinRequestModel = InferConstructor<typeof teamJoinRequestManifest>;

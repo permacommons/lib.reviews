@@ -1,11 +1,8 @@
 import { randomUUID } from 'crypto';
 import pgModule from 'pg';
 import { createTestHarness } from '../../bootstrap/dal.ts';
-import {
-  defineModel,
-  defineModelManifest,
-  initializeManifestModels,
-} from '../../dal/lib/create-model.ts';
+import { defineModel, initializeManifestModels } from '../../dal/lib/create-model.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ModelSchemaField } from '../../dal/lib/model.ts';
 import ModelRegistry from '../../dal/lib/model-registry.ts';
 import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
@@ -241,14 +238,14 @@ class DALFixtureAVA {
           continue;
         }
 
-        const manifest = defineModelManifest({
+        const manifest = {
           tableName: baseName,
           hasRevisions: Boolean(modelDef.hasRevisions),
           schema: (modelDef.schema ?? {}) as Record<string, ModelSchemaField>,
           camelToSnake: modelDef.camelToSnake,
           staticMethods: modelDef.staticMethods,
           instanceMethods: modelDef.instanceMethods,
-        });
+        } as ModelManifest;
 
         const model = defineModel(manifest) as unknown as ModelConstructor;
         const aliasKey =

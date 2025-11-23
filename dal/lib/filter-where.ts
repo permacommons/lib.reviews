@@ -1,5 +1,10 @@
 import type { ModelRuntime } from './model.ts';
-import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
+import type {
+  InferData,
+  InferInstance,
+  ManifestVirtualFields,
+  ModelManifest,
+} from './model-manifest.ts';
 import type {
   ChronologicalFeedOptions,
   ChronologicalFeedPage,
@@ -828,7 +833,7 @@ type RelationNames<Manifest extends ModelManifest> =
  */
 function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Manifest) {
   type Data = InferData<Manifest['schema']>;
-  type Virtual = InferVirtual<Manifest['schema']>;
+  type Virtual = ManifestVirtualFields<Manifest>;
   type Instance = InferInstance<Manifest>;
   type Relations = RelationNames<Manifest>;
 

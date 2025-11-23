@@ -1,18 +1,17 @@
 import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod } from '../../dal/lib/model-types.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
 const { mlString, types } = dal;
 const validLicenseValues = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'] as const;
 
-const fileManifest = defineModelManifest({
+const fileManifest = {
   tableName: 'files',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
     name: types.string().max(512),
@@ -57,8 +56,8 @@ const fileManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
 export interface FileFeedOptions {
   offsetDate?: Date;

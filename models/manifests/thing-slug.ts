@@ -1,7 +1,6 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
 
@@ -22,9 +21,9 @@ export const reservedSlugs = [
   'terms',
 ] as const;
 
-const thingSlugManifest = defineModelManifest({
+const thingSlugManifest = {
   tableName: 'thing_slugs',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types.string().uuid(4),
     thingID: types.string().uuid(4).required(true),
@@ -42,7 +41,7 @@ const thingSlugManifest = defineModelManifest({
     baseName: 'base_name',
     qualifierPart: 'qualifier_part',
   },
-} as const);
+} as const satisfies ModelManifest;
 
 type ThingSlugInstanceBase = InferInstance<typeof thingSlugManifest>;
 type ThingSlugModelBase = InferConstructor<typeof thingSlugManifest>;

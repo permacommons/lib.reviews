@@ -7,6 +7,7 @@ import type {
   InferData,
   InferInstance,
   InferVirtual,
+  ManifestVirtualFields,
   ModelManifest,
 } from './model-manifest.ts';
 import { getAllManifests, registerManifest } from './model-registry.ts';
@@ -27,28 +28,22 @@ type ModelConstructorWithStatics<
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
 > = InferConstructor<Manifest> & ExtraStatics;
 
+/**
+ * Merge separately-provided methods into a manifest type.
+ * Uses intersection to preserve the original manifest's relations type.
+ */
 type MergeManifestMethods<
   Manifest extends ModelManifest,
   StaticMethods extends Record<string, StaticMethod>,
-  InstanceMethods extends Record<string, InstanceMethod>,
-> = Manifest extends ModelManifest<
-  infer Schema,
-  infer HasRevisions,
-  infer ExistingStaticMethods,
-  infer ExistingInstanceMethods
->
-  ? ModelManifest<
-      Schema,
-      HasRevisions,
-      keyof StaticMethods extends never ? ExistingStaticMethods : StaticMethods,
-      keyof InstanceMethods extends never ? ExistingInstanceMethods : InstanceMethods
-    >
-  : Manifest;
+  InstanceMethods extends object,
+> = Manifest &
+  (keyof StaticMethods extends never ? unknown : { staticMethods: StaticMethods }) &
+  (keyof InstanceMethods extends never ? unknown : { instanceMethods: InstanceMethods });
 
 export interface DefineModelOptions<
   ExtraStatics extends Record<string, unknown>,
   StaticMethods extends Record<string, StaticMethod>,
-  InstanceMethods extends Record<string, InstanceMethod>,
+  InstanceMethods extends object,
 > {
   statics?: ExtraStatics;
   staticMethods?: StaticMethods;
@@ -68,11 +63,12 @@ function initializeFromManifest<Manifest extends ModelManifest>(
   dal: DataAccessLayer
 ): InferConstructor<Manifest> {
   type Data = InferData<Manifest['schema']>;
-  type Virtual = InferVirtual<Manifest['schema']>;
+  type Virtual = ManifestVirtualFields<Manifest>;
   type Instance = InferInstance<Manifest>;
 
+  // Extract relation definitions, stripping the target function (used for lazy lookup)
   const relationDefinitions = manifest.relations
-    ? manifest.relations.map(relation => ({ ...relation }))
+    ? manifest.relations.map(({ target, ...rest }) => rest)
     : null;
 
   // Convert manifest to initializeModel options format
@@ -161,7 +157,7 @@ export function createModelProxy<Manifest extends ModelManifest>(
   const providedStatic = options.staticProperties ?? {};
 
   type Data = InferData<Manifest['schema']>;
-  type Virtual = InferVirtual<Manifest['schema']>;
+  type Virtual = ManifestVirtualFields<Manifest>;
 
   const getModel = () => {
     return getRegisteredModel<Data, Virtual>(manifest.tableName) as InferConstructor<Manifest> & {
@@ -248,16 +244,6 @@ export function initializeManifestModels(dal: DataAccessLayer): void {
 
     initializeFromManifest(manifest, dal);
   }
-}
-
-/**
- * Type-safe helper for defining model manifests with full type inference.
- *
- * @param manifest - Model manifest configuration
- * @returns The same manifest with preserved typing
- */
-export function defineModelManifest<Manifest extends ModelManifest>(manifest: Manifest): Manifest {
-  return manifest;
 }
 
 /**
@@ -352,7 +338,7 @@ export function defineModel<
  */
 export type ManifestInstance<
   Manifest extends ModelManifest,
-  InstanceMethods extends Record<string, InstanceMethod> = Record<never, InstanceMethod>,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
 > = InferInstance<MergeManifestMethods<Manifest, Record<never, StaticMethod>, InstanceMethods>>;
 
 /**
@@ -365,7 +351,7 @@ export type ManifestInstance<
 export type ManifestModel<
   Manifest extends ModelManifest,
   StaticMethods extends Record<string, StaticMethod> = Record<never, StaticMethod>,
-  InstanceMethods extends Record<string, InstanceMethod> = Record<never, InstanceMethod>,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
 > = InferConstructor<MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>>;
 
 export type { ModelConstructorWithStatics, MergeManifestMethods };

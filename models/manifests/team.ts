@@ -1,9 +1,8 @@
 import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import type { UserAccessContext, UserView } from './user.ts';
@@ -36,9 +35,9 @@ export interface TeamGetWithDataOptions {
   reviewOffsetDate?: Date | null;
 }
 
-const teamManifest = defineModelManifest({
+const teamManifest = {
   tableName: 'teams',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
     name: mlString.getSafeTextSchema({ maxLength: 100 }),
@@ -110,8 +109,8 @@ const teamManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
 type TeamInstanceBase = InferInstance<typeof teamManifest>;
 type TeamModelBase = InferConstructor<typeof teamManifest>;
