@@ -2,12 +2,8 @@ import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
-import type { InstanceMethod } from '../../dal/lib/model-types.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type { ThingInstance } from './thing.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
 const { mlString, types } = dal;
@@ -30,8 +26,7 @@ const fileManifest = {
     userCanDelete: types.virtual().default(false),
     userIsCreator: types.virtual().default(false),
 
-    // Virtual relation field (populated by joins/helpers)
-    uploader: types.virtual<UserView>().default(undefined),
+    // Note: relation fields (uploader, things) are typed via intersection pattern
   },
   camelToSnake: {
     uploadedBy: 'uploaded_by',
@@ -76,7 +71,7 @@ export interface FileFeedResult<TItem> {
 type FileInstanceBase = InferInstance<typeof fileManifest>;
 type FileModelBase = InferConstructor<typeof fileManifest>;
 
-export interface FileInstanceMethods extends Record<string, InstanceMethod<FileInstanceBase>> {
+export interface FileInstanceMethods {
   populateUserInfo(
     this: FileInstanceBase & FileInstanceMethods,
     user: UserAccessContext | null | undefined
@@ -96,7 +91,12 @@ export interface FileStaticMethods extends Record<string, StaticMethod> {
   ): Promise<FileFeedResult<FileInstance>>;
 }
 
-export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethods>;
+// Use intersection pattern for relation types
+// Fields are optional because they're only populated when relations are loaded
+export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethods> & {
+  uploader?: UserView;
+  things?: ThingInstance[];
+};
 export type FileModel = ManifestModel<typeof fileManifest, FileStaticMethods, FileInstanceMethods>;
 export const fileValidLicenses = validLicenseValues;
 

@@ -66,24 +66,29 @@ test.serial('QueryBuilder supports simple boolean joins', async t => {
 });
 
 test.serial('QueryBuilder builds join SQL using model metadata', async t => {
-  const userQuery = User.getJoin({ teams: true });
+  // Test one-to-one relation (meta) - should use inline LEFT JOIN
+  const userQuery = User.getJoin({ meta: true });
   const { sql: userSql } = userQuery._buildSelectQuery();
 
   const usersTable = dalFixture.getTableName('users');
-  const teamMembersTable = dalFixture.getTableName('team_members');
-  const teamsTable = dalFixture.getTableName('teams');
+  const userMetasTable = dalFixture.getTableName('user_metas');
 
   t.true(
     userSql.includes(
-      `LEFT JOIN ${teamMembersTable} ON ${usersTable}.id = ${teamMembersTable}.user_id`
+      `LEFT JOIN ${userMetasTable} ON ${usersTable}.user_meta_id = ${userMetasTable}.id`
     ),
-    'User join should include metadata-defined join table'
+    'User meta join should use inline LEFT JOIN for one-to-one relation'
   );
-  t.true(
-    userSql.includes(
-      `LEFT JOIN ${teamsTable} ON ${teamMembersTable}.team_id = ${teamsTable}.id AND ${teamsTable}._old_rev_of IS NULL AND (${teamsTable}._rev_deleted IS NULL OR ${teamsTable}._rev_deleted = false)`
-    ),
-    'User join should include revision-aware join condition from metadata'
+
+  // Test many-to-many relation (teams) - should NOT produce inline LEFT JOIN
+  // because cardinality-aware joins use batch loader for 'many' relations
+  const teamsQuery = User.getJoin({ teams: true });
+  const { sql: teamsSql } = teamsQuery._buildSelectQuery();
+  const teamMembersTable = dalFixture.getTableName('team_members');
+
+  t.false(
+    teamsSql.includes(`LEFT JOIN ${teamMembersTable}`),
+    'Many relation with true should use batch loader, not inline LEFT JOIN'
   );
 
   const reviewQuery = Review.getJoin({ thing: true, creator: true });
@@ -191,7 +196,7 @@ test.serial('QueryBuilder materializes hasMany relations using model metadata', 
   const { containsAll: includesUrl } = Thing.ops;
   const things = await Thing.filterWhere({ id: thingDraft.id })
     .and({ urls: includesUrl(thingDraft.urls) })
-    .getJoin({ reviews: {} })
+    .getJoin({ reviews: true })
     .run();
 
   t.is(things.length, 1);
@@ -229,7 +234,7 @@ test.serial('QueryBuilder materializes through-table joins generically', async t
     userId,
   ]);
 
-  const users = await User.filterWhere({ id: userId }).getJoin({ teams: {} }).run();
+  const users = await User.filterWhere({ id: userId }).getJoin({ teams: true }).run();
 
   t.is(users.length, 1);
   const loadedUser = users[0];

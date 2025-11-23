@@ -7,8 +7,10 @@ import type {
   InferInstance,
   ModelManifest,
 } from '../../dal/lib/model-manifest.ts';
-import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
+import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
+import type { ReviewInstance } from './review.ts';
+import type { TeamJoinRequestInstance } from './team-join-request.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
 const { mlString, types } = dal;
@@ -64,10 +66,7 @@ const teamManifest = {
     userCanLeave: types.virtual().default(false),
     userCanEdit: types.virtual().default(false),
     userCanDelete: types.virtual().default(false),
-    members: types.virtual<UserView[]>().default(undefined),
-    moderators: types.virtual<UserView[]>().default(undefined),
-    joinRequests: types.virtual<ModelInstance[]>().default(undefined),
-    reviews: types.virtual<ModelInstance[]>().default(undefined),
+    // Note: relation fields (members, moderators, joinRequests, reviews) are typed via intersection pattern
     reviewCount: types.virtual<number>().default(undefined),
     urlID: types.virtual().default(function (this: InferInstance<typeof teamManifest>) {
       const slugName =
@@ -119,7 +118,7 @@ const teamManifest = {
 type TeamInstanceBase = InferInstance<typeof teamManifest>;
 type TeamModelBase = InferConstructor<typeof teamManifest>;
 
-export interface TeamInstanceMethods extends Record<string, InstanceMethod<TeamInstanceBase>> {
+export interface TeamInstanceMethods {
   populateUserInfo(
     this: TeamInstanceBase & TeamInstanceMethods,
     user: ModelInstance | UserAccessContext | null | undefined
@@ -139,7 +138,14 @@ export interface TeamStaticMethods extends Record<string, StaticMethod> {
   ): Promise<TeamInstance>;
 }
 
-export type TeamInstance = ManifestInstance<typeof teamManifest, TeamInstanceMethods>;
+// Use intersection pattern for relation types
+// Fields are optional because they're only populated when relations are loaded
+export type TeamInstance = ManifestInstance<typeof teamManifest, TeamInstanceMethods> & {
+  members?: UserView[];
+  moderators?: UserView[];
+  joinRequests?: TeamJoinRequestInstance[];
+  reviews?: ReviewInstance[];
+};
 export type TeamModel = ManifestModel<typeof teamManifest, TeamStaticMethods, TeamInstanceMethods>;
 
 /**

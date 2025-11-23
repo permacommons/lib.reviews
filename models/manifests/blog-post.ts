@@ -34,7 +34,7 @@ const blogPostManifest = {
     originalLanguage: types.string().max(4).required(true).validator(isValidLanguage),
     userCanEdit: types.virtual().default(false),
     userCanDelete: types.virtual().default(false),
-    creator: types.virtual<BlogPostCreator>().default(undefined),
+    // Note: creator relation is typed via intersection pattern on BlogPostInstance
   },
   camelToSnake: {
     teamID: 'team_id',
@@ -74,7 +74,11 @@ export interface BlogPostStaticMethods {
   ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
 }
 
-export type BlogPostInstance = BlogPostInstanceBase & BlogPostInstanceMethods;
+// Use intersection pattern for relation types
+export type BlogPostInstance = BlogPostInstanceBase &
+  BlogPostInstanceMethods & {
+    creator?: BlogPostCreator;
+  };
 export type BlogPostModel = BlogPostModelBase & BlogPostStaticMethods;
 
 /**

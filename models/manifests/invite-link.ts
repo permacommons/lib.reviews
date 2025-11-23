@@ -24,7 +24,7 @@ const inviteLinkManifest = {
     createdBy: types.string().uuid(4).required(true),
     createdOn: types.date().default(() => new Date()),
     usedBy: types.string().uuid(4),
-    usedByUser: types.virtual().returns<UserView | undefined>().default(undefined),
+    // Note: usedByUser relation is typed via intersection pattern on InviteLinkInstance
     url: types.virtual().default(function (this: InferInstance<typeof inviteLinkManifest>) {
       const identifier = typeof this.getValue === 'function' ? this.getValue('id') : this.id;
       return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
@@ -54,7 +54,11 @@ export interface InviteLinkStaticMethods {
   get(this: InviteLinkModelBase & InviteLinkStaticMethods, id: string): Promise<InviteLinkInstance>;
 }
 
-export type InviteLinkInstance = InviteLinkInstanceBase & InviteLinkInstanceMethods;
+// Use intersection pattern for relation types
+export type InviteLinkInstance = InviteLinkInstanceBase &
+  InviteLinkInstanceMethods & {
+    usedByUser?: UserView;
+  };
 export type InviteLinkModel = InviteLinkModelBase & InviteLinkStaticMethods;
 
 /**

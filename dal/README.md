@@ -8,7 +8,7 @@ The lib.reviews DAL is a TypeScript-first PostgreSQL abstraction that exposes ty
 - **Model runtime (`dal/lib/model.ts`)** – Implements camelCase ↔︎ snake_case mapping, validation/default handling, change tracking, and persistence primitives consumed by every manifest-driven model.
 - **Manifest system (`dal/lib/create-model.ts`, `dal/lib/model-manifest.ts`)** – Declarative manifests define schema, relations, revision support, and custom methods. `defineModel` returns a lazy proxy constructor whose types are inferred from the manifest.
 - **Query builder (`dal/lib/query-builder.ts`)** – Builds SQL fragments for predicates, joins, ordering, pagination, and deletes. `filterWhere` wraps it with typed predicates for day-to-day usage.
-  - Chainables include `orderBy/limit/offset`, `whereIn`, `getJoin` (inline or batch-loaded relations), `whereRelated` (predicate on a related table via manifest metadata), and `chronologicalFeed` for date-backed limit+1 pagination.
+  - Chainables include `orderBy/limit/offset`, `whereIn`, `getJoin` (auto-selects inline or batch join based on cardinality), `whereRelated` (predicate on a related table via manifest metadata), and `chronologicalFeed` for date-backed limit+1 pagination.
 - **Revision helpers (`dal/lib/revision.ts`)** – Adds static/instance helpers (`createFirstRevision`, `newRevision`, etc.) to models flagged with `hasRevisions: true`.
 - **Type helpers (`dal/lib/type.ts`)** – Fluent schema builders that feed manifest inference, including virtual field descriptors and multilingual string support via `mlString`.
 
@@ -97,6 +97,12 @@ const userManifest = defineModelManifest({
 export type UserInstance = InferInstance<typeof userManifest>;
 export type UserModel = InferConstructor<typeof userManifest>;
 
+// For models WITH relations, use intersection pattern for strong typing:
+// export type UserInstance = InferInstance<typeof userManifest> & {
+//   meta?: UserMetaInstance;
+//   teams?: TeamInstance[];
+// };
+
 // Export reference helper for other models to use
 export function referenceUser(): UserModel {
   return referenceModel(userManifest) as UserModel;
@@ -104,6 +110,47 @@ export function referenceUser(): UserModel {
 
 export { userOptions };
 export default userManifest;
+```
+
+### Relation Definition
+
+Relations are defined as plain objects in the manifest's `relations` array:
+
+```ts
+interface RelationDefinition {
+  name: string;                     // Field name on the instance
+  targetTable?: string;             // Target table name, OR use target()
+  target?: () => unknown;           // Lazy model reference (has tableName)
+  sourceKey?: string;               // Column on this model (default: 'id')
+  targetKey?: string;               // Column on target model (default: 'id')
+  cardinality?: 'one' | 'many';     // Affects join strategy when using `true`
+  hasRevisions?: boolean;           // Apply revision guards to joined records
+  through?: {                       // For many-to-many via junction table
+    table: string;
+    sourceForeignKey?: string;
+    targetForeignKey?: string;
+  };
+}
+```
+
+Example with a many-to-many relation:
+
+```ts
+relations: [
+  {
+    name: 'teams',
+    targetTable: 'teams',
+    sourceKey: 'id',
+    targetKey: 'id',
+    hasRevisions: true,
+    through: {
+      table: 'team_members',
+      sourceForeignKey: 'user_id',
+      targetForeignKey: 'team_id',
+    },
+    cardinality: 'many',
+  },
+]
 ```
 
 ```ts
@@ -140,6 +187,22 @@ Manifests drive all type inference:
 - `InferInstance` switches between `ModelInstance` and `VersionedModelInstance` based on `hasRevisions` and merges manifest-defined instance methods.
 - `InferConstructor` produces the typed model constructor with CRUD methods.
 - Static/instance methods declared via `defineStaticMethods`/`defineInstanceMethods` receive the correctly typed `this` via contextual `ThisType`.
+
+**Relation Field Typing**: Use the intersection pattern to add strongly-typed relation fields:
+
+```ts
+// Base type from manifest (no relation types)
+type UserInstanceBase = InferInstance<typeof userManifest>;
+
+// Add relation types via intersection - fields are optional since they're
+// only populated when explicitly loaded via getJoin() or custom queries
+export type UserInstance = UserInstanceBase & {
+  meta?: UserMetaInstance;
+  teams?: TeamInstance[];
+};
+```
+
+This pattern avoids circular type errors when two models reference each other (e.g., Thing ↔ Review).
 
 ### Cross-Model References
 
