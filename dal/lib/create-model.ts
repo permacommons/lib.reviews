@@ -66,9 +66,30 @@ function initializeFromManifest<Manifest extends ModelManifest>(
   type Virtual = ManifestVirtualFields<Manifest>;
   type Instance = InferInstance<Manifest>;
 
-  // Extract relation definitions, stripping the target function (used for lazy lookup)
+  // Extract relation definitions, resolving target functions to targetTable strings
   const relationDefinitions = manifest.relations
-    ? manifest.relations.map(({ target, ...rest }) => rest)
+    ? manifest.relations.map(relation => {
+        const { target, ...rest } = relation;
+
+        // If target is a function, call it to get the model reference and extract tableName
+        if (typeof target === 'function') {
+          try {
+            const targetModel = target() as { tableName?: string } | null | undefined;
+            if (targetModel && typeof targetModel.tableName === 'string') {
+              // Use resolved tableName, but don't override explicit targetTable
+              return {
+                ...rest,
+                targetTable: rest.targetTable ?? targetModel.tableName,
+              };
+            }
+          } catch {
+            // Target resolution failed - model may not be registered yet
+            // Fall back to explicit targetTable if provided
+          }
+        }
+
+        return rest;
+      })
     : null;
 
   // Convert manifest to initializeModel options format

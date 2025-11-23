@@ -291,7 +291,7 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
 
   try {
     const hydrated = await User.filterWhere({ id: user.id })
-      .getJoin({ teams: {}, moderatorOf: {} })
+      .getJoin({ teams: true, moderatorOf: true })
       .first();
 
     if (hydrated) {

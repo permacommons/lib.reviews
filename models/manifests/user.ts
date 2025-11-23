@@ -2,6 +2,7 @@ import dal from '../../dal/index.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferData, InferVirtual, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
+import type { TeamInstance } from './team.ts';
 import type { UserMetaInstance } from './user-meta.ts';
 
 const { types } = dal;
@@ -82,9 +83,7 @@ const userSchema = {
         typeof this.getValue === 'function' ? this.getValue('isSuperUser') : this.isSuperUser;
       return Boolean(isTrusted || isSuperUser);
     }),
-  meta: types.virtual().returns<ModelInstance | undefined>().default(undefined),
-  teams: types.virtual().returns<ModelInstance[] | undefined>().default(undefined),
-  moderatorOf: types.virtual().returns<ModelInstance[] | undefined>().default(undefined),
+  // Note: relation fields (meta, teams, moderatorOf) are typed via intersection pattern
 } as const;
 
 type UserSchema = typeof userSchema;
@@ -121,7 +120,14 @@ export type UserInstanceMethods = {
   getValidPreferences(this: UserInstanceBase & UserInstanceMethods): string[];
 };
 
-export type UserInstance = UserInstanceBase & UserInstanceMethods;
+// Use intersection pattern for relation types
+// Fields are optional because they're only populated when relations are loaded
+export type UserInstance = UserInstanceBase &
+  UserInstanceMethods & {
+    meta?: UserMetaInstance;
+    teams?: TeamInstance[];
+    moderatorOf?: TeamInstance[];
+  };
 
 type UserModelBase = ModelConstructor<UserData, UserVirtual, UserInstance>;
 

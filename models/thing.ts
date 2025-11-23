@@ -144,8 +144,9 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
       : await this.getNotStaleOrDeleted(id);
 
     if (withFiles) {
-      thing.files = Array.isArray(thing.files) ? thing.files : [];
-      await _attachUploadersToFiles(thing.files);
+      const files = Array.isArray(thing.files) ? thing.files : [];
+      thing.files = files;
+      await _attachUploadersToFiles(files);
     }
 
     if (withReviewMetrics && typeof thing.populateReviewMetrics === 'function') {

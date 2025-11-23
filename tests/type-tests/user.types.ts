@@ -9,7 +9,8 @@
  * 4. Method return types are sufficiently narrow for type safety
  */
 import { expectTypeOf } from 'expect-type';
-import type { ModelInstance } from '../../dal/lib/model-types.ts';
+import type { TeamInstance } from '../../models/manifests/team.ts';
+import type { UserMetaInstance } from '../../models/manifests/user-meta.ts';
 import User, { type UserInstance } from '../../models/user.ts';
 
 // Test instance property types from schema
@@ -46,9 +47,11 @@ expectTypeOf(user.suppressedNotices).toEqualTypeOf<string[] | null | undefined>(
 expectTypeOf(user.urlName).toEqualTypeOf<string | undefined>();
 expectTypeOf(user.userCanEditMetadata).toEqualTypeOf<boolean>();
 expectTypeOf(user.userCanUploadTempFiles).toEqualTypeOf<boolean>();
-expectTypeOf(user.meta).toEqualTypeOf<ModelInstance | undefined>();
-expectTypeOf(user.teams).toEqualTypeOf<ModelInstance[] | undefined>();
-expectTypeOf(user.moderatorOf).toEqualTypeOf<ModelInstance[] | undefined>();
+
+// Relation fields - typed via intersection pattern (strongly typed, not ModelInstance)
+expectTypeOf(user.meta).toEqualTypeOf<UserMetaInstance | undefined>();
+expectTypeOf(user.teams).toEqualTypeOf<TeamInstance[] | undefined>();
+expectTypeOf(user.moderatorOf).toEqualTypeOf<TeamInstance[] | undefined>();
 
 // Test instance methods - these come from the manifest's instanceMethods
 expectTypeOf(user.populateUserInfo).toBeFunction();

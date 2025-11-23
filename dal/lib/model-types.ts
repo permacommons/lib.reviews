@@ -391,8 +391,9 @@ export interface FilterWhereQueryBuilder<
   sample(count?: number): Promise<TInstance[]>;
   offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   /**
-   * Include related records. Use `true` for inline (single-row) joins and an
-   * object (e.g., `{}`) to trigger the batch loader that hydrates arrays.
+   * Include related records. Use `true` for all relations - the system
+   * automatically selects inline join for one-to-one or batch loader for
+   * one-to-many based on the relation's cardinality in the manifest.
    */
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
@@ -459,10 +460,9 @@ export interface ModelConstructor<
   /**
    * Attach related records defined in the manifest.
    *
-   * Passing `true` joins the related table inline (best for one-to-one relations)
-   * while supplying an object (even `{}`) switches to the batch loader that
-   * hydrates `many` relations via a follow-up query. Use the object form whenever
-   * the relation should populate an array.
+   * Use `true` for all relations. The system automatically selects the optimal
+   * join strategy based on the relation's cardinality: inline join for `one`
+   * relations, batch loader for `many` relations.
    */
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>

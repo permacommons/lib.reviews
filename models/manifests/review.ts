@@ -75,11 +75,7 @@ const reviewManifest = {
     userCanEdit: types.virtual().default(false),
     userIsAuthor: types.virtual().default(false),
 
-    // Virtual relation fields (populated by getWithData/getFeed)
-    thing: types.virtual<ThingInstance>().default(undefined),
-    teams: types.virtual<TeamInstance[]>().default(undefined),
-    creator: types.virtual<UserView>().default(undefined),
-    socialImage: types.virtual<FileInstance>().default(undefined),
+    // Note: relation fields (thing, teams, creator, socialImage) are typed via intersection pattern
   },
   camelToSnake: {
     thingID: 'thing_id',
@@ -178,7 +174,14 @@ export interface ReviewStaticMethods extends Record<string, StaticMethod> {
   ): Promise<ReviewFeedResult>;
 }
 
-export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods>;
+// Use intersection pattern for relation types (avoids circular type errors)
+// Fields are optional because they're only populated when relations are loaded
+export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods> & {
+  thing?: ThingInstance;
+  teams?: TeamInstance[];
+  creator?: UserView;
+  socialImage?: FileInstance;
+};
 
 export type ReviewModel = ManifestModel<
   typeof reviewManifest,

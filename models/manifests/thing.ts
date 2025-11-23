@@ -11,7 +11,7 @@ import type {
   InferInstance,
   ModelManifest,
 } from '../../dal/lib/model-manifest.ts';
-import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
+import type { InstanceMethod } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
@@ -171,9 +171,7 @@ const thingManifest = {
       return metadata?.authors;
     }),
 
-    // Virtual relation fields (populated by getWithData/lookupByURL)
-    reviews: types.virtual<ModelInstance[]>().default(undefined),
-    files: types.virtual<FileInstance[]>().default(undefined),
+    // Note: relation fields (reviews, files) are typed via intersection pattern
   },
   camelToSnake: {
     originalLanguage: 'original_language',
@@ -209,7 +207,7 @@ const thingManifest = {
 type ThingInstanceBase = InferInstance<typeof thingManifest>;
 type ThingModelBase = InferConstructor<typeof thingManifest>;
 
-export interface ThingInstanceMethods extends Record<string, InstanceMethod<ThingInstanceBase>> {
+export interface ThingInstanceMethods {
   initializeFieldsFromAdapter(
     this: ThingInstanceBase & ThingInstanceMethods,
     adapterResult: AdapterLookupResult
@@ -230,6 +228,7 @@ export interface ThingInstanceMethods extends Record<string, InstanceMethod<Thin
   ): Promise<ReviewInstance[]>;
   getAverageStarRating(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;
   getReviewCount(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;
+  getSourceIDsOfActiveSyncs(this: ThingInstanceBase & ThingInstanceMethods): string[];
   addFile(this: ThingInstanceBase & ThingInstanceMethods, file: FileInstance): void;
   updateSlug(
     this: ThingInstanceBase & ThingInstanceMethods,
@@ -261,7 +260,12 @@ export interface ThingStaticMethods extends Record<string, StaticMethod> {
   ): string | undefined;
 }
 
-export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods>;
+// Use intersection pattern for relation types
+// Fields are optional because they're only populated when relations are loaded
+export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods> & {
+  reviews?: ReviewInstance[];
+  files?: FileInstance[];
+};
 export type ThingModel = ManifestModel<
   typeof thingManifest,
   ThingStaticMethods,

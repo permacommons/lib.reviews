@@ -808,7 +808,6 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
-
    * Get a record by ID
    * @param id - Record ID
    * @param options - Query options

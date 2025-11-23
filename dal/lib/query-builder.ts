@@ -532,7 +532,16 @@ class QueryBuilder<
   _processJoin(relationName, relationSpec) {
     // Handle simple boolean joins (e.g., { teams: true })
     if (relationSpec === true) {
-      this._addSimpleJoin(relationName);
+      // Check cardinality to auto-select optimal strategy:
+      // - 'one' → inline join (single query)
+      // - 'many' → batch loader (follow-up query, avoids row multiplication)
+      const joinInfo = this._getJoinInfo(relationName);
+      if (joinInfo && joinInfo.cardinality === 'many') {
+        // Use batch loader for many relations even when true is passed
+        this._addComplexJoin(relationName, {});
+      } else {
+        this._addSimpleJoin(relationName);
+      }
       return;
     }
 
