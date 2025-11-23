@@ -1,11 +1,11 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type {
   InferConstructor,
   InferData,
   InferInstance,
   InferVirtual,
+  ModelManifest,
 } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
 import type { UserAccessContext, UserView } from './user.ts';
@@ -20,9 +20,9 @@ export interface BlogPostFeedOptions {
   offsetDate?: Date;
 }
 
-const blogPostManifest = defineModelManifest({
+const blogPostManifest = {
   tableName: 'blog_posts',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
     teamID: types.string().uuid(4).required(true),
@@ -42,7 +42,7 @@ const blogPostManifest = defineModelManifest({
     createdBy: 'created_by',
     originalLanguage: 'original_language',
   },
-});
+} as const satisfies ModelManifest;
 
 type BlogPostInstanceBase = InferInstance<typeof blogPostManifest>;
 type BlogPostModelBase = InferConstructor<typeof blogPostManifest>;

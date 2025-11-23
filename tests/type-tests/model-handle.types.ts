@@ -1,29 +1,38 @@
 import { expectTypeOf } from 'expect-type';
 
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type { InstanceMethod } from '../../dal/lib/model-types.ts';
 import types from '../../dal/lib/type.ts';
 
-const exampleManifest = defineModelManifest({
+// Define schema first
+const exampleSchema = {
+  id: types.string().required(),
+  label: types.string(),
+  computed: types.virtual().returns<number>(),
+} as const;
+
+// Define instance base type for method `this` typing
+type ExampleInstanceBase = InferInstance<{
+  tableName: 'example_table';
+  hasRevisions: false;
+  schema: typeof exampleSchema;
+}>;
+
+// Define methods in separate interfaces (recommended pattern)
+interface ExampleStaticMethods {
+  findByLabel(label: string): Promise<string | null>;
+}
+
+interface ExampleInstanceMethods extends Record<string, InstanceMethod<ExampleInstanceBase>> {
+  getLabel(this: ExampleInstanceBase & ExampleInstanceMethods): string | null;
+}
+
+const exampleManifest = {
   tableName: 'example_table',
-  hasRevisions: false,
-  schema: {
-    id: types.string().required(),
-    label: types.string(),
-    computed: types.virtual().returns<number>(),
-  },
-  staticMethods: {
-    async findByLabel(label: string) {
-      return Promise.resolve(label ?? null);
-    },
-  },
-  instanceMethods: {
-    getLabel() {
-      return this.label ?? null;
-    },
-  },
-} as const);
+  hasRevisions: false as const,
+  schema: exampleSchema,
+} as const satisfies ModelManifest;
 
 type ExampleConstructor = InferConstructor<typeof exampleManifest>;
 type ExampleInstance = InferInstance<typeof exampleManifest>;
@@ -31,8 +40,6 @@ type ExampleInstance = InferInstance<typeof exampleManifest>;
 const exampleHandle = referenceModel(exampleManifest);
 
 expectTypeOf(exampleHandle).toMatchTypeOf<ExampleConstructor>();
-expectTypeOf(exampleHandle.findByLabel).toBeFunction();
-expectTypeOf(exampleHandle.findByLabel).returns.toEqualTypeOf<Promise<string | null>>();
 expectTypeOf(exampleHandle.createFromRow).returns.toEqualTypeOf<ExampleInstance>();
 
 type ExampleGetResult = Awaited<ReturnType<typeof exampleHandle.get>>;

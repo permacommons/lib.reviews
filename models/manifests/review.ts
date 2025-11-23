@@ -1,9 +1,13 @@
 import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
-import type { InferConstructor, InferData, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferData,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod, RevisionActor } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import type { FileInstance } from './file.ts';
@@ -45,9 +49,9 @@ export interface ReviewValidateSocialImageOptions {
   fileObjects?: Array<FileInstance | { id: string }>;
 }
 
-const reviewManifest = defineModelManifest({
+const reviewManifest = {
   tableName: 'reviews',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
 
@@ -75,6 +79,7 @@ const reviewManifest = defineModelManifest({
     thing: types.virtual<ThingInstance>().default(undefined),
     teams: types.virtual<TeamInstance[]>().default(undefined),
     creator: types.virtual<UserView>().default(undefined),
+    socialImage: types.virtual<FileInstance>().default(undefined),
   },
   camelToSnake: {
     thingID: 'thing_id',
@@ -89,7 +94,6 @@ const reviewManifest = defineModelManifest({
       name: 'thing',
       targetTable: 'things',
       sourceKey: 'thing_id',
-      targetKey: 'id',
       hasRevisions: true,
       cardinality: 'one',
     },
@@ -122,8 +126,8 @@ const reviewManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
 type ReviewInstanceBase = InferInstance<typeof reviewManifest>;
 type ReviewModelBase = InferConstructor<typeof reviewManifest>;
@@ -139,7 +143,7 @@ export type ReviewInputObject = Partial<ReviewData> & {
   teams?: TeamInstance[];
 };
 
-export interface ReviewInstanceMethods extends Record<string, InstanceMethod<ReviewInstanceBase>> {
+export interface ReviewInstanceMethods {
   populateUserInfo(
     this: ReviewInstanceBase & ReviewInstanceMethods,
     user: UserAccessContext | null | undefined
@@ -175,6 +179,7 @@ export interface ReviewStaticMethods extends Record<string, StaticMethod> {
 }
 
 export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods>;
+
 export type ReviewModel = ManifestModel<
   typeof reviewManifest,
   ReviewStaticMethods,

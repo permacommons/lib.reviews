@@ -1,9 +1,7 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type {
   InferData,
-  InferInstance,
   InferVirtual,
   ModelManifest,
 } from '../../dal/lib/model-manifest.ts';
@@ -170,9 +168,9 @@ export type UserStaticMethods = {
 
 export type UserModel = UserModelBase & UserStaticMethods & UserExtraStatics;
 
-const userManifest = defineModelManifest({
+const userManifest = {
   tableName: 'users',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: userSchema,
   camelToSnake: {
     displayName: 'display_name',
@@ -222,10 +220,11 @@ const userManifest = defineModelManifest({
       hasRevisions: true,
       cardinality: 'one',
     },
-  ] as const,
+  ],
   views: {
     publicProfile: {
-      project(user: InferInstance<typeof userManifest>) {
+      // Use UserInstanceBase to avoid circular reference with typeof userManifest
+      project(user: UserInstanceBase) {
         return {
           id: user.id,
           displayName: user.displayName,
@@ -240,7 +239,7 @@ const userManifest = defineModelManifest({
       },
     },
   },
-} as ModelManifest<UserSchema, false, UserStaticMethods, UserInstanceMethods>);
+} as const satisfies ModelManifest;
 
 /**
  * Create a lazy reference to the User model for use in other models.

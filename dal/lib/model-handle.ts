@@ -2,7 +2,7 @@ import type {
   InferConstructor,
   InferData,
   InferInstance,
-  InferVirtual,
+  ManifestVirtualFields,
   ModelManifest,
 } from './model-manifest.ts';
 import type { JsonObject, ModelConstructor, ModelInstance } from './model-types.ts';
@@ -204,7 +204,7 @@ export function referenceModel<
   staticProperties?: Properties
 ): InferConstructor<Manifest> & Methods & Properties {
   type Data = InferData<Manifest['schema']>;
-  type Virtual = InferVirtual<Manifest['schema']>;
+  type Virtual = ManifestVirtualFields<Manifest>;
   type Instance = InferInstance<Manifest>;
 
   const resolvedMethods = (staticMethods ?? {}) as StaticMethodsMap;

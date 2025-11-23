@@ -4,12 +4,9 @@ import type {
 } from '../../adapters/abstract-backend-adapter.ts';
 import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-// Note: Use ModelInstance for virtual field types to avoid circular type inference.
-// This should be revisited when relation types are derived from manifest metadata.
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
@@ -109,9 +106,9 @@ export interface ThingLabelSource extends Record<string, unknown> {
   urls?: unknown;
 }
 
-const thingManifest = defineModelManifest({
+const thingManifest = {
   tableName: 'things',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
 
@@ -202,8 +199,8 @@ const thingManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
 type ThingInstanceBase = InferInstance<typeof thingManifest>;
 type ThingModelBase = InferConstructor<typeof thingManifest>;

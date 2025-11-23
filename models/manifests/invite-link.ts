@@ -3,16 +3,15 @@ import { randomUUID } from 'node:crypto';
 import config from 'config';
 
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { UserView } from './user.ts';
 
 const { types } = dal;
 
-const inviteLinkManifest = defineModelManifest({
+const inviteLinkManifest = {
   tableName: 'invite_links',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types
       .string()
@@ -32,7 +31,7 @@ const inviteLinkManifest = defineModelManifest({
     createdOn: 'created_on',
     usedBy: 'used_by',
   },
-});
+} as const satisfies ModelManifest;
 
 type InviteLinkInstanceBase = InferInstance<typeof inviteLinkManifest>;
 type InviteLinkModelBase = InferConstructor<typeof inviteLinkManifest>;

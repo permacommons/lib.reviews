@@ -11,37 +11,51 @@ import type {
 } from './model-types.ts';
 
 /**
+ * Base relation definition type for manifest relations array.
+ *
+ * Either `targetTable` or `target` must be provided:
+ * - `targetTable`: Explicit table name string
+ * - `target`: Function returning model reference (tableName derived at runtime)
+ */
+export interface RelationDefinition {
+  name: string;
+  /** Target table name. Optional if `target` is provided (derived at runtime). */
+  targetTable?: string;
+  sourceKey?: string;
+  targetKey?: string;
+  sourceColumn?: string;
+  targetColumn?: string;
+  hasRevisions?: boolean;
+  cardinality?: 'one' | 'many';
+  through?: {
+    table: string;
+    sourceForeignKey?: string;
+    targetForeignKey?: string;
+    sourceColumn?: string;
+    targetColumn?: string;
+  };
+  /** Lazy model reference. If provided, targetTable is derived from target().tableName */
+  target?: () => unknown;
+}
+
+/**
  * Model manifest definition - declarative model configuration
  * Used by createModel() to generate properly typed model handles
+ *
+ * Note: Relation types are inferred via Manifest['relations'] property access,
+ * not via generic parameter, enabling `as const satisfies ModelManifest` pattern.
  */
 export interface ModelManifest<
   Schema extends Record<string, ModelSchemaField> = Record<string, ModelSchemaField>,
   HasRevisions extends boolean = boolean,
   StaticMethods extends Record<string, StaticMethod> = Record<never, StaticMethod>,
-  InstanceMethods extends Record<string, InstanceMethod> = Record<never, InstanceMethod>,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
 > {
   tableName: string;
   hasRevisions: HasRevisions;
   schema: Schema;
   camelToSnake?: Record<string, string>;
-  relations?: readonly {
-    name: string;
-    targetTable: string;
-    sourceKey?: string;
-    targetKey?: string;
-    sourceColumn?: string;
-    targetColumn?: string;
-    hasRevisions?: boolean;
-    cardinality?: 'one' | 'many';
-    through?: {
-      table: string;
-      sourceForeignKey?: string;
-      targetForeignKey?: string;
-      sourceColumn?: string;
-      targetColumn?: string;
-    };
-    [key: string]: unknown;
-  }[];
+  relations?: readonly RelationDefinition[];
   views?: Record<string, ModelViewDefinition<ModelInstance>>;
   staticMethods?: StaticMethods &
     ThisType<InferConstructor<ModelManifest<Schema, HasRevisions, StaticMethods, InstanceMethods>>>;
@@ -108,13 +122,24 @@ export type InferVirtual<Schema extends Record<string, ModelSchemaField>> = {
 };
 
 /**
+ * Helper to get virtual fields for a manifest.
+ * Exported for use in create-model.ts to ensure type consistency.
+ *
+ * Note: Relation field types are added via intersection pattern when defining
+ * the final instance type, not inferred from the manifest. This avoids
+ * circular type errors for bidirectional relations.
+ */
+export type ManifestVirtualFields<Manifest extends ModelManifest> = InferVirtual<Manifest['schema']>;
+
+/**
  * Infer instance type from manifest
  * Returns VersionedModelInstance if hasRevisions is true, otherwise ModelInstance
+ * Includes both schema virtuals and typed relation fields.
  */
 export type InferInstance<Manifest extends ModelManifest> = Manifest['hasRevisions'] extends true
-  ? VersionedModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
+  ? VersionedModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
       InferInstanceMethods<Manifest>
-  : ModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
+  : ModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
       InferInstanceMethods<Manifest>;
 
 type CreateFromRowStatic<Manifest extends ModelManifest> = {
@@ -128,8 +153,8 @@ type CreateFromRowStatic<Manifest extends ModelManifest> = {
 export type InferConstructor<Manifest extends ModelManifest> = Manifest['hasRevisions'] extends true
   ? VersionedModelConstructor<
       InferData<Manifest['schema']>,
-      InferVirtual<Manifest['schema']>,
-      VersionedModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
+      ManifestVirtualFields<Manifest>,
+      VersionedModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
         InferInstanceMethods<Manifest>,
       InferRelationNames<Manifest>
     > &
@@ -137,8 +162,8 @@ export type InferConstructor<Manifest extends ModelManifest> = Manifest['hasRevi
       CreateFromRowStatic<Manifest>
   : ModelConstructor<
       InferData<Manifest['schema']>,
-      InferVirtual<Manifest['schema']>,
-      ModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
+      ManifestVirtualFields<Manifest>,
+      ModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
         InferInstanceMethods<Manifest>,
       InferRelationNames<Manifest>
     > &
