@@ -1,10 +1,6 @@
 import dal from '../../dal/index.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferData,
-  InferVirtual,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { InferData, InferVirtual, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
 import type { UserMetaInstance } from './user-meta.ts';
 

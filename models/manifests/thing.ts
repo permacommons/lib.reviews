@@ -6,7 +6,11 @@ import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
-import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';

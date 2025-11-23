@@ -1,7 +1,11 @@
 import { expectTypeOf } from 'expect-type';
 
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod } from '../../dal/lib/model-types.ts';
 import types from '../../dal/lib/type.ts';
 
@@ -27,6 +31,10 @@ interface ExampleStaticMethods {
 interface ExampleInstanceMethods extends Record<string, InstanceMethod<ExampleInstanceBase>> {
   getLabel(this: ExampleInstanceBase & ExampleInstanceMethods): string | null;
 }
+
+// Verify method interface shapes are valid
+expectTypeOf<ExampleStaticMethods['findByLabel']>().returns.resolves.toEqualTypeOf<string | null>();
+expectTypeOf<ExampleInstanceMethods['getLabel']>().returns.toEqualTypeOf<string | null>();
 
 const exampleManifest = {
   tableName: 'example_table',

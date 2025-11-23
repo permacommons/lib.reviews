@@ -4,7 +4,11 @@ import config from 'config';
 
 import dal from '../../dal/index.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import type { UserView } from './user.ts';
 
 const { types } = dal;

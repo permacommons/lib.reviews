@@ -24,7 +24,7 @@ const thingManifest = {
   relations: [
     {
       name: 'reviews',
-      target: referenceReview,  // Lazy lookup - gets tableName at runtime
+      target: referenceReview, // Lazy lookup - gets tableName at runtime
       sourceKey: 'id',
       targetKey: 'thing_id',
       cardinality: 'many' as const,
@@ -56,7 +56,7 @@ const reviewManifest = {
   relations: [
     {
       name: 'thing',
-      target: referenceThing,  // Lazy lookup - gets tableName at runtime
+      target: referenceThing, // Lazy lookup - gets tableName at runtime
       sourceKey: 'thing_id',
       cardinality: 'one' as const,
     },

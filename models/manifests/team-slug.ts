@@ -1,6 +1,10 @@
 import dal from '../../dal/index.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
 

@@ -129,7 +129,9 @@ export type InferVirtual<Schema extends Record<string, ModelSchemaField>> = {
  * the final instance type, not inferred from the manifest. This avoids
  * circular type errors for bidirectional relations.
  */
-export type ManifestVirtualFields<Manifest extends ModelManifest> = InferVirtual<Manifest['schema']>;
+export type ManifestVirtualFields<Manifest extends ModelManifest> = InferVirtual<
+  Manifest['schema']
+>;
 
 /**
  * Infer instance type from manifest

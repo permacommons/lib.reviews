@@ -1,7 +1,11 @@
 import dal from '../../dal/index.ts';
 import { ValidationError } from '../../dal/lib/errors.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
 
 const { mlString, types } = dal;
