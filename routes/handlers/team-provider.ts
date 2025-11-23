@@ -6,6 +6,8 @@ import i18n from 'i18n';
 import mlString from '../../dal/lib/ml-string.ts';
 import BlogPost from '../../models/blog-post.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
+import type { TeamJoinRequestInstance } from '../../models/manifests/team-join-request.ts';
+import type { UserView } from '../../models/manifests/user.ts';
 import Team from '../../models/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import debug from '../../util/debug.ts';
@@ -17,26 +19,23 @@ import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 const { getEditorMessages } = frontendMessages;
 
-type TeamInstance = Omit<
-  TeamManifestInstance,
-  | 'members'
-  | 'moderators'
-  | 'joinRequests'
-  | 'reviews'
-  | 'reviewCount'
-  | 'reviewOffsetDate'
-  | 'review_offset_date'
-> &
-  Record<string, any> & {
-    members?: Array<Record<string, any>>;
-    moderators?: Array<Record<string, any>>;
-    joinRequests?: Array<Record<string, any>>;
-    reviews?: Array<Record<string, any>>;
-    reviewCount?: number;
-    reviewOffsetDate?: Date | null;
-    review_offset_date?: Date | null;
-  };
-type TeamFormValues = Record<string, any>;
+type LocalizedText = Record<string, string>;
+type LocalizedRichText = { text: LocalizedText; html: LocalizedText };
+type JoinRequestWithUser = TeamJoinRequestInstance & { user?: UserView };
+
+type TeamInstance = TeamManifestInstance & {
+  joinRequests?: JoinRequestWithUser[];
+};
+
+interface TeamFormValues {
+  name?: LocalizedText;
+  motto?: LocalizedText;
+  description?: LocalizedRichText;
+  rules?: LocalizedRichText;
+  modApprovalToJoin?: boolean;
+  onlyModsCanBlog?: boolean;
+  originalLanguage?: string;
+}
 
 class TeamProvider extends AbstractBREADProvider {
   static formDefs: Record<string, FormField[]>;
@@ -102,11 +101,11 @@ class TeamProvider extends AbstractBREADProvider {
 
   members_GET(team: TeamInstance): void {
     // For easy lookup in template
-    let founder = {
-      [team.createdBy]: true,
-    };
-    let moderators = {};
-    team.moderators.forEach(moderator => (moderators[moderator.id] = true));
+    const founder: Record<string, boolean> = {};
+    if (typeof team.createdBy === 'string') founder[team.createdBy] = true;
+    const moderators: Record<string, boolean> = {};
+    const moderatorList: UserView[] = Array.isArray(team.moderators) ? team.moderators : [];
+    moderatorList.forEach(moderator => (moderators[moderator.id] = true));
 
     this.renderTemplate('team-roster', {
       team,
@@ -129,11 +128,10 @@ class TeamProvider extends AbstractBREADProvider {
     team.populateUserInfo(this.req.user);
 
     // Only show pending requests. Filter out rejected, withdrawn, and approved.
-    if (team.joinRequests) {
-      team.joinRequests = team.joinRequests.filter(request => request.status === 'pending');
-    } else {
-      team.joinRequests = [];
-    }
+    const filteredJoinRequests = Array.isArray(team.joinRequests)
+      ? team.joinRequests.filter(request => request.status === 'pending')
+      : [];
+    team.joinRequests = filteredJoinRequests;
 
     if (!team.userIsModerator) return this.renderPermissionError();
 
@@ -153,9 +151,18 @@ class TeamProvider extends AbstractBREADProvider {
   async manageRequests_POST(team: TeamInstance): Promise<void> {
     // We use a safe loop function in this method - quiet, jshint:
 
-    team.populateUserInfo(this.req.user);
+    const currentUser = this.req.user;
+    if (!currentUser) {
+      this.renderSigninRequired();
+      return;
+    }
+
+    team.populateUserInfo(currentUser);
 
     if (!team.userIsModerator) return this.renderPermissionError();
+
+    const joinRequests: JoinRequestWithUser[] = team.joinRequests ?? [];
+    team.joinRequests = joinRequests;
 
     // We keep track of whether we've done any work, so we can show an
     // approrpriate message, and know whether we have to run saveAll()
@@ -165,7 +172,7 @@ class TeamProvider extends AbstractBREADProvider {
     debug.db('POST body:', this.req.body);
     debug.db(
       'Join requests:',
-      team.joinRequests.map(r => ({ id: r.id, userID: r.userID }))
+      joinRequests.map(r => ({ id: r.id, userID: r.userID }))
     );
 
     for (const key in this.req.body as Record<string, unknown>) {
@@ -177,7 +184,7 @@ class TeamProvider extends AbstractBREADProvider {
 
         // Check if we do in fact have a join request that matches the action ID
         let requestIndex, requestObj;
-        team.joinRequests.forEach((request, index) => {
+        joinRequests.forEach((request, index) => {
           if (request.id == id) {
             requestObj = request;
             requestIndex = index;
@@ -191,7 +198,7 @@ class TeamProvider extends AbstractBREADProvider {
           switch (this.req.body[key]) {
             case 'reject': {
               requestObj.rejectionDate = new Date();
-              requestObj.rejectedBy = this.req.user.id;
+              requestObj.rejectedBy = currentUser.id;
               requestObj.status = 'rejected';
               const reasonValue = this.req.body[`reject-reason-${id}`];
               const reason = typeof reasonValue === 'string' ? reasonValue : undefined;
@@ -204,9 +211,13 @@ class TeamProvider extends AbstractBREADProvider {
               requestObj.status = 'approved';
               // Save the join request status, then add user to team
               const savePromise = requestObj.save().then(() => {
-                team.members.push(requestObj.user);
+                const teamMembers: UserView[] = Array.isArray(team.members)
+                  ? [...team.members]
+                  : [];
+                if (requestObj.user) teamMembers.push(requestObj.user);
+                team.members = teamMembers;
                 // Remove from the array after accepting
-                team.joinRequests.splice(requestIndex, 1);
+                joinRequests.splice(requestIndex, 1);
               });
               savePromises.push(savePromise);
               workToBeDone = true;
@@ -277,14 +288,15 @@ class TeamProvider extends AbstractBREADProvider {
     }) as Promise<TeamInstance>;
   }
 
-  edit_GET(team: TeamInstance): void {
-    this.add_GET(team);
+  edit_GET(team: TeamInstance | TeamFormValues): void {
+    this.add_GET(team as TeamFormValues);
   }
 
   async read_GET(team: TeamInstance): Promise<void> {
     team.populateUserInfo(this.req.user);
-    if (Array.isArray(team.reviews))
-      team.reviews.forEach(review => review.populateUserInfo(this.req.user));
+    const reviews = Array.isArray(team.reviews) ? team.reviews : [];
+    team.reviews = reviews;
+    reviews.forEach(review => review.populateUserInfo(this.req.user));
 
     const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
     let titleParam = mlString.resolve(currentLocale, team.name as Record<string, string>).str;
@@ -292,33 +304,30 @@ class TeamProvider extends AbstractBREADProvider {
     // Error messages from any join attempts
     let joinErrors = this.req.flash('joinErrors');
 
-    if (this.req.user && !team.userIsModerator && !team.userIsMember)
+    if (this.req.user && !team.userIsModerator && !team.userIsMember && team.joinRequests)
       team.joinRequests.forEach(request => {
         if (request.userID === this.req.user.id) {
           // Only show messages for pending or rejected requests, not withdrawn/approved
           if (request.status === 'pending') {
             this.req.flash('pageMessages', this.req.__('application received'));
           } else if (request.status === 'rejected') {
+            const rejectionDate = request.rejectionDate ? String(request.rejectionDate) : '';
             if (request.rejectionMessage)
               this.req.flash(
                 'pageMessages',
                 this.req.__(
                   'application rejected with reason',
-                  request.rejectionDate,
+                  rejectionDate,
                   request.rejectionMessage
                 )
               );
-            else
-              this.req.flash(
-                'pageMessages',
-                this.req.__('application rejected', request.rejectionDate)
-              );
+            else this.req.flash('pageMessages', this.req.__('application rejected', rejectionDate));
           }
           // Don't show anything for withdrawn or approved status
         }
       });
 
-    if (team.userIsModerator) {
+    if (team.userIsModerator && team.joinRequests) {
       let joinRequestCount = team.joinRequests.filter(
         request => request.status === 'pending'
       ).length;
@@ -336,14 +345,13 @@ class TeamProvider extends AbstractBREADProvider {
     let pageMessages = this.req.flash('pageMessages');
 
     // For easy lookup in template
-    let founder = {
-      [team.createdBy]: true,
-    };
+    const founder: Record<string, boolean> = {};
+    if (typeof team.createdBy === 'string') founder[team.createdBy] = true;
 
     BlogPost.getMostRecentBlogPosts(team.id, {
       limit: 3,
     }).then(result => {
-      let blogPosts = result.blogPosts;
+      let blogPosts = result.blogPosts ?? [];
       let offsetDate = result.offsetDate;
 
       blogPosts.forEach(post => post.populateUserInfo(this.req.user));
@@ -383,13 +391,14 @@ class TeamProvider extends AbstractBREADProvider {
 
   feed_GET(team: TeamInstance): void {
     team.populateUserInfo(this.req.user);
-    if (!Array.isArray(team.reviews)) team.reviews = [];
+    const reviews = Array.isArray(team.reviews) ? team.reviews : [];
+    team.reviews = reviews;
 
     // For machine-readable feeds
     if (this.format && typeof this.language === 'string') i18n.setLocale(this.req, this.language);
 
     let updatedDate;
-    team.reviews.forEach(review => {
+    reviews.forEach(review => {
       review.populateUserInfo(this.req.user);
       if (review.thing) review.thing.populateUserInfo(this.req.user);
       // For Atom feed - most recently modified item in the result set
@@ -444,7 +453,7 @@ class TeamProvider extends AbstractBREADProvider {
   edit_POST(team: TeamInstance): void {
     const formKey = 'edit-team';
     const languageValue = this.req.body?.['team-language'];
-    const language =
+    const language: string =
       typeof languageValue === 'string' ? languageValue : (team.originalLanguage ?? 'en');
     const formData = this.parseForm({
       formDef: TeamProvider.formDefs[formKey],
@@ -456,11 +465,13 @@ class TeamProvider extends AbstractBREADProvider {
 
     this.isPreview = this.req.body?.['team-action'] === 'preview';
 
-    if (this.req.flashHas?.('pageErrors') || this.isPreview)
-      return this.edit_GET(formValues as TeamInstance);
+    if (this.req.flashHas?.('pageErrors') || this.isPreview) return this.edit_GET(formValues);
+
+    const currentUser = this.req.user;
+    if (!currentUser) return this.renderSigninRequired();
 
     team
-      .newRevision(this.req.user, {
+      .newRevision(currentUser, {
         tags: ['edit-via-form'],
       })
       .then(revision => {
@@ -497,7 +508,7 @@ class TeamProvider extends AbstractBREADProvider {
         newRev.modApprovalToJoin = source.modApprovalToJoin;
 
         newRev
-          .updateSlug(this.req.user.id, language)
+          .updateSlug(currentUser.id, language)
           .then(updatedRev => {
             updatedRev
               .save()
@@ -511,7 +522,7 @@ class TeamProvider extends AbstractBREADProvider {
                 'pageErrors',
                 this.req.__('duplicate team name', `/team/${error.payload.slug.name}`)
               );
-              return this.edit_GET(formValues as TeamInstance);
+              return this.edit_GET(formValues);
             } else return this.next(error);
           });
       })
@@ -521,7 +532,7 @@ class TeamProvider extends AbstractBREADProvider {
   add_POST(): void {
     const formKey = 'new-team';
     const languageValue = this.req.body?.['team-language'];
-    const language = typeof languageValue === 'string' ? languageValue : 'en';
+    const language: string = typeof languageValue === 'string' ? languageValue : 'en';
     const formData = this.parseForm({
       formDef: TeamProvider.formDefs[formKey],
       formKey,
@@ -534,7 +545,10 @@ class TeamProvider extends AbstractBREADProvider {
 
     if (this.req.flashHas?.('pageErrors') || this.isPreview) return this.add_GET(formValues);
 
-    Team.createFirstRevision(this.req.user, {
+    const currentUser = this.req.user;
+    if (!currentUser) return this.renderSigninRequired();
+
+    Team.createFirstRevision(currentUser, {
       tags: ['create-via-form'],
     })
       .then(teamRevision => {
@@ -548,13 +562,13 @@ class TeamProvider extends AbstractBREADProvider {
         }
 
         // Creator is first moderator
-        newTeam.moderators = [this.req.user as Record<string, any>];
+        newTeam.moderators = [currentUser];
 
         // Creator is first member
-        newTeam.members = [this.req.user as Record<string, any>];
+        newTeam.members = [currentUser];
 
         // Founder warrants special recognition
-        newTeam.createdBy = this.req.user.id;
+        newTeam.createdBy = currentUser.id;
         newTeam.createdOn = new Date();
 
         // Save team first to satisfy foreign key constraints
@@ -563,7 +577,7 @@ class TeamProvider extends AbstractBREADProvider {
           .then(saved => {
             const savedTeam = saved as TeamInstance;
             // Then update slug (after team exists in DB)
-            return savedTeam.updateSlug(this.req.user.id, savedTeam.originalLanguage);
+            return savedTeam.updateSlug(currentUser.id, savedTeam.originalLanguage);
           })
           .then(team => {
             // Save again if slug updated the canonicalSlugName, and save members/moderators

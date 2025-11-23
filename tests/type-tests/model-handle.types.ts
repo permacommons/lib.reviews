@@ -7,7 +7,11 @@
 import { expectTypeOf } from 'expect-type';
 
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance, ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import types from '../../dal/lib/type.ts';
 
 // Define schema first
