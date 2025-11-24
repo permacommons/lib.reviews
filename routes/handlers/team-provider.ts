@@ -263,14 +263,14 @@ class TeamProvider extends AbstractBREADProvider {
   }
 
   loadData(): Promise<TeamInstance> {
-    return slugs.resolveAndLoadTeam(this.req, this.res, this.id) as Promise<TeamInstance>;
+    return slugs.resolveAndLoadTeam(this.req, this.res, this.id);
   }
 
   // We just show a single review on the team entry page
   loadDataWithMostRecentReview(): Promise<TeamInstance> {
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id, {
       withReviews: true,
-    }) as Promise<TeamInstance>;
+    });
   }
 
   // This is for feed or feed/before/<date> requests
@@ -279,13 +279,13 @@ class TeamProvider extends AbstractBREADProvider {
       withReviews: true,
       reviewLimit: 10,
       reviewOffsetDate: this.offsetDate || null,
-    }) as Promise<TeamInstance>;
+    });
   }
 
   loadDataWithJoinRequestDetails(): Promise<TeamInstance> {
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id, {
       withJoinRequestDetails: true,
-    }) as Promise<TeamInstance>;
+    });
   }
 
   edit_GET(team: TeamInstance | TeamFormValues): void {
@@ -474,8 +474,8 @@ class TeamProvider extends AbstractBREADProvider {
       .newRevision(currentUser, {
         tags: ['edit-via-form'],
       })
-      .then(revision => {
-        const newRev = revision as TeamInstance;
+      .then((revision: TeamInstance) => {
+        const newRev = revision;
         const source = formValues;
         const motto = newRev.motto as Record<string, string>;
         const name = newRev.name as Record<string, string>;
@@ -552,7 +552,7 @@ class TeamProvider extends AbstractBREADProvider {
       tags: ['create-via-form'],
     })
       .then(teamRevision => {
-        const newTeam = teamRevision as TeamInstance;
+        const newTeam = teamRevision;
         // Associate parsed form data with revision
         Object.assign(newTeam, formValues);
 
@@ -574,8 +574,8 @@ class TeamProvider extends AbstractBREADProvider {
         // Save team first to satisfy foreign key constraints
         newTeam
           .save()
-          .then(saved => {
-            const savedTeam = saved as TeamInstance;
+          .then((saved: TeamInstance) => {
+            const savedTeam = saved;
             // Then update slug (after team exists in DB)
             return savedTeam.updateSlug(currentUser.id, savedTeam.originalLanguage);
           })

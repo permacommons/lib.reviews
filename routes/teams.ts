@@ -1,6 +1,7 @@
 import escapeHTML from 'escape-html';
 import mlString from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
+import type { TeamInstance } from '../models/manifests/team.ts';
 import TeamJoinRequest from '../models/team-join-request.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
@@ -130,26 +131,28 @@ router.post(
   '/team/:id/join',
   (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
+    const currentUser = req.user;
+    if (!currentUser) return render.signinRequired(req, res);
+
     slugs
       .resolveAndLoadTeam(req, res, id)
-      .then(team => {
-        team.populateUserInfo(req.user);
-        if (!team.userCanJoin) return render.permissionError(req, res);
+      .then((team: TeamInstance) => {
+        const loadedTeam = team;
+        loadedTeam.populateUserInfo(currentUser);
+        if (!loadedTeam.userCanJoin) return render.permissionError(req, res);
 
-        if (
-          team.rules &&
-          mlString.resolve(req.locale, team.rules.html) &&
-          !req.body['agree-to-rules']
-        ) {
+        const rulesHtml = loadedTeam.rules?.html as Record<string, string> | undefined;
+
+        if (rulesHtml && mlString.resolve(req.locale, rulesHtml) && !req.body['agree-to-rules']) {
           req.flash('joinErrors', req.__('must agree to team rules'));
           return res.redirect(`/team/${id}`);
         }
 
-        if (team.modApprovalToJoin) {
+        const joinRequests = Array.isArray(loadedTeam.joinRequests) ? loadedTeam.joinRequests : [];
+
+        if (loadedTeam.modApprovalToJoin) {
           // Check if there's an existing join request (withdrawn, rejected, or approved)
-          const existingRequest = team.joinRequests.find(
-            (jr: Record<string, any>) => jr.userID === req.user.id
-          );
+          const existingRequest = joinRequests.find(jr => jr.userID === currentUser.id);
 
           const joinRequestMessageInput = req.body['join-request-message'];
           const joinRequestMessage =
@@ -172,8 +175,8 @@ router.post(
           } else {
             // Create new request
             let teamJoinRequest = new TeamJoinRequest({
-              teamID: team.id,
-              userID: req.user.id,
+              teamID: loadedTeam.id,
+              userID: currentUser.id,
               requestMessage: escapeHTML(joinRequestMessage),
               requestDate: new Date(),
             });
@@ -187,8 +190,11 @@ router.post(
         } else {
           // No approval required, just add the new member
 
-          team.members.push(req.user);
-          team
+          const members = Array.isArray(loadedTeam.members) ? [...loadedTeam.members] : [];
+          members.push(currentUser);
+          loadedTeam.members = members;
+
+          loadedTeam
             .saveAll()
             .then(() => {
               req.flash('pageMessages', req.__('welcome to the team'));
@@ -206,25 +212,31 @@ router.post(
   '/team/:id/leave',
   (req: TeamRouteRequest<{ id: string }>, res: TeamRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
+    const currentUser = req.user;
+    if (!currentUser) return render.signinRequired(req, res);
+
     slugs
       .resolveAndLoadTeam(req, res, id)
-      .then(team => {
-        team.populateUserInfo(req.user);
-        if (!team.userCanLeave) return render.permissionError(req, res);
+      .then((team: TeamInstance) => {
+        const loadedTeam = team;
+        loadedTeam.populateUserInfo(currentUser);
+        if (!loadedTeam.userCanLeave) return render.permissionError(req, res);
 
-        team.members = team.members.filter(member => member.id !== req.user.id);
-        team.moderators = team.moderators.filter(moderator => moderator.id !== req.user.id);
+        const members = Array.isArray(loadedTeam.members) ? loadedTeam.members : [];
+        loadedTeam.members = members.filter(member => member.id !== currentUser.id);
+        const moderators = Array.isArray(loadedTeam.moderators) ? loadedTeam.moderators : [];
+        loadedTeam.moderators = moderators.filter(moderator => moderator.id !== currentUser.id);
 
         // Mark any existing join request as withdrawn
-        const existingRequest = team.joinRequests.find(
-          (jr: Record<string, any>) => jr.userID === req.user.id
-        );
-        const savePromises = [team.saveAll()];
+        const joinRequests = Array.isArray(loadedTeam.joinRequests) ? loadedTeam.joinRequests : [];
+        const existingRequest = joinRequests.find(jr => jr.userID === currentUser.id);
 
-        if (existingRequest) {
-          existingRequest.status = 'withdrawn';
-          savePromises.push(existingRequest.save());
-        }
+        if (existingRequest) existingRequest.status = 'withdrawn';
+
+        const savePromises = [
+          loadedTeam.saveAll(),
+          ...(existingRequest ? [existingRequest.save()] : []),
+        ];
 
         Promise.all(savePromises)
           .then(() => {

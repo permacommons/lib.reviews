@@ -24,6 +24,12 @@ import slugs from './helpers/slugs.ts';
 
 const ReviewHandle = Review as ReviewModel;
 
+type ThingSyncConfig = {
+  description?: {
+    active?: boolean;
+  };
+};
+
 type ThingRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
 type ThingRouteResponse = HandlerResponse;
@@ -119,8 +125,8 @@ router.get(
         thing.populateUserInfo(req.user);
         if (!thing.userCanEdit) return render.permissionError(req, res, { titleKey });
 
-        let descriptionSyncActive =
-          thing.sync && thing.sync.description && thing.sync.description.active;
+        const syncConfig = (thing.sync ?? {}) as ThingSyncConfig;
+        const descriptionSyncActive = Boolean(syncConfig.description?.active);
         if (req.params.field === 'description' && descriptionSyncActive)
           return render.permissionError(req, res, {
             titleKey,
@@ -289,8 +295,8 @@ function processTextFieldUpdate(
           titleKey,
         });
 
-      let descriptionSyncActive =
-        thing.sync && thing.sync.description && thing.sync.description.active;
+      const syncConfig = (thing.sync ?? {}) as ThingSyncConfig;
+      const descriptionSyncActive = Boolean(syncConfig.description?.active);
       if (field === 'description' && descriptionSyncActive)
         return render.permissionError(req, res, {
           titleKey,

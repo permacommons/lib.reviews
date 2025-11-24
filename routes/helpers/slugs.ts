@@ -4,7 +4,10 @@ import isUUID from 'is-uuid';
 
 // Internal dependencies
 import errors from '../../dal/lib/errors.ts';
+import type { TeamInstance } from '../../models/manifests/team.ts';
+import type { ThingInstance } from '../../models/manifests/thing.ts';
 import Team from '../../models/team.ts';
+import TeamSlug from '../../models/team-slug.ts';
 import Thing from '../../models/thing.ts';
 import ThingSlug from '../../models/thing-slug.ts';
 
@@ -12,8 +15,10 @@ const { DocumentNotFound } = errors;
 
 type LoadOptions = Record<string, unknown> | undefined;
 
-type DocumentModel = {
-  getWithData: (id: string, options?: LoadOptions) => Promise<any>;
+type DocumentWithSlug = { canonicalSlugName?: string | null };
+
+type DocumentModel<T extends DocumentWithSlug = DocumentWithSlug> = {
+  getWithData: (id: string, options?: LoadOptions) => Promise<T>;
 };
 
 type SlugModel = {
@@ -21,25 +26,18 @@ type SlugModel = {
   getByName?: (name: string) => Promise<{ name: string; [key: string]: unknown } | null>;
 };
 
-interface ModelConfig {
+interface ModelConfig<T extends DocumentWithSlug = DocumentWithSlug> {
   basePath: string;
   slugForeignKey: string;
   slugLabel: string;
-  getDocumentModel?: () => DocumentModel | Promise<DocumentModel>;
-  DocumentModel?: DocumentModel;
+  getDocumentModel?: () => DocumentModel<T> | Promise<DocumentModel<T>>;
+  DocumentModel?: DocumentModel<T>;
   loadSlug?: (
     slugName: string,
-    model: DocumentModel
+    model: DocumentModel<T>
   ) => Promise<{ name: string; [key: string]: unknown } | null>;
   slugModel?: SlugModel;
   SlugModel?: SlugModel;
-}
-
-let teamSlugModulePromise: Promise<typeof import('../../models/team-slug.ts')> | null = null;
-async function getTeamSlugModel() {
-  if (!teamSlugModulePromise) teamSlugModulePromise = import('../../models/team-slug.ts');
-  const module = await teamSlugModulePromise;
-  return module.default;
 }
 
 /**
@@ -55,17 +53,21 @@ async function getTeamSlugModel() {
  * @param loadOptions
  *  Options documented on the Team model's `getWithData`
  */
-const resolveAndLoadTeam = (req: Request, res: Response, id: string, loadOptions?: LoadOptions) =>
-  resolveAndLoad(req, res, id, loadOptions, {
+const resolveAndLoadTeam = (
+  req: Request,
+  res: Response,
+  id: string,
+  loadOptions?: LoadOptions
+): Promise<TeamInstance> =>
+  resolveAndLoad<TeamInstance>(req, res, id, loadOptions, {
     basePath: '/team/',
     slugForeignKey: 'teamID',
-    getDocumentModel: async () => Team as unknown as DocumentModel,
-    loadSlug: async (slugName: string, _model: DocumentModel) => {
-      const TeamSlugModel = await getTeamSlugModel();
-      if (!TeamSlugModel || typeof TeamSlugModel.getByName !== 'function') return null;
+    getDocumentModel: async () => Team as unknown as DocumentModel<TeamInstance>,
+    loadSlug: async (slugName: string, _model: DocumentModel<TeamInstance>) => {
+      if (!TeamSlug || typeof TeamSlug.getByName !== 'function') return null;
       // TeamSlug returns model instances; convert to a plain object that exposes
       // exactly the fields resolveAndLoad expects (notably `name`).
-      const slugRecord = await TeamSlugModel.getByName(slugName);
+      const slugRecord = await TeamSlug.getByName(slugName);
       if (!slugRecord || typeof slugRecord !== 'object') {
         return null;
       }
@@ -89,11 +91,11 @@ const resolveAndLoadTeam = (req: Request, res: Response, id: string, loadOptions
  *  Options documented on the Thing model's `getWithData`
  */
 const resolveAndLoadThing = (req: Request, res: Response, id: string, loadOptions?: LoadOptions) =>
-  resolveAndLoad(req, res, id, loadOptions, {
+  resolveAndLoad<ThingInstance>(req, res, id, loadOptions, {
     basePath: '/',
     slugForeignKey: 'thingID',
-    getDocumentModel: async () => Thing as unknown as DocumentModel,
-    loadSlug: async (slugName: string, _model: DocumentModel) => {
+    getDocumentModel: async () => Thing as unknown as DocumentModel<ThingInstance>,
+    loadSlug: async (slugName: string, _model: DocumentModel<ThingInstance>) => {
       const ThingSlugModel = ThingSlug;
       if (!ThingSlugModel || typeof ThingSlugModel.getByName !== 'function') return null;
       // ThingSlug also returns model instances; reshape to a plain object.
@@ -123,13 +125,13 @@ const resolveAndLoadThing = (req: Request, res: Response, id: string, loadOption
  * @param modelConfig
  *  Configuration describing how to resolve the slug and load the document
  */
-const resolveAndLoad = async (
+const resolveAndLoad = async <T extends DocumentWithSlug>(
   req: Request,
   res: Response,
   id: string,
   loadOptions: LoadOptions,
-  modelConfig: ModelConfig
-): Promise<any> => {
+  modelConfig: ModelConfig<T>
+): Promise<T> => {
   const DocumentModel = modelConfig.getDocumentModel
     ? await modelConfig.getDocumentModel()
     : modelConfig.DocumentModel;
