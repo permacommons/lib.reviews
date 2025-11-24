@@ -1,5 +1,5 @@
 import express from 'express';
-import mlString from '../../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
 import type {
   BoundRenderFunction,
   BoundTemplateRenderer,
@@ -260,12 +260,12 @@ class AbstractBREADProvider {
     this.getResourceErrorHandler(resourceKeyPrefix, resolvedID)(notFoundError);
   }
 
-  protected normalizeMlString(value: unknown): Record<string, string> | undefined {
+  protected normalizeMlString(value: unknown): MultilingualString | undefined {
     if (!value || typeof value !== 'object') {
       return undefined;
     }
 
-    const normalized: Record<string, string> = {};
+    const normalized: MultilingualString = {};
     for (const [language, languageValue] of Object.entries(value as Record<string, unknown>)) {
       if (typeof languageValue === 'string') {
         normalized[language] = languageValue;
@@ -275,13 +275,13 @@ class AbstractBREADProvider {
     return Object.keys(normalized).length ? normalized : undefined;
   }
 
-  protected ensureMlString(value: unknown): Record<string, string> {
+  protected ensureMlString(value: unknown): MultilingualString {
     return this.normalizeMlString(value) ?? {};
   }
 
   protected resolveMlString(
     language: string,
-    value: Record<string, string> | unknown
+    value: MultilingualString | unknown
   ): ReturnType<typeof mlString.resolve> | undefined {
     const normalized = this.normalizeMlString(value);
     return normalized ? mlString.resolve(language, normalized) : undefined;

@@ -4,6 +4,7 @@ import uploadModalMessagesJson from '../frontend/messages/upload-modal-keys.json
   type: 'json',
 };
 import getMessages from './get-messages.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 
 /** Tuple of translation keys produced by the frontend build. */
 type MessageKeyArray = readonly string[];
@@ -26,7 +27,7 @@ const frontendMessages = {
     return [...editorMessageKeys];
   },
 
-  getEditorMessages(locale: string): Record<string, string> {
+  getEditorMessages(locale: string): MultilingualString {
     return getMessages(locale, editorMessageKeys);
   },
 
@@ -34,7 +35,7 @@ const frontendMessages = {
     return [...adapterMessageKeys];
   },
 
-  getAdapterMessages(locale: string): Record<string, string> {
+  getAdapterMessages(locale: string): MultilingualString {
     return getMessages(locale, adapterMessageKeys);
   },
 };

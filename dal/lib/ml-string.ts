@@ -9,7 +9,7 @@ const langKeys = languages.getValidLanguagesAndUndetermined() as string[];
 
 type MultilingualValue = Record<string, string | string[]>;
 
-type MultilingualString = Record<string, string>;
+export type MultilingualString = Record<string, string>;
 
 type MultilingualStringArray = Record<string, string[]>;
 
@@ -255,7 +255,7 @@ const mlString = {
    */
   resolve(
     lang: string,
-    strObj: Record<string, string> | null | undefined
+    strObj: MultilingualString | null | undefined
   ): ResolveResult | undefined {
     if (strObj === undefined || strObj === null) {
       return undefined;

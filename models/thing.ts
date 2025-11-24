@@ -8,6 +8,7 @@ import type {
 import adapters from '../adapters/adapters.ts';
 import type { JoinOptions } from '../dal/index.ts';
 import dal from '../dal/index.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import {
   defineInstanceMethods,
   defineModel,
@@ -169,7 +170,7 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
 
     let str;
     if (thing.label) {
-      const resolved = mlString.resolve(language, thing.label as Record<string, string>);
+      const resolved = mlString.resolve(language, thing.label as MultilingualString);
       str = resolved ? resolved.str : undefined;
     }
 
@@ -535,7 +536,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
       return this;
     }
 
-    const resolved = mlString.resolve(slugLanguage, this.label as Record<string, string>);
+    const resolved = mlString.resolve(slugLanguage, this.label as MultilingualString);
     if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) {
       return this;
     }

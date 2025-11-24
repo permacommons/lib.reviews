@@ -1,6 +1,6 @@
 // External dependencies
 import config from 'config';
-import mlString from '../../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
 import File from '../../models/file.ts';
 import {
   type ReviewInstance as ManifestReviewInstance,
@@ -27,10 +27,10 @@ import AbstractBREADProvider from './abstract-bread-provider.ts';
 type ReviewFormValues = {
   // From form parsing
   url?: string;
-  title?: Record<string, string>;
-  label?: Record<string, string>;
-  text?: Record<string, string>;
-  html?: Record<string, string>;
+  title?: MultilingualString;
+  label?: MultilingualString;
+  text?: MultilingualString;
+  html?: MultilingualString;
   starRating?: number;
   originalLanguage?: string;
   teams?: string[] | TeamInstance[]; // UUIDs from form, resolved to TeamInstance[] by resolveTeamData()
@@ -379,9 +379,9 @@ class ReviewProvider extends AbstractBREADProvider {
               fileObjects: review.thing.files as ReviewValidateSocialImageOptions['fileObjects'],
             });
 
-            const titleTranslations = newRev.title as Record<string, string>;
-            const textTranslations = newRev.text as Record<string, string>;
-            const htmlTranslations = newRev.html as Record<string, string>;
+            const titleTranslations = newRev.title as MultilingualString;
+            const textTranslations = newRev.text as MultilingualString;
+            const htmlTranslations = newRev.html as MultilingualString;
             const formTitles = f.title ?? {};
             const formTexts = f.text ?? {};
             const formHtml = f.html ?? {};

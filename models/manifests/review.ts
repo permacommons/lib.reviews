@@ -1,4 +1,5 @@
 import dal from '../../dal/index.ts';
+import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
@@ -135,7 +136,7 @@ type ReviewData = InferData<(typeof reviewManifest)['schema']>;
 export type ReviewInputObject = Partial<ReviewData> & {
   url?: string;
   thing?: ThingInstance;
-  label?: Record<string, string>;
+  label?: MultilingualString;
   teams?: TeamInstance[];
 };
 

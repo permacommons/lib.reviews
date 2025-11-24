@@ -8,7 +8,7 @@ import linkifyHTML from 'linkify-html';
 import stripTags from 'striptags';
 import adapters from '../adapters/adapters.ts';
 // Internal dependencies
-import mlString from '../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from '../dal/lib/ml-string.ts';
 import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import languages from '../locales/languages.ts';
 import type { ThingInstance } from '../models/manifests/thing.ts';
@@ -31,7 +31,7 @@ const getTemplateContext = (options: HelperOptions): TemplateContext =>
  * for the current locale. Used by mlSafeText and mlHTML helpers.
  */
 const resolveMultilingual = (locale: string, value: unknown) =>
-  mlString.resolve(locale, value as Record<string, string> | null | undefined);
+  mlString.resolve(locale, value as MultilingualString | null | undefined);
 
 /**
  * Determine whether we should append a language identifier badge.

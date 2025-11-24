@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
 
 import dal from '../dal/index.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import {
   defineInstanceMethods,
   defineModel,
@@ -148,7 +149,7 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
 
     if (!this.name) return this;
 
-    const resolved = mlString.resolve(slugLanguage, this.name as Record<string, string>);
+    const resolved = mlString.resolve(slugLanguage, this.name as MultilingualString);
     if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) return this;
 
     let baseSlug: string;

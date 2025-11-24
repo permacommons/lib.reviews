@@ -3,7 +3,7 @@ import url from 'node:url';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import i18n from 'i18n';
-import mlString from '../../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
 import BlogPost from '../../models/blog-post.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
 import type { TeamJoinRequestInstance } from '../../models/manifests/team-join-request.ts';
@@ -19,7 +19,7 @@ import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 const { getEditorMessages } = frontendMessages;
 
-type LocalizedText = Record<string, string>;
+type LocalizedText = MultilingualString;
 type LocalizedRichText = { text: LocalizedText; html: LocalizedText };
 type JoinRequestWithUser = TeamJoinRequestInstance & { user?: UserView };
 
@@ -107,16 +107,18 @@ class TeamProvider extends AbstractBREADProvider {
     const moderatorList: UserView[] = Array.isArray(team.moderators) ? team.moderators : [];
     moderatorList.forEach(moderator => (moderators[moderator.id] = true));
 
+    const titleParam = mlString.resolve(
+      typeof this.req.locale === 'string' ? this.req.locale : 'en',
+      team.name as MultilingualString
+    )?.str;
+
     this.renderTemplate('team-roster', {
       team,
       teamURL: `/team/${team.urlID}`,
       founder,
       moderators,
       titleKey: this.actions.members.titleKey,
-      titleParam: mlString.resolve(
-        typeof this.req.locale === 'string' ? this.req.locale : 'en',
-        team.name as Record<string, string>
-      ).str,
+      titleParam,
       deferPageHeader: true, // embedded link
     });
   }
@@ -140,8 +142,8 @@ class TeamProvider extends AbstractBREADProvider {
       teamURL: `/team/${team.urlID}`,
       teamName: mlString.resolve(
         typeof this.req.locale === 'string' ? this.req.locale : 'en',
-        team.name as Record<string, string>
-      ).str,
+        team.name as MultilingualString
+      )?.str,
       titleKey: 'manage join requests',
       pageErrors,
       pageMessages,
@@ -299,7 +301,7 @@ class TeamProvider extends AbstractBREADProvider {
     reviews.forEach(review => review.populateUserInfo(this.req.user));
 
     const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
-    let titleParam = mlString.resolve(currentLocale, team.name as Record<string, string>).str;
+    let titleParam = mlString.resolve(currentLocale, team.name as MultilingualString)?.str ?? '';
 
     // Error messages from any join attempts
     let joinErrors = this.req.flash('joinErrors');
@@ -406,7 +408,7 @@ class TeamProvider extends AbstractBREADProvider {
     });
 
     const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
-    let titleParam = mlString.resolve(currentLocale, team.name as Record<string, string>).str;
+    let titleParam = mlString.resolve(currentLocale, team.name as MultilingualString)?.str ?? '';
 
     // Atom feed metadata for <link> tags in HTML version
     let atomURLPrefix = `/team/${team.urlID}/feed/atom`;
@@ -476,25 +478,25 @@ class TeamProvider extends AbstractBREADProvider {
       })
       .then(newRev => {
         const source = formValues;
-        const motto = newRev.motto as Record<string, string>;
-        const name = newRev.name as Record<string, string>;
+        const motto = newRev.motto as MultilingualString;
+        const name = newRev.name as MultilingualString;
         const description = newRev.description as {
-          text: Record<string, string>;
-          html: Record<string, string>;
+          text: MultilingualString;
+          html: MultilingualString;
         };
         const rules = newRev.rules as {
-          text: Record<string, string>;
-          html: Record<string, string>;
+          text: MultilingualString;
+          html: MultilingualString;
         };
-        const sourceMotto = (source.motto ?? {}) as Record<string, string>;
-        const sourceName = (source.name ?? {}) as Record<string, string>;
+        const sourceMotto = (source.motto ?? {}) as MultilingualString;
+        const sourceName = (source.name ?? {}) as MultilingualString;
         const sourceDescription = (source.description ?? {}) as {
-          text?: Record<string, string>;
-          html?: Record<string, string>;
+          text?: MultilingualString;
+          html?: MultilingualString;
         };
         const sourceRules = (source.rules ?? {}) as {
-          text?: Record<string, string>;
-          html?: Record<string, string>;
+          text?: MultilingualString;
+          html?: MultilingualString;
         };
 
         motto[language] = sourceMotto[language] ?? '';

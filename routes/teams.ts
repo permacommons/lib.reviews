@@ -1,5 +1,6 @@
 import escapeHTML from 'escape-html';
 import mlString from '../dal/lib/ml-string.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
 import type { TeamInstance } from '../models/manifests/team.ts';
 import TeamJoinRequest from '../models/team-join-request.ts';
@@ -141,7 +142,7 @@ router.post(
         loadedTeam.populateUserInfo(currentUser);
         if (!loadedTeam.userCanJoin) return render.permissionError(req, res);
 
-        const rulesHtml = loadedTeam.rules?.html as Record<string, string> | undefined;
+        const rulesHtml = loadedTeam.rules?.html as MultilingualString | undefined;
 
         if (rulesHtml && mlString.resolve(req.locale, rulesHtml) && !req.body['agree-to-rules']) {
           req.flash('joinErrors', req.__('must agree to team rules'));

@@ -3,6 +3,7 @@ import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
 import languages from '../locales/languages.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import {
   type ReviewFeedResult,
   type ReviewInstance,
@@ -314,19 +315,19 @@ function processTextFieldUpdate(
         const metadataFields = ['description', 'subtitle', 'authors'];
         if (metadataFields.includes(field)) {
           const metadata = (revision.metadata ??= {} as Record<string, unknown>);
-          const fieldMetadata = (metadata[field] ??= {}) as Record<string, string>;
+          const fieldMetadata = (metadata[field] ??= {}) as MultilingualString;
           fieldMetadata[language] = escapeHTML(text);
         } else {
           // Handle direct fields like label
           switch (field) {
             case 'label': {
-              const label = (revision.label ??= {} as Record<string, string>);
+              const label = (revision.label ??= {} as MultilingualString);
               label[language] = escapeHTML(text);
               break;
             }
             default: {
               const revisionRecord = revision as Record<string, unknown>;
-              const fieldValue = (revisionRecord[field] ??= {}) as Record<string, string>;
+              const fieldValue = (revisionRecord[field] ??= {}) as MultilingualString;
               fieldValue[language] = escapeHTML(text);
               break;
             }
