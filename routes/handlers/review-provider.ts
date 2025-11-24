@@ -393,7 +393,7 @@ class ReviewProvider extends AbstractBREADProvider {
             newRev.teams = f.teams as TeamInstance[];
             newRev.thing = review.thing;
             newRev.socialImageID = f.socialImageID;
-            this.saveNewRevisionAndFiles(newRev as ReviewInstance, f.files)
+            this.saveNewRevisionAndFiles(newRev, f.files)
               .then(() => {
                 search.indexReview(review);
                 search.indexThing(review.thing);

@@ -474,8 +474,7 @@ class TeamProvider extends AbstractBREADProvider {
       .newRevision(currentUser, {
         tags: ['edit-via-form'],
       })
-      .then((revision: TeamInstance) => {
-        const newRev = revision;
+      .then(newRev => {
         const source = formValues;
         const motto = newRev.motto as Record<string, string>;
         const name = newRev.name as Record<string, string>;
@@ -551,8 +550,7 @@ class TeamProvider extends AbstractBREADProvider {
     Team.createFirstRevision(currentUser, {
       tags: ['create-via-form'],
     })
-      .then(teamRevision => {
-        const newTeam = teamRevision;
+      .then(newTeam => {
         // Associate parsed form data with revision
         Object.assign(newTeam, formValues);
 

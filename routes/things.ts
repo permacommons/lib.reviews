@@ -569,7 +569,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
         return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
 
       // No dupes -- continue!
-      thing.newRevision(req.user).then((revision: ThingInstance) => {
+      thing.newRevision(req.user).then(revision => {
         // Reset sync settings for adapters
         revision.setURLs(thingURLs);
         // Fetch external data for any URLs that support it and update thing, search index
