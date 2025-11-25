@@ -1,4 +1,5 @@
 import type { SearchParams, SearchResponse } from 'elasticsearch';
+import type { SuggestThingResponse } from '../../search.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 type SearchModule = typeof import('../../search.ts').default;
@@ -153,7 +154,7 @@ export function mockSearch<TDocument = Record<string, unknown>>(
     },
     suggestThing: async (prefix = '', lang: LocaleCode = 'en') => {
       captured.searchQueries.push({ type: 'suggestThing', prefix, lang });
-      return captured.mockSearchResponse as unknown as SearchResponse<any>;
+      return captured.mockSearchResponse as unknown as SuggestThingResponse;
     },
     createIndices: async () => {},
     deleteThing: async () => {},

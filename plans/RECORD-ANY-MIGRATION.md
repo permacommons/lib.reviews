@@ -3,6 +3,15 @@
 Tracking the migration of loose `Record<string, any>` types to specific interfaces
 in route handlers and providers.
 
+## ✅ Migration Complete
+
+All tracked `Record<string, any>` instances have been migrated to proper types:
+- ✅ Form helpers (`routes/helpers/forms.ts`) - migrated to `Record<string, unknown>`
+- ✅ Upload handler (`routes/handlers/api-upload-handler.ts`) - created `UploadMetadata` type
+- ✅ API search results (`routes/api.ts`) - created `SuggestThingResponse` type
+
+---
+
 ## Priority: Model Casts in Providers
 
 ### `routes/handlers/review-provider.ts`
@@ -160,11 +169,15 @@ type UploadMetadata = {
 
 ### `routes/api.ts`
 
-| Line | Code | Notes |
-|------|------|-------|
-| 103 | `(results as Record<string, any>).suggest` | ElasticSearch response |
+✅ **Migration Completed:**
+- [x] Created `SuggestThingResponse` type for ElasticSearch suggest queries
+- [x] Moved type definition to `search.ts` and exported it
+- [x] Updated return type from `Promise<SearchResponse<any>>` to `Promise<SuggestThingResponse>`
+- [x] Updated `routes/api.ts` to import and use typed response directly (no casting needed at call site)
+- [x] Updated test mock in `tests/helpers/mock-search.ts` to return correct type
+- [x] Type checker passes with no errors
 
-**Potential:** Create `ElasticSearchSuggestResponse` interface based on actual response shape.
+**Solution:** Created `SuggestThingResponse` type and updated the function signature in `search.ts`. The function uses `.search()` with a suggest body (correct for ES 6.0+, as the `_suggest` endpoint was removed). A single `as unknown` cast is needed in `search.ts` because the client library's `SearchResponse` type doesn't match the actual suggest response structure.
 
 ---
 

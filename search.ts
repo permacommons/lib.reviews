@@ -15,6 +15,25 @@ type LocaleCode = LibReviews.LocaleCode;
 
 type ElasticClient = elasticsearch.Client;
 
+/**
+ * ElasticSearch suggest response structure for thing completion queries.
+ */
+export type SuggestThingResponse = {
+  suggest: {
+    [key: `labels-${string}`]: Array<{
+      options: Array<{
+        _source: {
+          urlID: string;
+          urls: unknown;
+          description: unknown;
+        };
+        _index: string;
+        [key: string]: unknown;
+      }>;
+    }>;
+  };
+};
+
 let client: ElasticClient | null = null;
 
 function createClient(): ElasticClient {
@@ -204,7 +223,7 @@ const search = {
 
   // Get search suggestions based on entered characters for review subjects
   // (things).
-  suggestThing(prefix = '', lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
+  suggestThing(prefix = '', lang: LocaleCode = 'en'): Promise<SuggestThingResponse> {
     // We'll query all fallbacks back to English, and return all results
     const langs = languages.getFallbacks(lang);
     if (lang !== 'en') langs.unshift(lang);
@@ -229,7 +248,10 @@ const search = {
 
     query.body = { ...query.body, suggest };
 
-    return getClient().search(query);
+    // Note: The _suggest endpoint was removed in Elasticsearch 6.0. Modern ES uses the
+    // _search endpoint with a suggest body. The client's SearchResponse type doesn't match
+    // the actual response structure (which has 'suggest' instead of 'hits'), hence the cast.
+    return getClient().search(query) as unknown as Promise<SuggestThingResponse>;
   },
 
   // Index a new review. Returns a promise; logs errors

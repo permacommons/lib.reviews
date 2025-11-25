@@ -3,7 +3,7 @@ import languages from '../locales/languages.ts';
 import { type ThingModel } from '../models/manifests/thing.ts';
 import Thing from '../models/thing.ts';
 import User from '../models/user.ts';
-import search from '../search.ts';
+import search, { type SuggestThingResponse } from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import urlUtils from '../util/url-utils.ts';
 import actionHandler from './handlers/action-handler.ts';
@@ -100,7 +100,7 @@ router.get(
 
         // Simplify ElasticSearch result structure for API use (flatten, strip
         // metadata; strip unneeded source data)
-        const suggestions = (results as Record<string, any>).suggest as Record<string, any[]>;
+        const suggestions = results.suggest;
         rv.results = suggestions;
         for (const key of Object.keys(suggestions)) {
           const entries = suggestions[key][0].options;
