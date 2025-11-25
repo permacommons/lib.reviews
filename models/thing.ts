@@ -8,12 +8,12 @@ import type {
 import adapters from '../adapters/adapters.ts';
 import type { JoinOptions } from '../dal/index.ts';
 import dal from '../dal/index.ts';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import {
   defineInstanceMethods,
   defineModel,
   defineStaticMethods,
 } from '../dal/lib/create-model.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import type { VersionedModelInstance } from '../dal/lib/model-types.ts';
 import search from '../search.ts';
 import debug from '../util/debug.ts';

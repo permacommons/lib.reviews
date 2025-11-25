@@ -9,6 +9,18 @@ All tracked `Record<string, any>` instances have been migrated to proper types:
 - ✅ Form helpers (`routes/helpers/forms.ts`) - migrated to `Record<string, unknown>`
 - ✅ Upload handler (`routes/handlers/api-upload-handler.ts`) - created `UploadMetadata` type
 - ✅ API search results (`routes/api.ts`) - created `SuggestThingResponse` type
+- ✅ Form field definitions (`routes/actions.ts`) - added explicit `FormField[]` type
+- ✅ Form values (`routes/things.ts`, `routes/uploads.ts`) - migrated to `Record<string, unknown>`
+- ✅ Action handlers (`routes/handlers/action-handler.ts`) - replaced generic `ActionRequest` with specific types:
+  - `PreferenceRequest` for preference modifications
+  - `NoticeRequest` for notice suppression
+  - `UploadRequest` with proper `UploadMetadata` type
+
+**Remaining `Record<string, any>` in source code:**
+- `search.ts` (3 instances) - Elasticsearch indexing operations (legitimate use for dynamic JSON documents)
+
+**Next steps:**
+See `plans/ZOD-MIGRATION.md` for planned migration to Zod for better form type safety.
 
 ---
 
@@ -181,23 +193,17 @@ type UploadMetadata = {
 
 ---
 
-## Shared Types to Create
+## Shared Types
 
-### FormFieldDefinition
+### FormField
 
-```typescript
-interface FormFieldDefinition {
-  name: string;
-  required?: boolean;
-  skipValue?: boolean;
-  key?: string;
-  htmlKey?: string;
-  type?: 'text' | 'markdown' | 'number' | 'boolean' | 'url' | 'uuid';
-  flat?: boolean;
-}
-```
+✅ **Type consolidation completed:**
+- [x] `FormField` type exported from `routes/helpers/forms.ts`
+- [x] Used consistently across all providers: review, team, blog-post
+- [x] Used in `routes/things.ts` for inline formDef arrays
+- [x] Added to `routes/actions.ts` to type `formDefs` (was previously untyped)
 
-Currently duplicated in `forms.ts` as `FormField` (line 14-23).
+All form field definitions now use the shared `FormField` type exported from the forms helper module.
 
 ---
 

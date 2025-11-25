@@ -22,7 +22,7 @@ type UploadFile = {
  * Metadata for file uploads. For single uploads, fields are used directly.
  * For multiple uploads, each field gets a `-${filename}` suffix.
  */
-type UploadMetadata = {
+export type UploadMetadata = {
   // Global flag
   multiple?: boolean;
   // Single file metadata (no suffix)

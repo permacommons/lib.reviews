@@ -66,6 +66,7 @@ interface MlStringVariants {
 
   stripHTML<T extends MultilingualInput>(strObj: T): T;
   stripHTMLFromArray<T extends MultilingualInput>(strObjArr: T[]): T[];
+  stripHTMLFromArrayValues(strObj: MultilingualStringArray): MultilingualStringArray;
   buildQuery(fieldName: string, lang: string, value: string, operator?: string): string;
   buildMultiLanguageQuery(fieldName: string, searchTerm: string, operator?: string): string;
   validate(value: unknown, options?: MlStringSchemaOptions): boolean;
@@ -253,10 +254,7 @@ const mlString = {
    * Find the best fit for a given language from a multilingual string object,
    * taking into account fallbacks.
    */
-  resolve(
-    lang: string,
-    strObj: MultilingualString | null | undefined
-  ): ResolveResult | undefined {
+  resolve(lang: string, strObj: MultilingualString | null | undefined): ResolveResult | undefined {
     if (strObj === undefined || strObj === null) {
       return undefined;
     }
@@ -327,6 +325,27 @@ const mlString = {
     }
 
     return strObjArr.map(value => mlString.stripHTML(value));
+  },
+
+  /**
+   * Multilingual object with array values - strips HTML from each string in each array.
+   * Used for fields like aliases where structure is { en: ["str1", "str2"], de: [...] }
+   */
+  stripHTMLFromArrayValues(strObj: MultilingualStringArray): MultilingualStringArray {
+    if (typeof strObj !== 'object' || strObj === null) {
+      return strObj;
+    }
+
+    const result: Record<string, string[]> = {};
+    for (const [lang, values] of Object.entries(strObj)) {
+      if (Array.isArray(values)) {
+        result[lang] = values.map(v => (typeof v === 'string' ? stripTags(decodeHTML(v)) : v));
+      } else {
+        result[lang] = values;
+      }
+    }
+
+    return result;
   },
 
   /**

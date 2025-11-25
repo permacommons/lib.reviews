@@ -85,7 +85,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
     this: ReviewModel,
     reviewObj: ReviewInputObject,
     { tags, files }: ReviewCreateOptions = {}
-  ) {
+  ): Promise<ReviewInstance> {
     const thing = await this.findOrCreateThing(reviewObj);
 
     const existingReview = await this.filterWhere({

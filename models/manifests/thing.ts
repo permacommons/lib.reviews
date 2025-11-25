@@ -4,6 +4,7 @@ import type {
 } from '../../adapters/abstract-backend-adapter.ts';
 import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
+import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type {
@@ -11,7 +12,7 @@ import type {
   InferInstance,
   ModelManifest,
 } from '../../dal/lib/model-manifest.ts';
-import type { InstanceMethod } from '../../dal/lib/model-types.ts';
+import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
@@ -155,21 +156,30 @@ const thingManifest = {
     averageStarRating: types.virtual().default(0),
 
     // Virtual accessors for nested metadata JSONB fields
-    description: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
-      const metadata =
-        typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
-      return metadata?.description;
-    }),
-    subtitle: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
-      const metadata =
-        typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
-      return metadata?.subtitle;
-    }),
-    authors: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
-      const metadata =
-        typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
-      return metadata?.authors;
-    }),
+    description: types
+      .virtual()
+      .returns<MultilingualString | undefined>()
+      .default(function () {
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        return metadata?.description;
+      }),
+    subtitle: types
+      .virtual()
+      .returns<MultilingualString | undefined>()
+      .default(function () {
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        return metadata?.subtitle;
+      }),
+    authors: types
+      .virtual()
+      .returns<MultilingualString[] | undefined>()
+      .default(function () {
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        return metadata?.authors;
+      }),
 
     // Note: relation fields (reviews, files) are typed via intersection pattern
   },

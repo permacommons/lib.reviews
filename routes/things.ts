@@ -2,8 +2,8 @@ import * as url from 'node:url';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
-import languages from '../locales/languages.ts';
 import type { MultilingualString } from '../dal/lib/ml-string.ts';
+import languages from '../locales/languages.ts';
 import {
   type ReviewFeedResult,
   type ReviewInstance,
@@ -39,7 +39,7 @@ interface ThingURLsFormParams {
   res: ThingRouteResponse;
   titleKey: string;
   thing: ThingInstance;
-  formValues?: Record<string, any>;
+  formValues?: Record<string, unknown>;
 }
 
 const router = Router();

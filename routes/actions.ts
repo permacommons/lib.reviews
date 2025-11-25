@@ -15,7 +15,7 @@ import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http
 import debug from '../util/debug.ts';
 import actionHandler from './handlers/action-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
-import forms from './helpers/forms.ts';
+import forms, { type FormField } from './helpers/forms.ts';
 import render from './helpers/render.ts';
 
 type ActionsRequest = HandlerRequest<
@@ -47,7 +47,7 @@ const router = Router();
 const InviteLinkModel: InviteLinkModelConstructor = InviteLink;
 type CreateUserPayload = Parameters<typeof User.create>[0];
 
-const formDefs = {
+const formDefs: Record<string, FormField[]> = {
   register: [
     {
       name: 'username',

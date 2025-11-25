@@ -15,10 +15,10 @@ import bodyParser from 'body-parser';
 import type { IRCConfig } from 'config';
 import config from 'config';
 import { decodeHTML } from 'entities';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import type { Request, Response } from 'express';
 import express from 'express';
 import irc from 'irc-upd';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 
 interface ReviewWebhookPayload {
   thingURLs?: string[];

@@ -9,6 +9,8 @@ import type {
 import elasticsearch from 'elasticsearch';
 import mlString from './dal/lib/ml-string.ts';
 import languages from './locales/languages.ts';
+import type { ReviewInstance } from './models/manifests/review.ts';
+import type { ThingInstance } from './models/manifests/thing.ts';
 import debug from './util/debug.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
@@ -255,7 +257,7 @@ const search = {
   },
 
   // Index a new review. Returns a promise; logs errors
-  indexReview(review: Record<string, any>): Promise<unknown> {
+  indexReview(review: ReviewInstance): Promise<unknown> {
     // Skip indexing if this is an old or deleted revision
     if (review._oldRevOf || review._revDeleted) {
       debug.util(`Skipping indexing of review ${review.id} - old or deleted revision`);
@@ -288,7 +290,7 @@ const search = {
   },
 
   // Index a new review subject (thing). Returns a promise; logs errors
-  indexThing(thing: Record<string, any>): Promise<unknown> {
+  indexThing(thing: ThingInstance): Promise<unknown> {
     // Skip indexing if this is an old or deleted revision
     if (thing._oldRevOf || thing._revDeleted) {
       debug.util(`Skipping indexing of thing ${thing.id} - old or deleted revision`);
@@ -310,10 +312,10 @@ const search = {
       body: {
         createdOn: thing.createdOn,
         label: mlString.stripHTML(thing.label),
-        aliases: mlString.stripHTMLFromArray(thing.aliases),
+        aliases: mlString.stripHTMLFromArrayValues(thing.aliases),
         description: mlString.stripHTML(description),
         subtitle: mlString.stripHTML(subtitle),
-        authors: mlString.stripHTMLFromArray(authors),
+        authors: authors ? mlString.stripHTMLFromArray(authors) : authors,
         joined: 'thing',
         type: 'thing',
         urls: thing.urls,

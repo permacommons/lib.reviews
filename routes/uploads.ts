@@ -490,7 +490,7 @@ function processUploadForm(
 
 async function processUploads(
   uploads: FileInstance[],
-  formValues: Record<string, any>,
+  formValues: Record<string, unknown>,
   language: string,
   uploadsDir: string
 ): Promise<void> {

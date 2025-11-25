@@ -257,22 +257,18 @@ export type VersionedModelInstance<
   TVirtual extends JsonObject = JsonObject,
 > = ModelInstance<TData, TVirtual> &
   RevisionFieldMap & {
-    newRevision<TThis extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
-      TData,
-      TVirtual
-    >>(
-      this: TThis,
-      user: RevisionActor | null,
-      options?: RevisionMetadata
-    ): Promise<TThis>;
-    deleteAllRevisions<TThis extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
-      TData,
-      TVirtual
-    >>(
-      this: TThis,
-      user?: RevisionActor | null,
-      options?: RevisionMetadata
-    ): Promise<TThis>;
+    newRevision<
+      TThis extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
+        TData,
+        TVirtual
+      >,
+    >(this: TThis, user: RevisionActor | null, options?: RevisionMetadata): Promise<TThis>;
+    deleteAllRevisions<
+      TThis extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
+        TData,
+        TVirtual
+      >,
+    >(this: TThis, user?: RevisionActor | null, options?: RevisionMetadata): Promise<TThis>;
   };
 
 export type RevisionDataRecord = JsonObject & RevisionFieldMap;

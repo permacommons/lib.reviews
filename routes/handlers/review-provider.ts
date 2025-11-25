@@ -270,9 +270,7 @@ class ReviewProvider extends AbstractBREADProvider {
           tags: ['create-via-form'],
           files: formValues.files,
         })
-          .then(createdReview => {
-            // Cast to local ReviewInstance for compatibility with existing code
-            const review = createdReview as unknown as ReviewInstance;
+          .then((review: ReviewInstance) => {
             this.req.app.locals.webHooks.trigger('newReview', {
               event: 'new-review',
               data: this.getWebHookData(review, this.req.user),
@@ -282,8 +280,8 @@ class ReviewProvider extends AbstractBREADProvider {
               .increment('inviteLinkCount', { by: 1 })
               .then(() => {
                 this.res.redirect(`/${review.thing.id}#your-review`);
-                search.indexReview(createdReview);
-                search.indexThing(createdReview.thing);
+                search.indexReview(review);
+                search.indexThing(review.thing);
               })
               .catch(this.next); // Problem updating invite count
           })

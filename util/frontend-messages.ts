@@ -1,10 +1,10 @@
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import adapterMessagesJson from '../frontend/messages/adapter-keys.json' with { type: 'json' };
 import editorMessagesJson from '../frontend/messages/editor-keys.json' with { type: 'json' };
 import uploadModalMessagesJson from '../frontend/messages/upload-modal-keys.json' with {
   type: 'json',
 };
 import getMessages from './get-messages.ts';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
 
 /** Tuple of translation keys produced by the frontend build. */
 type MessageKeyArray = readonly string[];
