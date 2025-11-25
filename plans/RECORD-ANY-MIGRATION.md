@@ -85,49 +85,13 @@ fields explicitly. This provides type safety while acknowledging the mutation pa
 
 ### `routes/handlers/team-provider.ts`
 
-**Current Issues:**
+**Current Issues:** ✅ All `Record<string, any>` removed
 
-| Line | Code | Issue |
-|------|------|-------|
-| 20-38 | Local `TeamInstance` with `Record<string, any>` | Loose typing for members/moderators/etc |
-| 39 | `type TeamFormValues = Record<string, any>;` | Completely untyped |
-| 551, 554 | `this.req.user as Record<string, any>` | Should use UserInstance |
-
-**Migration Plan:**
-
-1. [x] Remove `as any` casts - BlogPost now imported directly
-2. [x] Type `formDefs` as `Record<string, FormField[]>`
-3. [ ] Tighten local `TeamInstance` - **UNBLOCKED** (see analysis below)
-4. [ ] Type `TeamFormValues` with explicit fields
-5. [ ] Replace `req.user as Record<string, any>` with UserInstance
-
-#### Analysis: TeamInstance Complexity
-
-**UPDATE (2024-11): Core blockers resolved by relation redesign work.**
-
-Previously attempted migration revealed manifest-level issues:
-
-1. ~~**Method `this` context breaks with `Omit`**~~ **RESOLVED** - The `extends Record<string, InstanceMethod>`
-   pattern on `TeamInstanceMethods` caused index signature conflicts. This pattern has been removed
-   from all manifests (team.ts, file.ts, thing.ts). Plain interfaces are now used.
-
-2. ~~**Manifest virtual field types are too loose**~~ **RESOLVED** - `joinRequests` and `reviews`
-   now use intersection pattern with `TeamJoinRequestInstance[]` and `ReviewInstance[]`.
-
-3. ~~**Some manifest fields appear mis-typed**~~ **RESOLVED** - Fields were being inferred as
-   `InstanceMethod` due to the index signature on the methods interface. Now fixed.
-
-**Current status: UNBLOCKED**
-
-The team-provider migration can now proceed:
-- [x] `TeamInstanceMethods` uses plain interface (no index signature conflict)
-- [x] `TeamInstance` uses intersection pattern for relation fields (`members`, `moderators`)
-- [ ] Tighten local `TeamInstance` in handler - should now work with manifest type
-- [ ] Type `TeamFormValues` with explicit fields
-- [ ] Replace `req.user as Record<string, any>` with UserInstance
-
-**Completed improvements:**
-- [x] Migrate `joinRequests`/`reviews` virtuals to intersection pattern (now `TeamJoinRequestInstance[]` and `ReviewInstance[]`)
+**Migration Completed:**
+- [x] Tightened local `TeamInstance` to manifest type; removed `Record<any>` fallbacks
+- [x] Typed `TeamFormValues` explicitly
+- [x] Replaced `req.user as Record<string, any>` with `RequestUser`
+- [x] Left `formDefs` typed as `Record<string, FormField[]>` (already done)
 
 ---
 
