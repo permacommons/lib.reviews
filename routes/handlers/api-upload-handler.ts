@@ -19,6 +19,29 @@ type UploadFile = {
 };
 
 /**
+ * Metadata for file uploads. For single uploads, fields are used directly.
+ * For multiple uploads, each field gets a `-${filename}` suffix.
+ */
+type UploadMetadata = {
+  // Global flag
+  multiple?: boolean;
+  // Single file metadata (no suffix)
+  description?: string;
+  creator?: string;
+  source?: string;
+  license?: string;
+  language?: string;
+  ownwork?: boolean;
+  // Multiple file metadata (with `-${filename}` suffix)
+  [key: `description-${string}`]: string | undefined;
+  [key: `creator-${string}`]: string | undefined;
+  [key: `source-${string}`]: string | undefined;
+  [key: `license-${string}`]: string | undefined;
+  [key: `language-${string}`]: string | undefined;
+  [key: `ownwork-${string}`]: boolean | undefined;
+};
+
+/**
  * completeUploads is invoked with an explicit uploadsDir from req.app.locals.paths.
  * This avoids per-module path guessing and keeps prod/dev parity.
  */
@@ -30,7 +53,7 @@ type UploadFile = {
  */
 export default apiUploadHandler;
 
-type UploadRequest = HandlerRequest<Record<string, string>, unknown, Record<string, any>> & {
+type UploadRequest = HandlerRequest<Record<string, string>, unknown, UploadMetadata> & {
   files: UploadFile[];
 };
 
@@ -106,7 +129,7 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
  * @returns
  *  Validation errors, if any.
  */
-function validateAllMetadata(files: UploadFile[], data: Record<string, any>): Error[] {
+function validateAllMetadata(files: UploadFile[], data: UploadMetadata): Error[] {
   const errors: Error[] = [],
     processedFields = ['multiple'],
     multiple = Boolean(data.multiple);
@@ -142,7 +165,7 @@ function validateAllMetadata(files: UploadFile[], data: Record<string, any>): Er
  * @returns
  *  Validation errors for this field, if any
  */
-function validateMetadata(file: UploadFile, data: Record<string, any>, { addSuffix = false } = {}) {
+function validateMetadata(file: UploadFile, data: UploadMetadata, { addSuffix = false } = {}) {
   const validLicenses = (
     File as unknown as { getValidLicenses: () => string[] }
   ).getValidLicenses();
@@ -191,7 +214,7 @@ function validateMetadata(file: UploadFile, data: Record<string, any>, { addSuff
  *  errors for each validation issue or an empty array
  */
 function checkRequired(
-  obj: Record<string, any>,
+  obj: Record<string, unknown>,
   required: string[] = [],
   conditionallyIgnored: string[] = []
 ): Error[] {
@@ -225,7 +248,7 @@ function checkRequired(
  * @returns
  *  the revisions for further processing
  */
-function addMetadata(files: UploadFile[], fileRevs: FileInstance[], data: Record<string, any>) {
+function addMetadata(files: UploadFile[], fileRevs: FileInstance[], data: UploadMetadata) {
   const multiple = Boolean(data.multiple);
   fileRevs.forEach((fileRev, index) =>
     addMetadataToFileRev(files[index], fileRevs[index], data, { addSuffix: multiple })
@@ -250,11 +273,11 @@ function addMetadata(files: UploadFile[], fileRevs: FileInstance[], data: Record
 function addMetadataToFileRev(
   file: UploadFile,
   fileRev: FileInstance,
-  data: Record<string, any>,
+  data: UploadMetadata,
   { addSuffix = false } = {}
 ) {
   const field = (key: string) => (addSuffix ? `${key}-${file.originalname}` : key);
-  const addMlStr = (keys: string[], rev: Record<string, any>) => {
+  const addMlStr = (keys: string[], rev: FileInstance) => {
     for (const key of keys)
       if (data[field(key)])
         rev[key] = {

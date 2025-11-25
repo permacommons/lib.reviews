@@ -46,7 +46,7 @@ interface ParseSubmissionResult {
   hasRequiredFields: boolean;
   hasUnknownFields: boolean;
   hasCorrectCaptcha: boolean | null;
-  formValues: Record<string, any>;
+  formValues: Record<string, unknown>;
 }
 
 const toStringValue = (value: unknown): string => String(value ?? '');
@@ -84,7 +84,7 @@ const forms = {
     let hasRequiredFields = true;
     let hasUnknownFields = false;
     let hasCorrectCaptcha: boolean | null = null;
-    const formValues: Record<string, any> = {};
+    const formValues: Record<string, unknown> = {};
     const processedKeys = Object.keys((req.body ?? {}) as Record<string, unknown>);
 
     // Any form submission requires a CSRF token

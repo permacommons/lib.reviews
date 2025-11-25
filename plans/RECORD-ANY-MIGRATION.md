@@ -112,36 +112,46 @@ fields explicitly. This provides type safety while acknowledging the mutation pa
 
 ### `routes/helpers/forms.ts`
 
-| Line | Code | Notes |
-|------|------|-------|
-| 48 | `formValues: Record<string, any>` in ParseSubmissionResult | Core form helper |
-| 86 | `const formValues: Record<string, any> = {}` | Runtime accumulator |
+✅ **Migration Completed:**
+- [x] Changed `formValues: Record<string, any>` to `Record<string, unknown>` (lines 49, 87)
+- [x] Type checker passes with no errors
+- Existing transform functions and type assertions at call sites work correctly
+- `unknown` is safer than `any` - forces type narrowing at usage sites
 
-**Challenge:** Form values are dynamically built based on formDef. Options:
-- Generic `ParseSubmissionResult<T>` where T extends form schema
-- Keep `Record<string, unknown>` (safer than `any`)
-- Type-narrow at call sites
+**Rationale:** Form values are dynamically built based on formDef. Rather than attempting complex generic inference, we use `Record<string, unknown>` which:
+- Requires explicit type narrowing at call sites (safer than `any`)
+- Acknowledges dynamic nature of form parsing
+- Works with existing `transform` function pattern in `parseData<TParsed>()`
 
 ### `routes/handlers/api-upload-handler.ts`
 
-| Line | Code | Notes |
-|------|------|-------|
-| 33 | Request body `Record<string, any>` | Upload metadata |
-| 109, 145, 194, 228, 253, 257 | Various `Record<string, any>` params | Metadata validation/handling |
+✅ **Migration Completed:**
+- [x] Created `UploadMetadata` type with proper structure
+- [x] Updated `UploadRequest` type to use `UploadMetadata` instead of `Record<string, any>`
+- [x] Updated all function signatures: `validateAllMetadata`, `validateMetadata`, `addMetadata`, `addMetadataToFileRev`
+- [x] Changed `checkRequired` to use `Record<string, unknown>` (generic utility)
+- [x] Updated `addMlStr` inner function to accept `FileInstance` directly
+- [x] Type checker passes with no errors
 
-**Potential type:**
+**Created Type:**
 ```typescript
-interface UploadMetadata {
+type UploadMetadata = {
   multiple?: boolean;
+  // Single file metadata (no suffix)
   description?: string;
   creator?: string;
   source?: string;
   license?: string;
   language?: string;
   ownwork?: boolean;
-  // Per-file variants: `${field}-${filename}`
-  [key: `${string}-${string}`]: string | boolean | undefined;
-}
+  // Multiple file metadata (with `-${filename}` suffix)
+  [key: `description-${string}`]: string | undefined;
+  [key: `creator-${string}`]: string | undefined;
+  [key: `source-${string}`]: string | undefined;
+  [key: `license-${string}`]: string | undefined;
+  [key: `language-${string}`]: string | undefined;
+  [key: `ownwork-${string}`]: boolean | undefined;
+};
 ```
 
 ---
