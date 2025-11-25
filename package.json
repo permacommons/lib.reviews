@@ -39,7 +39,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.1.0",
     "bcrypt": "^6.0.0",
-    "body-parser": "^2.2.0",
+    "body-parser": "^2.2.1",
     "cldr-localenames-full": "^29.0.0",
     "compression": "^1.8.1",
     "config": "^4.1.1",
