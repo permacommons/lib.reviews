@@ -424,4 +424,43 @@ export type ManifestModel<
   InstanceMethods extends object = Record<never, InstanceMethod>,
 > = InferConstructor<MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>>;
 
+/**
+ * Bundle of commonly used manifest-derived types.
+ *
+ * This keeps manifest files terse by collecting the different inferred types
+ * in one place, so authors don't have to declare separate aliases for the
+ * base model, base instance, data shape, and virtual fields.
+ */
+export type ManifestTypes<
+  Manifest extends ModelManifest,
+  StaticMethods extends object = EmptyStaticMethods,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
+  RelationFields extends object = Record<never, never>,
+> = {
+  /**
+   * Instance type including any relation fields added via intersection.
+   */
+  Instance: ManifestInstance<Manifest, InstanceMethods> & RelationFields;
+  /**
+   * Model constructor type including additional static/instance methods.
+   */
+  Model: ManifestModel<Manifest, StaticMethods, InstanceMethods>;
+  /**
+   * Base model constructor type without custom statics/instance methods.
+   */
+  BaseModel: InferConstructor<Manifest>;
+  /**
+   * Base instance type without custom instance methods or relations.
+   */
+  BaseInstance: InferInstance<Manifest>;
+  /**
+   * Persisted data shape inferred from the schema.
+   */
+  Data: InferData<Manifest['schema']>;
+  /**
+   * Virtual fields inferred from the schema.
+   */
+  Virtual: ManifestVirtualFields<Manifest>;
+};
+
 export type { ModelConstructorWithStatics, MergeManifestMethods };

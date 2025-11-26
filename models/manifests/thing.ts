@@ -3,14 +3,10 @@ import type {
   AdapterLookupResult,
 } from '../../adapters/abstract-backend-adapter.ts';
 import dal from '../../dal/index.ts';
-import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
@@ -136,7 +132,7 @@ const thingManifest = {
     createdBy: types.string().uuid(4).required(true),
 
     // Virtual fields for compatibility
-    urlID: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
+    urlID: types.virtual().default(function (this: ThingTypes['BaseInstance']) {
       const slugName =
         typeof this.getValue === 'function'
           ? this.getValue('canonicalSlugName')
@@ -213,8 +209,18 @@ const thingManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type ThingInstanceBase = InferInstance<typeof thingManifest>;
-type ThingModelBase = InferConstructor<typeof thingManifest>;
+type ThingTypes = ManifestTypes<
+  typeof thingManifest,
+  ThingStaticMethods,
+  ThingInstanceMethods,
+  {
+    reviews?: ReviewInstance[];
+    files?: FileInstance[];
+  }
+>;
+
+type ThingInstanceBase = ThingTypes['BaseInstance'];
+type ThingModelBase = ThingTypes['BaseModel'];
 
 export interface ThingInstanceMethods {
   initializeFieldsFromAdapter(
@@ -271,15 +277,8 @@ export interface ThingStaticMethods {
 
 // Use intersection pattern for relation types
 // Fields are optional because they're only populated when relations are loaded
-export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods> & {
-  reviews?: ReviewInstance[];
-  files?: FileInstance[];
-};
-export type ThingModel = ManifestModel<
-  typeof thingManifest,
-  ThingStaticMethods,
-  ThingInstanceMethods
->;
+export type ThingInstance = ThingTypes['Instance'];
+export type ThingModel = ThingTypes['Model'];
 
 /**
  * Create a typed reference to the Thing model for use in cross-model dependencies.

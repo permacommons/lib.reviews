@@ -1,11 +1,7 @@
 import dal from '../../dal/index.ts';
-import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ThingInstance } from './thing.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
@@ -71,8 +67,17 @@ export interface FileFeedResult<TItem> {
   offsetDate?: Date;
 }
 
-type FileInstanceBase = InferInstance<typeof fileManifest>;
-type FileModelBase = InferConstructor<typeof fileManifest>;
+type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
+
+type FileTypes = ManifestTypes<
+  typeof fileManifest,
+  FileStaticMethods,
+  FileInstanceMethods,
+  FileRelations
+>;
+
+type FileInstanceBase = FileTypes['BaseInstance'];
+type FileModelBase = FileTypes['BaseModel'];
 
 export interface FileInstanceMethods {
   populateUserInfo(
@@ -96,11 +101,8 @@ export interface FileStaticMethods {
 
 // Use intersection pattern for relation types
 // Fields are optional because they're only populated when relations are loaded
-export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethods> & {
-  uploader?: UserView;
-  things?: ThingInstance[];
-};
-export type FileModel = ManifestModel<typeof fileManifest, FileStaticMethods, FileInstanceMethods>;
+export type FileInstance = FileTypes['Instance'];
+export type FileModel = FileTypes['Model'];
 export const fileValidLicenses = validLicenseValues;
 
 /**

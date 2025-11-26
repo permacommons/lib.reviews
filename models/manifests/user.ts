@@ -1,4 +1,5 @@
 import dal from '../../dal/index.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferData, InferVirtual, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
@@ -120,21 +121,8 @@ export type UserInstanceMethods = {
   getValidPreferences(this: UserInstanceBase & UserInstanceMethods): string[];
 };
 
-// Use intersection pattern for relation types
-// Fields are optional because they're only populated when relations are loaded
-export type UserInstance = UserInstanceBase &
-  UserInstanceMethods & {
-    meta?: UserMetaInstance;
-    teams?: TeamInstance[];
-    moderatorOf?: TeamInstance[];
-  };
-
-type UserModelBase = ModelConstructor<UserData, UserVirtual, UserInstance>;
-
-type UserStaticThis = UserModel & UserExtraStatics;
-
 export type UserView = Pick<
-  UserInstance,
+  UserInstanceBase,
   | 'id'
   | 'displayName'
   | 'canonicalName'
@@ -143,32 +131,13 @@ export type UserView = Pick<
   | 'isTrusted'
   | 'isSiteModerator'
   | 'isSuperUser'
-> & {
-  urlName?: UserInstance['urlName'];
-};
+> & { urlName?: UserInstanceBase['urlName'] };
 
-export type UserStaticMethods = {
-  create(this: UserStaticThis, userObj: CreateUserPayload): Promise<UserInstance>;
-  ensureUnique(this: UserStaticThis, name: string): Promise<boolean>;
-  getWithTeams(
-    this: UserStaticThis,
-    id: string,
-    options?: GetOptions
-  ): Promise<UserInstance | null>;
-  findByURLName(
-    this: UserStaticThis,
-    name: string,
-    options?: (GetOptions & { withData?: boolean; withTeams?: boolean }) | undefined
-  ): Promise<UserInstance>;
-  createBio(
-    this: UserStaticThis,
-    user: UserInstance,
-    bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>
-  ): Promise<UserInstance>;
-  canonicalize(this: UserStaticThis, name: string): string;
+export type UserRelations = {
+  meta?: UserMetaInstance;
+  teams?: TeamInstance[];
+  moderatorOf?: TeamInstance[];
 };
-
-export type UserModel = UserModelBase & UserStaticMethods & UserExtraStatics;
 
 const userManifest = {
   tableName: 'users',
@@ -242,6 +211,46 @@ const userManifest = {
     },
   },
 } as const satisfies ModelManifest;
+
+type UserTypes = ManifestTypes<
+  typeof userManifest,
+  UserExtraStatics,
+  UserInstanceMethods,
+  UserRelations
+>;
+
+export type UserInstance = UserTypes['Instance'];
+
+type UserModelBase = ModelConstructor<UserTypes['Data'], UserTypes['Virtual'], UserInstance>;
+
+export type UserStaticMethods = {
+  create(
+    this: UserModelBase & UserStaticMethods & UserExtraStatics,
+    userObj: CreateUserPayload
+  ): Promise<UserInstance>;
+  ensureUnique(
+    this: UserModelBase & UserStaticMethods & UserExtraStatics,
+    name: string
+  ): Promise<boolean>;
+  getWithTeams(
+    this: UserModelBase & UserStaticMethods & UserExtraStatics,
+    id: string,
+    options?: GetOptions
+  ): Promise<UserInstance | null>;
+  findByURLName(
+    this: UserModelBase & UserStaticMethods & UserExtraStatics,
+    name: string,
+    options?: (GetOptions & { withData?: boolean; withTeams?: boolean }) | undefined
+  ): Promise<UserInstance>;
+  createBio(
+    this: UserModelBase & UserStaticMethods & UserExtraStatics,
+    user: UserInstance,
+    bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>
+  ): Promise<UserInstance>;
+  canonicalize(this: UserModelBase & UserStaticMethods & UserExtraStatics, name: string): string;
+};
+
+export type UserModel = UserModelBase & UserStaticMethods & UserExtraStatics;
 
 /**
  * Create a lazy reference to the User model for use in other models.

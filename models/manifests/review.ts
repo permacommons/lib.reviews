@@ -1,13 +1,8 @@
 import dal from '../../dal/index.ts';
-import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferData,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { InstanceMethod, RevisionActor } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import type { FileInstance } from './file.ts';
@@ -125,9 +120,21 @@ const reviewManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type ReviewInstanceBase = InferInstance<typeof reviewManifest>;
-type ReviewModelBase = InferConstructor<typeof reviewManifest>;
-type ReviewData = InferData<(typeof reviewManifest)['schema']>;
+type ReviewTypes = ManifestTypes<
+  typeof reviewManifest,
+  ReviewStaticMethods,
+  ReviewInstanceMethods,
+  {
+    thing?: ThingInstance;
+    teams?: TeamInstance[];
+    creator?: UserView;
+    socialImage?: FileInstance;
+  }
+>;
+
+type ReviewInstanceBase = ReviewTypes['BaseInstance'];
+type ReviewModelBase = ReviewTypes['BaseModel'];
+type ReviewData = ReviewTypes['Data'];
 
 /**
  * Input for creating a review - combines schema fields with additional create-time data.
@@ -176,18 +183,9 @@ export interface ReviewStaticMethods {
 
 // Use intersection pattern for relation types (avoids circular type errors)
 // Fields are optional because they're only populated when relations are loaded
-export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods> & {
-  thing?: ThingInstance;
-  teams?: TeamInstance[];
-  creator?: UserView;
-  socialImage?: FileInstance;
-};
+export type ReviewInstance = ReviewTypes['Instance'];
 
-export type ReviewModel = ManifestModel<
-  typeof reviewManifest,
-  ReviewStaticMethods,
-  ReviewInstanceMethods
-> & { options: typeof reviewOptions };
+export type ReviewModel = ReviewTypes['Model'] & { options: typeof reviewOptions };
 
 /**
  * Create a typed reference to the Review model for use in cross-model dependencies.

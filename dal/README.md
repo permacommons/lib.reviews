@@ -192,6 +192,9 @@ Manifests drive all type inference:
 - **Convenience helpers** (recommended for manifest files):
   - `ManifestInstance<Manifest, InstanceMethods>` - cleaner than `InferInstance<MergeManifestMethods<...>>`
   - `ManifestModel<Manifest, StaticMethods, InstanceMethods>` - cleaner than `InferConstructor<MergeManifestMethods<...>>`
+- **Bundle helper for manifests**:
+  - `ManifestTypes<Manifest, StaticMethods, InstanceMethods, Relations>` packages the data, virtual, instance, and model types
+    into a single object. Prefer the bundle over repeating individual inferences in each manifest file.
 - Static/instance methods declared via `defineStaticMethods`/`defineInstanceMethods` receive correctly typed `this` via contextual `ThisType`
 
 **Relation Field Typing**: Use the intersection pattern to add strongly-typed relation fields:

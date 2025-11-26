@@ -1,10 +1,7 @@
 import dal from '../../dal/index.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
 
@@ -47,24 +44,22 @@ const thingSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
-type ThingSlugInstanceBase = InferInstance<typeof thingSlugManifest>;
-type ThingSlugModelBase = InferConstructor<typeof thingSlugManifest>;
+type ThingSlugTypes = ManifestTypes<
+  typeof thingSlugManifest,
+  ThingSlugStaticMethods,
+  ThingSlugInstanceMethods
+>;
 
 export interface ThingSlugStaticMethods {
-  getByName(
-    this: ThingSlugModelBase & ThingSlugStaticMethods,
-    name: string
-  ): Promise<(ThingSlugInstanceBase & ThingSlugInstanceMethods) | null>;
+  getByName(this: ThingSlugTypes['Model'], name: string): Promise<ThingSlugInstance | null>;
 }
 
 export interface ThingSlugInstanceMethods {
-  qualifiedSave(
-    this: ThingSlugInstanceBase & ThingSlugInstanceMethods
-  ): Promise<(ThingSlugInstanceBase & ThingSlugInstanceMethods) | null>;
+  qualifiedSave(this: ThingSlugTypes['Instance']): Promise<ThingSlugInstance | null>;
 }
 
-export type ThingSlugInstance = ThingSlugInstanceBase & ThingSlugInstanceMethods;
-export type ThingSlugModel = ThingSlugModelBase & ThingSlugStaticMethods;
+export type ThingSlugInstance = ThingSlugTypes['Instance'];
+export type ThingSlugModel = ThingSlugTypes['Model'];
 
 /**
  * Create a lazy reference to the ThingSlug model for use in other models.

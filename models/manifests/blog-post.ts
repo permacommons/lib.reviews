@@ -1,12 +1,7 @@
 import dal from '../../dal/index.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferData,
-  InferInstance,
-  InferVirtual,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
@@ -44,11 +39,18 @@ const blogPostManifest = {
   },
 } as const satisfies ModelManifest;
 
-type BlogPostInstanceBase = InferInstance<typeof blogPostManifest>;
-type BlogPostModelBase = InferConstructor<typeof blogPostManifest>;
+type BlogPostTypes = ManifestTypes<
+  typeof blogPostManifest,
+  BlogPostStaticMethods,
+  BlogPostInstanceMethods,
+  { creator?: BlogPostCreator }
+>;
 
-export type BlogPostData = InferData<(typeof blogPostManifest)['schema']>;
-export type BlogPostVirtual = InferVirtual<(typeof blogPostManifest)['schema']>;
+type BlogPostInstanceBase = BlogPostTypes['BaseInstance'];
+type BlogPostModelBase = BlogPostTypes['BaseModel'];
+
+export type BlogPostData = BlogPostTypes['Data'];
+export type BlogPostVirtual = BlogPostTypes['Virtual'];
 
 export interface BlogPostInstanceMethods {
   populateUserInfo(
@@ -75,11 +77,8 @@ export interface BlogPostStaticMethods {
 }
 
 // Use intersection pattern for relation types
-export type BlogPostInstance = BlogPostInstanceBase &
-  BlogPostInstanceMethods & {
-    creator?: BlogPostCreator;
-  };
-export type BlogPostModel = BlogPostModelBase & BlogPostStaticMethods;
+export type BlogPostInstance = BlogPostTypes['Instance'];
+export type BlogPostModel = BlogPostTypes['Model'];
 
 /**
  * Create a lazy reference to the BlogPost model for use in other models.

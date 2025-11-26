@@ -1,11 +1,8 @@
 import dal from '../../dal/index.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import { ValidationError } from '../../dal/lib/errors.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
 
 const { mlString, types } = dal;
@@ -33,8 +30,10 @@ const userMetaManifest = {
   },
 } as const satisfies ModelManifest;
 
-export type UserMetaInstance = InferInstance<typeof userMetaManifest>;
-export type UserMetaModel = InferConstructor<typeof userMetaManifest>;
+type UserMetaTypes = ManifestTypes<typeof userMetaManifest>;
+
+export type UserMetaInstance = UserMetaTypes['Instance'];
+export type UserMetaModel = UserMetaTypes['Model'];
 
 /**
  * Create a lazy reference to the UserMeta model for use in other models.
