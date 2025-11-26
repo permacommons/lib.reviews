@@ -1,5 +1,10 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestTypes,
+  StaticMethodsFrom,
+} from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ThingInstance } from './thing.ts';
@@ -69,6 +74,25 @@ export interface FileFeedResult<TItem> {
 
 type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
 
+export type FileInstanceMethods = InstanceMethodsFrom<
+  typeof fileManifest,
+  FileRelations,
+  {
+    populateUserInfo(user: UserAccessContext | null | undefined): void;
+  }
+>;
+
+export type FileStaticMethods = StaticMethodsFrom<
+  typeof fileManifest,
+  FileRelations,
+  {
+    getStashedUpload(userID: string, name: string): Promise<FileInstance | undefined>;
+    getValidLicenses(): readonly string[];
+    getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileInstance>>;
+  },
+  FileInstanceMethods
+>;
+
 type FileTypes = ManifestTypes<
   typeof fileManifest,
   FileStaticMethods,
@@ -76,32 +100,10 @@ type FileTypes = ManifestTypes<
   FileRelations
 >;
 
-type FileInstanceBase = FileTypes['BaseInstance'];
-type FileModelBase = FileTypes['BaseModel'];
-
-export interface FileInstanceMethods {
-  populateUserInfo(
-    this: FileInstanceBase & FileInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-}
-
-export interface FileStaticMethods {
-  getStashedUpload(
-    this: FileModelBase & FileStaticMethods,
-    userID: string,
-    name: string
-  ): Promise<FileInstance | undefined>;
-  getValidLicenses(this: FileModelBase & FileStaticMethods): readonly string[];
-  getFileFeed(
-    this: FileModelBase & FileStaticMethods,
-    options?: FileFeedOptions
-  ): Promise<FileFeedResult<FileInstance>>;
-}
-
 // Use intersection pattern for relation types
 // Fields are optional because they're only populated when relations are loaded
-export type FileInstance = FileTypes['Instance'];
+export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethods> &
+  FileRelations;
 export type FileModel = FileTypes['Model'];
 export const fileValidLicenses = validLicenseValues;
 

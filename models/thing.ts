@@ -51,7 +51,7 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
    * @param userID - Include reviews authored by this user
    * @returns Matching Thing instances
    */
-  async lookupByURL(this: ThingModel, url: string, userID?: string | null) {
+  async lookupByURL(url: string, userID?: string | null) {
     const tableName = this.tableName ?? 'things';
 
     const query = `
@@ -126,7 +126,6 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
    * @returns The hydrated Thing instance
    */
   async getWithData(
-    this: ThingModel,
     id: string,
     {
       withFiles = true,
@@ -163,7 +162,7 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
    * @param language - Preferred language code
    * @returns The resolved label or undefined when unavailable
    */
-  getLabel(this: ThingModel, thing: ThingLabelSource | null | undefined, language: string) {
+  getLabel(thing: ThingLabelSource | null | undefined, language: string) {
     if (!thing || !thing.id) {
       return undefined;
     }
@@ -192,7 +191,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param adapterResult - Result object returned from a backend adapter
    */
-  initializeFieldsFromAdapter(this: ThingInstance, adapterResult: AdapterLookupResult) {
+  initializeFieldsFromAdapter(adapterResult: AdapterLookupResult) {
     if (typeof adapterResult !== 'object' || !adapterResult) {
       return;
     }
@@ -230,7 +229,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param user - Viewer whose permissions should be reflected on the instance
    */
-  populateUserInfo(this: ThingInstance, user: UserAccessContext | null | undefined) {
+  populateUserInfo(user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }
@@ -250,7 +249,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @returns The current Thing instance
    */
-  async populateReviewMetrics(this: ThingInstance): Promise<ThingInstance> {
+  async populateReviewMetrics(): Promise<ThingInstance> {
     const [averageStarRating, numberOfReviews] = await Promise.all([
       this.getAverageStarRating(),
       this.getReviewCount(),
@@ -264,7 +263,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param urls - Complete set of URLs to assign
    */
-  setURLs(this: ThingInstance, urls: string[]) {
+  setURLs(urls: string[]) {
     const sync = (this.sync ?? {}) as SyncData;
     if (typeof this.sync === 'object' && this.sync) {
       for (const [, syncValue] of Object.entries(sync) as [SyncField, SyncEntry][]) {
@@ -301,7 +300,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    * @param userID - User responsible for any slug updates
    * @returns The updated Thing instance
    */
-  async updateActiveSyncs(this: ThingInstance, userID?: string): Promise<ThingInstance> {
+  async updateActiveSyncs(userID?: string): Promise<ThingInstance> {
     if (!this.urls || !this.urls.length) {
       return this;
     }
@@ -417,7 +416,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @returns Source identifiers for active sync entries
    */
-  getSourceIDsOfActiveSyncs(this: ThingInstance) {
+  getSourceIDsOfActiveSyncs() {
     const sync = this.sync as SyncData | undefined;
     const rv: string[] = [];
     if (!sync) {
@@ -436,10 +435,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    * @param user - Viewer requesting their own reviews
    * @returns Reviews authored by the user (if any)
    */
-  async getReviewsByUser(
-    this: ThingInstance,
-    user: UserAccessContext | null | undefined
-  ): Promise<ReviewInstance[]> {
+  async getReviewsByUser(user: UserAccessContext | null | undefined): Promise<ReviewInstance[]> {
     if (!user || !user.id) {
       return [];
     }
@@ -473,7 +469,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @returns Average star rating (not rounded)
    */
-  async getAverageStarRating(this: ThingInstance): Promise<number> {
+  async getAverageStarRating(): Promise<number> {
     try {
       if (typeof this.id !== 'string' || this.id.length === 0) {
         return 0;
@@ -492,7 +488,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @returns Number of reviews
    */
-  async getReviewCount(this: ThingInstance): Promise<number> {
+  async getReviewCount(): Promise<number> {
     try {
       if (typeof this.id !== 'string' || this.id.length === 0) {
         return 0;
@@ -511,7 +507,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    *
    * @param file - File object to add
    */
-  addFile(this: ThingInstance, file: FileInstance) {
+  addFile(file: FileInstance) {
     if (!Array.isArray(this.files)) {
       this.files = [];
     }
@@ -524,7 +520,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    * @param language - Preferred language for slug generation
    * @returns The updated Thing instance
    */
-  async updateSlug(this: ThingInstance, userID: string, language?: string): Promise<ThingInstance> {
+  async updateSlug(userID: string, language?: string): Promise<ThingInstance> {
     const originalLanguage = this.originalLanguage || 'en';
     const slugLanguage = language || originalLanguage;
 
@@ -585,11 +581,7 @@ const thingInstanceMethods = defineInstanceMethods(thingManifest, {
    * @param userID - Require that files were uploaded by this user when set
    * @returns The updated Thing instance
    */
-  async addFilesByIDsAndSave(
-    this: ThingInstance,
-    fileIDs: string[],
-    userID?: string
-  ): Promise<ThingInstance> {
+  async addFilesByIDsAndSave(fileIDs: string[], userID?: string): Promise<ThingInstance> {
     if (!Array.isArray(fileIDs) || fileIDs.length === 0) {
       return this;
     }

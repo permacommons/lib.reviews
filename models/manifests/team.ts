@@ -1,5 +1,10 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestTypes,
+  StaticMethodsFrom,
+} from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
@@ -110,44 +115,42 @@ const teamManifest = {
   ],
 } as const satisfies ModelManifest;
 
+type TeamRelations = {
+  members?: UserView[];
+  moderators?: UserView[];
+  joinRequests?: TeamJoinRequestInstance[];
+  reviews?: ReviewInstance[];
+};
+
+export type TeamInstanceMethods = InstanceMethodsFrom<
+  typeof teamManifest,
+  TeamRelations,
+  {
+    populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined): void;
+    updateSlug(userID: string, language?: string | null): Promise<TeamInstance>;
+  }
+>;
+
+export type TeamStaticMethods = StaticMethodsFrom<
+  typeof teamManifest,
+  TeamRelations,
+  {
+    getWithData(id: string, options?: TeamGetWithDataOptions): Promise<TeamInstance>;
+  },
+  TeamInstanceMethods
+>;
+
 type TeamTypes = ManifestTypes<
   typeof teamManifest,
   TeamStaticMethods,
   TeamInstanceMethods,
-  {
-    members?: UserView[];
-    moderators?: UserView[];
-    joinRequests?: TeamJoinRequestInstance[];
-    reviews?: ReviewInstance[];
-  }
+  TeamRelations
 >;
-
-type TeamInstanceBase = TeamTypes['BaseInstance'];
-type TeamModelBase = TeamTypes['BaseModel'];
-
-export interface TeamInstanceMethods {
-  populateUserInfo(
-    this: TeamInstanceBase & TeamInstanceMethods,
-    user: ModelInstance | UserAccessContext | null | undefined
-  ): void;
-  updateSlug(
-    this: TeamInstanceBase & TeamInstanceMethods,
-    userID: string,
-    language?: string | null
-  ): Promise<TeamInstance>;
-}
-
-export interface TeamStaticMethods {
-  getWithData(
-    this: TeamModelBase & TeamStaticMethods,
-    id: string,
-    options?: TeamGetWithDataOptions
-  ): Promise<TeamInstance>;
-}
 
 // Use intersection pattern for relation types
 // Fields are optional because they're only populated when relations are loaded
-export type TeamInstance = TeamTypes['Instance'];
+export type TeamInstance = ManifestInstance<typeof teamManifest, TeamInstanceMethods> &
+  TeamRelations;
 export type TeamModel = TeamTypes['Model'];
 
 /**

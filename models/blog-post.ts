@@ -24,7 +24,7 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
    * @param id - Blog post identifier to look up.
    * @returns Blog post instance or null when not found.
    */
-  async getWithCreator(this: BlogPostModel, id: string) {
+  async getWithCreator(id: string) {
     const post = (await this.getNotStaleOrDeleted(id)) as BlogPostInstance | null;
     if (!post) {
       return null;
@@ -40,11 +40,7 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
    * @param options - Pagination options controlling the feed.
    * @returns Feed payload containing posts plus a next-offset marker.
    */
-  async getMostRecentBlogPosts(
-    this: BlogPostModel,
-    teamID: string,
-    options: BlogPostFeedOptions = {}
-  ) {
+  async getMostRecentBlogPosts(teamID: string, options: BlogPostFeedOptions = {}) {
     const { limit = 10, offsetDate } = options;
     if (!teamID) {
       throw new Error('We require a team ID to fetch blog posts.');
@@ -76,11 +72,7 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
    * @param options - Pagination options forwarded to the team-based fetch.
    * @returns Feed payload for the resolved team.
    */
-  async getMostRecentBlogPostsBySlug(
-    this: BlogPostModel,
-    teamSlugName: string,
-    options?: BlogPostFeedOptions
-  ) {
+  async getMostRecentBlogPostsBySlug(teamSlugName: string, options?: BlogPostFeedOptions) {
     const slug = await TeamSlug.getByName(teamSlugName);
     if (!slug || !slug.teamID) {
       throw new DocumentNotFound(`Slug '${teamSlugName}' not found for team`);
@@ -90,7 +82,7 @@ const blogPostStaticMethods = defineStaticMethods(blogPostManifest, {
 }) satisfies BlogPostStaticMethods;
 
 const blogPostInstanceMethods = defineInstanceMethods(blogPostManifest, {
-  populateUserInfo(this: BlogPostInstance, user: UserAccessContext | null | undefined) {
+  populateUserInfo(user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }

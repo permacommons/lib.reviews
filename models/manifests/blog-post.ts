@@ -1,5 +1,10 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestTypes,
+  StaticMethodsFrom,
+} from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
@@ -39,45 +44,45 @@ const blogPostManifest = {
   },
 } as const satisfies ModelManifest;
 
+type BlogPostRelations = { creator?: BlogPostCreator };
+
+export type BlogPostInstanceMethods = InstanceMethodsFrom<
+  typeof blogPostManifest,
+  BlogPostRelations,
+  {
+    populateUserInfo(user: UserAccessContext | null | undefined): void;
+  }
+>;
+
+export type BlogPostInstance = ManifestInstance<typeof blogPostManifest, BlogPostInstanceMethods> &
+  BlogPostRelations;
+
+export type BlogPostStaticMethods = StaticMethodsFrom<
+  typeof blogPostManifest,
+  BlogPostRelations,
+  {
+    getWithCreator(id: string): Promise<BlogPostInstance | null>;
+    getMostRecentBlogPosts(
+      teamID: string,
+      options?: BlogPostFeedOptions
+    ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
+    getMostRecentBlogPostsBySlug(
+      teamSlugName: string,
+      options?: BlogPostFeedOptions
+    ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
+  },
+  BlogPostInstanceMethods
+>;
+
 type BlogPostTypes = ManifestTypes<
   typeof blogPostManifest,
   BlogPostStaticMethods,
   BlogPostInstanceMethods,
-  { creator?: BlogPostCreator }
+  BlogPostRelations
 >;
-
-type BlogPostInstanceBase = BlogPostTypes['BaseInstance'];
-type BlogPostModelBase = BlogPostTypes['BaseModel'];
 
 export type BlogPostData = BlogPostTypes['Data'];
 export type BlogPostVirtual = BlogPostTypes['Virtual'];
-
-export interface BlogPostInstanceMethods {
-  populateUserInfo(
-    this: BlogPostInstanceBase & BlogPostInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-}
-
-export interface BlogPostStaticMethods {
-  getWithCreator(
-    this: BlogPostModelBase & BlogPostStaticMethods,
-    id: string
-  ): Promise<BlogPostInstance | null>;
-  getMostRecentBlogPosts(
-    this: BlogPostModelBase & BlogPostStaticMethods,
-    teamID: string,
-    options?: BlogPostFeedOptions
-  ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
-  getMostRecentBlogPostsBySlug(
-    this: BlogPostModelBase & BlogPostStaticMethods,
-    teamSlugName: string,
-    options?: BlogPostFeedOptions
-  ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
-}
-
-// Use intersection pattern for relation types
-export type BlogPostInstance = BlogPostTypes['Instance'];
 export type BlogPostModel = BlogPostTypes['Model'];
 
 /**

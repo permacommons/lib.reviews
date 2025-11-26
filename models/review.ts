@@ -40,7 +40,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    * @param id - Unique review identifier to look up
    * @returns The review instance populated with related data
    */
-  async getWithData(this: ReviewModel, id: string) {
+  async getWithData(id: string) {
     const joinOptions: JoinOptions = {
       socialImage: true,
       creator: true,
@@ -82,7 +82,6 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    * @returns The persisted review instance
    */
   async create(
-    this: ReviewModel,
     reviewObj: ReviewInputObject,
     { tags, files }: ReviewCreateOptions = {}
   ): Promise<ReviewInstance> {
@@ -156,7 +155,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    *
    * @param options - Validation data for the selected social image
    */
-  validateSocialImage(this: ReviewModel, options: ReviewValidateSocialImageOptions = {}) {
+  validateSocialImage(options: ReviewValidateSocialImageOptions = {}) {
     const { socialImageID, newFileIDs = [], fileObjects = [] } = options;
     if (!socialImageID) {
       return;
@@ -190,7 +189,7 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    * @param reviewObj - Data describing the review target
    * @returns The located or newly created Thing
    */
-  async findOrCreateThing(this: ReviewModel, reviewObj: ReviewInputObject): Promise<ThingInstance> {
+  async findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance> {
     if (reviewObj.thing) {
       return reviewObj.thing;
     }
@@ -258,19 +257,16 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
    * @param options - Feed selection criteria
    * @returns Feed items with optional pagination metadata
    */
-  async getFeed(
-    this: ReviewModel,
-    {
-      createdBy,
-      offsetDate,
-      onlyTrusted = false,
-      thingID,
-      withThing = true,
-      withTeams = true,
-      withoutCreator,
-      limit = 10,
-    }: ReviewFeedOptions = {}
-  ): Promise<ReviewFeedResult> {
+  async getFeed({
+    createdBy,
+    offsetDate,
+    onlyTrusted = false,
+    thingID,
+    withThing = true,
+    withTeams = true,
+    withoutCreator,
+    limit = 10,
+  }: ReviewFeedOptions = {}): Promise<ReviewFeedResult> {
     const builder = this.filterWhere({});
 
     if (offsetDate) {
@@ -412,7 +408,7 @@ const reviewInstanceMethods = defineInstanceMethods(reviewManifest, {
    *
    * @param user - Viewer whose permissions should be reflected
    */
-  populateUserInfo(this: ReviewInstance, user: UserAccessContext | null | undefined) {
+  populateUserInfo(user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }
@@ -439,7 +435,7 @@ const reviewInstanceMethods = defineInstanceMethods(reviewManifest, {
    * @param user - User initiating the deletion
    * @returns Promise that resolves once all deletions succeed
    */
-  async deleteAllRevisionsWithThing(this: ReviewInstance, user: RevisionActor) {
+  async deleteAllRevisionsWithThing(user: RevisionActor) {
     const p1 = this.deleteAllRevisions(user, {
       tags: ['delete-with-thing'],
     });

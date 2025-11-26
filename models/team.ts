@@ -41,7 +41,7 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
    * @param options - Controls which associations are hydrated
    * @returns The team instance enriched with the requested data
    */
-  async getWithData(this: TeamModel, id: string, options: GetWithDataOptions = {}) {
+  async getWithData(id: string, options: GetWithDataOptions = {}) {
     const team = await this.getNotStaleOrDeleted(id);
     if (!team) throw new Error(`Team ${id} not found`);
 
@@ -93,7 +93,7 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
    *
    * @param user - Viewer whose relationship determines permissions
    */
-  populateUserInfo(this: TeamInstance, user: ModelInstance | UserAccessContext | null | undefined) {
+  populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined) {
     if (!user) return;
 
     if (
@@ -141,7 +141,7 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
    * @param language - Preferred language for slug generation
    * @returns The updated team instance
    */
-  async updateSlug(this: TeamInstance, userID: string, language?: string | null) {
+  async updateSlug(userID: string, language?: string | null) {
     const originalLanguage = (this.originalLanguage as string | undefined) || 'en';
     const slugLanguage = language || originalLanguage;
 

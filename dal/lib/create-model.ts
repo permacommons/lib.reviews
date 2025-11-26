@@ -22,6 +22,7 @@ interface CreateModelOptions {
 
 type EmptyRecord = Record<never, never>;
 type EmptyInstanceMethods = Record<never, InstanceMethod>;
+type MethodRecord = Record<string, (...args: any[]) => any>;
 
 type ModelConstructorWithStatics<
   Manifest extends ModelManifest,
@@ -461,6 +462,44 @@ export type ManifestTypes<
    * Virtual fields inferred from the schema.
    */
   Virtual: ManifestVirtualFields<Manifest>;
+};
+
+/**
+ * Map a methods object to include the correct `this` type for model statics.
+ *
+ * This lets manifest authors describe their method signatures without
+ * manually repeating `this: ModelType` on every function. The returned type
+ * still exposes the fully-typed `this` context to callers.
+ */
+export type StaticMethodsFrom<
+  Manifest extends ModelManifest,
+  RelationFields extends object,
+  Methods extends MethodRecord,
+  InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
+> = {
+  [K in keyof Methods]: (
+    this: ManifestTypes<Manifest, Methods, InstanceMethods, RelationFields>['Model'] & Methods,
+    ...args: Parameters<Methods[K]>
+  ) => ReturnType<Methods[K]>;
+};
+
+/**
+ * Map a methods object to include the correct `this` type for model instances.
+ *
+ * Similar to {@link StaticMethodsFrom}, but targets instance methods so they
+ * receive the fully-typed instance (including relation fields) as their
+ * `this` context without extra boilerplate.
+ */
+export type InstanceMethodsFrom<
+  Manifest extends ModelManifest,
+  RelationFields extends object,
+  Methods extends Record<string, InstanceMethod>,
+> = {
+  [K in keyof Methods]: (
+    this: ManifestTypes<Manifest, EmptyStaticMethods, Methods, RelationFields>['Instance'] &
+      Methods,
+    ...args: Parameters<Methods[K]>
+  ) => ReturnType<Methods[K]>;
 };
 
 export type { ModelConstructorWithStatics, MergeManifestMethods };

@@ -22,7 +22,7 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
    * @param user - User whose pending invites to load
    * @returns Pending invite links, newest first
    */
-  async getAvailable(this: InviteLinkModel, user: { id?: string }) {
+  async getAvailable(user: { id?: string }) {
     if (!user || !user.id) {
       return [];
     }
@@ -44,7 +44,7 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
    * @param user - User whose redeemed invites to load
    * @returns Redeemed invite links, newest first
    */
-  async getUsed(this: InviteLinkModel, user: { id?: string }) {
+  async getUsed(user: { id?: string }) {
     if (!user || !user.id) {
       return [];
     }
@@ -98,7 +98,7 @@ const inviteLinkStaticMethods = defineStaticMethods(inviteLinkManifest, {
    * @returns Invite link instance
    * @throws DocumentNotFound when no invite with the provided id exists
    */
-  async get(this: InviteLinkModel, id: string) {
+  async get(id: string) {
     if (!id) {
       const error = new DocumentNotFound('Invite link not found');
       error.name = 'DocumentNotFoundError';

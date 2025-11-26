@@ -1,5 +1,10 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestTypes,
+  StaticMethodsFrom,
+} from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
@@ -44,21 +49,33 @@ const thingSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
+export type ThingSlugInstanceMethods = InstanceMethodsFrom<
+  typeof thingSlugManifest,
+  Record<never, never>,
+  {
+    qualifiedSave(): Promise<ThingSlugInstance | null>;
+  }
+>;
+
+export type ThingSlugStaticMethods = StaticMethodsFrom<
+  typeof thingSlugManifest,
+  Record<never, never>,
+  {
+    getByName(name: string): Promise<ThingSlugInstance | null>;
+  },
+  ThingSlugInstanceMethods
+>;
+
 type ThingSlugTypes = ManifestTypes<
   typeof thingSlugManifest,
   ThingSlugStaticMethods,
   ThingSlugInstanceMethods
 >;
 
-export interface ThingSlugStaticMethods {
-  getByName(this: ThingSlugTypes['Model'], name: string): Promise<ThingSlugInstance | null>;
-}
-
-export interface ThingSlugInstanceMethods {
-  qualifiedSave(this: ThingSlugTypes['Instance']): Promise<ThingSlugInstance | null>;
-}
-
-export type ThingSlugInstance = ThingSlugTypes['Instance'];
+export type ThingSlugInstance = ManifestInstance<
+  typeof thingSlugManifest,
+  ThingSlugInstanceMethods
+>;
 export type ThingSlugModel = ThingSlugTypes['Model'];
 
 /**

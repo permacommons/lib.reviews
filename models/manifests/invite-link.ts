@@ -3,7 +3,12 @@ import { randomUUID } from 'node:crypto';
 import config from 'config';
 
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestTypes,
+  StaticMethodsFrom,
+} from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { UserView } from './user.ts';
@@ -34,26 +39,38 @@ const inviteLinkManifest = {
   },
 } as const satisfies ModelManifest;
 
+type InviteLinkRelations = { usedByUser?: UserView };
+
+export type InviteLinkInstanceMethods = InstanceMethodsFrom<
+  typeof inviteLinkManifest,
+  InviteLinkRelations,
+  Record<never, never>
+>;
+
+export type InviteLinkStaticMethods = StaticMethodsFrom<
+  typeof inviteLinkManifest,
+  InviteLinkRelations,
+  {
+    getAvailable(user: { id?: string }): Promise<InviteLinkInstance[]>;
+    getUsed(user: { id?: string }): Promise<InviteLinkInstance[]>;
+    get(id: string): Promise<InviteLinkInstance>;
+  },
+  InviteLinkInstanceMethods
+>;
+
 type InviteLinkTypes = ManifestTypes<
   typeof inviteLinkManifest,
   InviteLinkStaticMethods,
   InviteLinkInstanceMethods,
-  { usedByUser?: UserView }
+  InviteLinkRelations
 >;
 
-export type InviteLinkInstanceMethods = Record<never, never>;
-
-export interface InviteLinkStaticMethods {
-  getAvailable(
-    this: InviteLinkTypes['Model'],
-    user: { id?: string }
-  ): Promise<InviteLinkInstance[]>;
-  getUsed(this: InviteLinkTypes['Model'], user: { id?: string }): Promise<InviteLinkInstance[]>;
-  get(this: InviteLinkTypes['Model'], id: string): Promise<InviteLinkInstance>;
-}
-
 // Use intersection pattern for relation types
-export type InviteLinkInstance = InviteLinkTypes['Instance'];
+export type InviteLinkInstance = ManifestInstance<
+  typeof inviteLinkManifest,
+  InviteLinkInstanceMethods
+> &
+  InviteLinkRelations;
 export type InviteLinkModel = InviteLinkTypes['Model'];
 
 /**

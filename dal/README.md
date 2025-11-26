@@ -195,7 +195,33 @@ Manifests drive all type inference:
 - **Bundle helper for manifests**:
   - `ManifestTypes<Manifest, StaticMethods, InstanceMethods, Relations>` packages the data, virtual, instance, and model types
     into a single object. Prefer the bundle over repeating individual inferences in each manifest file.
+- **Method mapping helpers**:
+  - `StaticMethodsFrom`/`InstanceMethodsFrom` map plain method signatures to manifest-aware `this` types so authors don't need
+    to annotate every method with `this: ModelType` or `this: InstanceType`.
 - Static/instance methods declared via `defineStaticMethods`/`defineInstanceMethods` receive correctly typed `this` via contextual `ThisType`
+
+Example using the mapping helpers to keep manifests terse:
+
+```ts
+type ThingRelations = { files?: FileInstance[] };
+
+type ThingInstanceMethods = InstanceMethodsFrom<
+  typeof thingManifest,
+  ThingRelations,
+  { populateUserInfo(user: UserAccessContext | null | undefined): void }
+>;
+
+type ThingStaticMethods = StaticMethodsFrom<
+  typeof thingManifest,
+  ThingRelations,
+  { getWithData(id: string): Promise<ThingInstance> },
+  ThingInstanceMethods
+>;
+
+type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods> & ThingRelations;
+```
+
+Method implementations can then omit explicit `this` annotations while still receiving the fully-typed model/instance context in the body.
 
 **Relation Field Typing**: Use the intersection pattern to add strongly-typed relation fields:
 

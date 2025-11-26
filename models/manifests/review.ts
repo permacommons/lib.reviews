@@ -1,5 +1,10 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestTypes,
+  StaticMethodsFrom,
+} from '../../dal/lib/create-model.ts';
 import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
@@ -120,21 +125,14 @@ const reviewManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type ReviewTypes = ManifestTypes<
-  typeof reviewManifest,
-  ReviewStaticMethods,
-  ReviewInstanceMethods,
-  {
-    thing?: ThingInstance;
-    teams?: TeamInstance[];
-    creator?: UserView;
-    socialImage?: FileInstance;
-  }
->;
+type ReviewRelations = {
+  thing?: ThingInstance;
+  teams?: TeamInstance[];
+  creator?: UserView;
+  socialImage?: FileInstance;
+};
 
-type ReviewInstanceBase = ReviewTypes['BaseInstance'];
-type ReviewModelBase = ReviewTypes['BaseModel'];
-type ReviewData = ReviewTypes['Data'];
+type ReviewData = ManifestTypes<typeof reviewManifest>['Data'];
 
 /**
  * Input for creating a review - combines schema fields with additional create-time data.
@@ -146,45 +144,37 @@ export type ReviewInputObject = Partial<ReviewData> & {
   teams?: TeamInstance[];
 };
 
-export interface ReviewInstanceMethods {
-  populateUserInfo(
-    this: ReviewInstanceBase & ReviewInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-  deleteAllRevisionsWithThing(
-    this: ReviewInstanceBase & ReviewInstanceMethods,
-    user: RevisionActor
-  ): Promise<[unknown, unknown]>;
-}
+export type ReviewInstanceMethods = InstanceMethodsFrom<
+  typeof reviewManifest,
+  ReviewRelations,
+  {
+    populateUserInfo(user: UserAccessContext | null | undefined): void;
+    deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
+  }
+>;
 
-export interface ReviewStaticMethods {
-  getWithData(
-    this: ReviewModelBase & ReviewStaticMethods,
-    id: string
-  ): Promise<ReviewInstance | null>;
-  create(
-    this: ReviewModelBase & ReviewStaticMethods,
-    reviewObj: ReviewInputObject,
-    options?: ReviewCreateOptions
-  ): Promise<ReviewInstance>;
-  validateSocialImage(
-    this: ReviewModelBase & ReviewStaticMethods,
-    options?: ReviewValidateSocialImageOptions
-  ): void;
-  findOrCreateThing(
-    this: ReviewModelBase & ReviewStaticMethods,
-    reviewObj: ReviewInputObject
-  ): Promise<ThingInstance>;
-  getFeed(
-    this: ReviewModelBase & ReviewStaticMethods,
-    options?: ReviewFeedOptions
-  ): Promise<ReviewFeedResult>;
-}
+export type ReviewStaticMethods = StaticMethodsFrom<
+  typeof reviewManifest,
+  ReviewRelations,
+  {
+    getWithData(id: string): Promise<ReviewInstance | null>;
+    create(reviewObj: ReviewInputObject, options?: ReviewCreateOptions): Promise<ReviewInstance>;
+    validateSocialImage(options?: ReviewValidateSocialImageOptions): void;
+    findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
+    getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
+  },
+  ReviewInstanceMethods
+>;
 
-// Use intersection pattern for relation types (avoids circular type errors)
-// Fields are optional because they're only populated when relations are loaded
-export type ReviewInstance = ReviewTypes['Instance'];
+type ReviewTypes = ManifestTypes<
+  typeof reviewManifest,
+  ReviewStaticMethods,
+  ReviewInstanceMethods,
+  ReviewRelations
+>;
 
+export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods> &
+  ReviewRelations;
 export type ReviewModel = ReviewTypes['Model'] & { options: typeof reviewOptions };
 
 /**
