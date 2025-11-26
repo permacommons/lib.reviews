@@ -1,7 +1,6 @@
 import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type {
   InferConstructor,
   InferInstance,
@@ -130,7 +129,7 @@ export interface TeamInstanceMethods {
   ): Promise<TeamInstance>;
 }
 
-export interface TeamStaticMethods extends Record<string, StaticMethod> {
+export interface TeamStaticMethods {
   getWithData(
     this: TeamModelBase & TeamStaticMethods,
     id: string,

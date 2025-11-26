@@ -11,6 +11,12 @@ import type {
 } from './model-types.ts';
 
 /**
+ * Represents an empty static methods object (no methods defined).
+ * More readable than the opaque `Record<never, never>`.
+ */
+export type EmptyStaticMethods = Record<never, never>;
+
+/**
  * Base relation definition type for manifest relations array.
  *
  * Either `targetTable` or `target` must be provided:
@@ -48,7 +54,7 @@ export interface RelationDefinition {
 export interface ModelManifest<
   Schema extends Record<string, ModelSchemaField> = Record<string, ModelSchemaField>,
   HasRevisions extends boolean = boolean,
-  StaticMethods extends Record<string, StaticMethod> = Record<never, StaticMethod>,
+  StaticMethods extends object = EmptyStaticMethods,
   InstanceMethods extends object = Record<never, InstanceMethod>,
 > {
   tableName: string;
@@ -63,31 +69,33 @@ export interface ModelManifest<
     ThisType<InferInstance<ModelManifest<Schema, HasRevisions, StaticMethods, InstanceMethods>>>;
 }
 
-type InstanceMethodsOf<Manifest extends ModelManifest> = Manifest extends ModelManifest<
-  any,
-  any,
-  any,
+/**
+ * Extract static methods from a manifest, with proper fallback for manifests without methods.
+ * Extracts from the generic type parameter for reliable type inference.
+ * Uses infer for all positions to avoid `any` while satisfying type constraints.
+ */
+type ExtractStaticMethods<M extends ModelManifest> = M extends ModelManifest<
+  infer _Schema,
+  infer _HasRevisions,
+  infer Methods,
+  infer _InstanceMethods
+>
+  ? Methods
+  : EmptyStaticMethods;
+
+/**
+ * Extract instance methods from a manifest, with proper fallback for manifests without methods.
+ * Extracts from the generic type parameter for reliable type inference.
+ * Uses infer for all positions to avoid `any` while satisfying type constraints.
+ */
+type ExtractInstanceMethods<M extends ModelManifest> = M extends ModelManifest<
+  infer _Schema,
+  infer _HasRevisions,
+  infer _StaticMethods,
   infer Methods
 >
   ? Methods
   : Record<never, InstanceMethod>;
-
-type StaticMethodsOf<Manifest extends ModelManifest> = Manifest extends ModelManifest<
-  any,
-  any,
-  infer Methods,
-  any
->
-  ? Methods
-  : Record<never, StaticMethod>;
-
-type InferInstanceMethods<Manifest extends ModelManifest> = {
-  [K in keyof InstanceMethodsOf<Manifest>]: InstanceMethodsOf<Manifest>[K];
-};
-
-type InferStaticMethods<Manifest extends ModelManifest> = {
-  [K in keyof StaticMethodsOf<Manifest>]: StaticMethodsOf<Manifest>[K];
-};
 
 type InferRelationNames<Manifest extends ModelManifest> =
   Manifest['relations'] extends readonly (infer Relations)[]
@@ -140,9 +148,9 @@ export type ManifestVirtualFields<Manifest extends ModelManifest> = InferVirtual
  */
 export type InferInstance<Manifest extends ModelManifest> = Manifest['hasRevisions'] extends true
   ? VersionedModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
-      InferInstanceMethods<Manifest>
+      ExtractInstanceMethods<Manifest>
   : ModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
-      InferInstanceMethods<Manifest>;
+      ExtractInstanceMethods<Manifest>;
 
 type CreateFromRowStatic<Manifest extends ModelManifest> = {
   createFromRow(row: JsonObject): InferInstance<Manifest>;
@@ -157,17 +165,17 @@ export type InferConstructor<Manifest extends ModelManifest> = Manifest['hasRevi
       InferData<Manifest['schema']>,
       ManifestVirtualFields<Manifest>,
       VersionedModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
-        InferInstanceMethods<Manifest>,
+        ExtractInstanceMethods<Manifest>,
       InferRelationNames<Manifest>
     > &
-      InferStaticMethods<Manifest> &
+      ExtractStaticMethods<Manifest> &
       CreateFromRowStatic<Manifest>
   : ModelConstructor<
       InferData<Manifest['schema']>,
       ManifestVirtualFields<Manifest>,
       ModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
-        InferInstanceMethods<Manifest>,
+        ExtractInstanceMethods<Manifest>,
       InferRelationNames<Manifest>
     > &
-      InferStaticMethods<Manifest> &
+      ExtractStaticMethods<Manifest> &
       CreateFromRowStatic<Manifest>;

@@ -1,7 +1,6 @@
 import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type {
   InferConstructor,
   InferInstance,
@@ -82,7 +81,7 @@ export interface FileInstanceMethods {
   ): void;
 }
 
-export interface FileStaticMethods extends Record<string, StaticMethod> {
+export interface FileStaticMethods {
   getStashedUpload(
     this: FileModelBase & FileStaticMethods,
     userID: string,

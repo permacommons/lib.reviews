@@ -43,7 +43,6 @@ const exampleManifest = {
 type ExampleInstanceBase = InferInstance<typeof exampleManifest>;
 
 // Define methods in separate interfaces (recommended pattern)
-// Do NOT use `extends Record<string, ...>` - it conflicts with intersection pattern
 interface ExampleStaticMethods {
   findByLabel(label: string): Promise<string | null>;
 }

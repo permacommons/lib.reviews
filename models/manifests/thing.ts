@@ -6,7 +6,6 @@ import dal from '../../dal/index.ts';
 import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { StaticMethod } from '../../dal/lib/model-initializer.ts';
 import type {
   InferConstructor,
   InferInstance,
@@ -252,7 +251,7 @@ export interface ThingInstanceMethods {
   ): Promise<ThingInstance>;
 }
 
-export interface ThingStaticMethods extends Record<string, StaticMethod> {
+export interface ThingStaticMethods {
   lookupByURL(
     this: ThingModelBase & ThingStaticMethods,
     url: string,
