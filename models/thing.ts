@@ -52,19 +52,9 @@ const thingStaticMethods = defineStaticMethods(thingManifest, {
    * @returns Matching Thing instances
    */
   async lookupByURL(url: string, userID?: string | null) {
-    const tableName = this.tableName ?? 'things';
-
-    const query = `
-      SELECT * FROM ${tableName}
-      WHERE urls @> ARRAY[$1]
-        AND (_old_rev_of IS NULL)
-        AND (_rev_deleted IS NULL OR _rev_deleted = false)
-    `;
-
-    const result = await this.dal.query(query, [url]);
-    // Cast required: createFromRow returns base instance type, but runtime
-    // attaches instance methods defined in the manifest.
-    const things = result.rows.map(row => this.createFromRow(row) as ThingInstance);
+    const things = await this.filterWhere({
+      urls: this.ops.containsAll([url]),
+    }).run();
 
     if (typeof userID === 'string') {
       const lookupUserID = typeof userID.trim === 'function' ? userID.trim() : userID;
