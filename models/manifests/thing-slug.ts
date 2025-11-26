@@ -51,7 +51,6 @@ const thingSlugManifest = {
 
 export type ThingSlugInstanceMethods = InstanceMethodsFrom<
   typeof thingSlugManifest,
-  Record<never, never>,
   {
     qualifiedSave(): Promise<ThingSlugInstance | null>;
   }
@@ -59,7 +58,6 @@ export type ThingSlugInstanceMethods = InstanceMethodsFrom<
 
 export type ThingSlugStaticMethods = StaticMethodsFrom<
   typeof thingSlugManifest,
-  Record<never, never>,
   {
     getByName(name: string): Promise<ThingSlugInstance | null>;
   },

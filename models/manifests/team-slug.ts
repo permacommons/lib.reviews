@@ -30,7 +30,6 @@ const teamSlugManifest = {
 
 export type TeamSlugInstanceMethods = InstanceMethodsFrom<
   typeof teamSlugManifest,
-  Record<never, never>,
   {
     qualifiedSave(): Promise<TeamSlugInstance>;
   }
@@ -38,7 +37,6 @@ export type TeamSlugInstanceMethods = InstanceMethodsFrom<
 
 export type TeamSlugStaticMethods = StaticMethodsFrom<
   typeof teamSlugManifest,
-  Record<never, never>,
   {
     getByName(name: string): Promise<TeamSlugInstance | null>;
   },

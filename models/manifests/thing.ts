@@ -218,7 +218,6 @@ type ThingRelations = { reviews?: ReviewInstance[]; files?: FileInstance[] };
 
 export type ThingInstanceMethods = InstanceMethodsFrom<
   typeof thingManifest,
-  ThingRelations,
   {
     initializeFieldsFromAdapter(adapterResult: AdapterLookupResult): void;
     populateUserInfo(user: UserAccessContext | null | undefined): void;
@@ -232,12 +231,12 @@ export type ThingInstanceMethods = InstanceMethodsFrom<
     addFile(file: FileInstance): void;
     updateSlug(userID: string, language?: string): Promise<ThingInstance>;
     addFilesByIDsAndSave(fileIDs: string[], userID?: string): Promise<ThingInstance>;
-  }
+  },
+  ThingRelations
 >;
 
 export type ThingStaticMethods = StaticMethodsFrom<
   typeof thingManifest,
-  ThingRelations,
   {
     lookupByURL(url: string, userID?: string | null): Promise<ThingInstance[]>;
     getWithData(
@@ -246,7 +245,8 @@ export type ThingStaticMethods = StaticMethodsFrom<
     ): Promise<ThingInstance>;
     getLabel(thing: ThingLabelSource | null | undefined, language: string): string | undefined;
   },
-  ThingInstanceMethods
+  ThingInstanceMethods,
+  ThingRelations
 >;
 
 type ThingTypes = ManifestTypes<

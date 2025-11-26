@@ -76,21 +76,21 @@ type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
 
 export type FileInstanceMethods = InstanceMethodsFrom<
   typeof fileManifest,
-  FileRelations,
   {
     populateUserInfo(user: UserAccessContext | null | undefined): void;
-  }
+  },
+  FileRelations
 >;
 
 export type FileStaticMethods = StaticMethodsFrom<
   typeof fileManifest,
-  FileRelations,
   {
     getStashedUpload(userID: string, name: string): Promise<FileInstance | undefined>;
     getValidLicenses(): readonly string[];
     getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileInstance>>;
   },
-  FileInstanceMethods
+  FileInstanceMethods,
+  FileRelations
 >;
 
 type FileTypes = ManifestTypes<

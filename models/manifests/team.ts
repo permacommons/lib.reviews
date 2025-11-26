@@ -124,20 +124,20 @@ type TeamRelations = {
 
 export type TeamInstanceMethods = InstanceMethodsFrom<
   typeof teamManifest,
-  TeamRelations,
   {
     populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined): void;
     updateSlug(userID: string, language?: string | null): Promise<TeamInstance>;
-  }
+  },
+  TeamRelations
 >;
 
 export type TeamStaticMethods = StaticMethodsFrom<
   typeof teamManifest,
-  TeamRelations,
   {
     getWithData(id: string, options?: TeamGetWithDataOptions): Promise<TeamInstance>;
   },
-  TeamInstanceMethods
+  TeamInstanceMethods,
+  TeamRelations
 >;
 
 type TeamTypes = ManifestTypes<

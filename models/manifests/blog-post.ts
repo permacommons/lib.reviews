@@ -48,10 +48,10 @@ type BlogPostRelations = { creator?: BlogPostCreator };
 
 export type BlogPostInstanceMethods = InstanceMethodsFrom<
   typeof blogPostManifest,
-  BlogPostRelations,
   {
     populateUserInfo(user: UserAccessContext | null | undefined): void;
-  }
+  },
+  BlogPostRelations
 >;
 
 export type BlogPostInstance = ManifestInstance<typeof blogPostManifest, BlogPostInstanceMethods> &
@@ -59,7 +59,6 @@ export type BlogPostInstance = ManifestInstance<typeof blogPostManifest, BlogPos
 
 export type BlogPostStaticMethods = StaticMethodsFrom<
   typeof blogPostManifest,
-  BlogPostRelations,
   {
     getWithCreator(id: string): Promise<BlogPostInstance | null>;
     getMostRecentBlogPosts(
@@ -71,7 +70,8 @@ export type BlogPostStaticMethods = StaticMethodsFrom<
       options?: BlogPostFeedOptions
     ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
   },
-  BlogPostInstanceMethods
+  BlogPostInstanceMethods,
+  BlogPostRelations
 >;
 
 type BlogPostTypes = ManifestTypes<

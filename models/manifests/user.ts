@@ -119,14 +119,14 @@ export interface CreateUserPayload {
 
 export type UserInstanceMethods = InstanceMethodsFrom<
   typeof userManifest,
-  UserRelations,
   {
     populateUserInfo(user: UserAccessContext | null | undefined): void;
     setName(displayName: string): void;
     setPassword(password: string): Promise<string>;
     checkPassword(password: string): Promise<boolean>;
     getValidPreferences(): string[];
-  }
+  },
+  UserRelations
 >;
 
 export type UserView = Pick<
@@ -229,7 +229,6 @@ type UserExtraStatics = { options: typeof userOptions };
 
 export type UserStaticMethods = StaticMethodsFrom<
   typeof userManifest,
-  UserRelations,
   {
     create(userObj: CreateUserPayload): Promise<UserInstance>;
     ensureUnique(name: string): Promise<boolean>;
@@ -244,7 +243,8 @@ export type UserStaticMethods = StaticMethodsFrom<
     ): Promise<UserInstance>;
     canonicalize(name: string): string;
   },
-  UserInstanceMethods
+  UserInstanceMethods,
+  UserRelations
 >;
 
 export type UserModel = UserModelBase & UserStaticMethods & UserExtraStatics;

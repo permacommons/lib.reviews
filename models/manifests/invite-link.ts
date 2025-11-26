@@ -43,19 +43,19 @@ type InviteLinkRelations = { usedByUser?: UserView };
 
 export type InviteLinkInstanceMethods = InstanceMethodsFrom<
   typeof inviteLinkManifest,
-  InviteLinkRelations,
-  Record<never, never>
+  Record<never, never>,
+  InviteLinkRelations
 >;
 
 export type InviteLinkStaticMethods = StaticMethodsFrom<
   typeof inviteLinkManifest,
-  InviteLinkRelations,
   {
     getAvailable(user: { id?: string }): Promise<InviteLinkInstance[]>;
     getUsed(user: { id?: string }): Promise<InviteLinkInstance[]>;
     get(id: string): Promise<InviteLinkInstance>;
   },
-  InviteLinkInstanceMethods
+  InviteLinkInstanceMethods,
+  InviteLinkRelations
 >;
 
 type InviteLinkTypes = ManifestTypes<

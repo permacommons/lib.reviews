@@ -146,16 +146,15 @@ export type ReviewInputObject = Partial<ReviewData> & {
 
 export type ReviewInstanceMethods = InstanceMethodsFrom<
   typeof reviewManifest,
-  ReviewRelations,
   {
     populateUserInfo(user: UserAccessContext | null | undefined): void;
     deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
-  }
+  },
+  ReviewRelations
 >;
 
 export type ReviewStaticMethods = StaticMethodsFrom<
   typeof reviewManifest,
-  ReviewRelations,
   {
     getWithData(id: string): Promise<ReviewInstance | null>;
     create(reviewObj: ReviewInputObject, options?: ReviewCreateOptions): Promise<ReviewInstance>;
@@ -163,7 +162,8 @@ export type ReviewStaticMethods = StaticMethodsFrom<
     findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
     getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
   },
-  ReviewInstanceMethods
+  ReviewInstanceMethods,
+  ReviewRelations
 >;
 
 type ReviewTypes = ManifestTypes<

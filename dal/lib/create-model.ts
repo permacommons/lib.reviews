@@ -473,9 +473,9 @@ export type ManifestTypes<
  */
 export type StaticMethodsFrom<
   Manifest extends ModelManifest,
-  RelationFields extends object,
   Methods extends MethodRecord,
   InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
+  RelationFields extends object = Record<never, never>,
 > = {
   [K in keyof Methods]: (
     this: ManifestTypes<Manifest, Methods, InstanceMethods, RelationFields>['Model'] & Methods,
@@ -492,8 +492,8 @@ export type StaticMethodsFrom<
  */
 export type InstanceMethodsFrom<
   Manifest extends ModelManifest,
-  RelationFields extends object,
   Methods extends Record<string, InstanceMethod>,
+  RelationFields extends object = Record<never, never>,
 > = {
   [K in keyof Methods]: (
     this: ManifestTypes<Manifest, EmptyStaticMethods, Methods, RelationFields>['Instance'] &
