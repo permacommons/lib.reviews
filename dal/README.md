@@ -192,33 +192,46 @@ Manifests drive all type inference:
 - **Convenience helpers** (recommended for manifest files):
   - `ManifestInstance<Manifest, InstanceMethods>` - cleaner than `InferInstance<MergeManifestMethods<...>>`
   - `ManifestModel<Manifest, StaticMethods, InstanceMethods>` - cleaner than `InferConstructor<MergeManifestMethods<...>>`
-- **Bundle helper for manifests**:
+- **Bundle helpers for manifests**:
   - `ManifestTypes<Manifest, StaticMethods, InstanceMethods, Relations>` packages the data, virtual, instance, and model types
-    into a single object. Prefer the bundle over repeating individual inferences in each manifest file.
+    into a single object.
+  - `ManifestTypeExports<Manifest, Relations, StaticMethods, InstanceMethods>` builds on `ManifestTypes` and additionally
+    returns typed `StaticMethods`/`InstanceMethods` mappings. Use this to keep manifest exports short when declaring both types
+    and methods.
 - **Method mapping helpers**:
   - `StaticMethodsFrom`/`InstanceMethodsFrom` map plain method signatures to manifest-aware `this` types so authors don't need
-    to annotate every method with `this: ModelType` or `this: InstanceType`.
+    to annotate every method with `this: ModelType` or `this: InstanceType`. The generics are ordered as manifest, method map,
+    then relation fields (plus instance methods for static methods) to match the call graph.
 - Static/instance methods declared via `defineStaticMethods`/`defineInstanceMethods` receive correctly typed `this` via contextual `ThisType`
 
-Example using the mapping helpers to keep manifests terse:
+Example using `ManifestTypeExports` and the mapping helpers to keep manifests terse:
 
 ```ts
 type ThingRelations = { files?: FileInstance[] };
 
 type ThingInstanceMethods = InstanceMethodsFrom<
   typeof thingManifest,
-  ThingRelations,
-  { populateUserInfo(user: UserAccessContext | null | undefined): void }
+  { populateUserInfo(user: UserAccessContext | null | undefined): void },
+  ThingRelations
 >;
+
+type ThingBaseTypes = ManifestTypes<typeof thingManifest, {}, ThingInstanceMethods, ThingRelations>;
 
 type ThingStaticMethods = StaticMethodsFrom<
   typeof thingManifest,
+  { getWithData(id: string): Promise<ThingBaseTypes['Instance']> },
+  ThingInstanceMethods,
+  ThingRelations
+>;
+
+type ThingTypes = ManifestTypeExports<
+  typeof thingManifest,
   ThingRelations,
-  { getWithData(id: string): Promise<ThingInstance> },
+  ThingStaticMethods,
   ThingInstanceMethods
 >;
 
-type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods> & ThingRelations;
+type ThingInstance = ThingTypes['Instance'];
 ```
 
 Method implementations can then omit explicit `this` annotations while still receiving the fully-typed model/instance context in the body.

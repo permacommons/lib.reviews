@@ -1,10 +1,5 @@
 import dal from '../../dal/index.ts';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestTypes,
-  StaticMethodsFrom,
-} from '../../dal/lib/create-model.ts';
+import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ThingInstance } from './thing.ts';
@@ -74,36 +69,24 @@ export interface FileFeedResult<TItem> {
 
 type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
 
-export type FileInstanceMethods = InstanceMethodsFrom<
+type FileTypes = ManifestTypeExports<
   typeof fileManifest,
+  FileRelations,
+  {
+    getStashedUpload(userID: string, name: string): Promise<FileTypes['Instance'] | undefined>;
+    getValidLicenses(): readonly string[];
+    getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileTypes['Instance']>>;
+  },
   {
     populateUserInfo(user: UserAccessContext | null | undefined): void;
-  },
-  FileRelations
->;
-
-export type FileStaticMethods = StaticMethodsFrom<
-  typeof fileManifest,
-  {
-    getStashedUpload(userID: string, name: string): Promise<FileInstance | undefined>;
-    getValidLicenses(): readonly string[];
-    getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileInstance>>;
-  },
-  FileInstanceMethods,
-  FileRelations
->;
-
-type FileTypes = ManifestTypes<
-  typeof fileManifest,
-  FileStaticMethods,
-  FileInstanceMethods,
-  FileRelations
+  }
 >;
 
 // Use intersection pattern for relation types
 // Fields are optional because they're only populated when relations are loaded
-export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethods> &
-  FileRelations;
+export type FileInstanceMethods = FileTypes['InstanceMethods'];
+export type FileInstance = FileTypes['Instance'];
+export type FileStaticMethods = FileTypes['StaticMethods'];
 export type FileModel = FileTypes['Model'];
 export const fileValidLicenses = validLicenseValues;
 

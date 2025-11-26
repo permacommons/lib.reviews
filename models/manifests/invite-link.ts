@@ -3,12 +3,7 @@ import { randomUUID } from 'node:crypto';
 import config from 'config';
 
 import dal from '../../dal/index.ts';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestTypes,
-  StaticMethodsFrom,
-} from '../../dal/lib/create-model.ts';
+import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { UserView } from './user.ts';
@@ -41,36 +36,20 @@ const inviteLinkManifest = {
 
 type InviteLinkRelations = { usedByUser?: UserView };
 
-export type InviteLinkInstanceMethods = InstanceMethodsFrom<
+type InviteLinkTypes = ManifestTypeExports<
   typeof inviteLinkManifest,
-  Record<never, never>,
-  InviteLinkRelations
->;
-
-export type InviteLinkStaticMethods = StaticMethodsFrom<
-  typeof inviteLinkManifest,
+  InviteLinkRelations,
   {
-    getAvailable(user: { id?: string }): Promise<InviteLinkInstance[]>;
-    getUsed(user: { id?: string }): Promise<InviteLinkInstance[]>;
-    get(id: string): Promise<InviteLinkInstance>;
-  },
-  InviteLinkInstanceMethods,
-  InviteLinkRelations
->;
-
-type InviteLinkTypes = ManifestTypes<
-  typeof inviteLinkManifest,
-  InviteLinkStaticMethods,
-  InviteLinkInstanceMethods,
-  InviteLinkRelations
+    getAvailable(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
+    getUsed(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
+    get(id: string): Promise<InviteLinkTypes['Instance']>;
+  }
 >;
 
 // Use intersection pattern for relation types
-export type InviteLinkInstance = ManifestInstance<
-  typeof inviteLinkManifest,
-  InviteLinkInstanceMethods
-> &
-  InviteLinkRelations;
+export type InviteLinkInstanceMethods = InviteLinkTypes['InstanceMethods'];
+export type InviteLinkInstance = InviteLinkTypes['Instance'];
+export type InviteLinkStaticMethods = InviteLinkTypes['StaticMethods'];
 export type InviteLinkModel = InviteLinkTypes['Model'];
 
 /**

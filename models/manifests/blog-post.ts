@@ -1,10 +1,5 @@
 import dal from '../../dal/index.ts';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestTypes,
-  StaticMethodsFrom,
-} from '../../dal/lib/create-model.ts';
+import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
@@ -46,41 +41,28 @@ const blogPostManifest = {
 
 type BlogPostRelations = { creator?: BlogPostCreator };
 
-export type BlogPostInstanceMethods = InstanceMethodsFrom<
+type BlogPostTypes = ManifestTypeExports<
   typeof blogPostManifest,
+  BlogPostRelations,
   {
-    populateUserInfo(user: UserAccessContext | null | undefined): void;
-  },
-  BlogPostRelations
->;
-
-export type BlogPostInstance = ManifestInstance<typeof blogPostManifest, BlogPostInstanceMethods> &
-  BlogPostRelations;
-
-export type BlogPostStaticMethods = StaticMethodsFrom<
-  typeof blogPostManifest,
-  {
-    getWithCreator(id: string): Promise<BlogPostInstance | null>;
+    getWithCreator(id: string): Promise<BlogPostTypes['Instance'] | null>;
     getMostRecentBlogPosts(
       teamID: string,
       options?: BlogPostFeedOptions
-    ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
+    ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
     getMostRecentBlogPostsBySlug(
       teamSlugName: string,
       options?: BlogPostFeedOptions
-    ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
+    ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
   },
-  BlogPostInstanceMethods,
-  BlogPostRelations
+  {
+    populateUserInfo(user: UserAccessContext | null | undefined): void;
+  }
 >;
 
-type BlogPostTypes = ManifestTypes<
-  typeof blogPostManifest,
-  BlogPostStaticMethods,
-  BlogPostInstanceMethods,
-  BlogPostRelations
->;
-
+export type BlogPostInstanceMethods = BlogPostTypes['InstanceMethods'];
+export type BlogPostInstance = BlogPostTypes['Instance'];
+export type BlogPostStaticMethods = BlogPostTypes['StaticMethods'];
 export type BlogPostData = BlogPostTypes['Data'];
 export type BlogPostVirtual = BlogPostTypes['Virtual'];
 export type BlogPostModel = BlogPostTypes['Model'];

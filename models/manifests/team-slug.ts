@@ -1,10 +1,5 @@
 import dal from '../../dal/index.ts';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestTypes,
-  StaticMethodsFrom,
-} from '../../dal/lib/create-model.ts';
+import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
@@ -28,28 +23,20 @@ const teamSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
-export type TeamSlugInstanceMethods = InstanceMethodsFrom<
+type TeamSlugTypes = ManifestTypeExports<
   typeof teamSlugManifest,
+  Record<never, never>,
   {
-    qualifiedSave(): Promise<TeamSlugInstance>;
+    getByName(name: string): Promise<TeamSlugTypes['Instance'] | null>;
+  },
+  {
+    qualifiedSave(): Promise<TeamSlugTypes['Instance']>;
   }
 >;
 
-export type TeamSlugStaticMethods = StaticMethodsFrom<
-  typeof teamSlugManifest,
-  {
-    getByName(name: string): Promise<TeamSlugInstance | null>;
-  },
-  TeamSlugInstanceMethods
->;
-
-type TeamSlugTypes = ManifestTypes<
-  typeof teamSlugManifest,
-  TeamSlugStaticMethods,
-  TeamSlugInstanceMethods
->;
-
-export type TeamSlugInstance = ManifestInstance<typeof teamSlugManifest, TeamSlugInstanceMethods>;
+export type TeamSlugInstanceMethods = TeamSlugTypes['InstanceMethods'];
+export type TeamSlugInstance = TeamSlugTypes['Instance'];
+export type TeamSlugStaticMethods = TeamSlugTypes['StaticMethods'];
 export type TeamSlugModel = TeamSlugTypes['Model'];
 
 /**

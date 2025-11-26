@@ -465,6 +465,30 @@ export type ManifestTypes<
 };
 
 /**
+ * Convenience bundle that layers method typing into {@link ManifestTypes}.
+ *
+ * Model manifests frequently need to export the fully-typed instance/static
+ * methods alongside the derived model and instance shapes. This helper reduces
+ * the boilerplate by returning the method types together with the usual data,
+ * virtual, instance, and model aliases in one shot.
+ */
+export type ManifestTypeExports<
+  Manifest extends ModelManifest,
+  RelationFields extends object = Record<never, never>,
+  StaticMethods extends MethodRecord = EmptyRecord,
+  InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
+> = ManifestTypes<Manifest, StaticMethods, InstanceMethods, RelationFields> & {
+  /**
+   * Instance methods with correctly typed `this` context.
+   */
+  InstanceMethods: InstanceMethodsFrom<Manifest, InstanceMethods, RelationFields>;
+  /**
+   * Static methods with correctly typed `this` context.
+   */
+  StaticMethods: StaticMethodsFrom<Manifest, StaticMethods, InstanceMethods, RelationFields>;
+};
+
+/**
  * Map a methods object to include the correct `this` type for model statics.
  *
  * This lets manifest authors describe their method signatures without
