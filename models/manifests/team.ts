@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
@@ -117,22 +117,33 @@ type TeamRelations = {
   reviews?: ReviewInstance[];
 };
 
-type TeamTypes = ManifestTypeExports<
+type TeamBaseTypes = ManifestExports<typeof teamManifest, { relations: TeamRelations }>;
+
+type TeamInstanceMethodsMap = {
+  populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined): void;
+  updateSlug(
+    userID: string,
+    language?: string | null
+  ): Promise<TeamBaseTypes['Instance'] & TeamInstanceMethodsMap>;
+};
+
+type TeamTypes = ManifestExports<
   typeof teamManifest,
-  TeamRelations,
   {
-    getWithData(id: string, options?: TeamGetWithDataOptions): Promise<TeamTypes['Instance']>;
-  },
-  {
-    populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined): void;
-    updateSlug(userID: string, language?: string | null): Promise<TeamTypes['Instance']>;
+    relations: TeamRelations;
+    statics: {
+      getWithData(
+        id: string,
+        options?: TeamGetWithDataOptions
+      ): Promise<TeamBaseTypes['Instance'] & TeamInstanceMethodsMap>;
+    };
+    instances: TeamInstanceMethodsMap;
   }
 >;
 
-// Use intersection pattern for relation types
-// Fields are optional because they're only populated when relations are loaded
-export type TeamInstanceMethods = TeamTypes['InstanceMethods'];
+// Relation-backed fields stay optional since they are only populated when loaded
 export type TeamInstance = TeamTypes['Instance'];
+export type TeamInstanceMethods = TeamTypes['InstanceMethods'];
 export type TeamStaticMethods = TeamTypes['StaticMethods'];
 export type TeamModel = TeamTypes['Model'];
 

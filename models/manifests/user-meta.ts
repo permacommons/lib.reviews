@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { ValidationError } from '../../dal/lib/errors.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
@@ -30,7 +30,7 @@ const userMetaManifest = {
   },
 } as const satisfies ModelManifest;
 
-type UserMetaTypes = ManifestTypes<typeof userMetaManifest>;
+type UserMetaTypes = ManifestExports<typeof userMetaManifest>;
 
 export type UserMetaInstance = UserMetaTypes['Instance'];
 export type UserMetaModel = UserMetaTypes['Model'];

@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
@@ -127,22 +127,24 @@ type ReviewRelations = {
   socialImage?: FileInstance;
 };
 
-type ReviewTypes = ManifestTypeExports<
+type ReviewTypes = ManifestExports<
   typeof reviewManifest,
-  ReviewRelations,
   {
-    getWithData(id: string): Promise<ReviewTypes['Instance'] | null>;
-    create(
-      reviewObj: ReviewInputObject,
-      options?: ReviewCreateOptions
-    ): Promise<ReviewTypes['Instance']>;
-    validateSocialImage(options?: ReviewValidateSocialImageOptions): void;
-    findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
-    getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
-  },
-  {
-    populateUserInfo(user: UserAccessContext | null | undefined): void;
-    deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
+    relations: ReviewRelations;
+    statics: {
+      getWithData(id: string): Promise<ReviewTypes['Instance'] | null>;
+      create(
+        reviewObj: ReviewInputObject,
+        options?: ReviewCreateOptions
+      ): Promise<ReviewTypes['Instance']>;
+      validateSocialImage(options?: ReviewValidateSocialImageOptions): void;
+      findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
+      getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
+    };
+    instances: {
+      populateUserInfo(user: UserAccessContext | null | undefined): void;
+      deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
+    };
   }
 >;
 

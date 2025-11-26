@@ -195,43 +195,32 @@ Manifests drive all type inference:
 - **Bundle helpers for manifests**:
   - `ManifestTypes<Manifest, StaticMethods, InstanceMethods, Relations>` packages the data, virtual, instance, and model types
     into a single object.
-  - `ManifestTypeExports<Manifest, Relations, StaticMethods, InstanceMethods>` builds on `ManifestTypes` and additionally
-    returns typed `StaticMethods`/`InstanceMethods` mappings. Use this to keep manifest exports short when declaring both types
-    and methods.
+  - `ManifestExports<Manifest, Options>` builds on `ManifestTypes` with a single options object (`relations`, `statics`,
+    `instances`) and additionally returns typed `StaticMethods`/`InstanceMethods` mappings. Use this to keep manifest exports
+    short when declaring both types and methods.
 - **Method mapping helpers**:
   - `StaticMethodsFrom`/`InstanceMethodsFrom` map plain method signatures to manifest-aware `this` types so authors don't need
     to annotate every method with `this: ModelType` or `this: InstanceType`. The generics are ordered as manifest, method map,
     then relation fields (plus instance methods for static methods) to match the call graph.
 - Static/instance methods declared via `defineStaticMethods`/`defineInstanceMethods` receive correctly typed `this` via contextual `ThisType`
 
-Example using `ManifestTypeExports` and the mapping helpers to keep manifests terse:
+Example using `ManifestExports` to keep manifests terse:
 
 ```ts
 type ThingRelations = { files?: FileInstance[] };
 
-type ThingInstanceMethods = InstanceMethodsFrom<
+type ThingTypes = ManifestExports<
   typeof thingManifest,
-  { populateUserInfo(user: UserAccessContext | null | undefined): void },
-  ThingRelations
->;
-
-type ThingBaseTypes = ManifestTypes<typeof thingManifest, {}, ThingInstanceMethods, ThingRelations>;
-
-type ThingStaticMethods = StaticMethodsFrom<
-  typeof thingManifest,
-  { getWithData(id: string): Promise<ThingBaseTypes['Instance']> },
-  ThingInstanceMethods,
-  ThingRelations
->;
-
-type ThingTypes = ManifestTypeExports<
-  typeof thingManifest,
-  ThingRelations,
-  ThingStaticMethods,
-  ThingInstanceMethods
+  {
+    relations: ThingRelations;
+    statics: { getWithData(id: string): Promise<ThingTypes['Instance']> };
+    instances: { populateUserInfo(user: UserAccessContext | null | undefined): void };
+  }
 >;
 
 type ThingInstance = ThingTypes['Instance'];
+type ThingStaticMethods = ThingTypes['StaticMethods'];
+type ThingInstanceMethods = ThingTypes['InstanceMethods'];
 ```
 
 Method implementations can then omit explicit `this` annotations while still receiving the fully-typed model/instance context in the body.

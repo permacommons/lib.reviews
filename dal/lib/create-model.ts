@@ -472,20 +472,53 @@ export type ManifestTypes<
  * the boilerplate by returning the method types together with the usual data,
  * virtual, instance, and model aliases in one shot.
  */
-export type ManifestTypeExports<
-  Manifest extends ModelManifest,
+type ManifestTypeOptions<
   RelationFields extends object = Record<never, never>,
   StaticMethods extends MethodRecord = EmptyRecord,
   InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
-> = ManifestTypes<Manifest, StaticMethods, InstanceMethods, RelationFields> & {
+> = {
+  relations?: RelationFields;
+  statics?: StaticMethods;
+  instances?: InstanceMethods;
+};
+
+/**
+ * Bundle convenience that accepts a single options object instead of multiple
+ * positional generics. This reduces boilerplate in manifests by grouping
+ * relations, static methods, and instance methods under descriptive keys.
+ */
+export type ManifestExports<
+  Manifest extends ModelManifest,
+  Options extends ManifestTypeOptions = ManifestTypeOptions,
+> = ManifestTypes<
+  Manifest,
+  Options['statics'] extends MethodRecord ? Options['statics'] : EmptyRecord,
+  Options['instances'] extends Record<string, InstanceMethod>
+    ? Options['instances']
+    : EmptyInstanceMethods,
+  Options['relations'] extends object ? Options['relations'] : Record<never, never>
+> & {
   /**
    * Instance methods with correctly typed `this` context.
    */
-  InstanceMethods: InstanceMethodsFrom<Manifest, InstanceMethods, RelationFields>;
+  InstanceMethods: InstanceMethodsFrom<
+    Manifest,
+    Options['instances'] extends Record<string, InstanceMethod>
+      ? Options['instances']
+      : EmptyInstanceMethods,
+    Options['relations'] extends object ? Options['relations'] : Record<never, never>
+  >;
   /**
    * Static methods with correctly typed `this` context.
    */
-  StaticMethods: StaticMethodsFrom<Manifest, StaticMethods, InstanceMethods, RelationFields>;
+  StaticMethods: StaticMethodsFrom<
+    Manifest,
+    Options['statics'] extends MethodRecord ? Options['statics'] : EmptyRecord,
+    Options['instances'] extends Record<string, InstanceMethod>
+      ? Options['instances']
+      : EmptyInstanceMethods,
+    Options['relations'] extends object ? Options['relations'] : Record<never, never>
+  >;
 };
 
 /**

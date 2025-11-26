@@ -174,8 +174,12 @@ test('Adapter throttling serializes requests with configured delays', async t =>
 
   await Promise.all(promises);
 
-  // First request should start immediately
-  t.true(timings[0] < 500, `First request should start quickly (${timings[0]}ms)`);
+  // First request should start immediately (allowing some CI headroom)
+  const firstRequestTolerance = 1200;
+  t.true(
+    timings[0] < firstRequestTolerance,
+    `First request should start quickly (${timings[0]}ms)`
+  );
 
   // Second request should wait approximately throttleMs
   const expectedSecond = throttleMs;

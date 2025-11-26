@@ -3,16 +3,11 @@ import type {
   AdapterLookupResult,
 } from '../../adapters/abstract-backend-adapter.ts';
 import dal from '../../dal/index.ts';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestTypes,
-  StaticMethodsFrom,
-} from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
-import type { InstanceMethod, ModelInstance } from '../../dal/lib/model-types.ts';
+import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
@@ -216,50 +211,53 @@ const thingManifest = {
 
 type ThingRelations = { reviews?: ReviewInstance[]; files?: FileInstance[] };
 
-export type ThingInstanceMethods = InstanceMethodsFrom<
+type ThingBaseTypes = ManifestExports<typeof thingManifest, { relations: ThingRelations }>;
+
+type ThingInstanceMethodsMap = {
+  initializeFieldsFromAdapter(adapterResult: AdapterLookupResult): void;
+  populateUserInfo(user: UserAccessContext | null | undefined): void;
+  populateReviewMetrics(): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  setURLs(urls: string[]): void;
+  updateActiveSyncs(userID?: string): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  getReviewsByUser(user: UserAccessContext | null | undefined): Promise<ReviewInstance[]>;
+  getAverageStarRating(): Promise<number>;
+  getReviewCount(): Promise<number>;
+  getSourceIDsOfActiveSyncs(): string[];
+  addFile(file: FileInstance): void;
+  updateSlug(
+    userID: string,
+    language?: string
+  ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  addFilesByIDsAndSave(
+    fileIDs: string[],
+    userID?: string
+  ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+};
+
+type ThingTypes = ManifestExports<
   typeof thingManifest,
   {
-    initializeFieldsFromAdapter(adapterResult: AdapterLookupResult): void;
-    populateUserInfo(user: UserAccessContext | null | undefined): void;
-    populateReviewMetrics(): Promise<ThingInstance>;
-    setURLs(urls: string[]): void;
-    updateActiveSyncs(userID?: string): Promise<ThingInstance>;
-    getReviewsByUser(user: UserAccessContext | null | undefined): Promise<ReviewInstance[]>;
-    getAverageStarRating(): Promise<number>;
-    getReviewCount(): Promise<number>;
-    getSourceIDsOfActiveSyncs(): string[];
-    addFile(file: FileInstance): void;
-    updateSlug(userID: string, language?: string): Promise<ThingInstance>;
-    addFilesByIDsAndSave(fileIDs: string[], userID?: string): Promise<ThingInstance>;
-  },
-  ThingRelations
->;
-
-export type ThingStaticMethods = StaticMethodsFrom<
-  typeof thingManifest,
-  {
-    lookupByURL(url: string, userID?: string | null): Promise<ThingInstance[]>;
-    getWithData(
-      id: string,
-      options?: { withFiles?: boolean; withReviewMetrics?: boolean }
-    ): Promise<ThingInstance>;
-    getLabel(thing: ThingLabelSource | null | undefined, language: string): string | undefined;
-  },
-  ThingInstanceMethods,
-  ThingRelations
->;
-
-type ThingTypes = ManifestTypes<
-  typeof thingManifest,
-  ThingStaticMethods,
-  ThingInstanceMethods,
-  ThingRelations
+    relations: ThingRelations;
+    statics: {
+      lookupByURL(
+        url: string,
+        userID?: string | null
+      ): Promise<Array<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>>;
+      getWithData(
+        id: string,
+        options?: { withFiles?: boolean; withReviewMetrics?: boolean }
+      ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+      getLabel(thing: ThingLabelSource | null | undefined, language: string): string | undefined;
+    };
+    instances: ThingInstanceMethodsMap;
+  }
 >;
 
 // Use intersection pattern for relation types
 // Fields are optional because they're only populated when relations are loaded
-export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethods> &
-  ThingRelations;
+export type ThingInstanceMethods = ThingTypes['InstanceMethods'];
+export type ThingStaticMethods = ThingTypes['StaticMethods'];
+export type ThingInstance = ThingTypes['Instance'];
 export type ThingModel = ThingTypes['Model'];
 
 /**

@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestInstance, ManifestTypeExports } from '../../dal/lib/create-model.ts';
+import type { ManifestExports, ManifestInstance } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { InferData, InferVirtual, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
@@ -218,11 +218,13 @@ type UserStaticMethodsMap = {
   canonicalize(name: string): string;
 };
 
-type UserTypes = ManifestTypeExports<
+type UserTypes = ManifestExports<
   typeof userManifest,
-  UserRelations,
-  UserStaticMethodsMap,
-  UserInstanceMethodsMap
+  {
+    relations: UserRelations;
+    statics: UserStaticMethodsMap;
+    instances: UserInstanceMethodsMap;
+  }
 >;
 
 export type UserInstanceMethods = UserTypes['InstanceMethods'];

@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
@@ -31,7 +31,7 @@ const teamJoinRequestManifest = {
   },
 } as const satisfies ModelManifest;
 
-type TeamJoinRequestTypes = ManifestTypes<typeof teamJoinRequestManifest>;
+type TeamJoinRequestTypes = ManifestExports<typeof teamJoinRequestManifest>;
 
 export type TeamJoinRequestInstance = TeamJoinRequestTypes['Instance'];
 export type TeamJoinRequestModel = TeamJoinRequestTypes['Model'];

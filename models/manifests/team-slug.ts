@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
@@ -23,14 +23,17 @@ const teamSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
-type TeamSlugTypes = ManifestTypeExports<
+type TeamSlugBaseTypes = ManifestExports<typeof teamSlugManifest>;
+
+type TeamSlugTypes = ManifestExports<
   typeof teamSlugManifest,
-  Record<never, never>,
   {
-    getByName(name: string): Promise<TeamSlugTypes['Instance'] | null>;
-  },
-  {
-    qualifiedSave(): Promise<TeamSlugTypes['Instance']>;
+    statics: {
+      getByName(name: string): Promise<TeamSlugBaseTypes['Instance'] | null>;
+    };
+    instances: {
+      qualifiedSave(): Promise<TeamSlugBaseTypes['Instance']>;
+    };
   }
 >;
 

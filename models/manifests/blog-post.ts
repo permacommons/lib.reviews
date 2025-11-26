@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
@@ -41,22 +41,24 @@ const blogPostManifest = {
 
 type BlogPostRelations = { creator?: BlogPostCreator };
 
-type BlogPostTypes = ManifestTypeExports<
+type BlogPostTypes = ManifestExports<
   typeof blogPostManifest,
-  BlogPostRelations,
   {
-    getWithCreator(id: string): Promise<BlogPostTypes['Instance'] | null>;
-    getMostRecentBlogPosts(
-      teamID: string,
-      options?: BlogPostFeedOptions
-    ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
-    getMostRecentBlogPostsBySlug(
-      teamSlugName: string,
-      options?: BlogPostFeedOptions
-    ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
-  },
-  {
-    populateUserInfo(user: UserAccessContext | null | undefined): void;
+    relations: BlogPostRelations;
+    statics: {
+      getWithCreator(id: string): Promise<BlogPostTypes['Instance'] | null>;
+      getMostRecentBlogPosts(
+        teamID: string,
+        options?: BlogPostFeedOptions
+      ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
+      getMostRecentBlogPostsBySlug(
+        teamSlugName: string,
+        options?: BlogPostFeedOptions
+      ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
+    };
+    instances: {
+      populateUserInfo(user: UserAccessContext | null | undefined): void;
+    };
   }
 >;
 

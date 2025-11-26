@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import config from 'config';
 
 import dal from '../../dal/index.ts';
-import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { UserView } from './user.ts';
@@ -36,13 +36,15 @@ const inviteLinkManifest = {
 
 type InviteLinkRelations = { usedByUser?: UserView };
 
-type InviteLinkTypes = ManifestTypeExports<
+type InviteLinkTypes = ManifestExports<
   typeof inviteLinkManifest,
-  InviteLinkRelations,
   {
-    getAvailable(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
-    getUsed(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
-    get(id: string): Promise<InviteLinkTypes['Instance']>;
+    relations: InviteLinkRelations;
+    statics: {
+      getAvailable(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
+      getUsed(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
+      get(id: string): Promise<InviteLinkTypes['Instance']>;
+    };
   }
 >;
 

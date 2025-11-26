@@ -1,5 +1,5 @@
 import dal from '../../dal/index.ts';
-import type { ManifestTypeExports } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
 import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ThingInstance } from './thing.ts';
@@ -69,16 +69,18 @@ export interface FileFeedResult<TItem> {
 
 type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
 
-type FileTypes = ManifestTypeExports<
+type FileTypes = ManifestExports<
   typeof fileManifest,
-  FileRelations,
   {
-    getStashedUpload(userID: string, name: string): Promise<FileTypes['Instance'] | undefined>;
-    getValidLicenses(): readonly string[];
-    getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileTypes['Instance']>>;
-  },
-  {
-    populateUserInfo(user: UserAccessContext | null | undefined): void;
+    relations: FileRelations;
+    statics: {
+      getStashedUpload(userID: string, name: string): Promise<FileTypes['Instance'] | undefined>;
+      getValidLicenses(): readonly string[];
+      getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileTypes['Instance']>>;
+    };
+    instances: {
+      populateUserInfo(user: UserAccessContext | null | undefined): void;
+    };
   }
 >;
 
