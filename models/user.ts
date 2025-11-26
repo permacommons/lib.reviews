@@ -377,7 +377,6 @@ export type {
 } from './manifests/user.ts';
 export {
   canonicalize,
-  containsOnlyLegalCharacters,
   referenceUser,
   userOptions,
 } from './manifests/user.ts';

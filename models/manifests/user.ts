@@ -40,7 +40,7 @@ export function canonicalize(name: string): string {
  * @returns True if valid
  * @throws Error if username contains illegal characters
  */
-export function containsOnlyLegalCharacters(name: string): true {
+function containsOnlyLegalCharacters(name: string): true {
   if (userOptions.illegalChars.test(name)) {
     throw new Error(`Username ${name} contains invalid characters.`);
   }
