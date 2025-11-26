@@ -1,10 +1,7 @@
 import dal from '../../dal/index.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
 
@@ -26,24 +23,22 @@ const teamSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
-type TeamSlugInstanceBase = InferInstance<typeof teamSlugManifest>;
-type TeamSlugModelBase = InferConstructor<typeof teamSlugManifest>;
+type TeamSlugTypes = ManifestTypes<
+  typeof teamSlugManifest,
+  TeamSlugStaticMethods,
+  TeamSlugInstanceMethods
+>;
 
 export interface TeamSlugStaticMethods {
-  getByName(
-    this: TeamSlugModelBase & TeamSlugStaticMethods,
-    name: string
-  ): Promise<(TeamSlugInstanceBase & TeamSlugInstanceMethods) | null>;
+  getByName(this: TeamSlugTypes['Model'], name: string): Promise<TeamSlugInstance | null>;
 }
 
 export interface TeamSlugInstanceMethods {
-  qualifiedSave(
-    this: TeamSlugInstanceBase & TeamSlugInstanceMethods
-  ): Promise<TeamSlugInstanceBase & TeamSlugInstanceMethods>;
+  qualifiedSave(this: TeamSlugTypes['Instance']): Promise<TeamSlugInstance>;
 }
 
-export type TeamSlugInstance = TeamSlugInstanceBase & TeamSlugInstanceMethods;
-export type TeamSlugModel = TeamSlugModelBase & TeamSlugStaticMethods;
+export type TeamSlugInstance = TeamSlugTypes['Instance'];
+export type TeamSlugModel = TeamSlugTypes['Model'];
 
 /**
  * Create a lazy reference to the TeamSlug model for use in other models.

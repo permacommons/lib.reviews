@@ -1,9 +1,6 @@
 import dal from '../../dal/index.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
 const { types } = dal;
 
@@ -34,7 +31,9 @@ const teamJoinRequestManifest = {
   },
 } as const satisfies ModelManifest;
 
-export type TeamJoinRequestInstance = InferInstance<typeof teamJoinRequestManifest>;
-export type TeamJoinRequestModel = InferConstructor<typeof teamJoinRequestManifest>;
+type TeamJoinRequestTypes = ManifestTypes<typeof teamJoinRequestManifest>;
+
+export type TeamJoinRequestInstance = TeamJoinRequestTypes['Instance'];
+export type TeamJoinRequestModel = TeamJoinRequestTypes['Model'];
 
 export default teamJoinRequestManifest;

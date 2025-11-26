@@ -1,11 +1,7 @@
 import dal from '../../dal/index.ts';
-import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
+import type { ManifestTypes } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferInstance,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import type { ReviewInstance } from './review.ts';
@@ -67,7 +63,7 @@ const teamManifest = {
     userCanDelete: types.virtual().default(false),
     // Note: relation fields (members, moderators, joinRequests, reviews) are typed via intersection pattern
     reviewCount: types.virtual<number>().default(undefined),
-    urlID: types.virtual().default(function (this: InferInstance<typeof teamManifest>) {
+    urlID: types.virtual().default(function (this: TeamTypes['BaseInstance']) {
       const slugName =
         typeof this.getValue === 'function'
           ? this.getValue('canonicalSlugName')
@@ -114,8 +110,20 @@ const teamManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type TeamInstanceBase = InferInstance<typeof teamManifest>;
-type TeamModelBase = InferConstructor<typeof teamManifest>;
+type TeamTypes = ManifestTypes<
+  typeof teamManifest,
+  TeamStaticMethods,
+  TeamInstanceMethods,
+  {
+    members?: UserView[];
+    moderators?: UserView[];
+    joinRequests?: TeamJoinRequestInstance[];
+    reviews?: ReviewInstance[];
+  }
+>;
+
+type TeamInstanceBase = TeamTypes['BaseInstance'];
+type TeamModelBase = TeamTypes['BaseModel'];
 
 export interface TeamInstanceMethods {
   populateUserInfo(
@@ -139,13 +147,8 @@ export interface TeamStaticMethods {
 
 // Use intersection pattern for relation types
 // Fields are optional because they're only populated when relations are loaded
-export type TeamInstance = ManifestInstance<typeof teamManifest, TeamInstanceMethods> & {
-  members?: UserView[];
-  moderators?: UserView[];
-  joinRequests?: TeamJoinRequestInstance[];
-  reviews?: ReviewInstance[];
-};
-export type TeamModel = ManifestModel<typeof teamManifest, TeamStaticMethods, TeamInstanceMethods>;
+export type TeamInstance = TeamTypes['Instance'];
+export type TeamModel = TeamTypes['Model'];
 
 /**
  * Create a typed reference to the Team model for use in cross-model dependencies.
