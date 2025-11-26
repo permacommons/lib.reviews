@@ -36,6 +36,94 @@ export type SuggestThingResponse = {
   };
 };
 
+/**
+ * ElasticSearch search response for things (review subjects).
+ */
+export type SearchThingsResponse = SearchResponse<{
+  urlID: string;
+  label: unknown;
+  description?: unknown;
+  type: 'thing';
+  [key: string]: unknown;
+}>;
+
+/**
+ * ElasticSearch search response for reviews with inner_hits (parent things).
+ */
+export type SearchReviewsResponse = {
+  hits: {
+    total: number | { value: number; relation: string };
+    hits: Array<{
+      _id: string;
+      _source: {
+        urlID: string;
+        label: unknown;
+        type: 'thing';
+        [key: string]: unknown;
+      };
+      inner_hits: {
+        review: {
+          hits: {
+            total: { value: number };
+            hits: Array<{
+              _id: string;
+              _source: {
+                title: unknown;
+                starRating: number;
+                [key: string]: unknown;
+              };
+              highlight?: Record<string, string[]>;
+            }>;
+          };
+        };
+      };
+    }>;
+  };
+};
+
+/**
+ * Type for ElasticSearch hit objects with inner_hits and highlights.
+ */
+type ESHitWithInnerHighlights = {
+  inner_hits?: {
+    [type: string]: {
+      hits: {
+        hits: Array<{
+          highlight?: Record<string, string[]>;
+          [key: string]: unknown;
+        }>;
+      };
+    };
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * ElasticSearch completion (autocomplete) field mapping.
+ */
+type ESCompletionMapping = {
+  type: 'completion';
+  analyzer: string;
+  max_input_length: number;
+};
+
+/**
+ * ElasticSearch text field mapping for multilingual content.
+ * Supports optional stemmed (processed) and completion (autocomplete) sub-fields.
+ */
+type ESTextFieldMapping = {
+  type: 'text';
+  index_options: 'offsets';
+  fields?: {
+    processed?: {
+      type: 'text';
+      analyzer: string;
+      index_options: 'offsets';
+    };
+    completion?: ESCompletionMapping;
+  };
+};
+
 let client: ElasticClient | null = null;
 
 function createClient(): ElasticClient {
@@ -98,7 +186,7 @@ const search = {
   },
 
   // Find things by their label or description; performs language fallback
-  searchThings(query: string, lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
+  searchThings(query: string, lang: LocaleCode = 'en'): Promise<SearchThingsResponse> {
     const options = search.getSearchOptions('label', lang);
     const descriptionOptions = search.getSearchOptions('description', lang);
     const subtitleOptions = search.getSearchOptions('subtitle', lang);
@@ -146,7 +234,7 @@ const search = {
 
   // Find reviews by their text or title; performs language fallback and includes
   // the thing via parent-child join. The review is returned as an inner hit.
-  searchReviews(query: string, lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
+  searchReviews(query: string, lang: LocaleCode = 'en'): Promise<SearchReviewsResponse> {
     // Add text fields
     const options = search.getSearchOptions('text', lang);
 
@@ -155,6 +243,8 @@ const search = {
     options.fields = options.fields.concat(titleOptions.fields);
 
     Object.assign(options.highlight.fields, titleOptions.highlight.fields);
+    // Note: The client's SearchResponse type uses generic 'inner_hits: any', but we know
+    // the actual structure from the has_child query. Cast to our specific type.
     return getClient().search({
       index: 'libreviews',
       body: {
@@ -174,12 +264,15 @@ const search = {
           },
         },
       },
-    });
+    }) as unknown as Promise<SearchReviewsResponse>;
   },
 
   // We may be getting highlights from both the processed (stememd) index
   // and the unprocessed one. This function filters the dupes from inner hits.
-  filterDuplicateInnerHighlights(hits: any[], type: string): any[] {
+  filterDuplicateInnerHighlights(
+    hits: ESHitWithInnerHighlights[],
+    type: string
+  ): ESHitWithInnerHighlights[] {
     for (const hit of hits) {
       if (hit.inner_hits && hit.inner_hits[type] && hit.inner_hits[type].hits) {
         for (const innerHit of hit.inner_hits[type].hits.hits) {
@@ -428,7 +521,7 @@ const search = {
   // Generate the mappings (ElasticSearch schemas) for indexing multilingual
   // strings
   getMultilingualTextProperties(completionMapping = false) {
-    const obj: { properties: Record<string, any> } = {
+    const obj: { properties: Record<string, ESTextFieldMapping> } = {
       properties: {},
     };
 
@@ -478,7 +571,7 @@ const search = {
   },
 
   // Return mapping for label autocompletion
-  getCompletionMapping() {
+  getCompletionMapping(): ESCompletionMapping {
     return {
       type: 'completion',
       analyzer: 'label',
