@@ -1520,7 +1520,7 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
       if (!this._isValidDbFieldName(field)) {
         throw new Error(
           `Invalid field name '${field}' in ${tableName} model. ` +
-          `Field is not defined in schema or field mappings.`
+            'Field is not defined in schema or field mappings.'
         );
       }
     }
@@ -1577,7 +1577,7 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
       if (!this._isValidDbFieldName(field)) {
         throw new Error(
           `Invalid field name '${field}' in ${tableName} model. ` +
-          `Field is not defined in schema or field mappings.`
+            'Field is not defined in schema or field mappings.'
         );
       }
     }

@@ -401,9 +401,7 @@ test.serial('Security: reject malicious field names in INSERT operations', async
   // This simulates an attacker trying to bypass normal setters
   (doc as ModelInstance<JsonObject, JsonObject>)._data['malicious; DROP TABLE users; --'] =
     'payload';
-  (doc as ModelInstance<JsonObject, JsonObject>)._changed.add(
-    'malicious; DROP TABLE users; --'
-  );
+  (doc as ModelInstance<JsonObject, JsonObject>)._changed.add('malicious; DROP TABLE users; --');
 
   await t.throwsAsync(
     async () => {
