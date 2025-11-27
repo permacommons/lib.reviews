@@ -48,10 +48,10 @@ Migrate forms one at a time, starting with simpler ones:
 - User registration ✅
 - Team creation ✅ (new/edit handlers now Zod-first)
 - Blog post creation ✅ (new/edit via blog post provider)
+- Thing URL management ✅
 
 **Medium complexity** (conditional logic, nested structures):
 - Review creation (has conditional team fields)
-- Thing URL management
 
 **Complex forms** (dynamic fields, multi-file uploads):
 - Multi-file upload with per-file metadata
@@ -225,3 +225,4 @@ Migration is successful if:
 - 2025-11-26: Added `flashZodIssues` helper and refactored /register to use it for flashing Zod validation errors without per-handler loops.
 - 2025-11-26: Migrated team creation/edit routes to Zod schemas (multilingual text/markdown, boolean flags, CAPTCHA, CSRF) and removed legacy `FormField` definitions; handlers now flash Zod issues and re-render with sanitized values.
 - 2025-11-26: Added shared Zod form helpers (language validation, safe parsing, consistent error messaging) colocated with `flashZodIssues`; migrated team blog add/edit routes to Zod (multilingual text/markdown, CSRF/CAPTCHA, preview support) and removed legacy `FormField` parsing for blog posts.
+- 2025-11-26: Migrated thing URL management to Zod with strict schema validation, normalized URL handling, and consistent flash messaging while preserving primary/duplicate checks.
