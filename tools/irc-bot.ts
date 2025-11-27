@@ -18,10 +18,11 @@ import { decodeHTML } from 'entities';
 import type { Request, Response } from 'express';
 import express from 'express';
 import irc from 'irc-upd';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 
 interface ReviewWebhookPayload {
   thingURLs?: string[];
-  thingLabel?: Record<string, string>;
+  thingLabel?: MultilingualString;
   author: string;
   reviewURL: string;
 }
@@ -29,8 +30,6 @@ interface ReviewWebhookPayload {
 interface ReviewWebhookBody {
   data: ReviewWebhookPayload;
 }
-
-type MultilingualLabel = Record<string, string>;
 
 const ircConfig: IRCConfig = config.get<IRCConfig>('irc');
 const bot = new irc.Client(ircConfig.server, ircConfig.options.userName, ircConfig.options);
@@ -78,7 +77,7 @@ app.listen(ircConfig.appPort, '127.0.0.1', () => {
 });
 
 // Quickly resolve multilingual string to English or first non-English language
-function resolveLabel(label: MultilingualLabel | undefined): string | undefined {
+function resolveLabel(label: MultilingualString | undefined): string | undefined {
   if (!label) return undefined;
 
   const langs = Object.keys(label);

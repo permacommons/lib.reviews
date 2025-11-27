@@ -1,15 +1,14 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { ModelInstance } from '../../dal/lib/model-types.ts';
-import types from '../../dal/lib/type.ts';
 import languages from '../../locales/languages.ts';
-import type { UserAccessContext } from './user.ts';
+import type { ReviewInstance } from './review.ts';
+import type { TeamJoinRequestInstance } from './team-join-request.ts';
+import type { UserAccessContext, UserView } from './user.ts';
 
-const { mlString } = dal as {
-  mlString: typeof import('../../dal/lib/ml-string.ts').default;
-};
+const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
 
 function validateConfersPermissions(value: unknown): boolean {
@@ -37,9 +36,9 @@ export interface TeamGetWithDataOptions {
   reviewOffsetDate?: Date | null;
 }
 
-const teamManifest = defineModelManifest({
+const teamManifest = {
   tableName: 'teams',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
     name: mlString.getSafeTextSchema({ maxLength: 100 }),
@@ -53,7 +52,7 @@ const teamManifest = defineModelManifest({
     canonicalSlugName: types.string(),
     originalLanguage: types.string().max(4).validator(isValidLanguage),
     confersPermissions: types.object().validator(validateConfersPermissions),
-    reviewOffsetDate: types.virtual().default(null),
+    reviewOffsetDate: types.virtual<Date>().default(null),
     userIsFounder: types.virtual().default(false),
     userIsMember: types.virtual().default(false),
     userIsModerator: types.virtual().default(false),
@@ -62,7 +61,9 @@ const teamManifest = defineModelManifest({
     userCanLeave: types.virtual().default(false),
     userCanEdit: types.virtual().default(false),
     userCanDelete: types.virtual().default(false),
-    urlID: types.virtual().default(function (this: InferInstance<typeof teamManifest>) {
+    // Note: relation fields (members, moderators, joinRequests, reviews) are typed via intersection pattern
+    reviewCount: types.virtual<number>().default(undefined),
+    urlID: types.virtual().default(function (this: TeamTypes['BaseInstance']) {
       const slugName =
         typeof this.getValue === 'function'
           ? this.getValue('canonicalSlugName')
@@ -106,34 +107,45 @@ const teamManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
-type TeamInstanceBase = InferInstance<typeof teamManifest>;
-type TeamModelBase = InferConstructor<typeof teamManifest>;
+type TeamRelations = {
+  members?: UserView[];
+  moderators?: UserView[];
+  joinRequests?: TeamJoinRequestInstance[];
+  reviews?: ReviewInstance[];
+};
 
-export interface TeamInstanceMethods {
-  populateUserInfo(
-    this: TeamInstanceBase & TeamInstanceMethods,
-    user: ModelInstance | UserAccessContext | null | undefined
-  ): void;
+type TeamBaseTypes = ManifestExports<typeof teamManifest, { relations: TeamRelations }>;
+
+type TeamInstanceMethodsMap = {
+  populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined): void;
   updateSlug(
-    this: TeamInstanceBase & TeamInstanceMethods,
     userID: string,
     language?: string | null
-  ): Promise<TeamInstance>;
-}
+  ): Promise<TeamBaseTypes['Instance'] & TeamInstanceMethodsMap>;
+};
 
-export interface TeamStaticMethods {
-  getWithData(
-    this: TeamModelBase & TeamStaticMethods,
-    id: string,
-    options?: TeamGetWithDataOptions
-  ): Promise<TeamInstance>;
-}
+type TeamTypes = ManifestExports<
+  typeof teamManifest,
+  {
+    relations: TeamRelations;
+    statics: {
+      getWithData(
+        id: string,
+        options?: TeamGetWithDataOptions
+      ): Promise<TeamBaseTypes['Instance'] & TeamInstanceMethodsMap>;
+    };
+    instances: TeamInstanceMethodsMap;
+  }
+>;
 
-export type TeamInstance = TeamInstanceBase & TeamInstanceMethods;
-export type TeamModel = TeamModelBase & TeamStaticMethods;
+// Relation-backed fields stay optional since they are only populated when loaded
+export type TeamInstance = TeamTypes['Instance'];
+export type TeamInstanceMethods = TeamTypes['InstanceMethods'];
+export type TeamStaticMethods = TeamTypes['StaticMethods'];
+export type TeamModel = TeamTypes['Model'];
 
 /**
  * Create a typed reference to the Team model for use in cross-model dependencies.

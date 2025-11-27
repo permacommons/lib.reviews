@@ -808,7 +808,6 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
-
    * Get a record by ID
    * @param id - Record ID
    * @param options - Query options
@@ -927,8 +926,13 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   static async delete<
     TData extends JsonObject = JsonObject,
     TVirtual extends JsonObject = JsonObject,
-  >(this: ModelRuntime<TData, TVirtual>, id: string): Promise<boolean> {
-    const query = new QueryBuilder(this, this.dal);
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
+    id: string
+  ): Promise<boolean> {
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     const result = await query.deleteById(id);
     return result > 0;
   }
@@ -939,12 +943,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param direction - Sort direction (ASC/DESC)
    * @returns Query builder
    */
-  static orderBy<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static orderBy<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     field: string,
     direction = 'ASC'
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.orderBy(field, direction);
   }
 
@@ -953,11 +962,16 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param count - Limit count
    * @returns Query builder
    */
-  static limit<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static limit<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     count: number
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.limit(count);
   }
 
@@ -966,11 +980,16 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param joinSpec - Join specification
    * @returns Query builder
    */
-  static getJoin<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static getJoin<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     joinSpec: JsonObject
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.getJoin(joinSpec);
   }
 
@@ -981,13 +1000,18 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param options - Options for the range
    * @returns Query builder
    */
-  static between<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static between<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     startDate: Date,
     endDate: Date,
     options: JsonObject = {}
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.between(startDate, endDate, options);
   }
 
@@ -997,12 +1021,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
    * @param value - Value to check for
    * @returns Query builder
    */
-  static contains<TData extends JsonObject = JsonObject, TVirtual extends JsonObject = JsonObject>(
-    this: ModelRuntime<TData, TVirtual>,
+  static contains<
+    TData extends JsonObject = JsonObject,
+    TVirtual extends JsonObject = JsonObject,
+    TInstance extends ModelInstance<TData, TVirtual> = ModelInstance<TData, TVirtual>,
+    TRelations extends string = string,
+  >(
+    this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     field: string,
     value: unknown
   ) {
-    const query = new QueryBuilder(this, this.dal);
+    const query = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return query.contains(field, value);
   }
 
@@ -1441,6 +1470,43 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
+   * Validate that a database field name is safe to use in SQL queries
+   * @param dbFieldName - Database field name to validate
+   * @returns true if valid, false otherwise
+   * @private
+   */
+  _isValidDbFieldName(dbFieldName: string): boolean {
+    const schema = this.runtime.schema || {};
+
+    // Check if it's a schema field (by schema name)
+    if (schema[dbFieldName]) {
+      return true;
+    }
+
+    // Check if it's a mapped database field name
+    const mappedDbFields = new Set(this.runtime._fieldMappings.values());
+    if (mappedDbFields.has(dbFieldName)) {
+      return true;
+    }
+
+    // Allow standard metadata fields (for revision system, etc.)
+    const metadataFields = new Set([
+      'id',
+      '_old_rev_of',
+      '_rev_deleted',
+      '_rev_id',
+      '_rev_of',
+      '_rev_date',
+      '_rev_tags',
+    ]);
+    if (metadataFields.has(dbFieldName)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Insert new record
    * @param options - Insert options
    * @private
@@ -1448,6 +1514,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   async _insert(options) {
     const tableName = this.runtime.tableName;
     const fields = Object.keys(this._data).filter(key => this._data[key] !== undefined);
+
+    // Validate all field names to prevent SQL injection via column names
+    for (const field of fields) {
+      if (!this._isValidDbFieldName(field)) {
+        throw new Error(
+          `Invalid field name '${field}' in ${tableName} model. ` +
+            'Field is not defined in schema or field mappings.'
+        );
+      }
+    }
+
     const values = fields.map(key => this._data[key]);
     const placeholders = fields.map((_, index) => `$${index + 1}`);
 
@@ -1493,6 +1570,16 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
 
     if (changedFields.length === 0) {
       return; // No non-sensitive changes to save
+    }
+
+    // Validate all field names to prevent SQL injection via column names
+    for (const field of changedFields) {
+      if (!this._isValidDbFieldName(field)) {
+        throw new Error(
+          `Invalid field name '${field}' in ${tableName} model. ` +
+            'Field is not defined in schema or field mappings.'
+        );
+      }
     }
 
     const values = changedFields.map(key => this._data[key]);

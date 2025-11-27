@@ -1,19 +1,16 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { ValidationError } from '../../dal/lib/errors.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
 
-const { mlString } = dal as {
-  mlString: typeof import('../../dal/lib/ml-string.ts').default;
-};
+const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
 
-const userMetaManifest = defineModelManifest({
+const userMetaManifest = {
   tableName: 'user_metas',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
     bio: mlString.getRichTextSchema().default(() => ({ text: {}, html: {} })),
@@ -31,10 +28,12 @@ const userMetaManifest = defineModelManifest({
   camelToSnake: {
     originalLanguage: 'original_language',
   },
-});
+} as const satisfies ModelManifest;
 
-export type UserMetaInstance = InferInstance<typeof userMetaManifest>;
-export type UserMetaModel = InferConstructor<typeof userMetaManifest>;
+type UserMetaTypes = ManifestExports<typeof userMetaManifest>;
+
+export type UserMetaInstance = UserMetaTypes['Instance'];
+export type UserMetaModel = UserMetaTypes['Model'];
 
 /**
  * Create a lazy reference to the UserMeta model for use in other models.

@@ -1,5 +1,10 @@
 import type { ModelRuntime } from './model.ts';
-import type { InferData, InferInstance, InferVirtual, ModelManifest } from './model-manifest.ts';
+import type {
+  InferData,
+  InferInstance,
+  ManifestVirtualFields,
+  ModelManifest,
+} from './model-manifest.ts';
 import type {
   ChronologicalFeedOptions,
   ChronologicalFeedPage,
@@ -403,13 +408,16 @@ class FilterWhereBuilder<
   TRelations extends string,
 > implements FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>
 {
-  private readonly _builder: QueryBuilder;
+  private readonly _builder: QueryBuilder<TData, TVirtual, TInstance, TRelations>;
   private readonly _hasRevisions: boolean;
   private _includeDeleted = false;
   private _includeStale = false;
   private _revisionFiltersApplied = false;
 
-  constructor(builder: QueryBuilder, hasRevisions: boolean) {
+  constructor(
+    builder: QueryBuilder<TData, TVirtual, TInstance, TRelations>,
+    hasRevisions: boolean
+  ) {
     this._builder = builder;
     this._hasRevisions = hasRevisions;
   }
@@ -586,7 +594,7 @@ class FilterWhereBuilder<
   async sample(count = 1): Promise<TInstance[]> {
     this._ensureRevisionFilters();
     const results = await this._builder.sample(count);
-    return results as unknown as TInstance[];
+    return results;
   }
 
   offset(count: number): this {
@@ -631,7 +639,7 @@ class FilterWhereBuilder<
     this._builder.orderBy(dbField, direction);
     this._builder.limit(normalizedLimit + 1);
 
-    const results = (await this._builder.run()) as unknown as TInstance[];
+    const results = await this._builder.run();
     const hasMore = results.length > normalizedLimit;
     const rows = hasMore ? results.slice(0, normalizedLimit) : results;
 
@@ -677,13 +685,13 @@ class FilterWhereBuilder<
   async run(): Promise<TInstance[]> {
     this._ensureRevisionFilters();
     const results = await this._builder.run();
-    return results as unknown as TInstance[];
+    return results;
   }
 
   async first(): Promise<TInstance | null> {
     this._ensureRevisionFilters();
     const result = await this._builder.first();
-    return (result ?? null) as unknown as TInstance | null;
+    return result ?? null;
   }
 
   async count(): Promise<number> {
@@ -796,7 +804,7 @@ function createFilterWhereMethod<
     this: ModelConstructor<TData, TVirtual, TInstance, TRelations> & ModelRuntime<TData, TVirtual>,
     literal: FilterWhereLiteral<TData, FilterWhereOperators<TData>>
   ) {
-    const builder = new QueryBuilder(this, this.dal);
+    const builder = new QueryBuilder<TData, TVirtual, TInstance, TRelations>(this, this.dal);
     return new FilterWhereBuilder<TData, TVirtual, TInstance, TRelations>(
       builder,
       hasRevisions
@@ -825,7 +833,7 @@ type RelationNames<Manifest extends ModelManifest> =
  */
 function createFilterWhereStatics<Manifest extends ModelManifest>(_manifest: Manifest) {
   type Data = InferData<Manifest['schema']>;
-  type Virtual = InferVirtual<Manifest['schema']>;
+  type Virtual = ManifestVirtualFields<Manifest>;
   type Instance = InferInstance<Manifest>;
   type Relations = RelationNames<Manifest>;
 

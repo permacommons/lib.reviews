@@ -1,42 +1,87 @@
+/**
+ * Type tests for model handles and referenceModel()
+ *
+ * These tests verify that referenceModel() correctly produces typed model handles
+ * with proper inference for static methods, instance types, and extra properties.
+ */
 import { expectTypeOf } from 'expect-type';
 
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
+import type {
+  InferConstructor,
+  InferInstance,
+  ModelManifest,
+} from '../../dal/lib/model-manifest.ts';
 import types from '../../dal/lib/type.ts';
 
-const exampleManifest = defineModelManifest({
+// Define schema first
+const exampleSchema = {
+  id: types.string().required(),
+  label: types.string(),
+  relatedId: types.string(),
+  computed: types.virtual().returns<number>(),
+  // Note: relation fields are typed via intersection pattern, not schema virtuals
+} as const;
+
+// Define manifest with relations
+const exampleManifest = {
   tableName: 'example_table',
-  hasRevisions: false,
-  schema: {
-    id: types.string().required(),
-    label: types.string(),
-    computed: types.virtual().returns<number>(),
-  },
-  staticMethods: {
-    async findByLabel(label: string) {
-      return Promise.resolve(label ?? null);
+  hasRevisions: false as const,
+  schema: exampleSchema,
+  relations: [
+    {
+      name: 'related',
+      targetTable: 'related_items',
+      sourceKey: 'relatedId',
+      targetKey: 'id',
+      cardinality: 'one',
     },
-  },
-  instanceMethods: {
-    getLabel() {
-      return this.label ?? null;
-    },
-  },
-} as const);
+  ],
+} as const satisfies ModelManifest;
+
+// Define instance base type for method `this` typing
+type ExampleInstanceBase = InferInstance<typeof exampleManifest>;
+
+// Define methods in separate interfaces (recommended pattern)
+interface ExampleStaticMethods {
+  findByLabel(label: string): Promise<string | null>;
+}
+
+interface ExampleInstanceMethods {
+  getLabel(this: ExampleInstanceBase & ExampleInstanceMethods): string | null;
+}
+
+// Mock related type for intersection pattern demo
+interface RelatedInstance {
+  id: string;
+  name: string;
+}
+
+// Use intersection pattern to add relation types
+type ExampleInstance = ExampleInstanceBase &
+  ExampleInstanceMethods & {
+    related?: RelatedInstance;
+  };
+
+// Verify method interface shapes are valid
+expectTypeOf<ExampleStaticMethods['findByLabel']>().returns.resolves.toEqualTypeOf<string | null>();
+expectTypeOf<ExampleInstanceMethods['getLabel']>().returns.toEqualTypeOf<string | null>();
+
+// Verify intersection pattern works - relation field is properly typed
+declare const instance: ExampleInstance;
+expectTypeOf(instance.related).toEqualTypeOf<RelatedInstance | undefined>();
+expectTypeOf(instance.id).toEqualTypeOf<string>();
+expectTypeOf(instance.label).toEqualTypeOf<string | null | undefined>();
 
 type ExampleConstructor = InferConstructor<typeof exampleManifest>;
-type ExampleInstance = InferInstance<typeof exampleManifest>;
 
 const exampleHandle = referenceModel(exampleManifest);
 
 expectTypeOf(exampleHandle).toMatchTypeOf<ExampleConstructor>();
-expectTypeOf(exampleHandle.findByLabel).toBeFunction();
-expectTypeOf(exampleHandle.findByLabel).returns.toEqualTypeOf<Promise<string | null>>();
-expectTypeOf(exampleHandle.createFromRow).returns.toEqualTypeOf<ExampleInstance>();
+expectTypeOf(exampleHandle.createFromRow).returns.toEqualTypeOf<ExampleInstanceBase>();
 
 type ExampleGetResult = Awaited<ReturnType<typeof exampleHandle.get>>;
-expectTypeOf<ExampleGetResult>().toEqualTypeOf<ExampleInstance | null>();
+expectTypeOf<ExampleGetResult>().toEqualTypeOf<ExampleInstanceBase | null>();
 
 const handleWithMethods = referenceModel(exampleManifest, {
   parseNumber(value: string) {

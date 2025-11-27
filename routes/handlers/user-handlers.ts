@@ -1,4 +1,7 @@
 import escapeHTML from 'escape-html';
+import type { MultilingualRichText } from '../../dal/lib/ml-string.ts';
+import type { TeamInstance } from '../../models/manifests/team.ts';
+import type { UserMetaInstance } from '../../models/manifests/user-meta.ts';
 import Review from '../../models/review.ts';
 import User from '../../models/user.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
@@ -8,15 +11,12 @@ import feeds from '../helpers/feeds.ts';
 import render from '../helpers/render.ts';
 import reviewHandlers from './review-handlers.ts';
 
-const UserModel = User as any;
-const ReviewModel = Review as any;
-
 const userHandlers = {
   async processEdit(req: HandlerRequest, res: HandlerResponse, next: HandlerNext) {
     const { name } = req.params;
 
     try {
-      const user = await UserModel.findByURLName(name, {
+      const user = await User.findByURLName(name, {
         withData: true,
       });
 
@@ -32,28 +32,28 @@ const userHandlers = {
       }
 
       if (user.meta === undefined || user.meta === null || user.meta.bio === undefined) {
-        const bioObj: Record<string, any> = {
+        const bioObj = {
           bio: {
-            text: {} as Record<string, string>,
-            html: {} as Record<string, string>,
+            text: { [bioLanguage]: escapeHTML(bio) },
+            html: { [bioLanguage]: md.render(bio, { language: req.locale }) },
           },
           originalLanguage: bioLanguage,
         };
-        bioObj.bio.text[bioLanguage] = escapeHTML(bio);
-        bioObj.bio.html[bioLanguage] = md.render(bio, { language: req.locale });
-        bioObj.originalLanguage = bioLanguage;
 
-        await UserModel.createBio(user, bioObj);
+        await User.createBio(user, bioObj);
         req.flash('pageMessages', req.__('edit saved'));
         res.redirect(`/user/${user.urlName}`);
       } else {
-        const metaRev = await user.meta.newRevision(req.user, {
+        const meta = user.meta as UserMetaInstance;
+        const metaRev = await meta.newRevision(req.user, {
           tags: ['update-bio-via-user'],
         });
 
-        const bioData = (metaRev.bio as Record<string, any>) ?? { text: {}, html: {} };
-        if (!bioData.text || typeof bioData.text !== 'object') bioData.text = {};
-        if (!bioData.html || typeof bioData.html !== 'object') bioData.html = {};
+        const existingBio = metaRev.bio as MultilingualRichText | undefined;
+        const bioData: Required<MultilingualRichText> = {
+          text: existingBio?.text ?? {},
+          html: existingBio?.html ?? {},
+        };
         bioData.text[bioLanguage] = escapeHTML(bio);
         bioData.html[bioLanguage] = md.render(bio, { language: req.locale });
         metaRev.bio = bioData;
@@ -78,7 +78,7 @@ const userHandlers = {
     return async (req: HandlerRequest, res: HandlerResponse, next: HandlerNext) => {
       const { name } = req.params;
       try {
-        const user = await UserModel.findByURLName(name, {
+        const user = await User.findByURLName(name, {
           withData: true,
           withTeams: true,
         });
@@ -89,7 +89,7 @@ const userHandlers = {
 
         if (decodeURIComponent(user.urlName) !== name) return res.redirect(`/user/${user.urlName}`);
 
-        const result = await ReviewModel.getFeed({
+        const result = await Review.getFeed({
           createdBy: user.id,
           limit: 3,
           withThing: true,
@@ -113,11 +113,11 @@ const userHandlers = {
         let loadEditor = options.editBio;
 
         // For easy lookup in template
-        let modOf = {};
-        user.moderatorOf.forEach(t => (modOf[t.id] = true));
+        const modOf: Record<string, boolean> = {};
+        (user.moderatorOf as TeamInstance[] | undefined)?.forEach(t => (modOf[t.id] = true));
 
-        let founderOf = {};
-        user.teams.forEach(t => {
+        const founderOf: Record<string, boolean> = {};
+        (user.teams as TeamInstance[] | undefined)?.forEach(t => {
           if (t.createdBy && t.createdBy == user.id) founderOf[t.id] = true;
         });
 
@@ -184,7 +184,7 @@ const userHandlers = {
       }
 
       try {
-        const user = await UserModel.findByURLName(name);
+        const user = await User.findByURLName(name);
 
         if (decodeURIComponent(user.urlName) !== name) {
           // Redirect to chosen display form

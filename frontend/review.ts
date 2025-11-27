@@ -501,11 +501,22 @@ function emptyAllFormFields(event: JQuery.Event): void {
  * @memberof Review
  */
 function restoreDynamicFields(): void {
-  const uploadRegex = /^\[id=review-form\].*\[name=(uploaded-file-.*?)\]$/;
+  // Match both old format (uploaded-file-UUID) and new format (files[])
+  // Old drafts may still have uploaded-file-UUID in localStorage
+  const uploadRegex = /^\[id=review-form\].*\[name=(uploaded-file-(.*?)|files\[\])\]$/;
   for (let key in localStorage) {
-    if (uploadRegex.test(key)) {
-      const fieldName = key.match(uploadRegex)![1];
-      $('#review-form').append(`<input type="hidden" name="${fieldName}">`);
+    const match = key.match(uploadRegex);
+    if (match) {
+      const fieldName = match[1];
+      // Convert old format to new format
+      if (fieldName.startsWith('uploaded-file-')) {
+        const fileID = match[2];
+        $('#review-form').append(`<input type="hidden" name="files[]" value="${fileID}">`);
+      } else {
+        // New format - restore as-is (though this shouldn't happen with current autosave)
+        const value = localStorage.getItem(key);
+        $('#review-form').append(`<input type="hidden" name="files[]" value="${value}">`);
+      }
     }
   }
 }

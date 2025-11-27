@@ -1,4 +1,5 @@
 import i18n from 'i18n';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 
 /**
  * Resolves i18n message keys for the given locale, merging multiple key lists
@@ -7,8 +8,8 @@ import i18n from 'i18n';
 export default function getMessages(
   locale: string,
   ...args: Array<readonly string[] | null | undefined>
-): Record<string, string> {
-  const messagesObj: Record<string, string> = {};
+): MultilingualString {
+  const messagesObj: MultilingualString = {};
   for (const arg of args) {
     if (!arg) continue;
 

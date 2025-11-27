@@ -270,7 +270,7 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   // Create an old revision (simulated)
   const oldReview = Object.assign(Object.create(Object.getPrototypeOf(currentReview)), {
     _data: { ...currentReview._data, _old_rev_of: randomUUID() },
-    _virtualFields: { ...currentReview._virtualFields },
+    _virtualFields: { ...(currentReview._virtualFields as object) },
     _changed: new Set(currentReview._changed),
     _isNew: currentReview._isNew,
   });
@@ -279,7 +279,7 @@ test.serial('indexReview skips old and deleted revisions', async t => {
   // Create a deleted revision (simulated)
   const deletedReview = Object.assign(Object.create(Object.getPrototypeOf(currentReview)), {
     _data: { ...currentReview._data, _rev_deleted: true },
-    _virtualFields: { ...currentReview._virtualFields },
+    _virtualFields: { ...(currentReview._virtualFields as object) },
     _changed: new Set(currentReview._changed),
     _isNew: currentReview._isNew,
   });

@@ -8,13 +8,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import config from 'config';
+import escapeHTML from 'escape-html';
 import { Router } from 'express';
 import isSVG from 'is-svg';
 import type { FileFilterCallback } from 'multer';
 import multer from 'multer';
 import is from 'type-is';
 import languages from '../locales/languages.ts';
+import type { FileInstance } from '../models/file.ts';
 import File from '../models/file.ts';
+import type { ThingInstance } from '../models/manifests/thing.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import {
   generateToken,
@@ -43,16 +46,6 @@ type UploadedFile = {
   size?: number;
   [key: string]: unknown;
 };
-type UploadRevision = Record<string, any>;
-type ThingInstance = Record<string, any>;
-type FileModelType = {
-  createFirstRevision(
-    user: Express.User,
-    options?: Record<string, unknown>
-  ): Promise<UploadRevision>;
-  getNotStaleOrDeleted(id: string): Promise<UploadRevision>;
-  getStashedUpload(userID: string, name: string): Promise<UploadRevision | null>;
-};
 
 // Uploading is a two step process. In the first step, the user simply posts the
 // file or files. In the second step, they provide information such as the
@@ -65,7 +58,6 @@ type FileModelType = {
 // record in the "files" table for it that can be completed later.
 const stage1Router = Router();
 const stage2Router = Router();
-const FileModel = File as unknown as FileModelType;
 
 let fileTypeFromFileFn;
 async function detectFileType(filePath) {
@@ -88,46 +80,16 @@ const allowedTypes = [
 ];
 
 // You can upload multiple uploads in one batch; this form is used to process
-// the metadata
+// the metadata. With qs bracket notation, the entire upload object is parsed
+// as a nested structure, so we just need to accept the top-level 'upload' key.
 const uploadFormDef = [
   {
     name: 'upload-language',
     required: true,
   },
   {
-    name: 'upload-%uuid',
+    name: 'upload',
     required: false,
-    keyValueMap: 'uploads',
-  },
-  {
-    name: 'upload-%uuid-description',
-    required: false,
-    type: 'text',
-    keyValueMap: 'descriptions',
-  },
-  {
-    name: 'upload-%uuid-by',
-    required: false,
-    type: 'string', // can be 'uploader' or 'other'
-    keyValueMap: 'creators',
-  },
-  {
-    required: false,
-    name: 'upload-%uuid-creator',
-    type: 'text',
-    keyValueMap: 'creatorDetails',
-  },
-  {
-    name: 'upload-%uuid-source',
-    required: false,
-    type: 'text',
-    keyValueMap: 'sources',
-  },
-  {
-    name: 'upload-license-%uuid',
-    required: false,
-    type: 'string', // enum defined in model
-    keyValueMap: 'licenses',
   },
 ];
 
@@ -332,10 +294,8 @@ async function getFileRevs(
   fileTypes: string[],
   user: Express.User,
   tags: string[] = []
-): Promise<UploadRevision[]> {
-  const fileRevs = await Promise.all(
-    files.map(() => FileModel.createFirstRevision(user, { tags }))
-  );
+): Promise<FileInstance[]> {
+  const fileRevs = await Promise.all(files.map(() => File.createFirstRevision(user, { tags })));
   files.forEach((file, index) => {
     fileRevs[index].name = file.filename;
     // We don't use the reported MIME type from the upload
@@ -349,9 +309,9 @@ async function getFileRevs(
 }
 
 async function attachFileRevsToThing(
-  fileRevs: UploadRevision[],
+  fileRevs: FileInstance[],
   thing: ThingInstance
-): Promise<UploadRevision[]> {
+): Promise<FileInstance[]> {
   // Note that the file association is stored in a separate table, so we do not
   // create a new Thing revision in this case
   if (!Array.isArray(fileRevs) || !fileRevs.length) {
@@ -458,7 +418,7 @@ stage1Router.get(
 
     if (!userID) return next();
 
-    FileModel.getStashedUpload(userID, req.params.name)
+    File.getStashedUpload(userID, req.params.name)
       .then(upload => {
         if (!upload) return next();
         res.sendFile(path.join(config.uploadTempDir, upload.name));
@@ -505,13 +465,13 @@ function processUploadForm(
 
   let uploadIDs;
   let hasUploads =
-    typeof formData.formValues.uploads == 'object' &&
-    (uploadIDs = Object.keys(formData.formValues.uploads)).length;
+    typeof formData.formValues.upload == 'object' &&
+    (uploadIDs = Object.keys(formData.formValues.upload)).length;
 
   if (!hasUploads) return redirectBack({ error: ['data missing'] });
 
   const getFiles = async (ids: string[]) =>
-    await Promise.all(ids.map(id => FileModel.getNotStaleOrDeleted(id)));
+    await Promise.all(ids.map(id => File.getNotStaleOrDeleted(id)));
 
   // Load file info from stage 1 using the upload IDs from the form. Parse the
   // form and abort if there's a problem with any given upload. If there's no
@@ -529,26 +489,36 @@ function processUploadForm(
 }
 
 async function processUploads(
-  uploads: UploadRevision[],
-  formValues: Record<string, any>,
+  uploads: FileInstance[],
+  formValues: Record<string, unknown>,
   language: string,
   uploadsDir: string
 ): Promise<void> {
   let completeUploadPromises: Promise<unknown>[] = [];
+  const uploadData = formValues.upload || {};
+
   uploads.forEach(upload => {
-    const getVal = (obj: Record<string, any>) =>
-      !Array.isArray(obj) || !obj[upload.id] ? null : obj[upload.id];
+    const data = uploadData[upload.id];
+    if (!data) {
+      throw new ReportedError({
+        message: 'Form data missing for upload %s.',
+        messageParams: [upload.name],
+        userMessage: 'data missing',
+      });
+    }
 
-    upload.description = getVal(formValues.descriptions);
-
-    if (!upload.description || !upload.description[language])
+    // Convert plain text description to multilingual format (escape HTML)
+    const descriptionText = typeof data.description === 'string' ? data.description.trim() : '';
+    if (!descriptionText) {
       throw new ReportedError({
         message: 'Form data for upload %s lacks a description.',
         messageParams: [upload.name],
         userMessage: 'upload needs description',
       });
+    }
+    upload.description = { [language]: escapeHTML(descriptionText) };
 
-    let by = getVal(formValues.creators);
+    let by = data.by;
     if (!by)
       throw new ReportedError({
         message: 'Form data for upload missing creator information.',
@@ -556,25 +526,29 @@ async function processUploads(
       });
 
     if (by === 'other') {
-      upload.creator = getVal(formValues.creatorDetails);
-
-      if (!upload.creator || !upload.creator[language])
+      // Convert plain text creator to multilingual format (escape HTML)
+      const creatorText = typeof data.creator === 'string' ? data.creator.trim() : '';
+      if (!creatorText) {
         throw new ReportedError({
           message: 'Form data for upload %s lacks creator information.',
           messageParams: [upload.name],
           userMessage: 'upload needs creator',
         });
+      }
+      upload.creator = { [language]: escapeHTML(creatorText) };
 
-      upload.source = getVal(formValues.sources);
-
-      if (!upload.source || !upload.source[language])
+      // Convert plain text source to multilingual format (escape HTML)
+      const sourceText = typeof data.source === 'string' ? data.source.trim() : '';
+      if (!sourceText) {
         throw new ReportedError({
           message: 'Form data for upload %s lacks source information.',
           messageParams: [upload.name],
           userMessage: 'upload needs source',
         });
+      }
+      upload.source = { [language]: escapeHTML(sourceText) };
 
-      upload.license = getVal(formValues.licenses);
+      upload.license = data.license;
 
       if (!upload.license)
         throw new ReportedError({
@@ -605,7 +579,7 @@ async function processUploads(
  * @param uploadsDir Destination directory for completed uploads
  * @returns Nothing; resolves once the upload is finalized or rolled back
  */
-async function completeUpload(upload: UploadRevision, uploadsDir: string): Promise<void> {
+async function completeUpload(upload: FileInstance, uploadsDir: string): Promise<void> {
   // File names are sanitized on input but ..
   // This error is not shown to the user but logged, hence native.
   if (!upload.name || /[/<>]/.test(upload.name))
@@ -619,10 +593,11 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
   upload.completed = true;
   try {
     await upload.save();
-  } catch {
+  } catch (error) {
     // Problem saving the metadata. Move upload back to
     // temporary stash.
     await rename(newPath, oldPath);
+    throw error;
   }
 }
 
@@ -635,9 +610,9 @@ async function completeUpload(upload: UploadRevision, uploadsDir: string): Promi
  * @returns The same uploads after being finalized
  */
 async function completeUploads(
-  fileRevs: UploadRevision[],
+  fileRevs: FileInstance[],
   uploadsDir: string
-): Promise<UploadRevision[]> {
+): Promise<FileInstance[]> {
   for (let fileRev of fileRevs) await completeUpload(fileRev, uploadsDir);
   return fileRevs;
 }

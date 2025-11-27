@@ -24,7 +24,7 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
    * @param name - File name used during the staged upload
    * @returns File instance for the pending upload, if present
    */
-  async getStashedUpload(this: FileModel, userID: string, name: string) {
+  async getStashedUpload(userID: string, name: string) {
     const stashedUpload = (await this.filterWhere({
       name,
       uploadedBy: userID,
@@ -38,7 +38,7 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
    *
    * @returns Clone of the allowed license identifiers
    */
-  getValidLicenses(this: FileModel): readonly string[] {
+  getValidLicenses(): readonly string[] {
     return Array.from(validLicenses);
   },
 
@@ -50,10 +50,10 @@ const fileStaticMethods = defineStaticMethods(fileManifest, {
    * @param options.limit - Maximum number of items requested
    * @returns Feed payload containing items and optional offset marker
    */
-  async getFileFeed(
-    this: FileModel,
-    { offsetDate, limit = 10 }: FileFeedOptions = {}
-  ): Promise<FileFeedResult<Record<string, any>>> {
+  async getFileFeed({
+    offsetDate,
+    limit = 10,
+  }: FileFeedOptions = {}): Promise<FileFeedResult<FileInstance>> {
     const feedPage = await this.filterWhere({ completed: true })
       .getJoin({ uploader: true })
       .chronologicalFeed({ cursorField: 'uploadedOn', cursor: offsetDate ?? undefined, limit });
@@ -71,7 +71,7 @@ const fileInstanceMethods = defineInstanceMethods(fileManifest, {
    *
    * @param user - User whose permissions should be evaluated
    */
-  populateUserInfo(this: FileInstance, user: UserAccessContext | null | undefined) {
+  populateUserInfo(user: UserAccessContext | null | undefined) {
     if (!user) {
       return;
     }

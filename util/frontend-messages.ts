@@ -1,3 +1,4 @@
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import adapterMessagesJson from '../frontend/messages/adapter-keys.json' with { type: 'json' };
 import editorMessagesJson from '../frontend/messages/editor-keys.json' with { type: 'json' };
 import uploadModalMessagesJson from '../frontend/messages/upload-modal-keys.json' with {
@@ -26,7 +27,7 @@ const frontendMessages = {
     return [...editorMessageKeys];
   },
 
-  getEditorMessages(locale: string): Record<string, string> {
+  getEditorMessages(locale: string): MultilingualString {
     return getMessages(locale, editorMessageKeys);
   },
 
@@ -34,7 +35,7 @@ const frontendMessages = {
     return [...adapterMessageKeys];
   },
 
-  getAdapterMessages(locale: string): Record<string, string> {
+  getAdapterMessages(locale: string): MultilingualString {
     return getMessages(locale, adapterMessageKeys);
   },
 };

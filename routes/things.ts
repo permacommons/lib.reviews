@@ -2,6 +2,7 @@ import * as url from 'node:url';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
 import {
   type ReviewFeedResult,
@@ -18,11 +19,17 @@ import urlUtils from '../util/url-utils.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
 import feeds from './helpers/feeds.ts';
-import forms from './helpers/forms.ts';
+import forms, { type FormField } from './helpers/forms.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
 
 const ReviewHandle = Review as ReviewModel;
+
+type ThingSyncConfig = {
+  description?: {
+    active?: boolean;
+  };
+};
 
 type ThingRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
@@ -32,7 +39,7 @@ interface ThingURLsFormParams {
   res: ThingRouteResponse;
   titleKey: string;
   thing: ThingInstance;
-  formValues?: Record<string, any>;
+  formValues?: Record<string, unknown>;
 }
 
 const router = Router();
@@ -119,8 +126,8 @@ router.get(
         thing.populateUserInfo(req.user);
         if (!thing.userCanEdit) return render.permissionError(req, res, { titleKey });
 
-        let descriptionSyncActive =
-          thing.sync && thing.sync.description && thing.sync.description.active;
+        const syncConfig = (thing.sync ?? {}) as ThingSyncConfig;
+        const descriptionSyncActive = Boolean(syncConfig.description?.active);
         if (req.params.field === 'description' && descriptionSyncActive)
           return render.permissionError(req, res, {
             titleKey,
@@ -289,8 +296,8 @@ function processTextFieldUpdate(
           titleKey,
         });
 
-      let descriptionSyncActive =
-        thing.sync && thing.sync.description && thing.sync.description.active;
+      const syncConfig = (thing.sync ?? {}) as ThingSyncConfig;
+      const descriptionSyncActive = Boolean(syncConfig.description?.active);
       if (field === 'description' && descriptionSyncActive)
         return render.permissionError(req, res, {
           titleKey,
@@ -308,19 +315,19 @@ function processTextFieldUpdate(
         const metadataFields = ['description', 'subtitle', 'authors'];
         if (metadataFields.includes(field)) {
           const metadata = (revision.metadata ??= {} as Record<string, unknown>);
-          const fieldMetadata = (metadata[field] ??= {}) as Record<string, string>;
+          const fieldMetadata = (metadata[field] ??= {}) as MultilingualString;
           fieldMetadata[language] = escapeHTML(text);
         } else {
           // Handle direct fields like label
           switch (field) {
             case 'label': {
-              const label = (revision.label ??= {} as Record<string, string>);
+              const label = (revision.label ??= {} as MultilingualString);
               label[language] = escapeHTML(text);
               break;
             }
             default: {
               const revisionRecord = revision as Record<string, unknown>;
-              const fieldValue = (revisionRecord[field] ??= {}) as Record<string, string>;
+              const fieldValue = (revisionRecord[field] ??= {}) as MultilingualString;
               fieldValue[language] = escapeHTML(text);
               break;
             }
@@ -500,28 +507,18 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
 // Handle data from a POST request for the "manage URLs" route
 function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   const { req, res, titleKey, thing } = paramsObj;
-  const formDef: Array<{
-    name: string;
-    type?: string;
-    required?: boolean;
-    keyValueMap?: string;
-  }> = [
+  const formDef: FormField[] = [
     {
       name: 'primary',
       type: 'number',
       required: true,
     },
+    {
+      name: 'urls',
+      type: 'url',
+      required: false,
+    },
   ];
-  // This will parse fields like url-0 to an array of URLs
-  for (let field in req.body) {
-    if (/^url-[0-9]+$/.test(field))
-      formDef.push({
-        name: field,
-        type: 'url',
-        required: false,
-        keyValueMap: 'urls',
-      });
-  }
 
   const parsed = forms.parseSubmission(req, { formDef, formKey: 'thing-urls' });
 
@@ -530,12 +527,10 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
     return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
 
   // Detect additional case of primary pointing to a blank field
-  const submittedURLs = parsed.formValues.urls as unknown[];
+  const submittedURLs = parsed.formValues.urls as string[] | undefined;
   const primaryIndex = Number(parsed.formValues.primary);
   const primaryURL =
-    typeof submittedURLs?.[primaryIndex] === 'string'
-      ? (submittedURLs[primaryIndex] as string)
-      : '';
+    typeof submittedURLs?.[primaryIndex] === 'string' ? submittedURLs[primaryIndex] : '';
   if (!primaryURL.length) {
     req.flash('pageErrors', req.__('need primary'));
     return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
@@ -546,9 +541,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   // is done by the model (and client-side for JS users).
   const normalizedURLs = Array.isArray(submittedURLs) ? submittedURLs : [];
   let thingURLs = [primaryURL].concat(
-    normalizedURLs.filter(
-      url => typeof url === 'string' && url !== primaryURL && url.length
-    ) as string[]
+    normalizedURLs.filter(url => typeof url === 'string' && url !== primaryURL && url.length)
   );
 
   // Now we need to make sure that none of the URLs are currently in use.
@@ -577,7 +570,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
         return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
 
       // No dupes -- continue!
-      thing.newRevision(req.user).then((revision: ThingInstance) => {
+      thing.newRevision(req.user).then(revision => {
         // Reset sync settings for adapters
         revision.setURLs(thingURLs);
         // Fetch external data for any URLs that support it and update thing, search index

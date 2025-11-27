@@ -3,7 +3,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { Router } from 'express';
 
-import File from '../models/file.ts';
+import File, { type FileFeedResult, type FileInstance } from '../models/file.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import render from './helpers/render.ts';
@@ -11,18 +11,13 @@ import render from './helpers/render.ts';
 type FilesRouteRequest<Params extends Record<string, string> = Record<string, string>> =
   HandlerRequest<Params>;
 type FilesRouteResponse = HandlerResponse;
-type FileModelType = {
-  getFileFeed(options?: Record<string, unknown>): Promise<Record<string, any>>;
-  getNotStaleOrDeleted(id: string): Promise<Record<string, any>>;
-};
 
 const router = Router();
-const FileModel = File as unknown as FileModelType;
 
 const rename = promisify(fs.rename);
 
 router.get('/files', (req: FilesRouteRequest, res: FilesRouteResponse, next: HandlerNext) => {
-  FileModel.getFileFeed()
+  File.getFileFeed()
     .then(feed => showFiles(req, res, feed))
     .catch(next);
 });
@@ -34,13 +29,17 @@ router.get(
     let offsetDate = new Date(utcISODate);
     if (Number.isNaN(offsetDate.getTime())) offsetDate = null;
 
-    FileModel.getFileFeed({ offsetDate })
+    File.getFileFeed({ offsetDate })
       .then(feed => showFiles(req, res, feed))
       .catch(next);
   }
 );
 
-function showFiles(req: FilesRouteRequest, res: FilesRouteResponse, feed: Record<string, any>) {
+function showFiles(
+  req: FilesRouteRequest,
+  res: FilesRouteResponse,
+  feed: FileFeedResult<FileInstance>
+) {
   feed.items.forEach(file => file.populateUserInfo(req.user));
   render.template(req, res, 'files', {
     titleKey: 'uploaded files title',
@@ -54,7 +53,7 @@ router.get(
   '/file/:id/delete',
   (req: FilesRouteRequest<{ id: string }>, res: FilesRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
-    FileModel.getNotStaleOrDeleted(id)
+    File.getNotStaleOrDeleted(id)
       .then(file => {
         const titleKey = 'delete file';
         file.populateUserInfo(req.user);
@@ -74,7 +73,7 @@ router.post(
   '/file/:id/delete',
   (req: FilesRouteRequest<{ id: string }>, res: FilesRouteResponse, next: HandlerNext) => {
     const { id } = req.params;
-    FileModel.getNotStaleOrDeleted(id)
+    File.getNotStaleOrDeleted(id)
       .then(file => {
         const titleKey = 'file deleted';
         file.populateUserInfo(req.user);
@@ -93,11 +92,7 @@ router.post(
   }
 );
 
-async function deleteFile(
-  req: FilesRouteRequest,
-  file: Record<string, any>,
-  user: Record<string, any>
-) {
+async function deleteFile(req: FilesRouteRequest, file: FileInstance, user: Express.User) {
   const { uploadsDir, deletedDir } = req.app.locals.paths as {
     uploadsDir: string;
     deletedDir: string;

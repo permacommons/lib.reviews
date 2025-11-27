@@ -9,11 +9,120 @@ import type {
 import elasticsearch from 'elasticsearch';
 import mlString from './dal/lib/ml-string.ts';
 import languages from './locales/languages.ts';
+import type { ReviewInstance } from './models/manifests/review.ts';
+import type { ThingInstance } from './models/manifests/thing.ts';
 import debug from './util/debug.ts';
 
 type LocaleCode = LibReviews.LocaleCode;
 
 type ElasticClient = elasticsearch.Client;
+
+/**
+ * ElasticSearch suggest response structure for thing completion queries.
+ */
+export type SuggestThingResponse = {
+  suggest: {
+    [key: `labels-${string}`]: Array<{
+      options: Array<{
+        _source: {
+          urlID: string;
+          urls: unknown;
+          description: unknown;
+        };
+        _index: string;
+        [key: string]: unknown;
+      }>;
+    }>;
+  };
+};
+
+/**
+ * ElasticSearch search response for things (review subjects).
+ */
+export type SearchThingsResponse = SearchResponse<{
+  urlID: string;
+  label: unknown;
+  description?: unknown;
+  type: 'thing';
+  [key: string]: unknown;
+}>;
+
+/**
+ * ElasticSearch search response for reviews with inner_hits (parent things).
+ */
+export type SearchReviewsResponse = {
+  hits: {
+    total: number | { value: number; relation: string };
+    hits: Array<{
+      _id: string;
+      _source: {
+        urlID: string;
+        label: unknown;
+        type: 'thing';
+        [key: string]: unknown;
+      };
+      inner_hits: {
+        review: {
+          hits: {
+            total: { value: number };
+            hits: Array<{
+              _id: string;
+              _source: {
+                title: unknown;
+                starRating: number;
+                [key: string]: unknown;
+              };
+              highlight?: Record<string, string[]>;
+            }>;
+          };
+        };
+      };
+    }>;
+  };
+};
+
+/**
+ * Type for ElasticSearch hit objects with inner_hits and highlights.
+ */
+type ESHitWithInnerHighlights = {
+  inner_hits?: {
+    [type: string]: {
+      hits: {
+        hits: Array<{
+          highlight?: Record<string, string[]>;
+          [key: string]: unknown;
+        }>;
+      };
+    };
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * ElasticSearch completion (autocomplete) field mapping.
+ */
+type ESCompletionMapping = {
+  type: 'completion';
+  analyzer: string;
+  max_input_length: number;
+};
+
+/**
+ * ElasticSearch text field mapping for multilingual content.
+ * Supports optional stemmed (processed) and completion (autocomplete) sub-fields.
+ */
+type ESTextFieldMapping = {
+  type: 'text';
+  index_options: 'offsets';
+  fields?: {
+    processed?: {
+      type: 'text';
+      analyzer: string;
+      index_options: 'offsets';
+    };
+    completion?: ESCompletionMapping;
+  };
+};
 
 let client: ElasticClient | null = null;
 
@@ -77,7 +186,7 @@ const search = {
   },
 
   // Find things by their label or description; performs language fallback
-  searchThings(query: string, lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
+  searchThings(query: string, lang: LocaleCode = 'en'): Promise<SearchThingsResponse> {
     const options = search.getSearchOptions('label', lang);
     const descriptionOptions = search.getSearchOptions('description', lang);
     const subtitleOptions = search.getSearchOptions('subtitle', lang);
@@ -125,7 +234,7 @@ const search = {
 
   // Find reviews by their text or title; performs language fallback and includes
   // the thing via parent-child join. The review is returned as an inner hit.
-  searchReviews(query: string, lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
+  searchReviews(query: string, lang: LocaleCode = 'en'): Promise<SearchReviewsResponse> {
     // Add text fields
     const options = search.getSearchOptions('text', lang);
 
@@ -134,6 +243,8 @@ const search = {
     options.fields = options.fields.concat(titleOptions.fields);
 
     Object.assign(options.highlight.fields, titleOptions.highlight.fields);
+    // Note: The client's SearchResponse type uses generic 'inner_hits: any', but we know
+    // the actual structure from the has_child query. Cast to our specific type.
     return getClient().search({
       index: 'libreviews',
       body: {
@@ -153,12 +264,15 @@ const search = {
           },
         },
       },
-    });
+    }) as unknown as Promise<SearchReviewsResponse>;
   },
 
   // We may be getting highlights from both the processed (stememd) index
   // and the unprocessed one. This function filters the dupes from inner hits.
-  filterDuplicateInnerHighlights(hits: any[], type: string): any[] {
+  filterDuplicateInnerHighlights(
+    hits: ESHitWithInnerHighlights[],
+    type: string
+  ): ESHitWithInnerHighlights[] {
     for (const hit of hits) {
       if (hit.inner_hits && hit.inner_hits[type] && hit.inner_hits[type].hits) {
         for (const innerHit of hit.inner_hits[type].hits.hits) {
@@ -204,7 +318,7 @@ const search = {
 
   // Get search suggestions based on entered characters for review subjects
   // (things).
-  suggestThing(prefix = '', lang: LocaleCode = 'en'): Promise<SearchResponse<any>> {
+  suggestThing(prefix = '', lang: LocaleCode = 'en'): Promise<SuggestThingResponse> {
     // We'll query all fallbacks back to English, and return all results
     const langs = languages.getFallbacks(lang);
     if (lang !== 'en') langs.unshift(lang);
@@ -229,11 +343,14 @@ const search = {
 
     query.body = { ...query.body, suggest };
 
-    return getClient().search(query);
+    // Note: The _suggest endpoint was removed in Elasticsearch 6.0. Modern ES uses the
+    // _search endpoint with a suggest body. The client's SearchResponse type doesn't match
+    // the actual response structure (which has 'suggest' instead of 'hits'), hence the cast.
+    return getClient().search(query) as unknown as Promise<SuggestThingResponse>;
   },
 
   // Index a new review. Returns a promise; logs errors
-  indexReview(review: Record<string, any>): Promise<unknown> {
+  indexReview(review: ReviewInstance): Promise<unknown> {
     // Skip indexing if this is an old or deleted revision
     if (review._oldRevOf || review._revDeleted) {
       debug.util(`Skipping indexing of review ${review.id} - old or deleted revision`);
@@ -266,7 +383,7 @@ const search = {
   },
 
   // Index a new review subject (thing). Returns a promise; logs errors
-  indexThing(thing: Record<string, any>): Promise<unknown> {
+  indexThing(thing: ThingInstance): Promise<unknown> {
     // Skip indexing if this is an old or deleted revision
     if (thing._oldRevOf || thing._revDeleted) {
       debug.util(`Skipping indexing of thing ${thing.id} - old or deleted revision`);
@@ -288,10 +405,10 @@ const search = {
       body: {
         createdOn: thing.createdOn,
         label: mlString.stripHTML(thing.label),
-        aliases: mlString.stripHTMLFromArray(thing.aliases),
+        aliases: mlString.stripHTMLFromArrayValues(thing.aliases),
         description: mlString.stripHTML(description),
         subtitle: mlString.stripHTML(subtitle),
-        authors: mlString.stripHTMLFromArray(authors),
+        authors: authors ? mlString.stripHTMLFromArray(authors) : authors,
         joined: 'thing',
         type: 'thing',
         urls: thing.urls,
@@ -404,7 +521,7 @@ const search = {
   // Generate the mappings (ElasticSearch schemas) for indexing multilingual
   // strings
   getMultilingualTextProperties(completionMapping = false) {
-    const obj: { properties: Record<string, any> } = {
+    const obj: { properties: Record<string, ESTextFieldMapping> } = {
       properties: {},
     };
 
@@ -454,7 +571,7 @@ const search = {
   },
 
   // Return mapping for label autocompletion
-  getCompletionMapping() {
+  getCompletionMapping(): ESCompletionMapping {
     return {
       type: 'completion',
       analyzer: 'label',

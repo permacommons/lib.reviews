@@ -1,7 +1,9 @@
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import dal from '../../dal/index.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+
+const { types } = dal;
 
 // Reserved slugs that must never be used without qualification
 export const reservedSlugs = [
@@ -20,9 +22,9 @@ export const reservedSlugs = [
   'terms',
 ] as const;
 
-const thingSlugManifest = defineModelManifest({
+const thingSlugManifest = {
   tableName: 'thing_slugs',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types.string().uuid(4),
     thingID: types.string().uuid(4).required(true),
@@ -40,26 +42,26 @@ const thingSlugManifest = defineModelManifest({
     baseName: 'base_name',
     qualifierPart: 'qualifier_part',
   },
-} as const);
+} as const satisfies ModelManifest;
 
-type ThingSlugInstanceBase = InferInstance<typeof thingSlugManifest>;
-type ThingSlugModelBase = InferConstructor<typeof thingSlugManifest>;
+type ThingSlugBaseTypes = ManifestExports<typeof thingSlugManifest>;
 
-export interface ThingSlugStaticMethods {
-  getByName(
-    this: ThingSlugModelBase & ThingSlugStaticMethods,
-    name: string
-  ): Promise<(ThingSlugInstanceBase & ThingSlugInstanceMethods) | null>;
-}
+type ThingSlugTypes = ManifestExports<
+  typeof thingSlugManifest,
+  {
+    statics: {
+      getByName(name: string): Promise<ThingSlugBaseTypes['Instance'] | null>;
+    };
+    instances: {
+      qualifiedSave(): Promise<ThingSlugBaseTypes['Instance'] | null>;
+    };
+  }
+>;
 
-export interface ThingSlugInstanceMethods {
-  qualifiedSave(
-    this: ThingSlugInstanceBase & ThingSlugInstanceMethods
-  ): Promise<(ThingSlugInstanceBase & ThingSlugInstanceMethods) | null>;
-}
-
-export type ThingSlugInstance = ThingSlugInstanceBase & ThingSlugInstanceMethods;
-export type ThingSlugModel = ThingSlugModelBase & ThingSlugStaticMethods;
+export type ThingSlugInstanceMethods = ThingSlugTypes['InstanceMethods'];
+export type ThingSlugStaticMethods = ThingSlugTypes['StaticMethods'];
+export type ThingSlugInstance = ThingSlugTypes['Instance'];
+export type ThingSlugModel = ThingSlugTypes['Model'];
 
 /**
  * Create a lazy reference to the ThingSlug model for use in other models.

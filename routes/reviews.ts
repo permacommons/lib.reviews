@@ -1,7 +1,5 @@
 import config from 'config';
-import BlogPost from '../models/blog-post.ts';
-import type { ReviewFeedResult } from '../models/manifests/review.ts';
-import type { TeamModel as TeamModelType } from '../models/manifests/team.ts';
+import BlogPost, { type BlogPostInstance } from '../models/blog-post.ts';
 import Review from '../models/review.ts';
 import Team from '../models/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
@@ -12,22 +10,8 @@ import render from './helpers/render.ts';
 
 type ReviewsRouteRequest = HandlerRequest;
 type ReviewsRouteResponse = HandlerResponse;
-type ReviewModelType = { getFeed(options?: Record<string, unknown>): Promise<Record<string, any>> };
-type BlogPostModelType = {
-  getMostRecentBlogPostsBySlug(
-    slug: string,
-    options?: Record<string, unknown>
-  ): Promise<Record<string, any>>;
-};
-
-type TeamModelHandle = TeamModelType & {
-  filterWhere(criteria: Record<string, never>): { sample: (count?: number) => Promise<any> };
-};
 
 const routes = ReviewProvider.getDefaultRoutes('review');
-const ReviewModel = Review as unknown as ReviewModelType;
-const TeamModel = Team as unknown as TeamModelHandle;
-const BlogPostModel = BlogPost as unknown as BlogPostModelType;
 
 routes.addFromThing = {
   path: '/new/review/:id',
@@ -46,17 +30,15 @@ const router = ReviewProvider.bakeRoutes(null, routes);
 // We show two query results on the front-page, the team developers blog
 // and a feed of recent reviews, filtered to include only trusted ones.
 router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next: HandlerNext) => {
-  const feedPromise = ReviewModel.getFeed({
+  const feedPromise = Review.getFeed({
     onlyTrusted: true,
     withThing: true,
     withTeams: true,
-  }) as Promise<ReviewFeedResult>;
-  const sampleTeamsPromise = TeamModel.filterWhere({}).sample(3);
+  });
+  const sampleTeamsPromise = Team.filterWhere({}).sample(3);
   const blogPromise = config.frontPageTeamBlog
-    ? BlogPostModel.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
-    : Promise.resolve<{ blogPosts: Record<string, any>[]; offsetDate?: Date } | undefined>(
-        undefined
-      );
+    ? BlogPost.getMostRecentBlogPostsBySlug(config.frontPageTeamBlog, { limit: 3 })
+    : Promise.resolve<{ blogPosts: BlogPostInstance[]; offsetDate?: Date } | undefined>(undefined);
 
   try {
     const [feedResult, sampleTeams, blogResult] = await Promise.all([

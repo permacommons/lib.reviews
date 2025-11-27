@@ -1,14 +1,12 @@
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import dal from '../../dal/index.ts';
+import type { ManifestExports, ManifestInstance } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferData,
-  InferInstance,
-  InferVirtual,
-  ModelManifest,
-} from '../../dal/lib/model-manifest.ts';
+import type { InferData, InferVirtual, ModelManifest } from '../../dal/lib/model-manifest.ts';
 import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
-import types from '../../dal/lib/type.ts';
+import type { TeamInstance } from './team.ts';
 import type { UserMetaInstance } from './user-meta.ts';
+
+const { types } = dal;
 
 const userOptions = {
   maxChars: 128,
@@ -37,7 +35,7 @@ export function canonicalize(name: string): string {
  * @returns True if valid
  * @throws Error if username contains illegal characters
  */
-export function containsOnlyLegalCharacters(name: string): true {
+function containsOnlyLegalCharacters(name: string): true {
   if (userOptions.illegalChars.test(name)) {
     throw new Error(`Username ${name} contains invalid characters.`);
   }
@@ -86,20 +84,12 @@ const userSchema = {
         typeof this.getValue === 'function' ? this.getValue('isSuperUser') : this.isSuperUser;
       return Boolean(isTrusted || isSuperUser);
     }),
-  meta: types.virtual().returns<ModelInstance | undefined>().default(undefined),
-  teams: types.virtual().returns<ModelInstance[] | undefined>().default(undefined),
-  moderatorOf: types.virtual().returns<ModelInstance[] | undefined>().default(undefined),
+  // Note: relation fields (meta, teams, moderatorOf) are typed via intersection pattern
 } as const;
 
-type UserSchema = typeof userSchema;
-type UserData = InferData<UserSchema>;
-type UserVirtual = InferVirtual<UserSchema>;
-
+type UserData = InferData<typeof userSchema>;
+type UserVirtual = InferVirtual<typeof userSchema>;
 type UserInstanceBase = ModelInstance<UserData, UserVirtual>;
-
-type UserExtraStatics = {
-  options: typeof userOptions;
-};
 
 export type UserAccessContext = {
   id: UserData['id'];
@@ -108,31 +98,20 @@ export type UserAccessContext = {
   isTrusted?: UserData['isTrusted'];
 };
 
+export type UserRelations = {
+  meta?: UserMetaInstance;
+  teams?: TeamInstance[];
+  moderatorOf?: TeamInstance[];
+};
+
 export interface CreateUserPayload {
   name: string;
   password: string;
   email?: UserData['email'];
 }
 
-export type UserInstanceMethods = {
-  populateUserInfo(
-    this: UserInstanceBase & UserInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-  setName(this: UserInstanceBase & UserInstanceMethods, displayName: string): void;
-  setPassword(this: UserInstanceBase & UserInstanceMethods, password: string): Promise<string>;
-  checkPassword(this: UserInstanceBase & UserInstanceMethods, password: string): Promise<boolean>;
-  getValidPreferences(this: UserInstanceBase & UserInstanceMethods): string[];
-};
-
-export type UserInstance = UserInstanceBase & UserInstanceMethods;
-
-type UserModelBase = ModelConstructor<UserData, UserVirtual, UserInstance>;
-
-type UserStaticThis = UserModel & UserExtraStatics;
-
 export type UserView = Pick<
-  UserInstance,
+  UserInstanceBase,
   | 'id'
   | 'displayName'
   | 'canonicalName'
@@ -141,36 +120,11 @@ export type UserView = Pick<
   | 'isTrusted'
   | 'isSiteModerator'
   | 'isSuperUser'
-> & {
-  urlName?: UserInstance['urlName'];
-};
+> & { urlName?: UserInstanceBase['urlName'] };
 
-export type UserStaticMethods = {
-  create(this: UserStaticThis, userObj: CreateUserPayload): Promise<UserInstance>;
-  ensureUnique(this: UserStaticThis, name: string): Promise<boolean>;
-  getWithTeams(
-    this: UserStaticThis,
-    id: string,
-    options?: GetOptions
-  ): Promise<UserInstance | null>;
-  findByURLName(
-    this: UserStaticThis,
-    name: string,
-    options?: (GetOptions & { withData?: boolean; withTeams?: boolean }) | undefined
-  ): Promise<UserInstance>;
-  createBio(
-    this: UserStaticThis,
-    user: UserInstance,
-    bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>
-  ): Promise<UserInstance>;
-  canonicalize(this: UserStaticThis, name: string): string;
-};
-
-export type UserModel = UserModelBase & UserStaticMethods & UserExtraStatics;
-
-const userManifest = defineModelManifest({
+const userManifest = {
   tableName: 'users',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: userSchema,
   camelToSnake: {
     displayName: 'display_name',
@@ -220,10 +174,11 @@ const userManifest = defineModelManifest({
       hasRevisions: true,
       cardinality: 'one',
     },
-  ] as const,
+  ],
   views: {
     publicProfile: {
-      project(user: InferInstance<typeof userManifest>) {
+      // Use UserInstanceBase to avoid circular reference with typeof userManifest
+      project(user: UserInstanceBase) {
         return {
           id: user.id,
           displayName: user.displayName,
@@ -238,7 +193,48 @@ const userManifest = defineModelManifest({
       },
     },
   },
-} as ModelManifest<UserSchema, false, UserStaticMethods, UserInstanceMethods>);
+} as const satisfies ModelManifest;
+
+type UserInstanceMethodsMap = {
+  populateUserInfo(user: UserAccessContext | null | undefined): void;
+  setName(displayName: string): void;
+  setPassword(password: string): Promise<string>;
+  checkPassword(password: string): Promise<boolean>;
+  getValidPreferences(): string[];
+};
+
+type UserStaticMethodsMap = {
+  create(userObj: CreateUserPayload): Promise<UserInstance>;
+  ensureUnique(name: string): Promise<boolean>;
+  getWithTeams(id: string, options?: GetOptions): Promise<UserInstance | null>;
+  findByURLName(
+    name: string,
+    options?: (GetOptions & { withData?: boolean; withTeams?: boolean }) | undefined
+  ): Promise<UserInstance>;
+  createBio(
+    user: UserInstance,
+    bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>
+  ): Promise<UserInstance>;
+  canonicalize(name: string): string;
+};
+
+type UserTypes = ManifestExports<
+  typeof userManifest,
+  {
+    relations: UserRelations;
+    statics: UserStaticMethodsMap;
+    instances: UserInstanceMethodsMap;
+  }
+>;
+
+export type UserInstanceMethods = UserTypes['InstanceMethods'];
+export type UserStaticMethods = UserTypes['StaticMethods'];
+export type UserInstance = ManifestInstance<typeof userManifest, UserInstanceMethods> &
+  UserRelations;
+
+type UserExtraStatics = { options: typeof userOptions };
+type UserModelBase = ModelConstructor<UserTypes['Data'], UserTypes['Virtual'], UserInstance>;
+export type UserModel = UserModelBase & UserStaticMethods & UserExtraStatics;
 
 /**
  * Create a lazy reference to the User model for use in other models.

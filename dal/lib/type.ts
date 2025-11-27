@@ -395,34 +395,37 @@ export class ArrayType<
 
 /**
  * Object/JSONB type definition.
+ *
+ * @typeParam TValue - The type of values in the record (default: unknown)
+ * @typeParam TRequired - Whether the field is required
  */
-export class ObjectType<TRequired extends boolean = false> extends Type<
-  Record<string, unknown>,
+export class ObjectType<TValue = unknown, TRequired extends boolean = false> extends Type<
+  Record<string, TValue>,
   TRequired
 > {
-  override required<T extends boolean = true>(isRequired = true as T): ObjectType<T> {
+  override required<T extends boolean = true>(isRequired = true as T): ObjectType<TValue, T> {
     super.required(isRequired);
-    return this as unknown as ObjectType<T>;
+    return this as unknown as ObjectType<TValue, T>;
   }
 
   override validate(
     value: unknown,
     fieldName = 'field'
-  ): TypeOutput<Record<string, unknown>, TRequired> {
+  ): TypeOutput<Record<string, TValue>, TRequired> {
     if (this._required && (value === null || value === undefined)) {
       throw new ValidationError(`${fieldName} is required`);
     }
 
     if (value === null || value === undefined) {
-      return value as TypeOutput<Record<string, unknown>, TRequired>;
+      return value as TypeOutput<Record<string, TValue>, TRequired>;
     }
 
     if (typeof value !== 'object' || Array.isArray(value)) {
       throw new ValidationError(`${fieldName} must be an object`);
     }
 
-    this.runValidators(value as Record<string, unknown>, fieldName);
-    return value as TypeOutput<Record<string, unknown>, TRequired>;
+    this.runValidators(value as Record<string, TValue>, fieldName);
+    return value as TypeOutput<Record<string, TValue>, TRequired>;
   }
 }
 

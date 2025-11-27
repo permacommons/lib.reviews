@@ -1,0 +1,218 @@
+# Form Parser Migration to Zod
+
+## Background
+
+The current form parsing system (`routes/helpers/forms.ts`) uses a custom `FormField[]` schema format with runtime validation and type transformations. While functional, it has several limitations:
+
+1. **Dual maintenance**: Schema definitions (`FormField[]`) and types are separate, leading to potential drift
+2. **Limited type inference**: Returns `Record<string, unknown>` requiring manual type narrowing at call sites
+3. **Complex type transformations**: Different `type` values produce different output shapes that aren't reflected in static types
+4. **Custom validation logic**: Homegrown validation that could benefit from battle-tested library
+
+## Why Zod?
+
+[Zod](https://zod.dev/) is the most popular TypeScript schema validation library:
+
+- **Single source of truth**: Schema definition generates both runtime validation AND static types
+- **Type inference**: `z.infer<typeof schema>` automatically derives TypeScript types
+- **Composable**: Schemas can be reused, extended, and composed
+- **Great DX**: Excellent error messages, IDE autocomplete
+- **Widely adopted**: 30k+ GitHub stars, used by Next.js, tRPC, many others
+- **Small bundle**: ~8kb minified + gzipped
+
+## Migration Strategy
+
+### Phase 1: Add Zod, Create Utilities (Low Risk)
+
+1. Install Zod: `npm install zod`
+2. Create `routes/helpers/zod-forms.ts` with utilities:
+   - `createMultilingualTextField()` - for text fields with language keys
+   - `createMultilingualMarkdownField()` - for markdown with text/html structure
+   - Common form helpers (CSRF, CAPTCHA schemas)
+3. No changes to existing code yet
+
+### Phase 2: Migrate One Form (Proof of Concept)
+
+Pick a simple form to prove the pattern works:
+- Candidate: **User registration form** (`routes/actions.ts` - only 5 fields)
+- Create Zod schema alongside existing `FormField[]` definition
+- Update handler to optionally use Zod validation
+- Compare DX, error handling, type safety
+- Document learnings
+
+### Phase 3: Incremental Migration
+
+Migrate forms one at a time, starting with simpler ones:
+
+**Simple forms** (few fields, straightforward validation):
+- User registration
+- Team creation
+- Blog post creation
+
+**Medium complexity** (conditional logic, nested structures):
+- Review creation (has conditional team fields)
+- Thing URL management
+
+**Complex forms** (dynamic fields, multi-file uploads):
+- Multi-file upload with per-file metadata
+- Thing editing (sync field interactions)
+
+### Phase 4: Deprecate Old System
+
+Once all forms migrated:
+1. Remove `routes/helpers/forms.ts`
+2. Remove `FormField` type and related helpers
+3. Update documentation
+
+## Example: Before & After
+
+### Current Approach
+
+```typescript
+// routes/actions.ts
+const formDefs: Record<string, FormField[]> = {
+  register: [
+    { name: 'username', required: true },
+    { name: 'password', required: true },
+    { name: 'email', required: false },
+  ],
+};
+
+// In handler
+const formInfo = forms.parseSubmission(req, {
+  formDef: formDefs.register,
+  formKey: 'register',
+});
+
+// Manual type narrowing required
+const username = formInfo.formValues.username as string;
+const password = formInfo.formValues.password as string;
+```
+
+### With Zod
+
+```typescript
+import { z } from 'zod';
+
+const registerSchema = z.object({
+  _csrf: z.string(),
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email: z.string().email().optional(),
+});
+
+type RegisterForm = z.infer<typeof registerSchema>;
+//   ^? { _csrf: string; username: string; password: string; email?: string }
+
+// In handler
+const result = registerSchema.safeParse(req.body);
+if (!result.success) {
+  // result.error.issues has detailed, typed errors
+  const errors = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`);
+  req.flash('pageErrors', errors);
+  return;
+}
+
+// result.data is fully typed!
+const { username, password, email } = result.data;
+```
+
+## Handling Current Form Patterns
+
+### Pattern 1: Multilingual Text Fields
+
+**Current**: `type: 'text'` → `{ [language]: string }`
+
+**With Zod**:
+```typescript
+const createMultilingualText = (language: string) =>
+  z.object({ [language]: z.string() });
+
+// Or accept pre-localized input
+const reviewSchema = z.object({
+  title: z.string().transform((val, ctx) => ({
+    [ctx.locale]: val  // assuming we pass locale in context
+  }))
+});
+```
+
+### Pattern 2: Markdown with HTML Generation
+
+**Current**: `type: 'markdown'` → `{ text: { [lang]: string }, html: { [lang]: string } }`
+
+**With Zod**:
+```typescript
+const createMarkdownField = (language: string, markdownRenderer: typeof md) =>
+  z.string().transform(val => ({
+    text: { [language]: escapeHTML(val) },
+    html: { [language]: markdownRenderer.render(val) }
+  }));
+```
+
+### Pattern 3: Field Name Remapping
+
+**Current**: `{ name: 'review-url', key: 'url' }`
+
+**With Zod**:
+```typescript
+const schema = z.object({
+  'review-url': z.string().url()
+}).transform(data => ({
+  url: data['review-url']  // explicit remapping
+}));
+```
+
+### Pattern 4: CAPTCHA Integration
+
+**Current**: Auto-added based on `formKey`
+
+**With Zod**:
+```typescript
+const withCaptcha = <T extends z.ZodObject<any>>(schema: T, formKey: string) => {
+  const config = getCaptchaConfig(formKey);
+  if (!config) return schema;
+
+  return schema.extend({
+    'captcha-id': z.string(),
+    'captcha-answer': z.string()
+  }).refine(data => validateCaptcha(data['captcha-id'], data['captcha-answer']), {
+    message: 'Incorrect CAPTCHA answer'
+  });
+};
+```
+
+## Open Questions
+
+1. **Language handling**: How do we pass locale context to Zod transforms?
+   - Option A: Use Zod context (`ctx`) in transforms
+   - Option B: Create schema factories that accept language parameter
+   - Option C: Post-process Zod output with language transformation
+
+2. **Flash message integration**: Zod error format vs. current flash message pattern
+   - Current: `req.flash('pageErrors', req.__('need username'))`
+   - Zod: Structured errors with paths and messages
+   - Need: Helper to convert Zod errors → localized flash messages
+
+3. **CSRF validation**: Currently auto-injected in `parseSubmission`
+   - Should we make CSRF validation explicit in each schema?
+   - Or create a wrapper that auto-adds CSRF?
+
+4. **Form re-rendering with errors**: Current code passes `formValues` back to template
+   - How do we preserve submitted (invalid) values for re-display?
+   - Zod provides both the error and the original input
+
+## Success Criteria
+
+Migration is successful if:
+- ✅ All forms have type-safe validation
+- ✅ No more `Record<string, unknown>` form values
+- ✅ Reduced code duplication between schema and types
+- ✅ Better error messages for users
+- ✅ Easier to add new forms (less boilerplate)
+- ✅ Type checker catches form validation errors at compile time
+
+## Resources
+
+- [Zod Documentation](https://zod.dev/)
+- [Zod GitHub](https://github.com/colinhacks/zod)
+- [Comparison with other libraries](https://zod.dev/?id=comparison)

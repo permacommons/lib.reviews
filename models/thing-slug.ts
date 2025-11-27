@@ -20,7 +20,7 @@ const thingSlugStaticMethods = defineStaticMethods(thingSlugManifest, {
    * @param name - The slug name to look up
    * @returns The thing slug instance or null if not found
    */
-  async getByName(this: ThingSlugModel, name: string) {
+  async getByName(name: string) {
     try {
       return (await this.filterWhere({ name }).first()) as ThingSlugInstance | null;
     } catch (error) {
@@ -33,7 +33,7 @@ const thingSlugStaticMethods = defineStaticMethods(thingSlugManifest, {
 }) satisfies ThingSlugStaticMethods;
 
 const thingSlugInstanceMethods = defineInstanceMethods(thingSlugManifest, {
-  async qualifiedSave(this: ThingSlugInstance): Promise<ThingSlugInstance | null> {
+  async qualifiedSave(): Promise<ThingSlugInstance | null> {
     const Model = this.constructor as ThingSlugModel;
 
     if (!this.baseName) {

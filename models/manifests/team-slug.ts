@@ -1,11 +1,13 @@
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import dal from '../../dal/index.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
-const teamSlugManifest = defineModelManifest({
+const { types } = dal;
+
+const teamSlugManifest = {
   tableName: 'team_slugs',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types.string().uuid(4),
     teamID: types.string().uuid(4).required(true),
@@ -19,26 +21,26 @@ const teamSlugManifest = defineModelManifest({
     createdOn: 'created_on',
     createdBy: 'created_by',
   },
-} as const);
+} as const satisfies ModelManifest;
 
-type TeamSlugInstanceBase = InferInstance<typeof teamSlugManifest>;
-type TeamSlugModelBase = InferConstructor<typeof teamSlugManifest>;
+type TeamSlugBaseTypes = ManifestExports<typeof teamSlugManifest>;
 
-export interface TeamSlugStaticMethods {
-  getByName(
-    this: TeamSlugModelBase & TeamSlugStaticMethods,
-    name: string
-  ): Promise<(TeamSlugInstanceBase & TeamSlugInstanceMethods) | null>;
-}
+type TeamSlugTypes = ManifestExports<
+  typeof teamSlugManifest,
+  {
+    statics: {
+      getByName(name: string): Promise<TeamSlugBaseTypes['Instance'] | null>;
+    };
+    instances: {
+      qualifiedSave(): Promise<TeamSlugBaseTypes['Instance']>;
+    };
+  }
+>;
 
-export interface TeamSlugInstanceMethods {
-  qualifiedSave(
-    this: TeamSlugInstanceBase & TeamSlugInstanceMethods
-  ): Promise<TeamSlugInstanceBase & TeamSlugInstanceMethods>;
-}
-
-export type TeamSlugInstance = TeamSlugInstanceBase & TeamSlugInstanceMethods;
-export type TeamSlugModel = TeamSlugModelBase & TeamSlugStaticMethods;
+export type TeamSlugInstanceMethods = TeamSlugTypes['InstanceMethods'];
+export type TeamSlugInstance = TeamSlugTypes['Instance'];
+export type TeamSlugStaticMethods = TeamSlugTypes['StaticMethods'];
+export type TeamSlugModel = TeamSlugTypes['Model'];
 
 /**
  * Create a lazy reference to the TeamSlug model for use in other models.

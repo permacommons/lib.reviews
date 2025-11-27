@@ -1,10 +1,12 @@
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import dal from '../../dal/index.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 
-const teamJoinRequestManifest = defineModelManifest({
+const { types } = dal;
+
+const teamJoinRequestManifest = {
   tableName: 'team_join_requests',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types.string().uuid(4),
     teamID: types.string().uuid(4).required(true),
@@ -27,9 +29,11 @@ const teamJoinRequestManifest = defineModelManifest({
     rejectionMessage: 'rejection_message',
     rejectedUntil: 'rejected_until',
   },
-});
+} as const satisfies ModelManifest;
 
-export type TeamJoinRequestInstance = InferInstance<typeof teamJoinRequestManifest>;
-export type TeamJoinRequestModel = InferConstructor<typeof teamJoinRequestManifest>;
+type TeamJoinRequestTypes = ManifestExports<typeof teamJoinRequestManifest>;
+
+export type TeamJoinRequestInstance = TeamJoinRequestTypes['Instance'];
+export type TeamJoinRequestModel = TeamJoinRequestTypes['Model'];
 
 export default teamJoinRequestManifest;

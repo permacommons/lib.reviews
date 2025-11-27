@@ -1,4 +1,5 @@
 import type { ModelSchemaField } from './model.ts';
+import type { StaticMethod } from './model-initializer.ts';
 import type {
   InstanceMethod,
   JsonObject,
@@ -10,40 +11,57 @@ import type {
 } from './model-types.ts';
 
 /**
+ * Represents an empty static methods object (no methods defined).
+ * More readable than the opaque `Record<never, never>`.
+ */
+export type EmptyStaticMethods = Record<never, never>;
+
+/**
+ * Base relation definition type for manifest relations array.
+ *
+ * Either `targetTable` or `target` must be provided:
+ * - `targetTable`: Explicit table name string
+ * - `target`: Function returning model reference (tableName derived at runtime)
+ */
+export interface RelationDefinition {
+  name: string;
+  /** Target table name. Optional if `target` is provided (derived at runtime). */
+  targetTable?: string;
+  sourceKey?: string;
+  targetKey?: string;
+  sourceColumn?: string;
+  targetColumn?: string;
+  hasRevisions?: boolean;
+  cardinality?: 'one' | 'many';
+  through?: {
+    table: string;
+    sourceForeignKey?: string;
+    targetForeignKey?: string;
+    sourceColumn?: string;
+    targetColumn?: string;
+  };
+  /** Lazy model reference. If provided, targetTable is derived from target().tableName */
+  target?: () => unknown;
+}
+
+/**
  * Model manifest definition - declarative model configuration
  * Used by createModel() to generate properly typed model handles
+ *
+ * Note: Relation types are inferred via Manifest['relations'] property access,
+ * not via generic parameter, enabling `as const satisfies ModelManifest` pattern.
  */
 export interface ModelManifest<
   Schema extends Record<string, ModelSchemaField> = Record<string, ModelSchemaField>,
   HasRevisions extends boolean = boolean,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = Record<
-    never,
-    (...args: unknown[]) => unknown
-  >,
-  InstanceMethods extends Record<string, InstanceMethod> = Record<never, InstanceMethod>,
+  StaticMethods extends object = EmptyStaticMethods,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
 > {
   tableName: string;
   hasRevisions: HasRevisions;
   schema: Schema;
   camelToSnake?: Record<string, string>;
-  relations?: readonly {
-    name: string;
-    targetTable: string;
-    sourceKey?: string;
-    targetKey?: string;
-    sourceColumn?: string;
-    targetColumn?: string;
-    hasRevisions?: boolean;
-    cardinality?: 'one' | 'many';
-    through?: {
-      table: string;
-      sourceForeignKey?: string;
-      targetForeignKey?: string;
-      sourceColumn?: string;
-      targetColumn?: string;
-    };
-    [key: string]: unknown;
-  }[];
+  relations?: readonly RelationDefinition[];
   views?: Record<string, ModelViewDefinition<ModelInstance>>;
   staticMethods?: StaticMethods &
     ThisType<InferConstructor<ModelManifest<Schema, HasRevisions, StaticMethods, InstanceMethods>>>;
@@ -51,31 +69,33 @@ export interface ModelManifest<
     ThisType<InferInstance<ModelManifest<Schema, HasRevisions, StaticMethods, InstanceMethods>>>;
 }
 
-type InstanceMethodsOf<Manifest extends ModelManifest> = Manifest extends ModelManifest<
-  any,
-  any,
-  any,
+/**
+ * Extract static methods from a manifest, with proper fallback for manifests without methods.
+ * Extracts from the generic type parameter for reliable type inference.
+ * Uses infer for all positions to avoid `any` while satisfying type constraints.
+ */
+type ExtractStaticMethods<M extends ModelManifest> = M extends ModelManifest<
+  infer _Schema,
+  infer _HasRevisions,
+  infer Methods,
+  infer _InstanceMethods
+>
+  ? Methods
+  : EmptyStaticMethods;
+
+/**
+ * Extract instance methods from a manifest, with proper fallback for manifests without methods.
+ * Extracts from the generic type parameter for reliable type inference.
+ * Uses infer for all positions to avoid `any` while satisfying type constraints.
+ */
+type ExtractInstanceMethods<M extends ModelManifest> = M extends ModelManifest<
+  infer _Schema,
+  infer _HasRevisions,
+  infer _StaticMethods,
   infer Methods
 >
   ? Methods
   : Record<never, InstanceMethod>;
-
-type StaticMethodsOf<Manifest extends ModelManifest> = Manifest extends ModelManifest<
-  any,
-  any,
-  infer Methods,
-  any
->
-  ? Methods
-  : Record<never, (...args: unknown[]) => unknown>;
-
-type InferInstanceMethods<Manifest extends ModelManifest> = {
-  [K in keyof InstanceMethodsOf<Manifest>]: InstanceMethodsOf<Manifest>[K];
-};
-
-type InferStaticMethods<Manifest extends ModelManifest> = {
-  [K in keyof StaticMethodsOf<Manifest>]: StaticMethodsOf<Manifest>[K];
-};
 
 type InferRelationNames<Manifest extends ModelManifest> =
   Manifest['relations'] extends readonly (infer Relations)[]
@@ -110,14 +130,27 @@ export type InferVirtual<Schema extends Record<string, ModelSchemaField>> = {
 };
 
 /**
+ * Helper to get virtual fields for a manifest.
+ * Exported for use in create-model.ts to ensure type consistency.
+ *
+ * Note: Relation field types are added via intersection pattern when defining
+ * the final instance type, not inferred from the manifest. This avoids
+ * circular type errors for bidirectional relations.
+ */
+export type ManifestVirtualFields<Manifest extends ModelManifest> = InferVirtual<
+  Manifest['schema']
+>;
+
+/**
  * Infer instance type from manifest
  * Returns VersionedModelInstance if hasRevisions is true, otherwise ModelInstance
+ * Includes both schema virtuals and typed relation fields.
  */
 export type InferInstance<Manifest extends ModelManifest> = Manifest['hasRevisions'] extends true
-  ? VersionedModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
-      InferInstanceMethods<Manifest>
-  : ModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
-      InferInstanceMethods<Manifest>;
+  ? VersionedModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
+      ExtractInstanceMethods<Manifest>
+  : ModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
+      ExtractInstanceMethods<Manifest>;
 
 type CreateFromRowStatic<Manifest extends ModelManifest> = {
   createFromRow(row: JsonObject): InferInstance<Manifest>;
@@ -130,19 +163,19 @@ type CreateFromRowStatic<Manifest extends ModelManifest> = {
 export type InferConstructor<Manifest extends ModelManifest> = Manifest['hasRevisions'] extends true
   ? VersionedModelConstructor<
       InferData<Manifest['schema']>,
-      InferVirtual<Manifest['schema']>,
-      VersionedModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
-        InferInstanceMethods<Manifest>,
+      ManifestVirtualFields<Manifest>,
+      VersionedModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
+        ExtractInstanceMethods<Manifest>,
       InferRelationNames<Manifest>
     > &
-      InferStaticMethods<Manifest> &
+      ExtractStaticMethods<Manifest> &
       CreateFromRowStatic<Manifest>
   : ModelConstructor<
       InferData<Manifest['schema']>,
-      InferVirtual<Manifest['schema']>,
-      ModelInstance<InferData<Manifest['schema']>, InferVirtual<Manifest['schema']>> &
-        InferInstanceMethods<Manifest>,
+      ManifestVirtualFields<Manifest>,
+      ModelInstance<InferData<Manifest['schema']>, ManifestVirtualFields<Manifest>> &
+        ExtractInstanceMethods<Manifest>,
       InferRelationNames<Manifest>
     > &
-      InferStaticMethods<Manifest> &
+      ExtractStaticMethods<Manifest> &
       CreateFromRowStatic<Manifest>;

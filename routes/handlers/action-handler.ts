@@ -5,7 +5,7 @@ import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/h
 import api from '../helpers/api.ts';
 import render from '../helpers/render.ts';
 import { assignFilename, checkMIMEType } from '../uploads.ts';
-import apiUploadHandler from './api-upload-handler.ts';
+import apiUploadHandler, { type UploadMetadata } from './api-upload-handler.ts';
 
 type UploadFile = {
   originalname: string;
@@ -14,10 +14,15 @@ type UploadFile = {
   [key: string]: unknown;
 };
 
-type ActionRequest = HandlerRequest<Record<string, string>, unknown, Record<string, any>>;
 type ActionResponse = HandlerResponse;
 
-type UploadRequest = ActionRequest & { files: UploadFile[] };
+type PreferenceRequest = HandlerRequest<{ modify?: string }, unknown, { preferenceName?: string }>;
+
+type NoticeRequest = HandlerRequest<Record<string, string>, unknown, { noticeType?: string }>;
+
+type UploadRequest = HandlerRequest<Record<string, string>, unknown, UploadMetadata> & {
+  files: UploadFile[];
+};
 
 type UploadMiddleware = (req: UploadRequest, res: ActionResponse, next: HandlerNext) => void;
 
@@ -25,7 +30,7 @@ const actionHandler = {
   // Handler for enabling, disabling or toggling a Boolean preference. Currently
   // accepts one preference at a time, but should be easy to modify to handle
   // bulk operations if needed.
-  modifyPreference(req: ActionRequest, res: ActionResponse, next: HandlerNext): void {
+  modifyPreference(req: PreferenceRequest, res: ActionResponse, next: HandlerNext): void {
     const user = req.user;
     const preferenceName = String(req.body?.preferenceName ?? '').trim();
     const modifyAction = String(req.params?.modify ?? '');
@@ -74,7 +79,7 @@ const actionHandler = {
       .catch(next);
   },
   // Handler for hiding interface messages, announcements, etc., permanently for a given user
-  suppressNotice(req: ActionRequest, res: ActionResponse, next: HandlerNext): void {
+  suppressNotice(req: NoticeRequest, res: ActionResponse, next: HandlerNext): void {
     const noticeType = String(req.body?.noticeType ?? '').trim();
     const user = req.user;
     const output = req.isAPI ? api : render;

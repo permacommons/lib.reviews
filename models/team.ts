@@ -7,6 +7,7 @@ import {
   defineModel,
   defineStaticMethods,
 } from '../dal/lib/create-model.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import type { ModelInstance } from '../dal/lib/model-types.ts';
 import debug from '../util/debug.ts';
 import { generateSlugName } from '../util/slug.ts';
@@ -40,10 +41,8 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
    * @param options - Controls which associations are hydrated
    * @returns The team instance enriched with the requested data
    */
-  async getWithData(this: TeamModel, id: string, options: GetWithDataOptions = {}) {
-    const team = (await this.getNotStaleOrDeleted(id)) as
-      | (TeamInstance & Record<string, any>)
-      | null;
+  async getWithData(id: string, options: GetWithDataOptions = {}) {
+    const team = await this.getNotStaleOrDeleted(id);
     if (!team) throw new Error(`Team ${id} not found`);
 
     const {
@@ -79,7 +78,6 @@ const teamStaticMethods = defineStaticMethods(teamManifest, {
         const offsetDate = lastReview?.createdOn as Date | undefined;
         if (offsetDate) {
           team.reviewOffsetDate = offsetDate;
-          team.review_offset_date = offsetDate;
         }
       }
     }
@@ -95,20 +93,20 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
    *
    * @param user - Viewer whose relationship determines permissions
    */
-  populateUserInfo(this: TeamInstance, user: ModelInstance | UserAccessContext | null | undefined) {
+  populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined) {
     if (!user) return;
 
     if (
       this.members &&
       Array.isArray(this.members) &&
-      this.members.some((member: ModelInstance) => member.id === user.id)
+      this.members.some(member => member.id === user.id)
     )
       this.userIsMember = true;
 
     if (
       this.moderators &&
       Array.isArray(this.moderators) &&
-      this.moderators.some((moderator: ModelInstance) => moderator.id === user.id)
+      this.moderators.some(moderator => moderator.id === user.id)
     )
       this.userIsModerator = true;
 
@@ -143,7 +141,7 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
    * @param language - Preferred language for slug generation
    * @returns The updated team instance
    */
-  async updateSlug(this: TeamInstance, userID: string, language?: string | null) {
+  async updateSlug(userID: string, language?: string | null) {
     const originalLanguage = (this.originalLanguage as string | undefined) || 'en';
     const slugLanguage = language || originalLanguage;
 
@@ -151,7 +149,7 @@ const teamInstanceMethods = defineInstanceMethods(teamManifest, {
 
     if (!this.name) return this;
 
-    const resolved = mlString.resolve(slugLanguage, this.name as Record<string, string>);
+    const resolved = mlString.resolve(slugLanguage, this.name as MultilingualString);
     if (!resolved || typeof resolved.str !== 'string' || !resolved.str.trim()) return this;
 
     let baseSlug: string;

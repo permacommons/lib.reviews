@@ -177,13 +177,19 @@ test.serial('File upload stage 2 (metadata) without CSRF token is rejected with 
   const { agent } = requireIntegrationContext(t);
 
   // Test 1: POST without CSRF token should fail with 403
-  const responseWithoutCsrf = await agent.post('/test-thing/upload').type('form').send({
-    // Deliberately omitting _csrf token
-    'upload-language': 'en',
-    'upload-fakeid': '1',
-    'upload-fakeid-description': 'Test description',
-    'upload-fakeid-by': 'uploader',
-  });
+  const responseWithoutCsrf = await agent
+    .post('/test-thing/upload')
+    .type('form')
+    .send({
+      // Deliberately omitting _csrf token
+      'upload-language': 'en',
+      upload: {
+        fakeid: {
+          description: 'Test description',
+          by: 'uploader',
+        },
+      },
+    });
 
   t.is(responseWithoutCsrf.status, 403, 'Request without CSRF should return 403');
 
@@ -194,13 +200,19 @@ test.serial('File upload stage 2 (metadata) without CSRF token is rejected with 
 
   if (!validCsrf) return t.fail('Could not obtain valid CSRF token');
 
-  const responseWithCsrf = await agent.post('/test-thing/upload').type('form').send({
-    _csrf: validCsrf,
-    'upload-language': 'en',
-    'upload-fakeid': '1',
-    'upload-fakeid-description': 'Test description',
-    'upload-fakeid-by': 'uploader',
-  });
+  const responseWithCsrf = await agent
+    .post('/test-thing/upload')
+    .type('form')
+    .send({
+      _csrf: validCsrf,
+      'upload-language': 'en',
+      upload: {
+        fakeid: {
+          description: 'Test description',
+          by: 'uploader',
+        },
+      },
+    });
 
   // Should NOT be 403 (CSRF passed, will fail for other reasons like 404 for missing thing)
   t.not(responseWithCsrf.status, 403, 'Request with valid CSRF should not return 403');

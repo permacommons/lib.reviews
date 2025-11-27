@@ -1,17 +1,50 @@
+import type {
+  AdapterLookupData,
+  AdapterLookupResult,
+} from '../../adapters/abstract-backend-adapter.ts';
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
+import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
+import type { FileInstance } from './file.ts';
 import type { ReviewInstance } from './review.ts';
 import type { UserAccessContext } from './user.ts';
 
-const { mlString } = dal as unknown as {
-  mlString: typeof import('../../dal/lib/ml-string.ts').default;
-};
+const { mlString, types } = dal;
+
+/**
+ * Entry for a single synced field, tracking its source and update state.
+ */
+export interface SyncEntry {
+  active: boolean;
+  source: string;
+  updated?: Date;
+}
+
+/**
+ * Fields that can be synced from adapters, derived from AdapterLookupData.
+ * Excludes 'thing' which is a domain object reference, not a syncable field.
+ */
+export type SyncField = Exclude<keyof AdapterLookupData, 'thing'>;
+
+/**
+ * The full sync configuration object, keyed by syncable field name.
+ */
+export type SyncData = Partial<Record<SyncField, SyncEntry>>;
+
+/**
+ * Structured metadata stored in the JSONB `metadata` column.
+ */
+export interface MetadataData {
+  description?: Record<string, string>;
+  subtitle?: Record<string, string>;
+  authors?: Array<Record<string, string>>;
+}
 const { isValid: isValidLanguage } = languages as unknown as { isValid: (code: string) => boolean };
 
 const metadataDescriptionSchema = mlString.getSafeTextSchema({ maxLength: 512 });
@@ -28,7 +61,7 @@ function validateMetadata(metadata: unknown): boolean {
   }
 
   const validFields = ['description', 'subtitle', 'authors'];
-  const entries = Object.entries(metadata as Record<string, any>);
+  const entries = Object.entries(metadata as Partial<MetadataData>);
   for (const [key, value] of entries) {
     if (validFields.includes(key)) {
       if (value === null || value === undefined) {
@@ -73,9 +106,9 @@ export interface ThingLabelSource extends Record<string, unknown> {
   urls?: unknown;
 }
 
-const thingManifest = defineModelManifest({
+const thingManifest = {
   tableName: 'things',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
 
@@ -99,7 +132,7 @@ const thingManifest = defineModelManifest({
     createdBy: types.string().uuid(4).required(true),
 
     // Virtual fields for compatibility
-    urlID: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
+    urlID: types.virtual().default(function (this: ThingTypes['BaseInstance']) {
       const slugName =
         typeof this.getValue === 'function'
           ? this.getValue('canonicalSlugName')
@@ -118,21 +151,32 @@ const thingManifest = defineModelManifest({
     averageStarRating: types.virtual().default(0),
 
     // Virtual accessors for nested metadata JSONB fields
-    description: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
-      const metadata =
-        typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
-      return metadata?.description;
-    }),
-    subtitle: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
-      const metadata =
-        typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
-      return metadata?.subtitle;
-    }),
-    authors: types.virtual().default(function (this: InferInstance<typeof thingManifest>) {
-      const metadata =
-        typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
-      return metadata?.authors;
-    }),
+    description: types
+      .virtual()
+      .returns<MultilingualString | undefined>()
+      .default(function () {
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        return metadata?.description;
+      }),
+    subtitle: types
+      .virtual()
+      .returns<MultilingualString | undefined>()
+      .default(function () {
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        return metadata?.subtitle;
+      }),
+    authors: types
+      .virtual()
+      .returns<MultilingualString[] | undefined>()
+      .default(function () {
+        const metadata =
+          typeof this.getValue === 'function' ? this.getValue('metadata') : this.metadata;
+        return metadata?.authors;
+      }),
+
+    // Note: relation fields (reviews, files) are typed via intersection pattern
   },
   camelToSnake: {
     originalLanguage: 'original_language',
@@ -162,66 +206,59 @@ const thingManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
-type ThingInstanceBase = InferInstance<typeof thingManifest>;
-type ThingModelBase = InferConstructor<typeof thingManifest>;
+type ThingRelations = { reviews?: ReviewInstance[]; files?: FileInstance[] };
 
-export interface ThingInstanceMethods {
-  initializeFieldsFromAdapter(
-    this: ThingInstanceBase & ThingInstanceMethods,
-    adapterResult: Record<string, any>
-  ): void;
-  populateUserInfo(
-    this: ThingInstanceBase & ThingInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-  populateReviewMetrics(this: ThingInstanceBase & ThingInstanceMethods): Promise<ThingInstance>;
-  setURLs(this: ThingInstanceBase & ThingInstanceMethods, urls: string[]): void;
-  updateActiveSyncs(
-    this: ThingInstanceBase & ThingInstanceMethods,
-    userID?: string
-  ): Promise<ThingInstance>;
-  getReviewsByUser(
-    this: ThingInstanceBase & ThingInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): Promise<ReviewInstance[]>;
-  getAverageStarRating(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;
-  getReviewCount(this: ThingInstanceBase & ThingInstanceMethods): Promise<number>;
-  addFile(this: ThingInstanceBase & ThingInstanceMethods, file: Record<string, any>): void;
+type ThingBaseTypes = ManifestExports<typeof thingManifest, { relations: ThingRelations }>;
+
+type ThingInstanceMethodsMap = {
+  initializeFieldsFromAdapter(adapterResult: AdapterLookupResult): void;
+  populateUserInfo(user: UserAccessContext | null | undefined): void;
+  populateReviewMetrics(): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  setURLs(urls: string[]): void;
+  updateActiveSyncs(userID?: string): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  getReviewsByUser(user: UserAccessContext | null | undefined): Promise<ReviewInstance[]>;
+  getAverageStarRating(): Promise<number>;
+  getReviewCount(): Promise<number>;
+  getSourceIDsOfActiveSyncs(): string[];
+  addFile(file: FileInstance): void;
   updateSlug(
-    this: ThingInstanceBase & ThingInstanceMethods,
     userID: string,
     language?: string
-  ): Promise<ThingInstance>;
+  ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
   addFilesByIDsAndSave(
-    this: ThingInstanceBase & ThingInstanceMethods,
     fileIDs: string[],
     userID?: string
-  ): Promise<ThingInstance>;
-}
+  ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+};
 
-export interface ThingStaticMethods {
-  lookupByURL(
-    this: ThingModelBase & ThingStaticMethods,
-    url: string,
-    userID?: string | null
-  ): Promise<ThingInstance[]>;
-  getWithData(
-    this: ThingModelBase & ThingStaticMethods,
-    id: string,
-    options?: { withFiles?: boolean; withReviewMetrics?: boolean }
-  ): Promise<ThingInstance>;
-  getLabel(
-    this: ThingModelBase & ThingStaticMethods,
-    thing: ThingLabelSource | null | undefined,
-    language: string
-  ): string | undefined;
-}
+type ThingTypes = ManifestExports<
+  typeof thingManifest,
+  {
+    relations: ThingRelations;
+    statics: {
+      lookupByURL(
+        url: string,
+        userID?: string | null
+      ): Promise<Array<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>>;
+      getWithData(
+        id: string,
+        options?: { withFiles?: boolean; withReviewMetrics?: boolean }
+      ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+      getLabel(thing: ThingLabelSource | null | undefined, language: string): string | undefined;
+    };
+    instances: ThingInstanceMethodsMap;
+  }
+>;
 
-export type ThingInstance = ThingInstanceBase & ThingInstanceMethods;
-export type ThingModel = ThingModelBase & ThingStaticMethods;
+// Use intersection pattern for relation types
+// Fields are optional because they're only populated when relations are loaded
+export type ThingInstanceMethods = ThingTypes['InstanceMethods'];
+export type ThingStaticMethods = ThingTypes['StaticMethods'];
+export type ThingInstance = ThingTypes['Instance'];
+export type ThingModel = ThingTypes['Model'];
 
 /**
  * Create a typed reference to the Thing model for use in cross-model dependencies.

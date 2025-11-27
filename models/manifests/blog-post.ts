@@ -1,19 +1,13 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type {
-  InferConstructor,
-  InferData,
-  InferInstance,
-  InferVirtual,
-} from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
 import languages from '../../locales/languages.ts';
-import type { UserAccessContext } from './user.ts';
+import type { UserAccessContext, UserView } from './user.ts';
 
-const { mlString } = dal as {
-  mlString: typeof import('../../dal/lib/ml-string.ts').default;
-};
+export type BlogPostCreator = Pick<UserView, 'id' | 'displayName' | 'urlName'>;
+
+const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
 
 export interface BlogPostFeedOptions {
@@ -21,9 +15,9 @@ export interface BlogPostFeedOptions {
   offsetDate?: Date;
 }
 
-const blogPostManifest = defineModelManifest({
+const blogPostManifest = {
   tableName: 'blog_posts',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
     teamID: types.string().uuid(4).required(true),
@@ -35,6 +29,7 @@ const blogPostManifest = defineModelManifest({
     originalLanguage: types.string().max(4).required(true).validator(isValidLanguage),
     userCanEdit: types.virtual().default(false),
     userCanDelete: types.virtual().default(false),
+    // Note: creator relation is typed via intersection pattern on BlogPostInstance
   },
   camelToSnake: {
     teamID: 'team_id',
@@ -42,40 +37,37 @@ const blogPostManifest = defineModelManifest({
     createdBy: 'created_by',
     originalLanguage: 'original_language',
   },
-});
+} as const satisfies ModelManifest;
 
-type BlogPostInstanceBase = InferInstance<typeof blogPostManifest>;
-type BlogPostModelBase = InferConstructor<typeof blogPostManifest>;
+type BlogPostRelations = { creator?: BlogPostCreator };
 
-export type BlogPostData = InferData<(typeof blogPostManifest)['schema']>;
-export type BlogPostVirtual = InferVirtual<(typeof blogPostManifest)['schema']>;
+type BlogPostTypes = ManifestExports<
+  typeof blogPostManifest,
+  {
+    relations: BlogPostRelations;
+    statics: {
+      getWithCreator(id: string): Promise<BlogPostTypes['Instance'] | null>;
+      getMostRecentBlogPosts(
+        teamID: string,
+        options?: BlogPostFeedOptions
+      ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
+      getMostRecentBlogPostsBySlug(
+        teamSlugName: string,
+        options?: BlogPostFeedOptions
+      ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
+    };
+    instances: {
+      populateUserInfo(user: UserAccessContext | null | undefined): void;
+    };
+  }
+>;
 
-export interface BlogPostInstanceMethods {
-  populateUserInfo(
-    this: BlogPostInstanceBase & BlogPostInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-}
-
-export interface BlogPostStaticMethods {
-  getWithCreator(
-    this: BlogPostModelBase & BlogPostStaticMethods,
-    id: string
-  ): Promise<BlogPostInstance | null>;
-  getMostRecentBlogPosts(
-    this: BlogPostModelBase & BlogPostStaticMethods,
-    teamID: string,
-    options?: BlogPostFeedOptions
-  ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
-  getMostRecentBlogPostsBySlug(
-    this: BlogPostModelBase & BlogPostStaticMethods,
-    teamSlugName: string,
-    options?: BlogPostFeedOptions
-  ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
-}
-
-export type BlogPostInstance = BlogPostInstanceBase & BlogPostInstanceMethods;
-export type BlogPostModel = BlogPostModelBase & BlogPostStaticMethods;
+export type BlogPostInstanceMethods = BlogPostTypes['InstanceMethods'];
+export type BlogPostInstance = BlogPostTypes['Instance'];
+export type BlogPostStaticMethods = BlogPostTypes['StaticMethods'];
+export type BlogPostData = BlogPostTypes['Data'];
+export type BlogPostVirtual = BlogPostTypes['Virtual'];
+export type BlogPostModel = BlogPostTypes['Model'];
 
 /**
  * Create a lazy reference to the BlogPost model for use in other models.

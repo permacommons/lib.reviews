@@ -1,16 +1,16 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
-import type { UserAccessContext } from './user.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type { ThingInstance } from './thing.ts';
+import type { UserAccessContext, UserView } from './user.ts';
 
-const { mlString } = dal as { mlString: Record<string, any> };
+const { mlString, types } = dal;
 const validLicenseValues = ['cc-0', 'cc-by', 'cc-by-sa', 'fair-use'] as const;
 
-const fileManifest = defineModelManifest({
+const fileManifest = {
   tableName: 'files',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
     name: types.string().max(512),
@@ -24,6 +24,8 @@ const fileManifest = defineModelManifest({
     completed: types.boolean().default(false),
     userCanDelete: types.virtual().default(false),
     userIsCreator: types.virtual().default(false),
+
+    // Note: relation fields (uploader, things) are typed via intersection pattern
   },
   camelToSnake: {
     uploadedBy: 'uploaded_by',
@@ -52,8 +54,8 @@ const fileManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
 export interface FileFeedOptions {
   offsetDate?: Date;
@@ -65,31 +67,29 @@ export interface FileFeedResult<TItem> {
   offsetDate?: Date;
 }
 
-type FileInstanceBase = InferInstance<typeof fileManifest>;
-type FileModelBase = InferConstructor<typeof fileManifest>;
+type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
 
-export interface FileInstanceMethods {
-  populateUserInfo(
-    this: FileInstanceBase & FileInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-}
+type FileTypes = ManifestExports<
+  typeof fileManifest,
+  {
+    relations: FileRelations;
+    statics: {
+      getStashedUpload(userID: string, name: string): Promise<FileTypes['Instance'] | undefined>;
+      getValidLicenses(): readonly string[];
+      getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileTypes['Instance']>>;
+    };
+    instances: {
+      populateUserInfo(user: UserAccessContext | null | undefined): void;
+    };
+  }
+>;
 
-export interface FileStaticMethods {
-  getStashedUpload(
-    this: FileModelBase & FileStaticMethods,
-    userID: string,
-    name: string
-  ): Promise<FileInstance | undefined>;
-  getValidLicenses(this: FileModelBase & FileStaticMethods): readonly string[];
-  getFileFeed(
-    this: FileModelBase & FileStaticMethods,
-    options?: FileFeedOptions
-  ): Promise<FileFeedResult<Record<string, any>>>;
-}
-
-export type FileInstance = FileInstanceBase & FileInstanceMethods;
-export type FileModel = FileModelBase & FileStaticMethods;
+// Use intersection pattern for relation types
+// Fields are optional because they're only populated when relations are loaded
+export type FileInstanceMethods = FileTypes['InstanceMethods'];
+export type FileInstance = FileTypes['Instance'];
+export type FileStaticMethods = FileTypes['StaticMethods'];
+export type FileModel = FileTypes['Model'];
 export const fileValidLicenses = validLicenseValues;
 
 /**

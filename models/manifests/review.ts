@@ -1,15 +1,16 @@
 import dal from '../../dal/index.ts';
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import type { ManifestExports } from '../../dal/lib/create-model.ts';
+import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import type { InstanceMethod, RevisionActor } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
+import type { FileInstance } from './file.ts';
+import type { TeamInstance } from './team.ts';
 import type { ThingInstance } from './thing.ts';
-import type { UserAccessContext } from './user.ts';
+import type { UserAccessContext, UserView } from './user.ts';
 
-const { mlString } = dal as {
-  mlString: Record<string, any>;
-};
+const { mlString, types } = dal;
 const { isValid: isValidLanguage } = languages as { isValid: (code: string) => boolean };
 
 export const reviewOptions = {
@@ -40,12 +41,12 @@ export interface ReviewCreateOptions {
 export interface ReviewValidateSocialImageOptions {
   socialImageID?: string;
   newFileIDs?: string[];
-  fileObjects?: Record<string, any>[];
+  fileObjects?: Array<FileInstance | { id: string }>;
 }
 
-const reviewManifest = defineModelManifest({
+const reviewManifest = {
   tableName: 'reviews',
-  hasRevisions: true,
+  hasRevisions: true as const,
   schema: {
     id: types.string().uuid(4),
 
@@ -68,6 +69,8 @@ const reviewManifest = defineModelManifest({
     userCanDelete: types.virtual().default(false),
     userCanEdit: types.virtual().default(false),
     userIsAuthor: types.virtual().default(false),
+
+    // Note: relation fields (thing, teams, creator, socialImage) are typed via intersection pattern
   },
   camelToSnake: {
     thingID: 'thing_id',
@@ -82,7 +85,6 @@ const reviewManifest = defineModelManifest({
       name: 'thing',
       targetTable: 'things',
       sourceKey: 'thing_id',
-      targetKey: 'id',
       hasRevisions: true,
       cardinality: 'one',
     },
@@ -115,49 +117,53 @@ const reviewManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ] as const,
-});
+  ],
+} as const satisfies ModelManifest;
 
-type ReviewInstanceBase = InferInstance<typeof reviewManifest>;
-type ReviewModelBase = InferConstructor<typeof reviewManifest>;
+type ReviewRelations = {
+  thing?: ThingInstance;
+  teams?: TeamInstance[];
+  creator?: UserView;
+  socialImage?: FileInstance;
+};
 
-export interface ReviewInstanceMethods {
-  populateUserInfo(
-    this: ReviewInstanceBase & ReviewInstanceMethods,
-    user: UserAccessContext | null | undefined
-  ): void;
-  deleteAllRevisionsWithThing(
-    this: ReviewInstanceBase & ReviewInstanceMethods,
-    user: Record<string, any>
-  ): Promise<[unknown, unknown]>;
-}
+type ReviewTypes = ManifestExports<
+  typeof reviewManifest,
+  {
+    relations: ReviewRelations;
+    statics: {
+      getWithData(id: string): Promise<ReviewTypes['Instance'] | null>;
+      create(
+        reviewObj: ReviewInputObject,
+        options?: ReviewCreateOptions
+      ): Promise<ReviewTypes['Instance']>;
+      validateSocialImage(options?: ReviewValidateSocialImageOptions): void;
+      findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
+      getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
+    };
+    instances: {
+      populateUserInfo(user: UserAccessContext | null | undefined): void;
+      deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
+    };
+  }
+>;
 
-export interface ReviewStaticMethods {
-  getWithData(
-    this: ReviewModelBase & ReviewStaticMethods,
-    id: string
-  ): Promise<ReviewInstance | null>;
-  create(
-    this: ReviewModelBase & ReviewStaticMethods,
-    reviewObj: Record<string, any>,
-    options?: ReviewCreateOptions
-  ): Promise<ReviewInstance>;
-  validateSocialImage(
-    this: ReviewModelBase & ReviewStaticMethods,
-    options?: ReviewValidateSocialImageOptions
-  ): void;
-  findOrCreateThing(
-    this: ReviewModelBase & ReviewStaticMethods,
-    reviewObj: Record<string, any>
-  ): Promise<ThingInstance>;
-  getFeed(
-    this: ReviewModelBase & ReviewStaticMethods,
-    options?: ReviewFeedOptions
-  ): Promise<ReviewFeedResult>;
-}
+type ReviewData = ReviewTypes['Data'];
 
-export type ReviewInstance = ReviewInstanceBase & ReviewInstanceMethods;
-export type ReviewModel = ReviewModelBase & ReviewStaticMethods & { options: typeof reviewOptions };
+/**
+ * Input for creating a review - combines schema fields with additional create-time data.
+ */
+export type ReviewInputObject = Partial<ReviewData> & {
+  url?: string;
+  thing?: ThingInstance;
+  label?: MultilingualString;
+  teams?: TeamInstance[];
+};
+
+export type ReviewInstanceMethods = ReviewTypes['InstanceMethods'];
+export type ReviewStaticMethods = ReviewTypes['StaticMethods'];
+export type ReviewInstance = ReviewTypes['Instance'];
+export type ReviewModel = ReviewTypes['Model'] & { options: typeof reviewOptions };
 
 /**
  * Create a typed reference to the Review model for use in cross-model dependencies.

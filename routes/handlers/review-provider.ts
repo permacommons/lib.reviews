@@ -1,11 +1,14 @@
 // External dependencies
 import config from 'config';
-import mlString from '../../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
 import File from '../../models/file.ts';
-import type {
-  TeamInstance as TeamManifestInstance,
-  TeamModel as TeamModelType,
-} from '../../models/manifests/team.ts';
+import {
+  type ReviewInstance as ManifestReviewInstance,
+  type ReviewInputObject,
+  type ReviewValidateSocialImageOptions,
+} from '../../models/manifests/review.ts';
+import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
+import type { ThingInstance } from '../../models/manifests/thing.ts';
 import Review from '../../models/review.ts';
 import Team from '../../models/team.ts';
 import User from '../../models/user.ts';
@@ -17,61 +20,43 @@ import getMessages from '../../util/get-messages.ts';
 import md, { getMarkdownMessageKeys } from '../../util/md.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
+import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
-const ReviewModel = Review as any;
-const TeamModel = Team as TeamModelType;
-const UserModel = User as any;
-const FileModel = File as any;
-
-type ThingInstance = {
-  id: string;
-  label?: Record<string, string>;
-  urls?: string[];
-  files?: Array<Record<string, unknown>>;
-  populateUserInfo: (user: HandlerRequest['user']) => void;
-  addFilesByIDsAndSave?: (files: string[], userId: string) => Promise<unknown>;
-  [key: string]: unknown;
-};
-
 type ReviewFormValues = {
-  title?: Record<string, string>;
-  text?: Record<string, string>;
-  html?: Record<string, string>;
+  // From form parsing
+  url?: string;
+  title?: MultilingualString;
+  label?: MultilingualString;
+  text?: MultilingualString;
+  html?: MultilingualString;
   starRating?: number;
-  files?: string[];
-  uploads?: Array<Record<string, unknown>>;
-  teams?: Array<Record<string, unknown>>;
+  originalLanguage?: string;
+  teams?: string[] | TeamInstance[]; // UUIDs from form, resolved to TeamInstance[] by resolveTeamData()
   socialImageID?: string;
+  files?: string[];
+
+  // Set programmatically for creation/persistence
   createdBy?: string;
   createdOn?: Date;
-  creator?: unknown;
   thing?: ThingInstance;
-  [key: string]: any;
+
+  // Template helpers (for view rendering)
+  hasRating?: Record<number, boolean>;
+  hasTeam?: Record<string, boolean>;
+  hasSocialImageID?: Record<string, boolean>;
+  uploads?: Array<Record<string, unknown>>;
+  creator?: unknown;
 };
 
-type ReviewInstance = ReviewFormValues & {
-  id: string;
-  thing: ThingInstance;
-  socialImage?: { name: string };
-  headerImage?: string;
-  populateUserInfo: (user: HandlerRequest['user']) => void;
-  newRevision: (
-    user: HandlerRequest['user'],
-    options?: Record<string, unknown>
-  ) => Promise<ReviewInstance>;
-  saveAll: (options: Record<string, unknown>) => Promise<unknown>;
-  deleteAllRevisions: (
-    user: HandlerRequest['user'],
-    options?: Record<string, unknown>
-  ) => Promise<unknown>;
-};
+// Use manifest type for actual review instances loaded from DB
+type ReviewInstance = ManifestReviewInstance;
 
 type TeamInstance = TeamManifestInstance & Record<string, unknown>;
 
 class ReviewProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, any>;
+  static formDefs: Record<string, FormField[]>;
   protected isPreview = false;
   protected editing = false;
 
@@ -138,7 +123,7 @@ class ReviewProvider extends AbstractBREADProvider {
     // Load user's teams for the form
     if (user && user.id) {
       try {
-        const userWithTeams = await UserModel.findByURLName(user.urlName, { withTeams: true });
+        const userWithTeams = await User.findByURLName(user.urlName, { withTeams: true });
         user.teams = userWithTeams.teams;
         user.moderatorOf = userWithTeams.moderatorOf;
       } catch (error) {
@@ -256,18 +241,12 @@ class ReviewProvider extends AbstractBREADProvider {
     formValues.originalLanguage = language;
 
     // Files uploaded from the editor
-    if (formValues.files && typeof formValues.files === 'object') {
-      // Handle both plain objects and arrays-with-properties (created by keyValueMap form parsing)
-      // For arrays with properties but no elements, Object.keys() extracts the property keys
-      if (!Array.isArray(formValues.files) || formValues.files.length === 0) {
-        formValues.files = Object.keys(formValues.files);
-      }
-    } else if (!formValues.files) {
+    if (!Array.isArray(formValues.files)) {
       formValues.files = [];
     }
 
     this.resolveTeamData(formValues)
-      .then(() => FileModel.getMultipleNotStaleOrDeleted(formValues.files))
+      .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
       .then(async uploadedFiles => {
         const reviewObj = Object.assign({}, formValues);
 
@@ -275,7 +254,9 @@ class ReviewProvider extends AbstractBREADProvider {
         // can both be selected. (This does not need to be included with the
         // review object that will be created.)
         formValues.uploads =
-          thing && thing?.files ? uploadedFiles.concat(thing.files) : uploadedFiles;
+          thing && thing?.files
+            ? (uploadedFiles as Array<Record<string, unknown>>).concat(thing.files)
+            : uploadedFiles;
 
         if (thing && thing.id) reviewObj.thing = thing;
 
@@ -285,17 +266,17 @@ class ReviewProvider extends AbstractBREADProvider {
           return await this.add_GET(formValues, thing);
         }
 
-        ReviewModel.create(reviewObj, {
+        Review.create(reviewObj as ReviewInputObject, {
           tags: ['create-via-form'],
           files: formValues.files,
         })
-          .then(review => {
+          .then((review: ReviewInstance) => {
             this.req.app.locals.webHooks.trigger('newReview', {
               event: 'new-review',
               data: this.getWebHookData(review, this.req.user),
             });
 
-            UserModel.filterWhere({ id: this.req.user.id })
+            User.filterWhere({ id: this.req.user.id })
               .increment('inviteLinkCount', { by: 1 })
               .then(() => {
                 this.res.redirect(`/${review.thing.id}#your-review`);
@@ -316,7 +297,7 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
   async loadData(): Promise<ReviewInstance> {
-    const review = (await ReviewModel.getWithData(this.id)) as ReviewInstance;
+    const review = (await Review.getWithData(this.id)) as unknown as ReviewInstance;
     // For permission checks on associated thing
     review.thing.populateUserInfo(this.req.user);
     return review;
@@ -362,13 +343,7 @@ class ReviewProvider extends AbstractBREADProvider {
       this.isPreview = true;
     }
 
-    if (formValues.files && typeof formValues.files === 'object') {
-      // Handle both plain objects and arrays-with-properties (created by keyValueMap form parsing)
-      // For arrays with properties but no elements, Object.keys() extracts the property keys
-      if (!Array.isArray(formValues.files) || formValues.files.length === 0) {
-        formValues.files = Object.keys(formValues.files);
-      }
-    } else if (!formValues.files) {
+    if (!Array.isArray(formValues.files)) {
       formValues.files = [];
     }
 
@@ -378,10 +353,10 @@ class ReviewProvider extends AbstractBREADProvider {
     };
 
     this.resolveTeamData(formValues)
-      .then(() => FileModel.getMultipleNotStaleOrDeleted(formValues.files))
+      .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
       .then(uploadedFiles => {
         formValues.uploads = review.thing.files
-          ? uploadedFiles.concat(review.thing.files)
+          ? (uploadedFiles as Array<Record<string, unknown>>).concat(review.thing.files)
           : uploadedFiles;
 
         // As with creation, back to edit form if we have errors or
@@ -396,15 +371,15 @@ class ReviewProvider extends AbstractBREADProvider {
           .then(async newRev => {
             const f = formValues;
 
-            ReviewModel.validateSocialImage({
+            Review.validateSocialImage({
               socialImageID: f.socialImageID,
               newFileIDs: f.files,
-              fileObjects: review.thing.files,
+              fileObjects: review.thing.files as ReviewValidateSocialImageOptions['fileObjects'],
             });
 
-            const titleTranslations = newRev.title as Record<string, string>;
-            const textTranslations = newRev.text as Record<string, string>;
-            const htmlTranslations = newRev.html as Record<string, string>;
+            const titleTranslations = newRev.title as MultilingualString;
+            const textTranslations = newRev.text as MultilingualString;
+            const htmlTranslations = newRev.html as MultilingualString;
             const formTitles = f.title ?? {};
             const formTexts = f.text ?? {};
             const formHtml = f.html ?? {};
@@ -412,7 +387,8 @@ class ReviewProvider extends AbstractBREADProvider {
             textTranslations[language] = formTexts[language] ?? '';
             htmlTranslations[language] = formHtml[language] ?? '';
             newRev.starRating = f.starRating;
-            newRev.teams = f.teams;
+            // After resolveTeamData(), teams is always TeamInstance[]
+            newRev.teams = f.teams as TeamInstance[];
             newRev.thing = review.thing;
             newRev.socialImageID = f.socialImageID;
             this.saveNewRevisionAndFiles(newRev, f.files)
@@ -444,12 +420,12 @@ class ReviewProvider extends AbstractBREADProvider {
   // Obtain the data for each team submitted in the form and assign it to
   // formValues.
   async resolveTeamData(formValues: ReviewFormValues): Promise<void> {
-    if (typeof formValues.teams !== 'object' || !Object.keys(formValues.teams).length) {
+    if (!Array.isArray(formValues.teams) || !formValues.teams.length) {
       formValues.teams = [];
       return;
     }
 
-    const queries = Object.keys(formValues.teams).map(teamId => TeamModel.getWithData(teamId));
+    const queries = (formValues.teams as string[]).map(teamId => Team.getWithData(teamId));
 
     try {
       formValues.teams = await Promise.all(queries);
@@ -589,10 +565,8 @@ ReviewProvider.formDefs = {
       skipValue: true, // Logic, not saved
     },
     {
-      name: 'review-team-%uuid',
+      name: 'teams',
       required: false,
-      type: 'boolean',
-      keyValueMap: 'teams',
     },
     {
       name: 'review-social-image',
@@ -601,9 +575,8 @@ ReviewProvider.formDefs = {
       required: false,
     },
     {
-      name: 'uploaded-file-%uuid',
+      name: 'files',
       required: false,
-      keyValueMap: 'files',
     },
   ],
   'delete-review': [
@@ -647,14 +620,12 @@ ReviewProvider.formDefs = {
       skipValue: true,
     },
     {
-      name: 'review-team-%uuid',
+      name: 'teams',
       required: false,
-      keyValueMap: 'teams',
     },
     {
-      name: 'uploaded-file-%uuid',
+      name: 'files',
       required: false,
-      keyValueMap: 'files',
     },
     {
       name: 'review-social-image',

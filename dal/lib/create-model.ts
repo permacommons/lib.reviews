@@ -3,10 +3,12 @@ import { getRegisteredModel } from './model-handle.ts';
 import type { InitializeModelOptions } from './model-initializer.ts';
 import { initializeModel } from './model-initializer.ts';
 import type {
+  EmptyStaticMethods,
   InferConstructor,
   InferData,
   InferInstance,
   InferVirtual,
+  ManifestVirtualFields,
   ModelManifest,
 } from './model-manifest.ts';
 import { getAllManifests, registerManifest } from './model-registry.ts';
@@ -19,41 +21,32 @@ interface CreateModelOptions {
 }
 
 type EmptyRecord = Record<never, never>;
-type EmptyStaticMethods = Record<never, (...args: unknown[]) => unknown>;
 type EmptyInstanceMethods = Record<never, InstanceMethod>;
+type MethodRecord = Record<string, (...args: any[]) => any>;
 
 type ModelConstructorWithStatics<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
 > = InferConstructor<Manifest> & ExtraStatics;
 
+/**
+ * Merge additional static/instance methods into a manifest type.
+ *
+ * This is used when you define methods separately from the manifest
+ * (e.g., in models/*.ts files) and need to combine them.
+ *
+ * The conditional checks handle the case where no methods are provided
+ * (empty objects) by using `unknown` to avoid adding empty properties.
+ *
+ * Uses intersection to preserve the original manifest's relations type.
+ */
 type MergeManifestMethods<
   Manifest extends ModelManifest,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown>,
-  InstanceMethods extends Record<string, InstanceMethod>,
-> = Manifest extends ModelManifest<
-  infer Schema,
-  infer HasRevisions,
-  infer ExistingStaticMethods,
-  infer ExistingInstanceMethods
->
-  ? ModelManifest<
-      Schema,
-      HasRevisions,
-      keyof StaticMethods extends never ? ExistingStaticMethods : StaticMethods,
-      keyof InstanceMethods extends never ? ExistingInstanceMethods : InstanceMethods
-    >
-  : Manifest;
-
-export interface DefineModelOptions<
-  ExtraStatics extends Record<string, unknown>,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown>,
-  InstanceMethods extends Record<string, InstanceMethod>,
-> {
-  statics?: ExtraStatics;
-  staticMethods?: StaticMethods;
-  instanceMethods?: InstanceMethods;
-}
+  StaticMethods extends object,
+  InstanceMethods extends object,
+> = Manifest &
+  (keyof StaticMethods extends never ? unknown : { staticMethods: StaticMethods }) &
+  (keyof InstanceMethods extends never ? unknown : { instanceMethods: InstanceMethods });
 
 /**
  * Initialize a model from its manifest
@@ -68,11 +61,33 @@ function initializeFromManifest<Manifest extends ModelManifest>(
   dal: DataAccessLayer
 ): InferConstructor<Manifest> {
   type Data = InferData<Manifest['schema']>;
-  type Virtual = InferVirtual<Manifest['schema']>;
+  type Virtual = ManifestVirtualFields<Manifest>;
   type Instance = InferInstance<Manifest>;
 
+  // Extract relation definitions, resolving target functions to targetTable strings
   const relationDefinitions = manifest.relations
-    ? manifest.relations.map(relation => ({ ...relation }))
+    ? manifest.relations.map(relation => {
+        const { target, ...rest } = relation;
+
+        // If target is a function, call it to get the model reference and extract tableName
+        if (typeof target === 'function') {
+          try {
+            const targetModel = target() as { tableName?: string } | null | undefined;
+            if (targetModel && typeof targetModel.tableName === 'string') {
+              // Use resolved tableName, but don't override explicit targetTable
+              return {
+                ...rest,
+                targetTable: rest.targetTable ?? targetModel.tableName,
+              };
+            }
+          } catch {
+            // Target resolution failed - model may not be registered yet
+            // Fall back to explicit targetTable if provided
+          }
+        }
+
+        return rest;
+      })
     : null;
 
   // Convert manifest to initializeModel options format
@@ -161,7 +176,7 @@ export function createModelProxy<Manifest extends ModelManifest>(
   const providedStatic = options.staticProperties ?? {};
 
   type Data = InferData<Manifest['schema']>;
-  type Virtual = InferVirtual<Manifest['schema']>;
+  type Virtual = ManifestVirtualFields<Manifest>;
 
   const getModel = () => {
     return getRegisteredModel<Data, Virtual>(manifest.tableName) as InferConstructor<Manifest> & {
@@ -251,35 +266,52 @@ export function initializeManifestModels(dal: DataAccessLayer): void {
 }
 
 /**
- * Type-safe helper for defining model manifests with full type inference.
+ * Helper to define static methods with properly typed `this` context.
  *
- * @param manifest - Model manifest configuration
- * @returns The same manifest with preserved typing
- */
-export function defineModelManifest<Manifest extends ModelManifest>(manifest: Manifest): Manifest {
-  return manifest;
-}
-
-/**
- * Define static methods for a model with properly typed `this` context.
+ * This is a zero-cost abstraction - at runtime it just returns the methods object.
+ * At compile-time, it provides TypeScript with ThisType<InferConstructor<Manifest> & Methods>
+ * so that `this` inside your methods is correctly typed as the model constructor.
  *
  * @param manifest - Model manifest to derive types from
  * @param methods - Static methods with `this` bound to the model constructor
  * @returns The methods object with preserved typing
+ *
+ * @example
+ * const reviewStaticMethods = defineStaticMethods(reviewManifest, {
+ *   async create(this: ReviewModel, data: ReviewInputObject) {
+ *     // `this` is fully typed as ReviewModel
+ *     const thing = await this.findOrCreateThing(data);
+ *     return this.createFirstRevision(...);
+ *   }
+ * });
  */
-export function defineStaticMethods<
-  Manifest extends ModelManifest,
-  Methods extends Record<string, (...args: unknown[]) => unknown>,
->(manifest: Manifest, methods: Methods & ThisType<InferConstructor<Manifest> & Methods>): Methods {
+export function defineStaticMethods<Manifest extends ModelManifest, Methods extends object>(
+  manifest: Manifest,
+  methods: Methods & ThisType<InferConstructor<Manifest> & Methods>
+): Methods {
   return methods;
 }
 
 /**
- * Define instance methods for a model with properly typed `this` context.
+ * Helper to define instance methods with properly typed `this` context.
+ *
+ * This is a zero-cost abstraction - at runtime it just returns the methods object.
+ * At compile-time, it provides TypeScript with ThisType<InferInstance<Manifest> & Methods>
+ * so that `this` inside your methods is correctly typed as the model instance.
  *
  * @param manifest - Model manifest to derive types from
  * @param methods - Instance methods with `this` bound to model instances
  * @returns The methods object with preserved typing
+ *
+ * @example
+ * const reviewInstanceMethods = defineInstanceMethods(reviewManifest, {
+ *   populateUserInfo(this: ReviewInstance, user: UserAccessContext) {
+ *     // `this` is fully typed as ReviewInstance
+ *     if (user.id === this.createdBy) {
+ *       this.userIsAuthor = true;
+ *     }
+ *   }
+ * });
  */
 export function defineInstanceMethods<
   Manifest extends ModelManifest,
@@ -304,11 +336,15 @@ export function defineModel<Manifest extends ModelManifest>(
 export function defineModel<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = EmptyStaticMethods,
+  StaticMethods extends object = EmptyStaticMethods,
   InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
 >(
   manifest: Manifest,
-  options?: DefineModelOptions<ExtraStatics, StaticMethods, InstanceMethods>
+  options?: {
+    statics?: ExtraStatics;
+    staticMethods?: StaticMethods;
+    instanceMethods?: InstanceMethods;
+  }
 ): ModelConstructorWithStatics<
   MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>,
   ExtraStatics
@@ -316,11 +352,15 @@ export function defineModel<
 export function defineModel<
   Manifest extends ModelManifest,
   ExtraStatics extends Record<string, unknown> = EmptyRecord,
-  StaticMethods extends Record<string, (...args: unknown[]) => unknown> = EmptyStaticMethods,
+  StaticMethods extends object = EmptyStaticMethods,
   InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
 >(
   manifest: Manifest,
-  options?: DefineModelOptions<ExtraStatics, StaticMethods, InstanceMethods>
+  options?: {
+    statics?: ExtraStatics;
+    staticMethods?: StaticMethods;
+    instanceMethods?: InstanceMethods;
+  }
 ): ModelConstructorWithStatics<
   MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>,
   ExtraStatics
@@ -342,3 +382,181 @@ export function defineModel<
     ExtraStatics
   >;
 }
+
+/**
+ * Convenience helper to infer instance type from a manifest with additional instance methods.
+ *
+ * This is much cleaner than manually calling InferInstance<MergeManifestMethods<...>>.
+ * Use this in your manifest file to define the instance type.
+ *
+ * @template Manifest - The model manifest
+ * @template InstanceMethods - Additional instance methods (optional, defaults to no methods)
+ *
+ * @example
+ * // In models/manifests/review.ts
+ * export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethods>;
+ */
+export type ManifestInstance<
+  Manifest extends ModelManifest,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
+> = InferInstance<MergeManifestMethods<Manifest, EmptyStaticMethods, InstanceMethods>>;
+
+/**
+ * Convenience helper to infer model constructor type from a manifest with additional methods.
+ *
+ * This is much cleaner than manually calling InferConstructor<MergeManifestMethods<...>>.
+ * Use this in your manifest file to define the model constructor type.
+ *
+ * @template Manifest - The model manifest
+ * @template StaticMethods - Additional static methods (optional, defaults to no methods)
+ * @template InstanceMethods - Additional instance methods (optional, defaults to no methods)
+ *
+ * @example
+ * // In models/manifests/review.ts
+ * export type ReviewModel = ManifestModel<
+ *   typeof reviewManifest,
+ *   ReviewStaticMethods,
+ *   ReviewInstanceMethods
+ * >;
+ */
+export type ManifestModel<
+  Manifest extends ModelManifest,
+  StaticMethods extends object = EmptyStaticMethods,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
+> = InferConstructor<MergeManifestMethods<Manifest, StaticMethods, InstanceMethods>>;
+
+/**
+ * Bundle of commonly used manifest-derived types.
+ *
+ * This keeps manifest files terse by collecting the different inferred types
+ * in one place, so authors don't have to declare separate aliases for the
+ * base model, base instance, data shape, and virtual fields.
+ */
+export type ManifestTypes<
+  Manifest extends ModelManifest,
+  StaticMethods extends object = EmptyStaticMethods,
+  InstanceMethods extends object = Record<never, InstanceMethod>,
+  RelationFields extends object = Record<never, never>,
+> = {
+  /**
+   * Instance type including any relation fields added via intersection.
+   */
+  Instance: ManifestInstance<Manifest, InstanceMethods> & RelationFields;
+  /**
+   * Model constructor type including additional static/instance methods.
+   */
+  Model: ManifestModel<Manifest, StaticMethods, InstanceMethods>;
+  /**
+   * Base model constructor type without custom statics/instance methods.
+   */
+  BaseModel: InferConstructor<Manifest>;
+  /**
+   * Base instance type without custom instance methods or relations.
+   */
+  BaseInstance: InferInstance<Manifest>;
+  /**
+   * Persisted data shape inferred from the schema.
+   */
+  Data: InferData<Manifest['schema']>;
+  /**
+   * Virtual fields inferred from the schema.
+   */
+  Virtual: ManifestVirtualFields<Manifest>;
+};
+
+/**
+ * Convenience bundle that layers method typing into {@link ManifestTypes}.
+ *
+ * Model manifests frequently need to export the fully-typed instance/static
+ * methods alongside the derived model and instance shapes. This helper reduces
+ * the boilerplate by returning the method types together with the usual data,
+ * virtual, instance, and model aliases in one shot.
+ */
+type ManifestTypeOptions<
+  RelationFields extends object = Record<never, never>,
+  StaticMethods extends MethodRecord = EmptyRecord,
+  InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
+> = {
+  relations?: RelationFields;
+  statics?: StaticMethods;
+  instances?: InstanceMethods;
+};
+
+/**
+ * Bundle convenience that accepts a single options object instead of multiple
+ * positional generics. This reduces boilerplate in manifests by grouping
+ * relations, static methods, and instance methods under descriptive keys.
+ */
+export type ManifestExports<
+  Manifest extends ModelManifest,
+  Options extends ManifestTypeOptions = ManifestTypeOptions,
+> = ManifestTypes<
+  Manifest,
+  Options['statics'] extends MethodRecord ? Options['statics'] : EmptyRecord,
+  Options['instances'] extends Record<string, InstanceMethod>
+    ? Options['instances']
+    : EmptyInstanceMethods,
+  Options['relations'] extends object ? Options['relations'] : Record<never, never>
+> & {
+  /**
+   * Instance methods with correctly typed `this` context.
+   */
+  InstanceMethods: InstanceMethodsFrom<
+    Manifest,
+    Options['instances'] extends Record<string, InstanceMethod>
+      ? Options['instances']
+      : EmptyInstanceMethods,
+    Options['relations'] extends object ? Options['relations'] : Record<never, never>
+  >;
+  /**
+   * Static methods with correctly typed `this` context.
+   */
+  StaticMethods: StaticMethodsFrom<
+    Manifest,
+    Options['statics'] extends MethodRecord ? Options['statics'] : EmptyRecord,
+    Options['instances'] extends Record<string, InstanceMethod>
+      ? Options['instances']
+      : EmptyInstanceMethods,
+    Options['relations'] extends object ? Options['relations'] : Record<never, never>
+  >;
+};
+
+/**
+ * Map a methods object to include the correct `this` type for model statics.
+ *
+ * This lets manifest authors describe their method signatures without
+ * manually repeating `this: ModelType` on every function. The returned type
+ * still exposes the fully-typed `this` context to callers.
+ */
+export type StaticMethodsFrom<
+  Manifest extends ModelManifest,
+  Methods extends MethodRecord,
+  InstanceMethods extends Record<string, InstanceMethod> = EmptyInstanceMethods,
+  RelationFields extends object = Record<never, never>,
+> = {
+  [K in keyof Methods]: (
+    this: ManifestTypes<Manifest, Methods, InstanceMethods, RelationFields>['Model'] & Methods,
+    ...args: Parameters<Methods[K]>
+  ) => ReturnType<Methods[K]>;
+};
+
+/**
+ * Map a methods object to include the correct `this` type for model instances.
+ *
+ * Similar to {@link StaticMethodsFrom}, but targets instance methods so they
+ * receive the fully-typed instance (including relation fields) as their
+ * `this` context without extra boilerplate.
+ */
+export type InstanceMethodsFrom<
+  Manifest extends ModelManifest,
+  Methods extends Record<string, InstanceMethod>,
+  RelationFields extends object = Record<never, never>,
+> = {
+  [K in keyof Methods]: (
+    this: ManifestTypes<Manifest, EmptyStaticMethods, Methods, RelationFields>['Instance'] &
+      Methods,
+    ...args: Parameters<Methods[K]>
+  ) => ReturnType<Methods[K]>;
+};
+
+export type { ModelConstructorWithStatics, MergeManifestMethods };

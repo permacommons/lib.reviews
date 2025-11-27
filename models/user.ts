@@ -45,7 +45,7 @@ const userStaticMethods = defineStaticMethods(userManifest, {
    * @returns The created user instance
    * @throws NewUserError if validation fails or the user exists
    */
-  async create(this: UserModel, userObj: CreateUserPayload) {
+  async create(userObj: CreateUserPayload) {
     const user = new this({}) as UserInstance;
 
     if (!userObj || typeof userObj !== 'object') {
@@ -80,7 +80,7 @@ const userStaticMethods = defineStaticMethods(userManifest, {
    * @returns True when the name is available
    * @throws NewUserError if a conflicting user is found
    */
-  async ensureUnique(this: UserModel, name: string) {
+  async ensureUnique(name: string) {
     if (typeof name !== 'string') throw new Error('Username to check must be a string.');
 
     const trimmed = name.trim();
@@ -103,7 +103,7 @@ const userStaticMethods = defineStaticMethods(userManifest, {
    * @param options - Join options forwarded to the DAL
    * @returns The hydrated user instance or null if not found
    */
-  async getWithTeams(this: UserModel, id: string, options: GetOptions = {}) {
+  async getWithTeams(id: string, options: GetOptions = {}) {
     const user = (await this.get(id, { teams: true, ...options })) as UserInstance | null;
     return user;
   },
@@ -115,7 +115,7 @@ const userStaticMethods = defineStaticMethods(userManifest, {
    * @returns The matching user instance
    * @throws DocumentNotFound if the user cannot be located
    */
-  async findByURLName(this: UserModel, name: string, options: FindByURLNameOptions = {}) {
+  async findByURLName(name: string, options: FindByURLNameOptions = {}) {
     const trimmed = name.trim().replace(/_/g, ' ');
 
     let query = this.filterWhere({ canonicalName: canonicalize(trimmed) });
@@ -153,11 +153,7 @@ const userStaticMethods = defineStaticMethods(userManifest, {
    * @param bioObj - Object containing multilingual bio data
    * @returns The updated user instance
    */
-  async createBio(
-    this: UserModel,
-    user: UserInstance,
-    bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>
-  ) {
+  async createBio(user: UserInstance, bioObj: Pick<UserMetaInstance, 'bio' | 'originalLanguage'>) {
     const metaRev = await UserMeta.createFirstRevision(user, {
       tags: ['create-bio-via-user'],
     });
@@ -181,7 +177,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    *
    * @param user - Viewer whose rights should be reflected on the instance
    */
-  populateUserInfo(this: UserInstance, user: UserAccessContext | null | undefined) {
+  populateUserInfo(user: UserAccessContext | null | undefined) {
     if (!user) return;
     if (user.id === this.id) this.userCanEditMetadata = true;
   },
@@ -190,7 +186,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    *
    * @param displayName - New display name to assign
    */
-  setName(this: UserInstance, displayName: string) {
+  setName(displayName: string) {
     if (typeof displayName !== 'string') throw new Error('Username to set must be a string.');
 
     const trimmed = displayName.trim();
@@ -204,7 +200,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    * @param password - Plain-text password to hash
    * @returns Promise resolving with the stored hash
    */
-  setPassword(this: UserInstance, password: string): Promise<string> {
+  setPassword(password: string): Promise<string> {
     return new Promise((resolve, reject) => {
       if (typeof password !== 'string') {
         reject(new Error('Password must be a string.'));
@@ -238,7 +234,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    * @param password - Password candidate to verify
    * @returns Promise resolving with true if the password matches
    */
-  checkPassword(this: UserInstance, password: string): Promise<boolean> {
+  checkPassword(password: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
       bcrypt.compare(password, this.password as string, (error, result) => {
         if (error) reject(error);
@@ -251,7 +247,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    *
    * @returns Array of preference names
    */
-  getValidPreferences(this: UserInstance): string[] {
+  getValidPreferences(): string[] {
     return ['prefersRichTextEditor'];
   },
 }) satisfies UserInstanceMethods;
@@ -291,7 +287,7 @@ async function _attachUserTeams(user: UserInstance): Promise<void> {
 
   try {
     const hydrated = await User.filterWhere({ id: user.id })
-      .getJoin({ teams: {}, moderatorOf: {} })
+      .getJoin({ teams: true, moderatorOf: true })
       .first();
 
     if (hydrated) {
@@ -381,7 +377,6 @@ export type {
 } from './manifests/user.ts';
 export {
   canonicalize,
-  containsOnlyLegalCharacters,
   referenceUser,
   userOptions,
 } from './manifests/user.ts';

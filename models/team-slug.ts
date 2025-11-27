@@ -19,7 +19,7 @@ const teamSlugStaticMethods = defineStaticMethods(teamSlugManifest, {
    * @param name - The slug name to retrieve
    * @returns The matching slug instance or null if none exists
    */
-  async getByName(this: TeamSlugModel, name: string) {
+  async getByName(name: string) {
     try {
       return (await this.filterWhere({ name }).first()) as TeamSlugInstance | null;
     } catch (error) {
@@ -38,7 +38,7 @@ const teamSlugInstanceMethods = defineInstanceMethods(teamSlugManifest, {
    * @returns This slug instance after persistence
    * @throws DuplicateSlugNameError when the slug name already exists
    */
-  async qualifiedSave(this: TeamSlugInstance): Promise<TeamSlugInstance> {
+  async qualifiedSave(): Promise<TeamSlugInstance> {
     if (!this.createdOn) this.createdOn = new Date();
 
     try {

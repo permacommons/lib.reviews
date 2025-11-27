@@ -256,7 +256,7 @@ async function getApp(): Promise<express.Express> {
   app.use(bodyParser.json());
   app.use(
     bodyParser.urlencoded({
-      extended: false,
+      extended: true, // Enable qs parsing for bracket notation (field[key][subkey])
     })
   );
 

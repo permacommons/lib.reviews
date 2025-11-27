@@ -3,34 +3,12 @@ import { resolve as resolveURL } from 'node:url';
 import config from 'config';
 import i18n from 'i18n';
 import languages from '../../locales/languages.ts';
+import type { ReviewFeedResult } from '../../models/manifests/review.ts';
 import Review from '../../models/review.ts';
 // Internal dependencies
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import feeds from '../helpers/feeds.ts';
 import render from '../helpers/render.ts';
-
-type ReviewThing = {
-  populateUserInfo?: (user: HandlerRequest['user']) => void;
-  [key: string]: unknown;
-};
-
-type ReviewInstance = {
-  populateUserInfo?: (user: HandlerRequest['user']) => void;
-  thing?: ReviewThing;
-  _revDate?: Date;
-  [key: string]: unknown;
-};
-
-type ReviewFeedResult = {
-  feedItems: ReviewInstance[];
-  offsetDate?: Date;
-};
-
-type ReviewModelHandle = {
-  getFeed: (options: Record<string, unknown>) => Promise<ReviewFeedResult>;
-} & Record<string, unknown>;
-
-const ReviewModel = Review as unknown as ReviewModelHandle;
 
 const reviewHandlers = {
   getFeedHandler(options) {
@@ -74,7 +52,7 @@ const reviewHandlers = {
         if (!language || !languages.isValid(language)) language = 'en';
       }
 
-      ReviewModel.getFeed({
+      Review.getFeed({
         onlyTrusted: options.onlyTrusted,
         limit: options.limit,
         offsetDate,

@@ -19,7 +19,7 @@
 </thead>
 {{#times numberOfFields}}
 <tr valign="top">
-<td class="max-width"><input name="url-{{@zeroIndex}}" data-url-input type="text" class="max-width" value="{{{lookup ../urls @zeroIndex}}}" placeholder="{{{__ "enter web address short"}}}" {{#if @first}}data-focus{{/if}}>
+<td class="max-width"><input name="urls[]" data-url-input type="text" class="max-width" value="{{{lookup ../urls @zeroIndex}}}" placeholder="{{{__ "enter web address short"}}}" {{#if @first}}data-focus{{/if}}>
 {{! Placeholder, used by client-side validation code}}
 <div id="url-validation-{{@zeroIndex}}"></div>
 </td>

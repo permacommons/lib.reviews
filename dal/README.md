@@ -8,7 +8,7 @@ The lib.reviews DAL is a TypeScript-first PostgreSQL abstraction that exposes ty
 - **Model runtime (`dal/lib/model.ts`)** – Implements camelCase ↔︎ snake_case mapping, validation/default handling, change tracking, and persistence primitives consumed by every manifest-driven model.
 - **Manifest system (`dal/lib/create-model.ts`, `dal/lib/model-manifest.ts`)** – Declarative manifests define schema, relations, revision support, and custom methods. `defineModel` returns a lazy proxy constructor whose types are inferred from the manifest.
 - **Query builder (`dal/lib/query-builder.ts`)** – Builds SQL fragments for predicates, joins, ordering, pagination, and deletes. `filterWhere` wraps it with typed predicates for day-to-day usage.
-  - Chainables include `orderBy/limit/offset`, `whereIn`, `getJoin` (inline or batch-loaded relations), `whereRelated` (predicate on a related table via manifest metadata), and `chronologicalFeed` for date-backed limit+1 pagination.
+  - Chainables include `orderBy/limit/offset`, `whereIn`, `getJoin` (auto-selects inline or batch join based on cardinality), `whereRelated` (predicate on a related table via manifest metadata), and `chronologicalFeed` for date-backed limit+1 pagination.
 - **Revision helpers (`dal/lib/revision.ts`)** – Adds static/instance helpers (`createFirstRevision`, `newRevision`, etc.) to models flagged with `hasRevisions: true`.
 - **Type helpers (`dal/lib/type.ts`)** – Fluent schema builders that feed manifest inference, including virtual field descriptors and multilingual string support via `mlString`.
 
@@ -36,10 +36,12 @@ Models are split across two directories to avoid circular imports:
 
 ```ts
 // models/manifests/user.ts - Schema, types, validation helpers
-import { defineModelManifest } from '../../dal/lib/create-model.ts';
+import dal from '../../dal/index.ts';
+import type { ManifestInstance, ManifestModel } from '../../dal/lib/create-model.ts';
 import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferConstructor, InferInstance } from '../../dal/lib/model-manifest.ts';
-import types from '../../dal/lib/type.ts';
+import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+
+const { types } = dal;
 
 // Model-specific options and helpers
 const userOptions = {
@@ -59,9 +61,9 @@ function containsOnlyLegalCharacters(name: string): true {
   return true;
 }
 
-const userManifest = defineModelManifest({
+const userManifest = {
   tableName: 'users',
-  hasRevisions: false,
+  hasRevisions: false as const,
   schema: {
     id: types.string().uuid(4),
     displayName: types
@@ -92,10 +94,16 @@ const userManifest = defineModelManifest({
       cardinality: 'one',
     },
   ] as const,
-});
+} as const satisfies ModelManifest;
 
-export type UserInstance = InferInstance<typeof userManifest>;
-export type UserModel = InferConstructor<typeof userManifest>;
+export type UserInstance = ManifestInstance<typeof userManifest>;
+export type UserModel = ManifestModel<typeof userManifest>;
+
+// For models WITH relations, use intersection pattern for strong typing:
+// export type UserInstance = ManifestInstance<typeof userManifest> & {
+//   meta?: UserMetaInstance;
+//   teams?: TeamInstance[];
+// };
 
 // Export reference helper for other models to use
 export function referenceUser(): UserModel {
@@ -104,6 +112,47 @@ export function referenceUser(): UserModel {
 
 export { userOptions };
 export default userManifest;
+```
+
+### Relation Definition
+
+Relations are defined as plain objects in the manifest's `relations` array:
+
+```ts
+interface RelationDefinition {
+  name: string;                     // Field name on the instance
+  targetTable?: string;             // Target table name, OR use target()
+  target?: () => unknown;           // Lazy model reference (has tableName)
+  sourceKey?: string;               // Column on this model (default: 'id')
+  targetKey?: string;               // Column on target model (default: 'id')
+  cardinality?: 'one' | 'many';     // Affects join strategy when using `true`
+  hasRevisions?: boolean;           // Apply revision guards to joined records
+  through?: {                       // For many-to-many via junction table
+    table: string;
+    sourceForeignKey?: string;
+    targetForeignKey?: string;
+  };
+}
+```
+
+Example with a many-to-many relation:
+
+```ts
+relations: [
+  {
+    name: 'teams',
+    targetTable: 'teams',
+    sourceKey: 'id',
+    targetKey: 'id',
+    hasRevisions: true,
+    through: {
+      table: 'team_members',
+      sourceForeignKey: 'user_id',
+      targetForeignKey: 'team_id',
+    },
+    cardinality: 'many',
+  },
+]
 ```
 
 ```ts
@@ -136,10 +185,61 @@ export default defineModel(userManifest, { staticMethods: userStaticMethods });
 
 Manifests drive all type inference:
 
-- `InferData` and `InferVirtual` extract stored and virtual fields from the schema builders.
-- `InferInstance` switches between `ModelInstance` and `VersionedModelInstance` based on `hasRevisions` and merges manifest-defined instance methods.
-- `InferConstructor` produces the typed model constructor with CRUD methods.
-- Static/instance methods declared via `defineStaticMethods`/`defineInstanceMethods` receive the correctly typed `this` via contextual `ThisType`.
+- **Low-level helpers** (internal):
+  - `InferData` and `InferVirtual` extract stored and virtual fields from schema builders
+  - `InferInstance` switches between `ModelInstance` and `VersionedModelInstance` based on `hasRevisions`
+  - `InferConstructor` produces the typed model constructor with CRUD methods
+- **Convenience helpers** (recommended for manifest files):
+  - `ManifestInstance<Manifest, InstanceMethods>` - cleaner than `InferInstance<MergeManifestMethods<...>>`
+  - `ManifestModel<Manifest, StaticMethods, InstanceMethods>` - cleaner than `InferConstructor<MergeManifestMethods<...>>`
+- **Bundle helpers for manifests**:
+  - `ManifestTypes<Manifest, StaticMethods, InstanceMethods, Relations>` packages the data, virtual, instance, and model types
+    into a single object.
+  - `ManifestExports<Manifest, Options>` builds on `ManifestTypes` with a single options object (`relations`, `statics`,
+    `instances`) and additionally returns typed `StaticMethods`/`InstanceMethods` mappings. Use this to keep manifest exports
+    short when declaring both types and methods.
+- **Method mapping helpers**:
+  - `StaticMethodsFrom`/`InstanceMethodsFrom` map plain method signatures to manifest-aware `this` types so authors don't need
+    to annotate every method with `this: ModelType` or `this: InstanceType`. The generics are ordered as manifest, method map,
+    then relation fields (plus instance methods for static methods) to match the call graph.
+- Static/instance methods declared via `defineStaticMethods`/`defineInstanceMethods` receive correctly typed `this` via contextual `ThisType`
+
+Example using `ManifestExports` to keep manifests terse:
+
+```ts
+type ThingRelations = { files?: FileInstance[] };
+
+type ThingTypes = ManifestExports<
+  typeof thingManifest,
+  {
+    relations: ThingRelations;
+    statics: { getWithData(id: string): Promise<ThingTypes['Instance']> };
+    instances: { populateUserInfo(user: UserAccessContext | null | undefined): void };
+  }
+>;
+
+type ThingInstance = ThingTypes['Instance'];
+type ThingStaticMethods = ThingTypes['StaticMethods'];
+type ThingInstanceMethods = ThingTypes['InstanceMethods'];
+```
+
+Method implementations can then omit explicit `this` annotations while still receiving the fully-typed model/instance context in the body.
+
+**Relation Field Typing**: Use the intersection pattern to add strongly-typed relation fields:
+
+```ts
+// If you have static/instance methods, define base types first
+type UserInstanceBase = ManifestInstance<typeof userManifest, UserInstanceMethods>;
+
+// Add relation types via intersection - fields are optional since they're
+// only populated when explicitly loaded via getJoin() or custom queries
+export type UserInstance = UserInstanceBase & {
+  meta?: UserMetaInstance;
+  teams?: TeamInstance[];
+};
+```
+
+This pattern avoids circular type errors when two models reference each other (e.g., Thing ↔ Review).
 
 ### Cross-Model References
 
@@ -160,7 +260,7 @@ The manifest exports a typed reference function that returns a lazy proxy. The a
 ### What Goes Where?
 
 **Manifests** (`models/manifests/`) contain:
-- Schema definitions via `defineModelManifest`
+- Schema definitions as plain objects with `as const satisfies ModelManifest`
 - Type exports (`UserInstance`, `UserModel`, etc.)
 - Validation functions used in schema validators
 - Model-specific constants and options
@@ -263,8 +363,10 @@ The relation must be defined in your model's manifest with:
 
 Example manifest configuration:
 ```ts
-const reviewManifest = defineModelManifest({
+const reviewManifest = {
   tableName: 'reviews',
+  hasRevisions: true as const,
+  schema: { /* ... */ },
   relations: [
     {
       name: 'teams',
@@ -279,8 +381,8 @@ const reviewManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ],
-});
+  ] as const,
+} as const satisfies ModelManifest;
 ```
 
 ### Edge Cases
@@ -357,7 +459,8 @@ The relation must be defined in your model's manifest with:
 
 Example manifest configuration:
 ```ts
-const thingManifest = defineModelManifest({
+const thingManifest = {
+  hasRevisions: true as const,
   tableName: 'things',
   relations: [
     {
@@ -373,8 +476,8 @@ const thingManifest = defineModelManifest({
       },
       cardinality: 'many',
     },
-  ],
-});
+  ] as const,
+} as const satisfies ModelManifest;
 ```
 
 ### Conflict Handling
@@ -456,12 +559,14 @@ Text fields store **HTML-safe text** with entities escaped (e.g., `My &amp; Co`,
 ```ts
 import mlString from '../../dal/lib/ml-string.ts';
 
-const thingManifest = defineModelManifest({
+const thingManifest = {
+  hasRevisions: true as const,
   schema: {
     label: mlString.getSafeTextSchema({ maxLength: 256 }),
     aliases: mlString.getSafeTextSchema({ array: true, maxLength: 256 }),
-  }
-});
+  },
+  // ... other fields
+} as const satisfies ModelManifest;
 ```
 
 Rejects HTML tags at write time via `ValidationError`.
@@ -469,11 +574,13 @@ Rejects HTML tags at write time via `ValidationError`.
 **HTML Content** – For cached rendered markdown output
 
 ```ts
-const reviewManifest = defineModelManifest({
+const reviewManifest = {
+  hasRevisions: true as const,
   schema: {
     html: mlString.getHTMLSchema(),
-  }
-});
+  },
+  // ... other fields
+} as const satisfies ModelManifest;
 ```
 
 Permits full HTML markup. Use only for pre-sanitized content.
@@ -481,12 +588,14 @@ Permits full HTML markup. Use only for pre-sanitized content.
 **Rich Text (Nested)** – For fields storing both markdown source and cached HTML
 
 ```ts
-const teamManifest = defineModelManifest({
+const teamManifest = {
+  hasRevisions: true as const,
   schema: {
     description: mlString.getRichTextSchema(),
     // Expects: { text: { en: "markdown" }, html: { en: "<p>HTML</p>" } }
-  }
-});
+  },
+  // ... other fields
+} as const satisfies ModelManifest;
 ```
 
 Validates nested structure: `text` must be HTML-safe, `html` may contain tags.

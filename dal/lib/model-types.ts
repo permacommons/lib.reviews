@@ -1,5 +1,6 @@
 import type { Pool, PoolClient, QueryResult } from 'pg';
 import type { ModelSchemaField } from './model.ts';
+import type { JoinOptions } from './query-builder.ts';
 
 export type JsonValue = unknown;
 
@@ -101,7 +102,7 @@ export interface ModelInstanceCore<TData extends JsonObject, TVirtual extends Js
   _originalData: Record<string, unknown>;
 
   save(options?: SaveOptions): Promise<ModelInstance<TData, TVirtual>>;
-  saveAll(joinOptions?: JsonObject): Promise<ModelInstance<TData, TVirtual>>;
+  saveAll(joinOptions?: JoinOptions): Promise<ModelInstance<TData, TVirtual>>;
   delete(options?: DeleteOptions): Promise<boolean>;
   getValue<K extends keyof (TData & TVirtual)>(key: K): (TData & TVirtual)[K];
   setValue<K extends keyof (TData & TVirtual)>(key: K, value: (TData & TVirtual)[K]): void;
@@ -256,14 +257,18 @@ export type VersionedModelInstance<
   TVirtual extends JsonObject = JsonObject,
 > = ModelInstance<TData, TVirtual> &
   RevisionFieldMap & {
-    newRevision(
-      user: RevisionActor | null,
-      options?: RevisionMetadata
-    ): Promise<VersionedModelInstance<TData, TVirtual>>;
-    deleteAllRevisions(
-      user?: RevisionActor | null,
-      options?: RevisionMetadata
-    ): Promise<VersionedModelInstance<TData, TVirtual>>;
+    newRevision<
+      TThis extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
+        TData,
+        TVirtual
+      >,
+    >(this: TThis, user: RevisionActor | null, options?: RevisionMetadata): Promise<TThis>;
+    deleteAllRevisions<
+      TThis extends VersionedModelInstance<TData, TVirtual> = VersionedModelInstance<
+        TData,
+        TVirtual
+      >,
+    >(this: TThis, user?: RevisionActor | null, options?: RevisionMetadata): Promise<TThis>;
   };
 
 export type RevisionDataRecord = JsonObject & RevisionFieldMap;
@@ -390,8 +395,9 @@ export interface FilterWhereQueryBuilder<
   sample(count?: number): Promise<TInstance[]>;
   offset(count: number): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   /**
-   * Include related records. Use `true` for inline (single-row) joins and an
-   * object (e.g., `{}`) to trigger the batch loader that hydrates arrays.
+   * Include related records. Use `true` for all relations - the system
+   * automatically selects inline join for one-to-one or batch loader for
+   * one-to-many based on the relation's cardinality in the manifest.
    */
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
@@ -458,10 +464,9 @@ export interface ModelConstructor<
   /**
    * Attach related records defined in the manifest.
    *
-   * Passing `true` joins the related table inline (best for one-to-one relations)
-   * while supplying an object (even `{}`) switches to the batch loader that
-   * hydrates `many` relations via a follow-up query. Use the object form whenever
-   * the relation should populate an array.
+   * Use `true` for all relations. The system automatically selects the optimal
+   * join strategy based on the relation's cardinality: inline join for `one`
+   * relations, batch loader for `many` relations.
    */
   getJoin(
     joinSpec: FilterWhereJoinSpec<TRelations>
@@ -518,7 +523,7 @@ export interface VersionedModelConstructor<
   TRelations extends string = string,
 > extends ModelConstructor<TData, TVirtual, TInstance, TRelations> {
   createFirstRevision(user: RevisionActor, options?: RevisionMetadata): Promise<TInstance>;
-  getNotStaleOrDeleted(id: string, joinOptions?: JsonObject): Promise<TInstance>;
+  getNotStaleOrDeleted(id: string, joinOptions?: JoinOptions): Promise<TInstance>;
 }
 
 export interface DataAccessLayer {

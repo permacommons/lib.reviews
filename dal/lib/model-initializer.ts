@@ -59,7 +59,12 @@ export interface NormalizedRelationDefinition {
 
 type RelationDefinitionInput = NormalizedRelationDefinition | (RelationConfig & { name: string });
 
-type StaticMethod = (...args: unknown[]) => unknown;
+/**
+ * Base type for static methods on models.
+ * Intentionally generic - specific signatures come from method interfaces.
+ * Used by InitializeModelOptions to type the runtime method attachment.
+ */
+export type StaticMethod = (...args: unknown[]) => unknown;
 
 type RuntimeModel<
   TData extends JsonObject,

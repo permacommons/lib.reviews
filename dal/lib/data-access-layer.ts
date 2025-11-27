@@ -5,6 +5,7 @@ import type { PoolClient, PoolConfig, QueryResult } from 'pg';
 import { Pool } from 'pg';
 
 import debug from '../../util/debug.ts';
+import mlString from './ml-string.ts';
 import type { ModelSchema } from './model.ts';
 import Model from './model.ts';
 import ModelRegistry from './model-registry.ts';
@@ -13,6 +14,8 @@ import type {
   JsonObject,
   ModelConstructor,
 } from './model-types.ts';
+import revision from './revision.ts';
+import types from './type.ts';
 
 type PoolLike = Pool | PoolClient;
 
@@ -35,6 +38,11 @@ class DataAccessLayer implements DataAccessLayerContract {
   modelRegistry: ModelRegistry;
   schemaNamespace?: string;
   private _connected: boolean;
+
+  // Helper namespaces exposed for model manifests
+  mlString = mlString;
+  revision = revision;
+  types = types;
 
   constructor(config: Partial<PostgresConfig> & JsonObject = {}) {
     const defaultConfig: PoolConfig = {

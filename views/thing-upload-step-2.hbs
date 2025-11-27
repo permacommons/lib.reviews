@@ -9,13 +9,12 @@
 
 {{{renderFilePreview this}}}
 
-<input type="hidden" name="upload-{{this.id}}" value="1">
 <p>
 <fieldset><div class="pure-g">
   <div class="pure-u-1 pure-u-md-2-3">
     <div class="pure-control-group">
         <label for="upload-{{this.id}}-description">{{{__ "upload description"}}} <span class="required">*</span></label>
-        <textarea id="upload-{{this.id}}-description" name="upload-{{this.id}}-description"  class="pure-input-1" data-required placeholder='{{{__ "enter description"}}}'></textarea>
+        <textarea id="upload-{{this.id}}-description" name="upload[{{this.id}}][description]"  class="pure-input-1" data-required placeholder='{{{__ "enter description"}}}'></textarea>
     </div>
     <br>
   </div>
@@ -25,8 +24,8 @@
 
   <div class="pure-u-1">
   <div class="pure-control-group">
-  <input type="radio" data-hide="expanded-info-{{this.id}}" data-disable-required-group="upload-metadata-{{this.id}}" id="upload-{{this.id}}-by-uploader" name="upload-{{this.id}}-by" value="uploader" checked> <label class="inline-label" for="upload-{{this.id}}-by-uploader">{{{__ "my own work"}}}</label><p>
-  <input type="radio" id="upload-{{this.id}}-by-other" name="upload-{{this.id}}-by" value="other" data-show="expanded-info-{{this.id}}" data-enable-required-group="upload-metadata-{{this.id}}"> <label class="inline-label" for="upload-{{this.id}}-by-other">{{{__ "someone else's work"}}}</label>
+  <input type="radio" data-hide="expanded-info-{{this.id}}" data-disable-required-group="upload-metadata-{{this.id}}" id="upload-{{this.id}}-by-uploader" name="upload[{{this.id}}][by]" value="uploader" checked> <label class="inline-label" for="upload-{{this.id}}-by-uploader">{{{__ "my own work"}}}</label><p>
+  <input type="radio" id="upload-{{this.id}}-by-other" name="upload[{{this.id}}][by]" value="other" data-show="expanded-info-{{this.id}}" data-enable-required-group="upload-metadata-{{this.id}}"> <label class="inline-label" for="upload-{{this.id}}-by-other">{{{__ "someone else's work"}}}</label>
   </div>
   </div>
 
@@ -34,7 +33,7 @@
   <div class="pure-u-1 pure-u-md-2-3">
     <div class="pure-control-group indented-control-group">
         <label for="upload-{{this.id}}-creator">{{{__ "creator"}}} <span data-required-indicator-group="upload-metadata-{{this.id}}" class="hidden">*</span></label>
-        <input type="text" size="80" id="upload-{{this.id}}-creator" name="upload-{{this.id}}-creator"  class="pure-input-1" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter creator name"}}}'>
+        <input type="text" size="80" id="upload-{{this.id}}-creator" name="upload[{{this.id}}][creator]"  class="pure-input-1" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter creator name"}}}'>
     </div>
     <br>
   </div>
@@ -45,7 +44,7 @@
   <div class="pure-u-1 pure-u-md-2-3">
     <div class="pure-control-group indented-control-group">
         <label for="upload-{{this.id}}-source">{{{__ "source"}}} <span data-required-indicator-group="upload-metadata-{{this.id}}" class="hidden">*</span></label>
-        <input type="text" id="upload-{{this.id}}-source" name="upload-{{this.id}}-source"  class="pure-input-1" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter source"}}}'>
+        <input type="text" id="upload-{{this.id}}-source" name="upload[{{this.id}}][source]"  class="pure-input-1" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter source"}}}'>
     </div>
     <br>
   </div>
@@ -57,13 +56,13 @@
     <div class="pure-control-group indented-control-group">
       <b>{{{__ "license"}}}</b>
       <p>
-        <input type="radio"  name="upload-license-{{this.id}}" id="upload-license-{{this.id}}-fair-use" value="fair-use" checked> <label class="inline-label" for="upload-license-{{this.id}}-fair-use">{{{__ "fair use"}}}</label><p>
+        <input type="radio"  name="upload[{{this.id}}][license]" id="upload-license-{{this.id}}-fair-use" value="fair-use" checked> <label class="inline-label" for="upload-license-{{this.id}}-fair-use">{{{__ "fair use"}}}</label><p>
 
-        <input type="radio" id="upload-license-{{this.id}}-cc-0" name="upload-license-{{this.id}}" value="cc-0"> <label class="inline-label" for="upload-license-{{this.id}}-cc-0">{{{__ "cc-0"}}}</label><p>
+        <input type="radio" id="upload-license-{{this.id}}-cc-0" name="upload[{{this.id}}][license]" value="cc-0"> <label class="inline-label" for="upload-license-{{this.id}}-cc-0">{{{__ "cc-0"}}}</label><p>
 
-        <input type="radio" id="upload-license-{{this.id}}-cc-by" name="upload-license-{{this.id}}" value="cc-by"> <label class="inline-label" for="upload-license-{{this.id}}-cc-by">{{{__ "cc-by"}}}</label><p>
+        <input type="radio" id="upload-license-{{this.id}}-cc-by" name="upload[{{this.id}}][license]" value="cc-by"> <label class="inline-label" for="upload-license-{{this.id}}-cc-by">{{{__ "cc-by"}}}</label><p>
 
-        <input type="radio" id="upload-license-{{this.id}}-cc-by-sa" name="upload-license-{{this.id}}" value="cc-by-sa"> <label class="inline-label" for="upload-license-{{this.id}}-cc-by-sa">{{{__ "cc-by-sa"}}}</label><p>
+        <input type="radio" id="upload-license-{{this.id}}-cc-by-sa" name="upload[{{this.id}}][license]" value="cc-by-sa"> <label class="inline-label" for="upload-license-{{this.id}}-cc-by-sa">{{{__ "cc-by-sa"}}}</label><p>
 
   </div>
   </div>
