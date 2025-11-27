@@ -22,32 +22,32 @@ The current form parsing system (`routes/helpers/forms.ts`) uses a custom `FormF
 
 ## Migration Strategy
 
-### Phase 1: Add Zod, Create Utilities (Low Risk)
+### Phase 1: Add Zod, Create Utilities (Low Risk) ✅
 
-1. Install Zod: `npm install zod`
-2. Create `routes/helpers/zod-forms.ts` with utilities:
-   - `createMultilingualTextField()` - for text fields with language keys
-   - `createMultilingualMarkdownField()` - for markdown with text/html structure
-   - Common form helpers (CSRF, CAPTCHA schemas)
-3. No changes to existing code yet
+1. Installed Zod dependency (`zod`).
+2. Created `routes/helpers/zod-forms.ts` with utilities:
+   - `createMultilingualTextField(language)` - validates the language key and returns escaped `{ [language]: string }`
+   - `createMultilingualMarkdownField(language, renderLocale?)` - builds `{ text, html }` with escaped text and localized markdown rendering
+   - CSRF helpers: `csrfField`, `csrfSchema`
+   - CAPTCHA helper: `createCaptchaSchema(formKey, translate?)` (config-aware, localized answer validation)
+3. No changes to existing runtime behaviour yet
 
-### Phase 2: Migrate One Form (Proof of Concept)
+### Phase 2: Migrate One Form (Proof of Concept) ✅
 
 Pick a simple form to prove the pattern works:
 - Candidate: **User registration form** (`routes/actions.ts` - only 5 fields)
-- Create Zod schema alongside existing `FormField[]` definition
-- Update handler to optionally use Zod validation
-- Compare DX, error handling, type safety
-- Document learnings
+- Added `buildRegisterSchema` with CSRF, email normalization, and config-aware CAPTCHA wiring
+- Registration POST handlers now rely on Zod-only validation (legacy parsing removed for this route); errors reuse existing i18n keys, and typed data drives `User.create`
+- DX: typed `RegisterForm` improves autocomplete; optional CAPTCHA handled via shared helper; localized messages reused via `req.__`
 
 ### Phase 3: Incremental Migration
 
 Migrate forms one at a time, starting with simpler ones:
 
 **Simple forms** (few fields, straightforward validation):
-- User registration
-- Team creation
-- Blog post creation
+- User registration ✅
+- Team creation ✅ (new/edit handlers now Zod-first)
+- Blog post creation ✅ (new/edit via blog post provider)
 
 **Medium complexity** (conditional logic, nested structures):
 - Review creation (has conditional team fields)
@@ -216,3 +216,12 @@ Migration is successful if:
 - [Zod Documentation](https://zod.dev/)
 - [Zod GitHub](https://github.com/colinhacks/zod)
 - [Comparison with other libraries](https://zod.dev/?id=comparison)
+
+## Worklog
+
+- 2025-11-26: Installed `zod` and added `routes/helpers/zod-forms.ts` with multilingual text/markdown helpers plus CSRF and CAPTCHA schemas.
+- 2025-11-26: Added `buildRegisterSchema` and switched /register handlers to Zod-only validation; errors reuse existing message keys and parsed data feeds `User.create`.
+- 2025-11-26: Added CSRF error handling middleware to surface friendly 403 responses (HTML + JSON) instead of uncaught exceptions when tokens are missing/invalid; uses dedicated title/detail keys for the standard permission error page.
+- 2025-11-26: Added `flashZodIssues` helper and refactored /register to use it for flashing Zod validation errors without per-handler loops.
+- 2025-11-26: Migrated team creation/edit routes to Zod schemas (multilingual text/markdown, boolean flags, CAPTCHA, CSRF) and removed legacy `FormField` definitions; handlers now flash Zod issues and re-render with sanitized values.
+- 2025-11-26: Added shared Zod form helpers (language validation, safe parsing, consistent error messaging) colocated with `flashZodIssues`; migrated team blog add/edit routes to Zod (multilingual text/markdown, CSRF/CAPTCHA, preview support) and removed legacy `FormField` parsing for blog posts.

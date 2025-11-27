@@ -3,6 +3,8 @@
 import { resolve as resolveURL } from 'node:url';
 import config from 'config';
 import i18n from 'i18n';
+import { z } from 'zod';
+import type { MultilingualString } from '../../dal/lib/ml-string.ts';
 import type { LocaleCodeWithUndetermined } from '../../locales/languages.ts';
 import languages from '../../locales/languages.ts';
 import BlogPostModel, { type BlogPostInstance } from '../../models/blog-post.ts';
@@ -12,19 +14,90 @@ import type { TeamInstance } from '../../models/manifests/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 import feeds from '../helpers/feeds.ts';
-import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
+import {
+  flashZodIssues,
+  formatZodIssueMessage,
+  safeParseField,
+  validateLanguage,
+} from '../helpers/zod-flash.ts';
+import zodForms from '../helpers/zod-forms.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 type BlogPostFormValues = Required<
   Pick<BlogPostData & BlogPostVirtual, 'title' | 'text' | 'html'>
 > &
   Partial<Omit<BlogPostData & BlogPostVirtual, 'title' | 'text' | 'html'>> & {
+    postAction?: string;
     [key: string]: unknown; // Allow dynamic properties like 'creator' for preview
   };
 
+type ParsedMarkdownField = { text: MultilingualString; html: MultilingualString };
+type ParsedTextField = MultilingualString;
+
+const buildBlogPostSchema = (req: HandlerRequest, language: string, formKey: string) => {
+  const renderLocale = typeof req.locale === 'string' ? req.locale : undefined;
+
+  return z
+    .object({
+      _csrf: z.string().min(1, req.__('need _csrf')),
+      'post-title': z
+        .string()
+        .trim()
+        .min(1, req.__('need post-title'))
+        .pipe(zodForms.createMultilingualTextField(language)),
+      'post-text': z
+        .string()
+        .trim()
+        .min(1, req.__('need post-text'))
+        .pipe(zodForms.createMultilingualMarkdownField(language, renderLocale)),
+      'post-language': z.string().trim().min(1, req.__('need post-language')),
+      'post-action': z.string().trim().min(1, req.__('need post-action')),
+    })
+    .strict()
+    .merge(zodForms.createCaptchaSchema(formKey, req.__.bind(req)));
+};
+
+type BlogPostFormSchemaOutput = z.infer<ReturnType<typeof buildBlogPostSchema>>;
+
+const toBlogPostFormValues = (data: BlogPostFormSchemaOutput): BlogPostFormValues => {
+  const postTitle = data['post-title'] as ParsedTextField;
+  const postText = data['post-text'] as ParsedMarkdownField;
+
+  return {
+    title: postTitle,
+    text: postText.text,
+    html: postText.html,
+    originalLanguage: data['post-language'],
+    postAction: data['post-action'],
+  };
+};
+
+const extractBlogPostFormValues = (
+  req: HandlerRequest,
+  language: string,
+  postAction?: string
+): BlogPostFormValues => {
+  const renderLocale = typeof req.locale === 'string' ? req.locale : undefined;
+  const parsedText = safeParseField<ParsedMarkdownField>(
+    zodForms.createMultilingualMarkdownField(language, renderLocale),
+    req.body?.['post-text']
+  );
+
+  return {
+    title: safeParseField<ParsedTextField>(
+      zodForms.createMultilingualTextField(language),
+      req.body?.['post-title']
+    ),
+    text: parsedText?.text,
+    html: parsedText?.html,
+    originalLanguage:
+      typeof req.body?.['post-language'] === 'string' ? req.body['post-language'] : undefined,
+    postAction,
+  };
+};
+
 class BlogPostProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, FormField[]>;
   protected declare language?: LocaleCodeWithUndetermined;
   protected declare utcISODate?: string;
   protected declare postID: string;
@@ -199,26 +272,35 @@ class BlogPostProvider extends AbstractBREADProvider {
 
         this.editing = true;
 
-        let formKey = 'edit-post';
+        const formKey = 'edit-post';
         const languageBodyValue = this.req.body?.['post-language'];
         const language =
           typeof languageBodyValue === 'string'
             ? languageBodyValue
             : (blogPost.originalLanguage ?? 'en');
-        const formDef = BlogPostProvider.formDefs[formKey];
-        if (!formDef) {
-          throw new Error(`Form definition '${formKey}' is not registered.`);
+
+        validateLanguage(this.req, language);
+
+        const blogSchema = buildBlogPostSchema(this.req, language, formKey);
+        const parseResult = blogSchema.safeParse(this.req.body);
+
+        if (!parseResult.success) {
+          flashZodIssues(this.req, parseResult.error.issues, issue =>
+            formatZodIssueMessage(this.req, issue)
+          );
+          const fallbackValues = extractBlogPostFormValues(
+            this.req,
+            language,
+            typeof this.req.body?.['post-action'] === 'string'
+              ? this.req.body['post-action']
+              : undefined
+          );
+          return this.add_GET(team, fallbackValues);
         }
 
-        const submission = this.parseData<BlogPostFormValues>({
-          formDef,
-          formKey,
-          language,
-          transform: values => this.toBlogPostFormValues(values),
-        });
-        const { data: formValues } = submission;
+        const parsedValues = toBlogPostFormValues(parseResult.data);
+        const { postAction, ...formValues } = parsedValues;
 
-        const postAction = this.req.body?.['post-action'];
         if (postAction === 'preview') {
           // Pass along original authorship info for preview
           formValues.createdOn = blogPost.createdOn;
@@ -227,7 +309,7 @@ class BlogPostProvider extends AbstractBREADProvider {
           this.isPreview = true;
         }
 
-        if (this.isPreview || !submission.hasRequiredFields || this.req.flashHas?.('pageErrors'))
+        if (this.isPreview || this.req.flashHas?.('pageErrors'))
           return this.add_GET(team, formValues);
 
         blogPost
@@ -254,22 +336,30 @@ class BlogPostProvider extends AbstractBREADProvider {
   add_POST(team: TeamInstance): void {
     const postAction = this.req.body?.['post-action'];
     this.isPreview = postAction === 'preview';
-
-    let formKey = 'new-post';
+    const formKey = 'new-post';
     const languageBodyValue = this.req.body?.['post-language'];
     const language = typeof languageBodyValue === 'string' ? languageBodyValue : 'en';
-    const formDef = BlogPostProvider.formDefs[formKey];
-    if (!formDef) {
-      throw new Error(`Form definition '${formKey}' is not registered.`);
+
+    validateLanguage(this.req, language);
+
+    const blogSchema = buildBlogPostSchema(this.req, language, formKey);
+    const parseResult = blogSchema.safeParse(this.req.body);
+
+    if (!parseResult.success) {
+      flashZodIssues(this.req, parseResult.error.issues, issue =>
+        formatZodIssueMessage(this.req, issue)
+      );
+      const fallbackValues = extractBlogPostFormValues(
+        this.req,
+        language,
+        typeof postAction === 'string' ? postAction : undefined
+      );
+      return this.add_GET(team, fallbackValues);
     }
 
-    const submission = this.parseData<BlogPostFormValues>({
-      formDef,
-      formKey,
-      language,
-      transform: values => this.toBlogPostFormValues(values),
-    });
-    const { data: postObj } = submission;
+    const parsedValues = toBlogPostFormValues(parseResult.data);
+    this.isPreview = parsedValues.postAction === 'preview';
+    const { postAction: _postAction, ...postObj } = parsedValues;
 
     if (typeof this.req.user?.id === 'string') postObj.createdBy = this.req.user.id;
     postObj.createdOn = new Date();
@@ -277,8 +367,7 @@ class BlogPostProvider extends AbstractBREADProvider {
     postObj.teamID = team.id;
 
     // We're previewing or have basic problems with the submission -- back to form
-    if (this.isPreview || !submission.hasRequiredFields || this.req.flashHas?.('pageErrors'))
-      return this.add_GET(team, postObj);
+    if (this.isPreview || this.req.flashHas?.('pageErrors')) return this.add_GET(team, postObj);
 
     BlogPostModel.createFirstRevision(this.req.user, {
       tags: ['create-via-form'],
@@ -368,49 +457,6 @@ class BlogPostProvider extends AbstractBREADProvider {
     }
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id) as Promise<TeamInstance>;
   }
-
-  private toBlogPostFormValues(formValues: Record<string, unknown>): BlogPostFormValues {
-    const typedValues = formValues as Partial<BlogPostInstance>;
-    const { title, text, html, ...rest } = typedValues;
-
-    return {
-      ...rest,
-      title: this.ensureMlString(title),
-      text: this.ensureMlString(text),
-      html: this.ensureMlString(html),
-    } satisfies BlogPostFormValues;
-  }
 }
-
-BlogPostProvider.formDefs = {
-  'new-post': [
-    {
-      name: 'post-title',
-      required: true,
-      type: 'text',
-      key: 'title',
-    },
-    {
-      name: 'post-text',
-      required: true,
-      type: 'markdown',
-      key: 'text',
-      flat: true,
-      htmlKey: 'html',
-    },
-    {
-      name: 'post-language',
-      required: true,
-      key: 'originalLanguage',
-    },
-    {
-      name: 'post-action',
-      required: true,
-      skipValue: true,
-    },
-  ],
-};
-
-BlogPostProvider.formDefs['edit-post'] = BlogPostProvider.formDefs['new-post'];
 
 export default BlogPostProvider;
