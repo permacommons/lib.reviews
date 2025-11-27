@@ -10,7 +10,7 @@ $('[id^=url-validation-]').each(initializeValidationTemplate);
 $('[data-add-protocol]').click(addProtocol);
 
 // Combined validation handler
-$('input[name^=url-]').change(handleURLValidation);
+$('input[name="urls[]"]').change(handleURLValidation);
 
 // Add new URL row to table
 $('button#add-more').click(addNewURLRow);
@@ -38,25 +38,19 @@ function handleURLValidation(this: HTMLInputElement): void {
 
 function addProtocol(this: HTMLElement, event: JQuery.Event): void {
   const protocol = String($(this).attr('data-add-protocol') ?? '');
-  const inputName = String($(this).attr('data-add-protocol-for') ?? '');
-  const $input = $(`input[name=${inputName}]`);
+  const $input = $(this).closest('td').find('input[data-url-input]');
   $input.val(protocol + String($input.val() ?? ''));
   $input.trigger('change');
   event.preventDefault();
 }
 
 function addNewURLRow(event: JQuery.Event): void {
-  const lastName = $('input[name^=url-]').last().attr('name') ?? '';
-  const match = lastName.match(/[0-9]+/);
-  let count = match ? Number(match[0]) : NaN;
-
-  // We're adding a new row
-  count++;
+  const count = $('input[data-url-input]').length;
 
   if (!Number.isNaN(count)) {
     const $newRow = $(
       `<tr valign="top"><td class="max-width">` +
-        `<input name="url-${count}" data-url-input type="text" class="max-width" ` +
+        `<input name="urls[]" data-url-input type="text" class="max-width" ` +
         `placeholder="${msg('enter web address short')}">` +
         `<div id="url-validation-${count}"></div></td>` +
         `<td><input type="radio" name="primary" value="${count}"></td></tr>`
@@ -67,7 +61,7 @@ function addNewURLRow(event: JQuery.Event): void {
 
     $newRow.find('[data-add-protocol]').click(addProtocol);
 
-    $newRow.find('input[name^=url-]').change(handleURLValidation);
+    $newRow.find('input[name="urls[]"]').change(handleURLValidation);
   }
 
   event.preventDefault();
