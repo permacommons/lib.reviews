@@ -91,6 +91,7 @@
 	"invalid star rating": "Le evalutation inviate, ‘%s’, non es valide.",
 	"review title too long": "Le titulo del recension inviate es troppo longe.",
 	"invalid language code": "Le codice de lingua inviate, ‘%s’, non es valide o recognoscite.",
+	"html in text field": "Le contento inviate contine etiquettas HTML que non es permittite in iste campo. Per favor remove omne formatation HTML.",
 	"feed": "Ultime recensiones",
 	"one or multiple stars": {
 		"one": "%f stella",

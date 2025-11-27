@@ -2,6 +2,7 @@
 	"@metadata": {
 		"authors": [
 			"Balajijagadesh",
+			"ElangoRamanujam",
 			"Fahimrazick",
 			"Prashere",
 			"Siddhan"
@@ -239,6 +240,8 @@
 	"format as code block": "நிரல்",
 	"format as code block help": "குறியீட்டுத் தொகுதியாக வடிவமை",
 	"format as heading": "தலைப்பு",
+	"undo": "கடைசி மாற்றத்தைச் செயல்தவிர்",
+	"more results": "மேலும் முடிவுகள்",
 	"amazon source label": "அமேசான்",
 	"goodreads source label": "குட்ரீட்ஸ்",
 	"openstreetmap source label": "ஓபன் ஸ்ட்ரீட் மேப்",
@@ -246,5 +249,7 @@
 	"yelp source label": "யெல்ப்",
 	"tripadvisor source label": "டிரிப் அட்வைசர்",
 	"wikipedia source label": "விக்கிப்பீடியா",
-	"review via openlibrary help label": "ஓப்பன் லைப்ரரியில் தேடு"
+	"review via wikidata help label": "விக்கித்தரவில் தேடு",
+	"review via openlibrary help label": "ஓப்பன் லைப்ரரியில் தேடு",
+	"uploaded files title": "பதிவேற்றப்பட்டக் கோப்புகள்"
 }
