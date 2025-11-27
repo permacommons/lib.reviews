@@ -388,6 +388,56 @@ test.serial('DAL revision system: test isolation verification', async t => {
   t.is(Number(afterCreate.rows[0].count), 1, 'Document was created');
 });
 
+test.serial('Security: reject malicious field names in INSERT operations', async t => {
+  const TestModel = dalFixture.getModel('revisions') as unknown as RevisionModel;
+
+  // Create a valid document first
+  const doc = await TestModel.createFirstRevision(testUser, {
+    tags: ['security-test'],
+  });
+  doc.title = 'Test Document';
+
+  // Attempt to inject a malicious field name via direct _data manipulation
+  // This simulates an attacker trying to bypass normal setters
+  (doc as ModelInstance<JsonObject, JsonObject>)._data['malicious; DROP TABLE users; --'] =
+    'payload';
+  (doc as ModelInstance<JsonObject, JsonObject>)._changed.add(
+    'malicious; DROP TABLE users; --'
+  );
+
+  await t.throwsAsync(
+    async () => {
+      await doc.save();
+    },
+    {
+      message: /Invalid field name.*malicious.*not defined in schema/,
+    },
+    'Should reject SQL injection attempts in field names'
+  );
+});
+
+test.serial('Security: reject unknown field names in updates', async t => {
+  const TestModel = dalFixture.getModel('revisions') as unknown as RevisionModel;
+
+  // Create a valid document
+  const doc = await TestModel.createFirstRevision(testUser, {
+    data: { title: 'Test Document' },
+  });
+
+  // Attempt to set a field that doesn't exist in the schema
+  (doc as ModelInstance<JsonObject, JsonObject>).setValue('nonexistent_field', 'value');
+
+  await t.throwsAsync(
+    async () => {
+      await doc.save();
+    },
+    {
+      message: /Invalid field name.*nonexistent_field.*not defined in schema/,
+    },
+    'Should reject unknown field names during update'
+  );
+});
+
 test.after.always(async () => {
   await dalFixture.cleanup();
 });

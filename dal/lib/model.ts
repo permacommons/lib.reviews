@@ -1470,6 +1470,43 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   }
 
   /**
+   * Validate that a database field name is safe to use in SQL queries
+   * @param dbFieldName - Database field name to validate
+   * @returns true if valid, false otherwise
+   * @private
+   */
+  _isValidDbFieldName(dbFieldName: string): boolean {
+    const schema = this.runtime.schema || {};
+
+    // Check if it's a schema field (by schema name)
+    if (schema[dbFieldName]) {
+      return true;
+    }
+
+    // Check if it's a mapped database field name
+    const mappedDbFields = new Set(this.runtime._fieldMappings.values());
+    if (mappedDbFields.has(dbFieldName)) {
+      return true;
+    }
+
+    // Allow standard metadata fields (for revision system, etc.)
+    const metadataFields = new Set([
+      'id',
+      '_old_rev_of',
+      '_rev_deleted',
+      '_rev_id',
+      '_rev_of',
+      '_rev_date',
+      '_rev_tags',
+    ]);
+    if (metadataFields.has(dbFieldName)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * Insert new record
    * @param options - Insert options
    * @private
@@ -1477,6 +1514,17 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
   async _insert(options) {
     const tableName = this.runtime.tableName;
     const fields = Object.keys(this._data).filter(key => this._data[key] !== undefined);
+
+    // Validate all field names to prevent SQL injection via column names
+    for (const field of fields) {
+      if (!this._isValidDbFieldName(field)) {
+        throw new Error(
+          `Invalid field name '${field}' in ${tableName} model. ` +
+          `Field is not defined in schema or field mappings.`
+        );
+      }
+    }
+
     const values = fields.map(key => this._data[key]);
     const placeholders = fields.map((_, index) => `$${index + 1}`);
 
@@ -1522,6 +1570,16 @@ class Model<TData extends JsonObject = JsonObject, TVirtual extends JsonObject =
 
     if (changedFields.length === 0) {
       return; // No non-sensitive changes to save
+    }
+
+    // Validate all field names to prevent SQL injection via column names
+    for (const field of changedFields) {
+      if (!this._isValidDbFieldName(field)) {
+        throw new Error(
+          `Invalid field name '${field}' in ${tableName} model. ` +
+          `Field is not defined in schema or field mappings.`
+        );
+      }
     }
 
     const values = changedFields.map(key => this._data[key]);
