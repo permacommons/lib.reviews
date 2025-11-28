@@ -8,6 +8,12 @@ import md from '../../util/md.ts';
 type TranslateFn = (phrase: string, ...params: Array<string | number | boolean>) => string;
 
 const sanitize = (value: string) => escapeHTML(value.trim());
+const preprocessArrayField = (value: unknown) =>
+  Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
+const coerceString = (value: unknown) =>
+  value === undefined || value === null ? '' : String(value);
+const requiredTrimmedString = (message: string) =>
+  z.preprocess(coerceString, z.string().trim().min(1, message));
 
 const validateLanguage = (language: string, ctx: z.RefinementCtx) => {
   try {
@@ -101,7 +107,11 @@ const zodForms = {
   csrfField,
   csrfSchema,
   createCaptchaSchema,
+  coerceString,
+  preprocessArrayField,
+  requiredTrimmedString,
 };
 
 export type ZodFormsHelper = typeof zodForms;
 export default zodForms;
+export { coerceString, preprocessArrayField, requiredTrimmedString };

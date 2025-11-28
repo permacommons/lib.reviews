@@ -295,6 +295,10 @@ class BlogPostProvider extends AbstractBREADProvider {
               ? this.req.body['post-action']
               : undefined
           );
+          if (this.isPreview) {
+            fallbackValues.creator = blogPost.creator;
+            fallbackValues.createdOn = blogPost.createdOn;
+          }
           return this.add_GET(team, fallbackValues);
         }
 
@@ -354,6 +358,10 @@ class BlogPostProvider extends AbstractBREADProvider {
         language,
         typeof postAction === 'string' ? postAction : undefined
       );
+      if (this.isPreview) {
+        fallbackValues.creator = this.req.user;
+        fallbackValues.createdOn = new Date();
+      }
       return this.add_GET(team, fallbackValues);
     }
 

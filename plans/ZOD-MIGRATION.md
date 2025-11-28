@@ -51,7 +51,7 @@ Migrate forms one at a time, starting with simpler ones:
 - Thing URL management ✅
 
 **Medium complexity** (conditional logic, nested structures):
-- Review creation (has conditional team fields)
+- Review creation ✅ (conditional team fields, multilingual content, previews)
 
 **Complex forms** (dynamic fields, multi-file uploads):
 - Multi-file upload with per-file metadata
@@ -226,3 +226,5 @@ Migration is successful if:
 - 2025-11-26: Migrated team creation/edit routes to Zod schemas (multilingual text/markdown, boolean flags, CAPTCHA, CSRF) and removed legacy `FormField` definitions; handlers now flash Zod issues and re-render with sanitized values.
 - 2025-11-26: Added shared Zod form helpers (language validation, safe parsing, consistent error messaging) colocated with `flashZodIssues`; migrated team blog add/edit routes to Zod (multilingual text/markdown, CSRF/CAPTCHA, preview support) and removed legacy `FormField` parsing for blog posts.
 - 2025-11-26: Migrated thing URL management to Zod with strict schema validation, normalized URL handling, and consistent flash messaging while preserving primary/duplicate checks.
+- 2025-11-26: Migrated review creation/edit flows to Zod with URL validation, multilingual text/markdown rendering, integer star ratings, team/file/social-image handling, and preview-safe flashing.
+- 2025-11-26: Preview parity fixes: set `isPreview` before validation (matching teams/blog) and carry creator/createdOn into preview re-renders on validation errors so bylines remain populated even with empty inputs.
