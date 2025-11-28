@@ -57,6 +57,9 @@ Migrate forms one at a time, starting with simpler ones:
 - Multi-file upload with per-file metadata ✅ (stage 2 metadata form now Zod-only)
 - Thing editing (sync field interactions)
 
+**Delete operations:**
+- Review deletion ✅ (migrated to Zod with checkbox handling)
+
 ### Phase 4: Deprecate Old System
 
 Once all forms migrated:
@@ -229,3 +232,4 @@ Migration is successful if:
 - 2025-11-26: Migrated review creation/edit flows to Zod with URL validation, multilingual text/markdown rendering, integer star ratings, team/file/social-image handling, and preview-safe flashing.
 - 2025-11-26: Preview parity fixes: set `isPreview` before validation (matching teams/blog) and carry creator/createdOn into preview re-renders on validation errors so bylines remain populated even with empty inputs.
 - 2025-11-26: Migrated stage 2 of multi-file uploads (metadata form) to Zod with language, CSRF, and per-upload validation (description/creator/source/license) plus sanitized multilingual fields; redirects and flashes reuse legacy messages while keeping stage 1 streaming unchanged.
+- 2025-11-28: Migrated review deletion to Zod with checkbox preprocessing for `delete-thing` field (handles HTML checkbox behavior where unchecked = absent), CSRF validation, and consistent error flashing; removed `ReviewProvider.formDefs` and `FormField` import from review-provider.ts.

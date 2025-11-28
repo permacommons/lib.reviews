@@ -24,7 +24,6 @@ import getMessages from '../../util/get-messages.ts';
 import md, { getMarkdownMessageKeys } from '../../util/md.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
-import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
 import {
   flashZodIssues,
@@ -36,6 +35,7 @@ import {
   coerceString,
   createMultilingualMarkdownField,
   csrfField,
+  csrfSchema,
   preprocessArrayField,
   requiredTrimmedString,
 } from '../helpers/zod-forms.ts';
@@ -235,6 +235,16 @@ const buildReviewSchema = (
   };
 };
 
+const buildDeleteReviewSchema = (req: HandlerRequest) => {
+  return csrfSchema.extend({
+    'delete-action': z.string().min(1, req.__('need delete-action')),
+    'delete-thing': z.preprocess(
+      value => value !== undefined && value !== false,
+      z.boolean().default(false)
+    ),
+  });
+};
+
 const toReviewFormValues = (data: ParsedReviewForm, fallbackLanguage: string): ReviewFormValues => {
   const values: ReviewFormValues = {
     title: data['review-title'],
@@ -301,7 +311,6 @@ const extractReviewFormValues = (
 };
 
 class ReviewProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, FormField[]>;
   protected isPreview = false;
   protected editing = false;
 
@@ -752,19 +761,23 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
   delete_POST(review: ReviewInstance): void {
-    const withThing = Boolean(this.req.body?.['delete-thing']);
-    this.parseForm({
-      formDef: ReviewProvider.formDefs['delete-review'],
-      formKey: 'delete-review',
-    });
+    const schema = buildDeleteReviewSchema(this.req);
+    const parseResult = schema.safeParse(this.req.body);
+
+    if (!parseResult.success) {
+      flashZodIssues(this.req, parseResult.error.issues, issue =>
+        formatZodIssueMessage(this.req, issue)
+      );
+      return this.delete_GET(review);
+    }
+
+    const { 'delete-thing': withThing } = parseResult.data;
 
     // Trying to delete recursively, but can't!
     if (withThing && !review.thing.userCanDelete)
       return this.renderPermissionError({
         titleKey: this.actions[this.action].titleKey,
       });
-
-    if (this.req.flashHas?.('pageErrors')) return this.delete_GET(review);
 
     const deleteFunc =
       withThing && typeof (review as any).deleteAllRevisionsWithThing === 'function'
@@ -806,17 +819,3 @@ class ReviewProvider extends AbstractBREADProvider {
 }
 
 export default ReviewProvider;
-
-// Shared across instances
-ReviewProvider.formDefs = {
-  'delete-review': [
-    {
-      name: 'delete-action',
-      required: true,
-    },
-    {
-      name: 'delete-thing',
-      required: false,
-    },
-  ],
-};
