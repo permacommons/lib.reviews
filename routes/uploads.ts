@@ -14,6 +14,7 @@ import isSVG from 'is-svg';
 import type { FileFilterCallback } from 'multer';
 import multer from 'multer';
 import is from 'type-is';
+import { type ZodIssue, z } from 'zod';
 import languages from '../locales/languages.ts';
 import type { FileInstance } from '../models/file.ts';
 import File from '../models/file.ts';
@@ -28,9 +29,10 @@ import {
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
-import forms from './helpers/forms.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
+import { flashZodIssues, formatZodIssueMessage } from './helpers/zod-flash.ts';
+import { coerceString, requiredTrimmedString } from './helpers/zod-forms.ts';
 
 const readFile = promisify(fs.readFile);
 const rename = promisify(fs.rename);
@@ -79,19 +81,132 @@ const allowedTypes = [
   'audio/mpeg',
 ];
 
+type UploadMetadata = {
+  by: 'uploader' | 'other';
+  description: Record<string, string>;
+  creator?: Record<string, string>;
+  source?: Record<string, string>;
+  license: string;
+};
+
+type ParsedUploadForm = {
+  uploads: Record<string, UploadMetadata>;
+  language: string;
+};
+
+type UploadFormValues = {
+  by: 'uploader' | 'other';
+  description: string;
+  creator?: string;
+  source?: string;
+  license?: string;
+};
+
+const toUploadRecord = (value: unknown) =>
+  value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+
+function buildUploadMetadataSchema(req: UploadsRequest): z.ZodType<ParsedUploadForm> {
+  const translate = req.__.bind(req);
+
+  const uploadLanguageField = z
+    .string()
+    .trim()
+    .superRefine((language, ctx) => {
+      try {
+        languages.validate(language);
+      } catch (_error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['upload-language'],
+          message: 'invalid language code',
+        });
+      }
+    });
+
+  const uploadEntrySchema = z
+    .object({
+      description: requiredTrimmedString('upload needs description'),
+      by: z.enum(['uploader', 'other']),
+      creator: z.preprocess(coerceString, z.string().trim().optional()),
+      source: z.preprocess(coerceString, z.string().trim().optional()),
+      license: z.preprocess(coerceString, z.string().trim().optional()),
+    })
+    .passthrough()
+    .superRefine((data, ctx) => {
+      if (data.by !== 'other') return;
+
+      if (!data.creator?.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['creator'],
+          message: 'upload needs creator',
+        });
+      }
+      if (!data.source?.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['source'],
+          message: 'upload needs source',
+        });
+      }
+      if (!data.license?.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['license'],
+          message: 'upload needs license',
+        });
+      }
+    });
+
+  return z
+    .object({
+      _csrf: z.string().min(1, translate('need _csrf')),
+      'upload-language': uploadLanguageField,
+      upload: z.preprocess(toUploadRecord, z.record(z.string(), uploadEntrySchema)),
+    })
+    .passthrough()
+    .superRefine((data, ctx) => {
+      if (!Object.keys(data.upload ?? {}).length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['upload'],
+          message: 'data missing',
+        });
+      }
+    })
+    .transform(({ upload, 'upload-language': language }) => {
+      const toMultilingual = (value: string) => ({
+        [language]: escapeHTML(value.trim()),
+      });
+
+      const uploads = Object.fromEntries(
+        Object.entries(upload).map(([id, entry]) => {
+          // Keep raw message keys on issues and translate later so we can substitute the filename.
+          const normalized: UploadMetadata = {
+            by: entry.by,
+            description: toMultilingual(entry.description),
+            license: entry.by === 'uploader' ? 'cc-by-sa' : (entry.license ?? '').trim(),
+          };
+
+          if (entry.by === 'other') {
+            normalized.creator = toMultilingual(entry.creator ?? '');
+            normalized.source = toMultilingual(entry.source ?? '');
+          }
+
+          return [id, normalized];
+        })
+      );
+
+      return {
+        uploads,
+        language,
+      };
+    });
+}
+
 // You can upload multiple uploads in one batch; this form is used to process
 // the metadata. With qs bracket notation, the entire upload object is parsed
 // as a nested structure, so we just need to accept the top-level 'upload' key.
-const uploadFormDef = [
-  {
-    name: 'upload-language',
-    required: true,
-  },
-  {
-    name: 'upload',
-    required: false,
-  },
-];
 
 stage1Router.post(
   '/:id/upload',
@@ -433,7 +548,28 @@ function processUploadForm(
   _next: HandlerNext,
   thing: ThingInstance
 ) {
-  // Flash a message from a [key, param1, ...] array, then redirect to thing
+  const rawUploads = toUploadRecord(req.body?.upload);
+  const uploadIDs = Object.keys(rawUploads);
+
+  // Preserve user-entered values so a failed validation can re-render the form with data intact.
+  const getSubmittedValues = (): Record<string, UploadFormValues> =>
+    Object.fromEntries(
+      Object.entries(rawUploads).map(([id, value]) => {
+        const record = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+        const by = record.by === 'other' ? 'other' : 'uploader';
+        return [
+          id,
+          {
+            by,
+            description: coerceString(record.description),
+            creator: coerceString(record.creator),
+            source: coerceString(record.source),
+            license: coerceString(record.license),
+          },
+        ];
+      })
+    );
+
   const redirectBack = ({ message, error }: { message?: unknown[]; error?: unknown[] } = {}) => {
     if (Array.isArray(error)) {
       const [key, ...params] = error as [string, ...unknown[]];
@@ -449,26 +585,91 @@ function processUploadForm(
     res.redirect(`/${thing.urlID}`);
   };
 
-  const languageValue = req.body['upload-language'];
-  const language = typeof languageValue === 'string' ? languageValue : '';
+  const renderUploadForm = async (options: {
+    uploadedFiles?: FileInstance[];
+    pageErrors?: string[];
+    formValues?: Record<string, UploadFormValues>;
+    uploadLanguage?: string;
+    issues?: ZodIssue[];
+  }) => {
+    const uploadedFiles =
+      options.uploadedFiles ??
+      (
+        await Promise.all(
+          uploadIDs.map(async id => {
+            try {
+              return await File.getNotStaleOrDeleted(id);
+            } catch (error) {
+              debug.error({ error, req });
+              return null;
+            }
+          })
+        )
+      ).filter((file): file is FileInstance => Boolean(file));
 
-  if (!languages.isValid(language))
-    return redirectBack({ error: ['invalid language code', language] });
+    if (!uploadedFiles.length) return redirectBack({ error: ['data missing'] });
 
-  let formData = forms.parseSubmission(req, {
-    formDef: uploadFormDef,
-    formKey: 'upload-file',
-    language,
-  });
+    // Rebuild the page with the staged uploads, flashed/derived errors, and the user's inputs.
+    const uploadNames = Object.fromEntries(uploadedFiles.map(file => [file.id, file.name]));
+    const uploadLanguage = options.uploadLanguage ?? coerceString(req.body?.['upload-language']);
+    const formValues = options.formValues ?? getSubmittedValues();
+    const pageErrors =
+      options.pageErrors ??
+      (options.issues
+        ? options.issues.map(issue => {
+            // Build localized errors at render-time to inject the specific filename into the message.
+            if (
+              Array.isArray(issue.path) &&
+              issue.path[0] === 'upload' &&
+              typeof issue.path[1] === 'string'
+            ) {
+              const uploadName = uploadNames[issue.path[1]] ?? issue.path[1];
+              return req.__(issue.message, uploadName);
+            }
+            if (
+              Array.isArray(issue.path) &&
+              issue.path[0] === 'upload-language' &&
+              issue.message === 'invalid language code'
+            ) {
+              return req.__(issue.message, uploadLanguage);
+            }
+            return formatZodIssueMessage(req, issue, 'unexpected form data');
+          })
+        : req.flash('pageErrors'));
 
-  if (req.flashHas?.('pageErrors')) return redirectBack();
+    return render.template(
+      req,
+      res,
+      'thing-upload-step-2',
+      {
+        titleKey: 'add media',
+        thing,
+        uploadedFiles,
+        csrfToken: generateToken(req),
+        pageErrors,
+        formValues,
+        uploadLanguage,
+      },
+      {
+        messages: {
+          'one file selected': req.__('one file selected'),
+          'files selected': req.__('files selected'),
+        },
+      }
+    );
+  };
 
-  let uploadIDs;
-  let hasUploads =
-    typeof formData.formValues.upload == 'object' &&
-    (uploadIDs = Object.keys(formData.formValues.upload)).length;
+  const parseResult = buildUploadMetadataSchema(req).safeParse(req.body);
+  if (!parseResult.success) {
+    return renderUploadForm({
+      issues: parseResult.error.issues,
+      formValues: getSubmittedValues(),
+      uploadLanguage: coerceString(req.body?.['upload-language']),
+    });
+  }
 
-  if (!hasUploads) return redirectBack({ error: ['data missing'] });
+  const parsedUploadIDs = Object.keys(parseResult.data.uploads);
+  if (!parsedUploadIDs.length) return redirectBack({ error: ['data missing'] });
 
   const getFiles = async (ids: string[]) =>
     await Promise.all(ids.map(id => File.getNotStaleOrDeleted(id)));
@@ -477,25 +678,29 @@ function processUploadForm(
   // form and abort if there's a problem with any given upload. If there's no
   // problem, move the upload to its final location, update its metadata and
   // mark it as finished.
-  getFiles(uploadIDs)
-    .then(files =>
-      processUploads(files, formData.formValues, language, req.app.locals.paths.uploadsDir)
-    )
+  getFiles(parsedUploadIDs)
+    .then(files => processUploads(files, parseResult.data.uploads, req.app.locals.paths.uploadsDir))
     .then(() => redirectBack({ message: ['upload completed'] }))
-    .catch(error => {
+    .catch(async error => {
       req.flashError?.(error);
+      const pageErrors = req.flash?.('pageErrors') ?? [];
+      if (pageErrors.length) {
+        return renderUploadForm({
+          pageErrors,
+          formValues: getSubmittedValues(),
+          uploadLanguage: parseResult.data.language,
+        });
+      }
       redirectBack();
     });
 }
 
 async function processUploads(
   uploads: FileInstance[],
-  formValues: Record<string, unknown>,
-  language: string,
+  uploadData: Record<string, UploadMetadata>,
   uploadsDir: string
 ): Promise<void> {
   let completeUploadPromises: Promise<unknown>[] = [];
-  const uploadData = formValues.upload || {};
 
   uploads.forEach(upload => {
     const data = uploadData[upload.id];
@@ -507,63 +712,13 @@ async function processUploads(
       });
     }
 
-    // Convert plain text description to multilingual format (escape HTML)
-    const descriptionText = typeof data.description === 'string' ? data.description.trim() : '';
-    if (!descriptionText) {
-      throw new ReportedError({
-        message: 'Form data for upload %s lacks a description.',
-        messageParams: [upload.name],
-        userMessage: 'upload needs description',
-      });
+    upload.description = data.description;
+
+    if (data.by === 'other') {
+      upload.creator = data.creator;
+      upload.source = data.source;
     }
-    upload.description = { [language]: escapeHTML(descriptionText) };
-
-    let by = data.by;
-    if (!by)
-      throw new ReportedError({
-        message: 'Form data for upload missing creator information.',
-        userMessage: 'data missing',
-      });
-
-    if (by === 'other') {
-      // Convert plain text creator to multilingual format (escape HTML)
-      const creatorText = typeof data.creator === 'string' ? data.creator.trim() : '';
-      if (!creatorText) {
-        throw new ReportedError({
-          message: 'Form data for upload %s lacks creator information.',
-          messageParams: [upload.name],
-          userMessage: 'upload needs creator',
-        });
-      }
-      upload.creator = { [language]: escapeHTML(creatorText) };
-
-      // Convert plain text source to multilingual format (escape HTML)
-      const sourceText = typeof data.source === 'string' ? data.source.trim() : '';
-      if (!sourceText) {
-        throw new ReportedError({
-          message: 'Form data for upload %s lacks source information.',
-          messageParams: [upload.name],
-          userMessage: 'upload needs source',
-        });
-      }
-      upload.source = { [language]: escapeHTML(sourceText) };
-
-      upload.license = data.license;
-
-      if (!upload.license)
-        throw new ReportedError({
-          message: 'Form data for upload %s lacks license information.',
-          messageParams: [upload.name],
-          userMessage: 'upload needs license',
-        });
-    } else if (by === 'uploader') {
-      upload.license = 'cc-by-sa';
-    } else {
-      throw new ReportedError({
-        message: 'Upload form contained unexpected form data.',
-        userMessage: 'unexpected form data',
-      });
-    }
+    upload.license = data.license;
     completeUploadPromises.push(completeUpload(upload, uploadsDir));
   });
 

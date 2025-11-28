@@ -54,7 +54,7 @@ Migrate forms one at a time, starting with simpler ones:
 - Review creation ✅ (conditional team fields, multilingual content, previews)
 
 **Complex forms** (dynamic fields, multi-file uploads):
-- Multi-file upload with per-file metadata
+- Multi-file upload with per-file metadata ✅ (stage 2 metadata form now Zod-only)
 - Thing editing (sync field interactions)
 
 ### Phase 4: Deprecate Old System
@@ -228,3 +228,4 @@ Migration is successful if:
 - 2025-11-26: Migrated thing URL management to Zod with strict schema validation, normalized URL handling, and consistent flash messaging while preserving primary/duplicate checks.
 - 2025-11-26: Migrated review creation/edit flows to Zod with URL validation, multilingual text/markdown rendering, integer star ratings, team/file/social-image handling, and preview-safe flashing.
 - 2025-11-26: Preview parity fixes: set `isPreview` before validation (matching teams/blog) and carry creator/createdOn into preview re-renders on validation errors so bylines remain populated even with empty inputs.
+- 2025-11-26: Migrated stage 2 of multi-file uploads (metadata form) to Zod with language, CSRF, and per-upload validation (description/creator/source/license) plus sanitized multilingual fields; redirects and flashes reuse legacy messages while keeping stage 1 streaming unchanged.
