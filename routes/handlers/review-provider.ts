@@ -79,8 +79,8 @@ const sanitizeText = (value: string) => escapeHTML(value.trim());
 const normalizeURL = (value: unknown) => urlUtils.normalize(String(value ?? '').trim());
 const normalizeReviewBody = (body: Record<string, unknown>) => ({
   ...body,
-  teams: body.teams ?? (body['teams[]'] as unknown),
-  files: body.files ?? (body['files[]'] as unknown),
+  teams: body.teams ?? body['teams[]'],
+  files: body.files ?? body['files[]'],
 });
 const toIDString = (value: unknown) => coerceString(value).trim();
 
@@ -572,7 +572,10 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
   async loadData(): Promise<ReviewInstance> {
-    const review = (await Review.getWithData(this.id)) as unknown as ReviewInstance;
+    const review = await Review.getWithData(this.id);
+    if (!review) {
+      throw new Error(`Review ${this.id} not found`);
+    }
     // For permission checks on associated thing
     review.thing.populateUserInfo(this.req.user);
     return review;
@@ -777,16 +780,9 @@ class ReviewProvider extends AbstractBREADProvider {
         titleKey: this.actions[this.action].titleKey,
       });
 
-    const deleteFunc =
-      withThing && typeof (review as any).deleteAllRevisionsWithThing === 'function'
-        ? (review as any).deleteAllRevisionsWithThing
-        : review.deleteAllRevisions;
+    const deleteFunc = withThing ? review.deleteAllRevisionsWithThing : review.deleteAllRevisions;
 
-    const deleteFn = deleteFunc as (
-      this: ReviewInstance,
-      user: HandlerRequest['user']
-    ) => Promise<unknown>;
-    Promise.resolve(deleteFn.call(review, this.req.user))
+    Promise.resolve(deleteFunc.call(review, this.req.user))
       .then(() => {
         this.renderTemplate('review-deleted', {
           titleKey: 'review deleted',

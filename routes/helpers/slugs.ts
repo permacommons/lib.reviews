@@ -62,7 +62,7 @@ const resolveAndLoadTeam = (
   resolveAndLoad<TeamInstance>(req, res, id, loadOptions, {
     basePath: '/team/',
     slugForeignKey: 'teamID',
-    getDocumentModel: async () => Team as unknown as DocumentModel<TeamInstance>,
+    getDocumentModel: async () => Team,
     loadSlug: async (slugName: string, _model: DocumentModel<TeamInstance>) => {
       if (!TeamSlug || typeof TeamSlug.getByName !== 'function') return null;
       // TeamSlug returns model instances; convert to a plain object that exposes
@@ -94,7 +94,7 @@ const resolveAndLoadThing = (req: Request, res: Response, id: string, loadOption
   resolveAndLoad<ThingInstance>(req, res, id, loadOptions, {
     basePath: '/',
     slugForeignKey: 'thingID',
-    getDocumentModel: async () => Thing as unknown as DocumentModel<ThingInstance>,
+    getDocumentModel: async () => Thing,
     loadSlug: async (slugName: string, _model: DocumentModel<ThingInstance>) => {
       const ThingSlugModel = ThingSlug;
       if (!ThingSlugModel || typeof ThingSlugModel.getByName !== 'function') return null;
