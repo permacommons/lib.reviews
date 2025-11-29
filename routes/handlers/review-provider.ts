@@ -4,7 +4,7 @@ import escapeHTML from 'escape-html';
 import { z } from 'zod';
 import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
 import languages from '../../locales/languages.ts';
-import File from '../../models/file.ts';
+import File, { type FileInstance } from '../../models/file.ts';
 import {
   type ReviewInstance as ManifestReviewInstance,
   type ReviewInputObject,
@@ -524,16 +524,14 @@ class ReviewProvider extends AbstractBREADProvider {
 
     this.resolveTeamData(formValues)
       .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
-      .then(async uploadedFiles => {
+      .then(async (uploadedFiles: FileInstance[]) => {
         const reviewObj = Object.assign({}, formValues);
 
         // Pass existing and newly uploaded forms on to the form, so they
         // can both be selected. (This does not need to be included with the
         // review object that will be created.)
         formValues.uploads =
-          thing && thing?.files
-            ? (uploadedFiles as Array<Record<string, unknown>>).concat(thing.files)
-            : uploadedFiles;
+          thing && thing?.files ? uploadedFiles.concat(thing.files) : uploadedFiles;
 
         if (thing && thing.id) reviewObj.thing = thing;
 
@@ -651,9 +649,9 @@ class ReviewProvider extends AbstractBREADProvider {
 
     this.resolveTeamData(formValues)
       .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
-      .then(uploadedFiles => {
+      .then((uploadedFiles: FileInstance[]) => {
         formValues.uploads = review.thing.files
-          ? (uploadedFiles as Array<Record<string, unknown>>).concat(review.thing.files)
+          ? uploadedFiles.concat(review.thing.files)
           : uploadedFiles;
 
         // As with creation, back to edit form if we have errors or
