@@ -109,10 +109,8 @@ function apiUploadHandler(req: UploadRequest, res: UploadResponse) {
 
     validateFiles(req.files)
       .then(fileTypes => getFileRevs(req.files, fileTypes, req.user, ['upload', 'upload-via-api']))
-      .then(fileRevs => addMetadata(req.files, fileRevs as FileInstance[], req.body ?? {}))
-      .then(fileRevs =>
-        completeUploads(fileRevs as unknown as FileInstance[], req.app.locals.paths.uploadsDir)
-      )
+      .then(fileRevs => addMetadata(req.files, fileRevs, req.body ?? {}))
+      .then(fileRevs => completeUploads(fileRevs, req.app.locals.paths.uploadsDir))
       .then(persistRevisions)
       .then(fileRevs => reportUploadSuccess(req, res, fileRevs))
       .catch(error => abortUpload([error instanceof Error ? error : new Error(String(error))]));
@@ -166,9 +164,7 @@ function validateAllMetadata(files: UploadFile[], data: UploadMetadata): Error[]
  *  Validation errors for this field, if any
  */
 function validateMetadata(file: UploadFile, data: UploadMetadata, { addSuffix = false } = {}) {
-  const validLicenses = (
-    File as unknown as { getValidLicenses: () => string[] }
-  ).getValidLicenses();
+  const validLicenses = File.getValidLicenses();
   const errors: Error[] = [],
     processedFields: string[] = [];
   // For multiple uploads, we use the filename as a suffix for each file
