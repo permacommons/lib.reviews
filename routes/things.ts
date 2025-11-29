@@ -368,9 +368,7 @@ function processTextFieldUpdate(
       const parseResult = schema.safeParse(req.body);
 
       if (!parseResult.success) {
-        flashZodIssues(req, parseResult.error.issues, issue =>
-          formatZodIssueMessage(req, issue)
-        );
+        flashZodIssues(req, parseResult.error.issues, issue => formatZodIssueMessage(req, issue));
       }
 
       if (req.flashHas?.('pageErrors')) {

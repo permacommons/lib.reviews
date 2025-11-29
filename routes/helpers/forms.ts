@@ -4,7 +4,6 @@ import type { Request } from 'express';
 const toStringValue = (value: unknown): string => String(value ?? '');
 
 const forms = {
-
   /**
    * Retrieve the configured captcha metadata for a form, if present.
    *
