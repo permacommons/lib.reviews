@@ -2,6 +2,7 @@ import * as url from 'node:url';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
+import { z } from 'zod';
 import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
 import {
@@ -19,9 +20,15 @@ import urlUtils from '../util/url-utils.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
 import feeds from './helpers/feeds.ts';
-import forms, { type FormField } from './helpers/forms.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
+import {
+  flashZodIssues,
+  formatZodIssueMessage,
+  safeParseField,
+  validateLanguage,
+} from './helpers/zod-flash.ts';
+import { csrfField } from './helpers/zod-forms.ts';
 
 const ReviewHandle = Review as ReviewModel;
 
@@ -39,13 +46,61 @@ interface ThingURLsFormParams {
   res: ThingRouteResponse;
   titleKey: string;
   thing: ThingInstance;
-  formValues?: Record<string, unknown>;
+  formValues?: Partial<ThingURLsFormValues>;
 }
 
 const router = Router();
 
 // For handling form fields
 const editableFields = ['description', 'label'];
+
+const buildThingEditSchema = (field: string) => {
+  const fieldName = `thing-${field}`;
+
+  return z.object({
+    _csrf: csrfField,
+    [fieldName]: z.string().transform(value => escapeHTML(value.trim())),
+  });
+};
+
+const normalizeURLValue = (value: unknown) => urlUtils.normalize(String(value ?? '').trim());
+const preprocessURLs = (value: unknown) => {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null) return [];
+  return [value];
+};
+
+const buildThingURLsSchema = (req: ThingRouteRequest) => {
+  const primaryField = z
+    .string()
+    .trim()
+    .min(1, req.__('need primary'))
+    .transform(value => Number.parseInt(value, 10))
+    .refine(value => !Number.isNaN(value), { message: req.__('need primary') });
+
+  const urlsField = z.preprocess(
+    value => preprocessURLs(value).map(normalizeURLValue),
+    z.array(z.string())
+  );
+
+  const schema = z
+    .object({
+      _csrf: csrfField,
+      primary: primaryField,
+      urls: urlsField,
+    })
+    .strict();
+
+  return {
+    primaryField,
+    urlsField,
+    schema,
+  };
+};
+
+type ThingURLsSchema = ReturnType<typeof buildThingURLsSchema>['schema'];
+type ThingURLsFormData = z.infer<ThingURLsSchema>;
+type ThingURLsFormValues = Pick<ThingURLsFormData, 'primary' | 'urls'>;
 
 router.get(
   '/:id',
@@ -304,31 +359,47 @@ function processTextFieldUpdate(
           detailsKey: 'cannot edit synced field',
         });
 
-      thing.newRevision(req.user).then(revision => {
-        const languageInput = req.body['thing-language'];
-        const language = typeof languageInput === 'string' ? languageInput : '';
-        languages.validate(language);
-        const textInput = req.body[`thing-${field}`];
-        const text = typeof textInput === 'string' ? textInput : '';
+      const languageValue = req.body?.['thing-language'];
+      const language = typeof languageValue === 'string' ? languageValue : '';
 
+      validateLanguage(req, language);
+
+      const schema = buildThingEditSchema(field);
+      const parseResult = schema.safeParse(req.body);
+
+      if (!parseResult.success) {
+        flashZodIssues(req, parseResult.error.issues, issue => formatZodIssueMessage(req, issue));
+      }
+
+      if (req.flashHas?.('pageErrors')) {
+        const submittedValue = req.body?.[`thing-${field}`];
+        const formValues = {
+          [field]: typeof submittedValue === 'string' ? submittedValue : '',
+        };
+        return sendForm(req, res, thing, { [field]: true }, titleKey, formValues);
+      }
+
+      const text = parseResult.data[`thing-${field}`] as string;
+
+      thing.newRevision(req.user).then(revision => {
         // Handle metadata fields (description, subtitle, authors) differently
         const metadataFields = ['description', 'subtitle', 'authors'];
         if (metadataFields.includes(field)) {
           const metadata = (revision.metadata ??= {} as Record<string, unknown>);
           const fieldMetadata = (metadata[field] ??= {}) as MultilingualString;
-          fieldMetadata[language] = escapeHTML(text);
+          fieldMetadata[language] = text; // Already escaped by schema
         } else {
           // Handle direct fields like label
           switch (field) {
             case 'label': {
               const label = (revision.label ??= {} as MultilingualString);
-              label[language] = escapeHTML(text);
+              label[language] = text; // Already escaped by schema
               break;
             }
             default: {
               const revisionRecord = revision as Record<string, unknown>;
               const fieldValue = (revisionRecord[field] ??= {}) as MultilingualString;
-              fieldValue[language] = escapeHTML(text);
+              fieldValue[language] = text; // Already escaped by schema
               break;
             }
           }
@@ -355,12 +426,7 @@ function processTextFieldUpdate(
               })
               .catch(next);
           })
-          .catch(error => {
-            if (error.name === 'InvalidLanguageError') {
-              req.flashError?.(error);
-              sendThing(req, res, thing);
-            } else return next(error);
-          });
+          .catch(next);
       });
     })
     .catch(getResourceErrorHandler(req, res, next, 'thing', id));
@@ -371,7 +437,8 @@ function sendForm(
   res: ThingRouteResponse,
   thing: ThingInstance,
   edit: Record<string, boolean>,
-  titleKey: string
+  titleKey: string,
+  formValues?: Record<string, string>
 ) {
   edit = Object.assign(
     {
@@ -399,6 +466,7 @@ function sendForm(
     showLanguageNotice,
     pageMessages,
     edit,
+    formValues,
   });
 }
 
@@ -507,33 +575,39 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
 // Handle data from a POST request for the "manage URLs" route
 function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
   const { req, res, titleKey, thing } = paramsObj;
-  const formDef: FormField[] = [
-    {
-      name: 'primary',
-      type: 'number',
-      required: true,
-    },
-    {
-      name: 'urls',
-      type: 'url',
-      required: false,
-    },
-  ];
+  const { schema, primaryField, urlsField } = buildThingURLsSchema(req);
+  const parseResult = schema.safeParse(req.body);
 
-  const parsed = forms.parseSubmission(req, { formDef, formKey: 'thing-urls' });
+  if (!parseResult.success) {
+    flashZodIssues(req, parseResult.error.issues, issue =>
+      formatZodIssueMessage(req, issue, 'unexpected form data')
+    );
+    const fallbackValues: Partial<ThingURLsFormValues> = {
+      primary: safeParseField<number>(primaryField, req.body?.primary),
+      urls: safeParseField<string[]>(urlsField, req.body?.urls),
+    };
+    return sendThingURLsForm({ req, res, titleKey, thing, formValues: fallbackValues });
+  }
 
-  // Process errors handled by form parser
-  if (parsed.hasUnknownFields || !parsed.hasRequiredFields)
-    return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
+  const { urls: submittedURLs, primary } = parseResult.data;
+  const formValues: ThingURLsFormValues = { urls: submittedURLs, primary };
+  for (const value of submittedURLs) {
+    if (value.length && !urlUtils.validate(value)) {
+      req.flash('pageErrors', req.__('not a url'));
+      return sendThingURLsForm({ req, res, titleKey, thing, formValues });
+    }
+  }
 
-  // Detect additional case of primary pointing to a blank field
-  const submittedURLs = parsed.formValues.urls as string[] | undefined;
-  const primaryIndex = Number(parsed.formValues.primary);
-  const primaryURL =
-    typeof submittedURLs?.[primaryIndex] === 'string' ? submittedURLs[primaryIndex] : '';
+  const primaryURL = typeof submittedURLs?.[primary] === 'string' ? submittedURLs[primary] : '';
   if (!primaryURL.length) {
     req.flash('pageErrors', req.__('need primary'));
-    return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
+    return sendThingURLsForm({
+      req,
+      res,
+      titleKey,
+      thing,
+      formValues,
+    });
   }
 
   // The primary URL is simply the first one in the array, so we
@@ -566,8 +640,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
         }
       });
 
-      if (hasDuplicate)
-        return sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
+      if (hasDuplicate) return sendThingURLsForm({ req, res, titleKey, thing, formValues });
 
       // No dupes -- continue!
       thing.newRevision(req.user).then(revision => {
@@ -585,14 +658,14 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
           .catch(error => {
             // Problem with syncs
             req.flashError?.(error);
-            sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
+            sendThingURLsForm({ req, res, titleKey, thing, formValues });
           });
       });
     })
     .catch(error => {
       // Problem with lookup
       req.flashError?.(error);
-      sendThingURLsForm({ req, res, titleKey, thing, formValues: parsed.formValues });
+      sendThingURLsForm({ req, res, titleKey, thing, formValues });
     });
 }
 

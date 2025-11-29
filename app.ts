@@ -14,7 +14,7 @@ import config from 'config';
 import connectPgSimple from 'connect-pg-simple';
 import cookieParser from 'cookie-parser';
 // External dependencies
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import session from 'express-session';
 import expressUserAgent from 'express-useragent';
@@ -30,8 +30,9 @@ import { initializeDAL } from './bootstrap/dal.ts';
 import ErrorProvider from './routes/errors.ts';
 import apiHelper from './routes/helpers/api.ts';
 import flashHelper from './routes/helpers/flash.ts';
+import render from './routes/helpers/render.ts';
 import clientAssets from './util/client-assets.ts';
-import { csrfSynchronisedProtection } from './util/csrf.ts';
+import { csrfSynchronisedProtection, invalidCsrfTokenError } from './util/csrf.ts';
 import debug from './util/debug.ts';
 import flashStore from './util/flash-store.ts';
 import WebHookDispatcher from './util/webhooks.ts';
@@ -298,6 +299,21 @@ async function getApp(): Promise<express.Express> {
   app.use('/user', users);
   // Goes last to avoid accidental overlap w/ reserved routes
   app.use('/', things);
+
+  app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (error !== invalidCsrfTokenError) return next(error);
+
+    if (req.isAPI) {
+      res.status(403).json({ message: req.__('invalid csrf token') });
+      return;
+    }
+
+    res.status(403);
+    render.permissionError(req, res, {
+      titleKey: 'invalid csrf token title',
+      detailsKey: 'invalid csrf token',
+    });
+  });
 
   // Catches 404s and serves "not found" page
   app.use(errorProvider.notFound);

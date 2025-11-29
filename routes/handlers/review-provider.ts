@@ -1,11 +1,15 @@
 // External dependencies
 import config from 'config';
+import escapeHTML from 'escape-html';
+import { z } from 'zod';
 import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
+import languages from '../../locales/languages.ts';
 import File from '../../models/file.ts';
 import {
   type ReviewInstance as ManifestReviewInstance,
   type ReviewInputObject,
   type ReviewValidateSocialImageOptions,
+  reviewOptions,
 } from '../../models/manifests/review.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
 import type { ThingInstance } from '../../models/manifests/thing.ts';
@@ -20,8 +24,21 @@ import getMessages from '../../util/get-messages.ts';
 import md, { getMarkdownMessageKeys } from '../../util/md.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
-import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
+import {
+  flashZodIssues,
+  formatZodIssueMessage,
+  safeParseField,
+  validateLanguage,
+} from '../helpers/zod-flash.ts';
+import {
+  coerceString,
+  createMultilingualMarkdownField,
+  csrfField,
+  csrfSchema,
+  preprocessArrayField,
+  requiredTrimmedString,
+} from '../helpers/zod-forms.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 type ReviewFormValues = {
@@ -54,9 +71,246 @@ type ReviewFormValues = {
 type ReviewInstance = ManifestReviewInstance;
 
 type TeamInstance = TeamManifestInstance & Record<string, unknown>;
+type ReviewSchemaResult = ReturnType<typeof buildReviewSchema>;
+type ReviewFormSchema = ReviewSchemaResult['schema'];
+type ParsedReviewForm = z.infer<ReviewFormSchema>;
+
+const sanitizeText = (value: string) => escapeHTML(value.trim());
+const normalizeURL = (value: unknown) => urlUtils.normalize(String(value ?? '').trim());
+const normalizeReviewBody = (body: Record<string, unknown>) => ({
+  ...body,
+  teams: body.teams ?? (body['teams[]'] as unknown),
+  files: body.files ?? (body['files[]'] as unknown),
+});
+const toIDString = (value: unknown) => coerceString(value).trim();
+
+const buildReviewSchema = (
+  req: HandlerRequest,
+  language: string,
+  options: { requireURL: boolean; requireLanguage: boolean; renderLocale?: string }
+) => {
+  const { requireURL, requireLanguage, renderLocale } = options;
+
+  const urlField = z
+    .preprocess(value => coerceString(value), z.string().trim().min(1, req.__('need review-url')))
+    .transform(value => normalizeURL(value))
+    .superRefine((value, ctx) => {
+      if (!urlUtils.validate(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: req.__('not a url'),
+        });
+      }
+    });
+
+  const optionalURLField = z.preprocess(
+    value =>
+      value === undefined || value === null || String(value).trim() === '' ? undefined : value,
+    urlField.optional()
+  );
+
+  const titleField = z
+    .preprocess(
+      value => coerceString(value),
+      z
+        .string()
+        .trim()
+        .min(1, req.__('need review-title'))
+        .max(reviewOptions.maxTitleLength, req.__('review title too long'))
+    )
+    .transform(value => ({ [language]: sanitizeText(value) }) as MultilingualString);
+
+  const labelField = z.preprocess(
+    value => (value === undefined || value === null ? undefined : String(value)),
+    z
+      .string()
+      .trim()
+      .transform(value => ({ [language]: sanitizeText(value) }) as MultilingualString)
+      .optional()
+  );
+
+  const reviewTextField = z
+    .preprocess(value => coerceString(value), z.string().trim().min(1, req.__('need review-text')))
+    .pipe(createMultilingualMarkdownField(language, renderLocale));
+
+  const starRatingField = z
+    .preprocess(
+      value => coerceString(value),
+      z.string().trim().min(1, req.__('need review-rating'))
+    )
+    .transform((value, ctx) => {
+      const numeric = Number(value);
+      if (!Number.isInteger(numeric) || numeric < 1 || numeric > 5) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: req.__('invalid star rating', value),
+        });
+        return 0;
+      }
+      return numeric;
+    });
+
+  const languageFieldBase = z
+    .string()
+    .trim()
+    .superRefine((value, ctx) => {
+      try {
+        languages.validate(value);
+      } catch (_error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: req.__('invalid language code', value),
+        });
+      }
+    });
+  const languageField = requireLanguage
+    ? languageFieldBase
+    : z.preprocess(
+        value =>
+          value === undefined || value === null || String(value).trim() === '' ? undefined : value,
+        languageFieldBase.optional()
+      );
+
+  const reviewActionField = z.enum(['publish', 'preview']);
+
+  // Accept either raw IDs or { id } objects so previews/error re-renders keep selections intact
+  // and keep the template-facing shape predictable.
+  const idEntry = z.union([z.string(), z.object({ id: z.string() })]);
+  const teamsField = z
+    .preprocess(preprocessArrayField, z.array(idEntry))
+    .transform(values =>
+      values
+        .map(entry =>
+          typeof entry === 'string' ? coerceString(entry).trim() : toIDString(entry.id)
+        )
+        .filter(id => id.length)
+    );
+
+  const filesField = z
+    .preprocess(preprocessArrayField, z.array(idEntry))
+    .transform(values =>
+      values
+        .map(entry =>
+          typeof entry === 'string' ? coerceString(entry).trim() : toIDString(entry.id)
+        )
+        .filter(id => id.length)
+    );
+
+  const socialImageField = z.preprocess(
+    value =>
+      value === undefined || value === null || String(value).trim() === '' ? undefined : value,
+    z.string().uuid().optional()
+  );
+
+  const schema = z
+    .object({
+      _csrf: csrfField,
+      'review-url': requireURL ? urlField : optionalURLField,
+      'review-title': titleField,
+      'review-label': labelField,
+      'review-text': reviewTextField,
+      'review-rating': starRatingField,
+      'review-language': languageField,
+      'review-action': reviewActionField,
+      teams: teamsField,
+      files: filesField,
+      'review-social-image': socialImageField,
+    })
+    .strict();
+
+  return {
+    schema,
+    fields: {
+      url: requireURL ? urlField : optionalURLField,
+      title: titleField,
+      label: labelField,
+      text: reviewTextField,
+      starRating: starRatingField,
+      language: languageField,
+      reviewAction: reviewActionField,
+      teams: teamsField,
+      files: filesField,
+      socialImageID: socialImageField,
+    },
+  };
+};
+
+const buildDeleteReviewSchema = (req: HandlerRequest) => {
+  return csrfSchema.extend({
+    'delete-action': z.string().min(1, req.__('need delete-action')),
+    'delete-thing': z.preprocess(
+      value => value !== undefined && value !== false,
+      z.boolean().default(false)
+    ),
+  });
+};
+
+const toReviewFormValues = (data: ParsedReviewForm, fallbackLanguage: string): ReviewFormValues => {
+  const values: ReviewFormValues = {
+    title: data['review-title'],
+    text: data['review-text'].text,
+    html: data['review-text'].html,
+    starRating: data['review-rating'],
+    originalLanguage: data['review-language'] ?? fallbackLanguage,
+    teams: data.teams,
+    files: data.files ?? [],
+  };
+
+  if (data['review-url']) values.url = data['review-url'];
+  if (data['review-label']) values.label = data['review-label'];
+  if (data['review-social-image']) values.socialImageID = data['review-social-image'];
+  if (typeof data['review-rating'] === 'number') values.starRating = data['review-rating'];
+
+  return values;
+};
+
+const extractReviewFormValues = (
+  fields: ReviewSchemaResult['fields'],
+  body: Record<string, unknown>,
+  fallbackLanguage: string
+): ReviewFormValues => {
+  const formValues: ReviewFormValues = {};
+
+  const title = safeParseField<MultilingualString>(fields.title, body['review-title']);
+  if (title) formValues.title = title;
+
+  const label = safeParseField<MultilingualString | undefined>(fields.label, body['review-label']);
+  if (label) formValues.label = label;
+
+  const content = safeParseField<{ text: MultilingualString; html: MultilingualString }>(
+    fields.text,
+    body['review-text']
+  );
+  if (content) {
+    formValues.text = content.text;
+    formValues.html = content.html;
+  }
+
+  const url = safeParseField<string | undefined>(fields.url, body['review-url']);
+  if (url) formValues.url = url;
+
+  const starRating = safeParseField<number>(fields.starRating, body['review-rating']);
+  if (typeof starRating === 'number') formValues.starRating = starRating;
+
+  const language = safeParseField<string | undefined>(fields.language, body['review-language']);
+  formValues.originalLanguage = language ?? fallbackLanguage;
+
+  const teams = safeParseField<string[]>(fields.teams, body.teams);
+  formValues.teams = teams ?? [];
+
+  const files = safeParseField<string[]>(fields.files, body.files);
+  formValues.files = files ?? [];
+
+  const socialImageID = safeParseField<string | undefined>(
+    fields.socialImageID,
+    body['review-social-image']
+  );
+  if (socialImageID) formValues.socialImageID = socialImageID;
+
+  return formValues;
+};
 
 class ReviewProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, FormField[]>;
   protected isPreview = false;
   protected editing = false;
 
@@ -138,12 +392,19 @@ class ReviewProvider extends AbstractBREADProvider {
         formValues.hasRating = {
           [formValues.starRating]: true,
         };
-      const teamFlags: Record<string, boolean> = {};
-      if (Array.isArray(formValues.teams))
-        formValues.teams.forEach(teamEntry => {
-          const teamObj = teamEntry as TeamInstance;
-          if (teamObj?.id) teamFlags[teamObj.id] = true;
-        });
+      // Zod may yield either normalized string IDs or TeamInstances (when preview/edit feeds back
+      // saved data), so mark checkboxes for both shapes to keep selections sticky on re-render.
+      const teamIDs = Array.isArray(formValues.teams)
+        ? formValues.teams
+            .map(entry =>
+              typeof entry === 'string' ? entry : (entry as TeamInstance | undefined)?.id
+            )
+            .filter((id): id is string => Boolean(id))
+        : [];
+      const teamFlags = teamIDs.reduce<Record<string, boolean>>((acc, id) => {
+        acc[id] = true;
+        return acc;
+      }, {});
       formValues.hasTeam = teamFlags;
       if (formValues.socialImageID)
         formValues.hasSocialImageID = {
@@ -212,38 +473,54 @@ class ReviewProvider extends AbstractBREADProvider {
     }
   }
 
-  addFromTeam_POST(_team: TeamInstance): void {
+  addFromTeam_POST(_team: TeamInstance): Promise<void> {
     // Standard submission has checks against submitting from team you're not
     // a member of, so we don't have to check again here. The loaded team itself
     // will be passed along through the form, so we don't need to pass it here.
     return this.add_POST();
   }
 
-  add_POST(thing?: ThingInstance): void {
-    const reviewAction = this.req.body?.['review-action'];
-    this.isPreview = reviewAction === 'preview';
-
-    const formKey = 'new-review';
+  async add_POST(thing?: ThingInstance): Promise<void> {
     const languageValue = this.req.body?.['review-language'];
-    const language = typeof languageValue === 'string' ? languageValue : 'en';
-    const formData = this.parseForm({
-      formDef: ReviewProvider.formDefs[formKey],
-      formKey,
-      language,
-      // We don't need a URL if we're adding a review to an existing thing
-      skipRequiredCheck: thing && thing.id ? ['review-url'] : [],
-    });
+    const language =
+      typeof languageValue === 'string' && languageValue.length ? languageValue : 'en';
+    const reviewActionRaw =
+      typeof this.req.body?.['review-action'] === 'string'
+        ? (this.req.body['review-action'] as 'publish' | 'preview')
+        : undefined;
+    this.isPreview = reviewActionRaw === 'preview';
+    const requireURL = !(thing && thing.id);
 
-    const formValues = formData.formValues as ReviewFormValues;
+    validateLanguage(this.req, language);
+
+    const { schema, fields } = buildReviewSchema(this.req, language, {
+      requireURL,
+      requireLanguage: false,
+      renderLocale: this.req.locale,
+    });
+    const normalizedBody = normalizeReviewBody((this.req.body ?? {}) as Record<string, unknown>);
+    const parseResult = schema.safeParse(normalizedBody);
+
+    if (!parseResult.success) {
+      flashZodIssues(this.req, parseResult.error.issues, issue =>
+        formatZodIssueMessage(this.req, issue)
+      );
+      const fallbackValues = extractReviewFormValues(fields, normalizedBody, language);
+      if (this.isPreview) {
+        fallbackValues.creator = this.req.user;
+        fallbackValues.createdOn = new Date();
+      }
+      if (!fallbackValues.url)
+        fallbackValues.url = coerceString(normalizedBody['review-url']).trim();
+      return this.add_GET(fallbackValues, thing);
+    }
+
+    const reviewAction = parseResult.data['review-action'];
+    this.isPreview = reviewAction === 'preview';
+    const formValues = toReviewFormValues(parseResult.data, language);
 
     if (typeof this.req.user?.id === 'string') formValues.createdBy = this.req.user.id;
     formValues.createdOn = new Date();
-    formValues.originalLanguage = language;
-
-    // Files uploaded from the editor
-    if (!Array.isArray(formValues.files)) {
-      formValues.files = [];
-    }
 
     this.resolveTeamData(formValues)
       .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
@@ -320,23 +597,43 @@ class ReviewProvider extends AbstractBREADProvider {
     await this.add_GET(review, review.thing);
   }
 
-  edit_POST(review: ReviewInstance): void {
-    const formKey = 'edit-review';
+  async edit_POST(review: ReviewInstance): Promise<void> {
     const languageValue = this.req.body?.['review-language'];
     const language =
       typeof languageValue === 'string' ? languageValue : (review.originalLanguage ?? 'en');
-    const formData = this.parseForm({
-      formDef: ReviewProvider.formDefs[formKey],
-      formKey,
-      language,
+    const reviewActionRaw =
+      typeof this.req.body?.['review-action'] === 'string'
+        ? (this.req.body['review-action'] as 'publish' | 'preview')
+        : undefined;
+    this.isPreview = reviewActionRaw === 'preview';
+    validateLanguage(this.req, language);
+    const { schema, fields } = buildReviewSchema(this.req, language, {
+      requireURL: false,
+      requireLanguage: true,
+      renderLocale: this.req.locale,
     });
+    const normalizedBody = normalizeReviewBody((this.req.body ?? {}) as Record<string, unknown>);
+    const parseResult = schema.safeParse(normalizedBody);
 
-    const formValues = formData.formValues as ReviewFormValues;
+    if (!parseResult.success) {
+      flashZodIssues(this.req, parseResult.error.issues, issue =>
+        formatZodIssueMessage(this.req, issue)
+      );
+      const fallbackValues = extractReviewFormValues(fields, normalizedBody, language);
+      if (this.isPreview) {
+        fallbackValues.creator = review.creator;
+        fallbackValues.createdOn = review.createdOn;
+      }
+      return this.add_GET(fallbackValues, review.thing);
+    }
+
+    const reviewAction = parseResult.data['review-action'];
+    const formValues = toReviewFormValues(parseResult.data, language);
 
     // We no longer accept URL edits if we're in edit-mode
     this.editing = true;
 
-    if (this.req.body?.['review-action'] === 'preview') {
+    if (reviewAction === 'preview') {
       // Pass along original authorship info for preview
       formValues.createdOn = review.createdOn;
       formValues.creator = review.creator;
@@ -464,19 +761,23 @@ class ReviewProvider extends AbstractBREADProvider {
   }
 
   delete_POST(review: ReviewInstance): void {
-    const withThing = Boolean(this.req.body?.['delete-thing']);
-    this.parseForm({
-      formDef: ReviewProvider.formDefs['delete-review'],
-      formKey: 'delete-review',
-    });
+    const schema = buildDeleteReviewSchema(this.req);
+    const parseResult = schema.safeParse(this.req.body);
+
+    if (!parseResult.success) {
+      flashZodIssues(this.req, parseResult.error.issues, issue =>
+        formatZodIssueMessage(this.req, issue)
+      );
+      return this.delete_GET(review);
+    }
+
+    const { 'delete-thing': withThing } = parseResult.data;
 
     // Trying to delete recursively, but can't!
     if (withThing && !review.thing.userCanDelete)
       return this.renderPermissionError({
         titleKey: this.actions[this.action].titleKey,
       });
-
-    if (this.req.flashHas?.('pageErrors')) return this.delete_GET(review);
 
     const deleteFunc =
       withThing && typeof (review as any).deleteAllRevisionsWithThing === 'function'
@@ -518,120 +819,3 @@ class ReviewProvider extends AbstractBREADProvider {
 }
 
 export default ReviewProvider;
-
-// Shared across instances
-ReviewProvider.formDefs = {
-  'new-review': [
-    {
-      name: 'review-url',
-      required: true,
-      type: 'url',
-      key: 'url',
-    },
-    {
-      name: 'review-title',
-      required: true,
-      type: 'text',
-      key: 'title',
-    },
-    {
-      name: 'review-label',
-      required: false,
-      type: 'text',
-      key: 'label',
-    },
-    {
-      name: 'review-text',
-      required: true,
-      type: 'markdown',
-      key: 'text',
-      flat: true,
-      htmlKey: 'html',
-    },
-    {
-      name: 'review-rating',
-      required: true,
-      type: 'number',
-      key: 'starRating',
-    },
-    {
-      name: 'review-language',
-      required: false,
-      key: 'originalLanguage',
-    },
-    {
-      name: 'review-action',
-      required: true,
-      skipValue: true, // Logic, not saved
-    },
-    {
-      name: 'teams',
-      required: false,
-    },
-    {
-      name: 'review-social-image',
-      type: 'uuid',
-      key: 'socialImageID',
-      required: false,
-    },
-    {
-      name: 'files',
-      required: false,
-    },
-  ],
-  'delete-review': [
-    {
-      name: 'delete-action',
-      required: true,
-    },
-    {
-      name: 'delete-thing',
-      required: false,
-    },
-  ],
-  'edit-review': [
-    {
-      name: 'review-title',
-      required: true,
-      type: 'text',
-      key: 'title',
-    },
-    {
-      name: 'review-text',
-      required: true,
-      type: 'markdown',
-      key: 'text',
-      flat: true,
-      htmlKey: 'html',
-    },
-    {
-      name: 'review-rating',
-      required: true,
-      type: 'number',
-      key: 'starRating',
-    },
-    {
-      name: 'review-language',
-      required: true,
-    },
-    {
-      name: 'review-action',
-      required: true,
-      skipValue: true,
-    },
-    {
-      name: 'teams',
-      required: false,
-    },
-    {
-      name: 'files',
-      required: false,
-    },
-    {
-      name: 'review-social-image',
-      type: 'uuid',
-      key: 'socialImageID',
-      required: false,
-    },
-  ],
-};

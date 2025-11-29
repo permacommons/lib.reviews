@@ -7,7 +7,6 @@ import type {
   HandlerRequest,
   HandlerResponse,
 } from '../../types/http/handlers.ts';
-import forms from '../helpers/forms.ts';
 // Internal dependencies
 import render from '../helpers/render.ts';
 import getResourceErrorHandler from './resource-error-handler.ts';
@@ -56,23 +55,6 @@ interface ProviderOptions {
  *
  * Use the bakery method to create standard BREAD routes. :)
  */
-type ParseSubmissionOptions = Parameters<typeof forms.parseSubmission>[1] extends undefined
-  ? Record<string, never>
-  : NonNullable<Parameters<typeof forms.parseSubmission>[1]>;
-
-type ParseSubmissionResult = ReturnType<typeof forms.parseSubmission>;
-
-type ParseSubmissionFn = (options?: ParseSubmissionOptions) => ParseSubmissionResult;
-
-interface ParseDataOptions<TParsed> extends ParseSubmissionOptions {
-  transform?: (formValues: ParseSubmissionResult['formValues']) => TParsed;
-  validate?: (parsed: TParsed) => void;
-}
-
-interface ParseDataResult<TParsed> extends ParseSubmissionResult {
-  data: TParsed;
-}
-
 class AbstractBREADProvider {
   protected readonly req: ProviderRequest;
   protected readonly res: ProviderResponse;
@@ -92,7 +74,6 @@ class AbstractBREADProvider {
     messageKeyPrefix: string,
     bodyParam: string
   ) => (error: unknown) => void;
-  protected parseForm: ParseSubmissionFn;
 
   /**
    * @param req
@@ -225,23 +206,6 @@ class AbstractBREADProvider {
       this.res,
       this.next
     );
-    this.parseForm = forms.parseSubmission.bind(forms, this.req) as ParseSubmissionFn;
-  }
-
-  protected parseData<TParsed>(options: ParseDataOptions<TParsed>): ParseDataResult<TParsed> {
-    const { transform, validate, ...parseOptions } = options;
-
-    const submission = this.parseForm(parseOptions);
-    const data = transform
-      ? transform(submission.formValues)
-      : (submission.formValues as unknown as TParsed);
-
-    if (validate) validate(data);
-
-    return {
-      ...submission,
-      data,
-    };
   }
 
   protected handleMissingResource(

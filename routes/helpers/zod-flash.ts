@@ -1,0 +1,81 @@
+import type { Request } from 'express';
+import { type ZodIssue, z } from 'zod';
+import languages from '../../locales/languages.ts';
+
+type MessageFormatter = (issue: ZodIssue) => string;
+
+/**
+ * Shared Zod helpers for form handling:
+ * - validateLanguage: validate/flash language errors
+ * - formatZodIssueMessage: map Zod issues to localized strings
+ * - safeParseField: reuse field parsers for fallback/preview values
+ * - flashZodIssues: emit issues to flash buckets
+ */
+
+/**
+ * Flash all Zod issues using a formatter.
+ *
+ * @param req Express request (provides flash)
+ * @param issues Zod issues to render
+ * @param formatter Maps an issue to a display string (defaults to issue.message)
+ * @param bucket Flash bucket name (defaults to "pageErrors")
+ */
+const flashZodIssues = (
+  req: Request,
+  issues: ZodIssue[],
+  formatter: MessageFormatter = issue => issue.message,
+  bucket = 'pageErrors'
+) => {
+  issues.forEach(issue => req.flash(bucket, formatter(issue)));
+};
+
+/**
+ * Validate a language code and flash errors if invalid or empty.
+ *
+ * @param req Express request (provides flash and i18n)
+ * @param language Optional language code to validate
+ */
+const validateLanguage = (req: Request, language?: string) => {
+  const trimmed = language?.trim();
+
+  if (!trimmed) {
+    req.flash('pageErrors', req.__('need language'));
+    return;
+  }
+
+  try {
+    languages.validate(trimmed);
+  } catch (error) {
+    req.flashError?.(error);
+  }
+};
+
+/**
+ * Format a Zod validation issue as a localized error message.
+ *
+ * @param req Express request (provides i18n)
+ * @param issue Zod validation issue to format
+ * @param unexpectedKey i18n key for unrecognized fields (defaults to "unexpected form data")
+ * @returns Formatted error message
+ */
+const formatZodIssueMessage = (
+  req: Request,
+  issue: ZodIssue,
+  unexpectedKey = 'unexpected form data'
+) => (issue.code === 'unrecognized_keys' ? req.__(unexpectedKey) : issue.message);
+
+/**
+ * Safely parse a value using a Zod schema, returning undefined on failure.
+ * Useful for extracting fallback values when form validation fails.
+ *
+ * @param schema Zod schema to parse with
+ * @param value Raw value to parse
+ * @returns Parsed value if successful, undefined otherwise
+ */
+const safeParseField = <T>(schema: z.ZodTypeAny, value: unknown): T | undefined => {
+  const result = schema.safeParse(value);
+  return result.success ? (result.data as T) : undefined;
+};
+
+export type { MessageFormatter };
+export { flashZodIssues, formatZodIssueMessage, safeParseField, validateLanguage };

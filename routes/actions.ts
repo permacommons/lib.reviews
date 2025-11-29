@@ -4,6 +4,7 @@ import { Router } from 'express';
 import i18n from 'i18n';
 import passport from 'passport';
 import type { ParsedQs } from 'qs';
+import { z } from 'zod';
 import languages from '../locales/languages.ts';
 import InviteLink, {
   type InviteLinkInstance,
@@ -15,8 +16,10 @@ import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http
 import debug from '../util/debug.ts';
 import actionHandler from './handlers/action-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
-import forms, { type FormField } from './helpers/forms.ts';
+import forms from './helpers/forms.ts';
 import render from './helpers/render.ts';
+import { flashZodIssues, formatZodIssueMessage } from './helpers/zod-flash.ts';
+import zodForms from './helpers/zod-forms.ts';
 
 type ActionsRequest = HandlerRequest<
   Record<string, string>,
@@ -47,29 +50,37 @@ const router = Router();
 const InviteLinkModel: InviteLinkModelConstructor = InviteLink;
 type CreateUserPayload = Parameters<typeof User.create>[0];
 
-const formDefs: Record<string, FormField[]> = {
-  register: [
-    {
-      name: 'username',
-      required: true,
-    },
-    {
-      name: 'password',
-      required: true,
-    },
-    {
-      name: 'email',
-      required: false,
-    },
-    {
-      name: 'returnTo',
-      required: false,
-    },
-    {
-      name: 'signupLanguage',
-      required: false,
-    },
-  ],
+const buildRegisterSchema = (req: ActionsRequest) =>
+  z
+    .object({
+      _csrf: z.string().min(1, req.__('need _csrf')),
+      username: z.string().min(1, req.__('need username')),
+      password: z.string().min(1, req.__('need password')),
+      email: z
+        .string()
+        .optional()
+        .transform(value => (value === '' ? undefined : value)),
+      returnTo: z.string().optional(),
+      signupLanguage: z.string().optional(),
+    })
+    .strict()
+    .merge(zodForms.createCaptchaSchema('register', req.__.bind(req)));
+
+type RegisterForm = z.infer<ReturnType<typeof buildRegisterSchema>>;
+type RegisterFormValues = Partial<
+  Pick<RegisterForm, 'username' | 'email' | 'returnTo' | 'signupLanguage'>
+>;
+
+const extractRegisterFormValues = (
+  data?: Partial<RegisterForm> | ActionsRequestBody
+): RegisterFormValues | undefined => {
+  if (!data) return undefined;
+  return {
+    username: typeof data.username === 'string' ? data.username : undefined,
+    email: typeof data.email === 'string' ? data.email : undefined,
+    returnTo: typeof data.returnTo === 'string' ? data.returnTo : undefined,
+    signupLanguage: typeof data.signupLanguage === 'string' ? data.signupLanguage : undefined,
+  };
 };
 
 router.get('/actions/search', (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
@@ -303,25 +314,24 @@ if (!config.requireInviteLinks) {
   router.post('/register', async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
     viewInSignupLanguage(req);
 
-    let formInfo = forms.parseSubmission(req, {
-      formDef: formDefs.register,
-      formKey: 'register',
-    });
-
-    if (req.flashHas?.('pageErrors')) {
+    const registerResult = buildRegisterSchema(req).safeParse(req.body);
+    if (!registerResult.success) {
+      flashZodIssues(req, registerResult.error.issues, issue => formatZodIssueMessage(req, issue));
       try {
-        await sendRegistrationForm(req, res, formInfo);
+        await sendRegistrationForm(req, res, extractRegisterFormValues(req.body));
       } catch (error) {
         return next(error);
       }
       return;
     }
 
+    const formValues: RegisterForm = registerResult.data;
+
     try {
       const userPayload: CreateUserPayload = {
-        name: req.body.username as string,
-        password: req.body.password as string,
-        email: typeof req.body.email === 'string' ? req.body.email : undefined,
+        name: formValues.username,
+        password: formValues.password,
+        email: formValues.email,
       };
       const user = await User.create(userPayload);
 
@@ -336,7 +346,7 @@ if (!config.requireInviteLinks) {
     } catch (error) {
       req.flashError?.(error);
       try {
-        await sendRegistrationForm(req, res, formInfo);
+        await sendRegistrationForm(req, res, extractRegisterFormValues(formValues));
       } catch (formError) {
         return next(formError);
       }
@@ -361,25 +371,26 @@ router.post(
           detailsKey: 'invite link already used',
         });
 
-      let formInfo = forms.parseSubmission(req, {
-        formDef: formDefs.register,
-        formKey: 'register',
-      });
-
-      if (req.flashHas?.('pageErrors')) {
+      const registerResult = buildRegisterSchema(req).safeParse(req.body);
+      if (!registerResult.success) {
+        flashZodIssues(req, registerResult.error.issues, issue =>
+          formatZodIssueMessage(req, issue)
+        );
         try {
-          await sendRegistrationForm(req, res, formInfo);
+          await sendRegistrationForm(req, res, extractRegisterFormValues(req.body));
         } catch (error) {
           return next(error);
         }
         return;
       }
 
+      const formValues: RegisterForm = registerResult.data;
+
       try {
         const userPayload: CreateUserPayload = {
-          name: req.body.username as string,
-          password: req.body.password as string,
-          email: typeof req.body.email === 'string' ? req.body.email : undefined,
+          name: formValues.username,
+          password: formValues.password,
+          email: formValues.email,
         };
         const user = await User.create(userPayload);
 
@@ -397,7 +408,7 @@ router.post(
       } catch (error) {
         req.flashError?.(error);
         try {
-          await sendRegistrationForm(req, res, formInfo);
+          await sendRegistrationForm(req, res, extractRegisterFormValues(formValues));
         } catch (formError) {
           return next(formError);
         }
@@ -418,7 +429,7 @@ router.post(
 function sendRegistrationForm(
   req: ActionsRequest,
   res: ActionsResponse,
-  formInfo?: ReturnType<typeof forms.parseSubmission>
+  formValues?: RegisterFormValues
 ) {
   const pageErrors = req.flash('pageErrors');
 
@@ -432,7 +443,7 @@ function sendRegistrationForm(
     {
       titleKey: 'register',
       pageErrors,
-      formValues: formInfo ? formInfo.formValues : undefined,
+      formValues,
       questionCaptcha: forms.getQuestionCaptcha('register'),
       illegalUsernameCharactersReadable: User.options.illegalCharsReadable,
       scripts: ['register'],

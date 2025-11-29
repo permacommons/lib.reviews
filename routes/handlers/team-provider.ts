@@ -3,6 +3,7 @@ import url from 'node:url';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import i18n from 'i18n';
+import { z } from 'zod';
 import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
 import BlogPost from '../../models/blog-post.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
@@ -13,8 +14,14 @@ import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/h
 import debug from '../../util/debug.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 import feeds from '../helpers/feeds.ts';
-import type { FormField } from '../helpers/forms.ts';
 import slugs from '../helpers/slugs.ts';
+import {
+  flashZodIssues,
+  formatZodIssueMessage,
+  safeParseField,
+  validateLanguage,
+} from '../helpers/zod-flash.ts';
+import zodForms from '../helpers/zod-forms.ts';
 import AbstractBREADProvider from './abstract-bread-provider.ts';
 
 const { getEditorMessages } = frontendMessages;
@@ -35,10 +42,90 @@ interface TeamFormValues {
   modApprovalToJoin?: boolean;
   onlyModsCanBlog?: boolean;
   originalLanguage?: string;
+  teamAction?: string;
 }
 
+const buildTeamSchema = (req: HandlerRequest, language: string, formKey: string) => {
+  const renderLocale = typeof req.locale === 'string' ? req.locale : undefined;
+
+  return z
+    .object({
+      _csrf: z.string().min(1, req.__('need _csrf')),
+      'team-name': z
+        .string()
+        .trim()
+        .min(1, req.__('need team-name'))
+        .pipe(zodForms.createMultilingualTextField(language)),
+      'team-motto': z
+        .string()
+        .trim()
+        .min(1, req.__('need team-motto'))
+        .pipe(zodForms.createMultilingualTextField(language)),
+      'team-description': z
+        .string()
+        .trim()
+        .min(1, req.__('need team-description'))
+        .pipe(zodForms.createMultilingualMarkdownField(language, renderLocale)),
+      'team-rules': zodForms.createMultilingualMarkdownField(language, renderLocale).optional(),
+      'team-mod-approval-to-join': z
+        .preprocess(value => (value === undefined ? undefined : Boolean(value)), z.boolean())
+        .optional(),
+      'team-only-mods-can-blog': z
+        .preprocess(value => (value === undefined ? undefined : Boolean(value)), z.boolean())
+        .optional(),
+      'team-language': z.string().trim().min(1, req.__('need team-language')),
+      'team-action': z.string().trim().min(1, req.__('need team-action')),
+    })
+    .strict()
+    .merge(zodForms.createCaptchaSchema(formKey, req.__.bind(req)));
+};
+
+type TeamFormSchemaOutput = z.infer<ReturnType<typeof buildTeamSchema>>;
+
+const toTeamFormValues = (data: TeamFormSchemaOutput): TeamFormValues => ({
+  name: data['team-name'],
+  motto: data['team-motto'],
+  description: data['team-description'],
+  rules: data['team-rules'],
+  modApprovalToJoin: data['team-mod-approval-to-join'],
+  onlyModsCanBlog: data['team-only-mods-can-blog'],
+  originalLanguage: data['team-language'],
+  teamAction: data['team-action'],
+});
+
+const extractTeamFormValues = (
+  req: HandlerRequest,
+  language: string,
+  teamAction?: string
+): TeamFormValues => {
+  const renderLocale = typeof req.locale === 'string' ? req.locale : undefined;
+
+  return {
+    name: safeParseField(zodForms.createMultilingualTextField(language), req.body?.['team-name']),
+    motto: safeParseField(zodForms.createMultilingualTextField(language), req.body?.['team-motto']),
+    description: safeParseField(
+      zodForms.createMultilingualMarkdownField(language, renderLocale),
+      req.body?.['team-description']
+    ),
+    rules: safeParseField(
+      zodForms.createMultilingualMarkdownField(language, renderLocale),
+      req.body?.['team-rules']
+    ),
+    modApprovalToJoin:
+      req.body?.['team-mod-approval-to-join'] !== undefined
+        ? Boolean(req.body['team-mod-approval-to-join'])
+        : undefined,
+    onlyModsCanBlog:
+      req.body?.['team-only-mods-can-blog'] !== undefined
+        ? Boolean(req.body['team-only-mods-can-blog'])
+        : undefined,
+    originalLanguage:
+      typeof req.body?.['team-language'] === 'string' ? req.body['team-language'] : undefined,
+    teamAction,
+  };
+};
+
 class TeamProvider extends AbstractBREADProvider {
-  static formDefs: Record<string, FormField[]>;
   protected isPreview = false;
   protected editing = false;
   protected declare format?: string;
@@ -457,15 +544,26 @@ class TeamProvider extends AbstractBREADProvider {
     const languageValue = this.req.body?.['team-language'];
     const language: string =
       typeof languageValue === 'string' ? languageValue : (team.originalLanguage ?? 'en');
-    const formData = this.parseForm({
-      formDef: TeamProvider.formDefs[formKey],
-      formKey,
-      language,
-    });
+    const teamAction =
+      typeof this.req.body?.['team-action'] === 'string' ? this.req.body['team-action'] : undefined;
+    this.isPreview = teamAction === 'preview';
 
-    const formValues = formData.formValues as TeamFormValues;
+    validateLanguage(this.req, language);
 
-    this.isPreview = this.req.body?.['team-action'] === 'preview';
+    const teamSchema = buildTeamSchema(this.req, language, formKey);
+    const parseResult = teamSchema.safeParse(this.req.body);
+
+    if (!parseResult.success) {
+      flashZodIssues(this.req, parseResult.error.issues, issue =>
+        formatZodIssueMessage(this.req, issue)
+      );
+      const fallbackValues = extractTeamFormValues(this.req, language, teamAction);
+      return this.edit_GET(fallbackValues);
+    }
+
+    const parsedValues = toTeamFormValues(parseResult.data);
+    this.isPreview = parsedValues.teamAction === 'preview';
+    const { teamAction: _teamAction, ...formValues } = parsedValues;
 
     if (this.req.flashHas?.('pageErrors') || this.isPreview) return this.edit_GET(formValues);
 
@@ -534,15 +632,26 @@ class TeamProvider extends AbstractBREADProvider {
     const formKey = 'new-team';
     const languageValue = this.req.body?.['team-language'];
     const language: string = typeof languageValue === 'string' ? languageValue : 'en';
-    const formData = this.parseForm({
-      formDef: TeamProvider.formDefs[formKey],
-      formKey,
-      language,
-    });
+    const teamAction =
+      typeof this.req.body?.['team-action'] === 'string' ? this.req.body['team-action'] : undefined;
+    this.isPreview = teamAction === 'preview';
 
-    const formValues = formData.formValues as TeamFormValues;
+    validateLanguage(this.req, language);
 
-    this.isPreview = this.req.body?.['team-action'] === 'preview';
+    const teamSchema = buildTeamSchema(this.req, language, formKey);
+    const parseResult = teamSchema.safeParse(this.req.body);
+
+    if (!parseResult.success) {
+      flashZodIssues(this.req, parseResult.error.issues, issue =>
+        formatZodIssueMessage(this.req, issue)
+      );
+      const fallbackValues = extractTeamFormValues(this.req, language, teamAction);
+      return this.add_GET(fallbackValues);
+    }
+
+    const parsedValues = toTeamFormValues(parseResult.data);
+    this.isPreview = parsedValues.teamAction === 'preview';
+    const { teamAction: _teamAction, ...formValues } = parsedValues;
 
     if (this.req.flashHas?.('pageErrors') || this.isPreview) return this.add_GET(formValues);
 
@@ -623,59 +732,5 @@ class TeamProvider extends AbstractBREADProvider {
       .catch(this.next);
   }
 }
-
-// Shared by all instances
-TeamProvider.formDefs = {
-  'new-team': [
-    {
-      name: 'team-name',
-      required: true,
-      type: 'text',
-      key: 'name',
-    },
-    {
-      name: 'team-motto',
-      required: true,
-      type: 'text',
-      key: 'motto',
-    },
-    {
-      name: 'team-description',
-      required: true,
-      type: 'markdown',
-      key: 'description',
-    },
-    {
-      name: 'team-rules',
-      required: false,
-      type: 'markdown',
-      key: 'rules',
-    },
-    {
-      name: 'team-mod-approval-to-join',
-      required: false,
-      type: 'boolean',
-      key: 'modApprovalToJoin',
-    },
-    {
-      name: 'team-only-mods-can-blog',
-      required: false,
-      type: 'boolean',
-      key: 'onlyModsCanBlog',
-    },
-    {
-      name: 'team-language',
-      required: true,
-      key: 'originalLanguage',
-    },
-    {
-      name: 'team-action',
-      required: true,
-      skipValue: true, // Only logic, not saved
-    },
-  ],
-};
-
-TeamProvider.formDefs['edit-team'] = TeamProvider.formDefs['new-team'];
 
 export default TeamProvider;
