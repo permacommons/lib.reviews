@@ -22,7 +22,12 @@ import signinRequiredRoute from './handlers/signin-required-route.ts';
 import feeds from './helpers/feeds.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
-import { flashZodIssues, formatZodIssueMessage, safeParseField } from './helpers/zod-flash.ts';
+import {
+  flashZodIssues,
+  formatZodIssueMessage,
+  safeParseField,
+  validateLanguage,
+} from './helpers/zod-flash.ts';
 import { csrfField } from './helpers/zod-forms.ts';
 
 const ReviewHandle = Review as ReviewModel;
@@ -48,6 +53,15 @@ const router = Router();
 
 // For handling form fields
 const editableFields = ['description', 'label'];
+
+const buildThingEditSchema = (field: string) => {
+  const fieldName = `thing-${field}`;
+
+  return z.object({
+    _csrf: csrfField,
+    [fieldName]: z.string().transform(value => escapeHTML(value.trim())),
+  });
+};
 
 const normalizeURLValue = (value: unknown) => urlUtils.normalize(String(value ?? '').trim());
 const preprocessURLs = (value: unknown) => {
@@ -345,31 +359,49 @@ function processTextFieldUpdate(
           detailsKey: 'cannot edit synced field',
         });
 
-      thing.newRevision(req.user).then(revision => {
-        const languageInput = req.body['thing-language'];
-        const language = typeof languageInput === 'string' ? languageInput : '';
-        languages.validate(language);
-        const textInput = req.body[`thing-${field}`];
-        const text = typeof textInput === 'string' ? textInput : '';
+      const languageValue = req.body?.['thing-language'];
+      const language = typeof languageValue === 'string' ? languageValue : '';
 
+      validateLanguage(req, language);
+
+      const schema = buildThingEditSchema(field);
+      const parseResult = schema.safeParse(req.body);
+
+      if (!parseResult.success) {
+        flashZodIssues(req, parseResult.error.issues, issue =>
+          formatZodIssueMessage(req, issue)
+        );
+      }
+
+      if (req.flashHas?.('pageErrors')) {
+        const submittedValue = req.body?.[`thing-${field}`];
+        const formValues = {
+          [field]: typeof submittedValue === 'string' ? submittedValue : '',
+        };
+        return sendForm(req, res, thing, { [field]: true }, titleKey, formValues);
+      }
+
+      const text = parseResult.data[`thing-${field}`] as string;
+
+      thing.newRevision(req.user).then(revision => {
         // Handle metadata fields (description, subtitle, authors) differently
         const metadataFields = ['description', 'subtitle', 'authors'];
         if (metadataFields.includes(field)) {
           const metadata = (revision.metadata ??= {} as Record<string, unknown>);
           const fieldMetadata = (metadata[field] ??= {}) as MultilingualString;
-          fieldMetadata[language] = escapeHTML(text);
+          fieldMetadata[language] = text; // Already escaped by schema
         } else {
           // Handle direct fields like label
           switch (field) {
             case 'label': {
               const label = (revision.label ??= {} as MultilingualString);
-              label[language] = escapeHTML(text);
+              label[language] = text; // Already escaped by schema
               break;
             }
             default: {
               const revisionRecord = revision as Record<string, unknown>;
               const fieldValue = (revisionRecord[field] ??= {}) as MultilingualString;
-              fieldValue[language] = escapeHTML(text);
+              fieldValue[language] = text; // Already escaped by schema
               break;
             }
           }
@@ -396,12 +428,7 @@ function processTextFieldUpdate(
               })
               .catch(next);
           })
-          .catch(error => {
-            if (error.name === 'InvalidLanguageError') {
-              req.flashError?.(error);
-              sendThing(req, res, thing);
-            } else return next(error);
-          });
+          .catch(next);
       });
     })
     .catch(getResourceErrorHandler(req, res, next, 'thing', id));
@@ -412,7 +439,8 @@ function sendForm(
   res: ThingRouteResponse,
   thing: ThingInstance,
   edit: Record<string, boolean>,
-  titleKey: string
+  titleKey: string,
+  formValues?: Record<string, string>
 ) {
   edit = Object.assign(
     {
@@ -440,6 +468,7 @@ function sendForm(
     showLanguageNotice,
     pageMessages,
     edit,
+    formValues,
   });
 }
 

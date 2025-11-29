@@ -30,10 +30,15 @@ const flashZodIssues = (
 };
 
 const validateLanguage = (req: Request, language?: string) => {
-  if (!language) return;
+  const trimmed = language?.trim();
+
+  if (!trimmed) {
+    req.flash('pageErrors', req.__('need language'));
+    return;
+  }
 
   try {
-    languages.validate(language);
+    languages.validate(trimmed);
   } catch (error) {
     req.flashError?.(error);
   }

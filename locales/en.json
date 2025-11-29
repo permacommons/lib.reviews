@@ -78,6 +78,7 @@
     "need review-title": "We require a title for this review.",
     "need review-text": "We require text for this review.",
     "need review-rating": "We require a rating for this review.",
+    "need language": "We need a language code for this edit.",
     "unexpected form data": "We received unexpected data as part of your submission. This may be a coding error on our end, or on yours. Sorry for the inconvenience.",
     "live preview": "Live preview",
     "byline": "Written by %1$s on <span id='preview-review-byline-date'>%2$s</span>",

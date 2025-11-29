@@ -3,19 +3,22 @@
 {{> dismissible_notice icon="globe" messageKey="editing in language" id="language-notice-thing" csrfToken=csrfToken}}
 {{/if}}
 <h1 id="page-header">{{{__ titleKey}}}</h1>
+{{#each pageErrors}}
+  <div class="error">{{{this}}}</div>
+{{/each}}
 <form class="pure-form pure-form-aligned" method="post" action="">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
 <input type="hidden" name="thing-language" value="{{currentLanguage.langKey}}">
 
 {{#if edit.label}}
-<input type="text" class="pure-input-1-2" id="thing-edit-label" name="thing-label" value="{{mlSafeText thing.label false}}" placeholder="{{{__ "enter label"}}}" size="64" data-auto-trim data-focus>
+<input type="text" class="pure-input-1-2" id="thing-edit-label" name="thing-label" value="{{#if formValues.label}}{{formValues.label}}{{else}}{{mlSafeText thing.label false}}{{/if}}" placeholder="{{{__ "enter label"}}}" size="64" data-auto-trim data-focus>
 <button type="submit" id="save" name="thing-action" value="save" class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>
 <span class="fa fa-fw fa-question-circle info-icon spaced-icon">&nbsp;</span>{{{__ "thing label help"}}}
 {{/if}}
 {{#if edit.description}}
-<input type="text" class="pure-input-1-2" id="thing-edit-description" name="thing-description" value="{{mlSafeText thing.description false}}" placeholder="{{{__ "enter thing description"}}}" size="128" data-auto-trim data-focus>
+<input type="text" class="pure-input-1-2" id="thing-edit-description" name="thing-description" value="{{#if formValues.description}}{{formValues.description}}{{else}}{{mlSafeText thing.description false}}{{/if}}" placeholder="{{{__ "enter thing description"}}}" size="128" data-auto-trim data-focus>
 <button type="submit" id="save" name="thing-action" value="save" class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>
