@@ -29,6 +29,27 @@
             <input id="email" name="email" type="text" data-auto-trim placeholder="{{{__ "enter email"}}}" value="{{formValues.email}}" size="30" class="pure-input-1 login-form-input">
         </div>
 
+        {{#if teamsToJoin}}
+        <div class="pure-control-group">
+            <label>{{{__n "join following teams" teamsToJoin.length}}}</label>
+            <div class="team-signup-container">
+            {{#each teamsToJoin}}
+                <div class="team-signup-item">
+                    <label for="team-{{this.slug}}" class="pure-checkbox team-signup-label">
+                        <input id="team-{{this.slug}}" type="checkbox" name="join-teams" value="{{this.slug}}" checked>
+                        <div class="team-signup-content">
+                            <div class="team-signup-name">{{{this.name}}}</div>
+                            {{#if this.motto}}
+                            <div class="team-signup-motto">{{{this.motto}}}</div>
+                            {{/if}}
+                        </div>
+                    </label>
+                </div>
+            {{/each}}
+            </div>
+        </div>
+        {{/if}}
+
         {{#if questionCaptcha}}
         <div class="pure-control-group">
         <p>{{{__ "captcha intro"}}}</p>

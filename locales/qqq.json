@@ -191,6 +191,7 @@
 	"mod approval to join": "Label for checkbox in form for creating/editing teams",
 	"only mods can blog": "Label for checkbox in form for creating/editing teams",
 	"team name help": "Help text for team name field in form for creating/editing teams\n\n{{doc-important|This is lib.reviews for consumers to review/rate things; please translate ‘review’ in the sense of ‘critique, evaluation’!}}",
+	"team signup requested": "Message shown to moderators in the join request list when a user requested to join a team via the registration form checkboxes.",
 	"team motto help": "Help text for team motto field in form for creating/editing teams",
 	"team description help label": "Label for help text for team description field in form for creating/editing teams",
 	"team description help": "Help text for team description field in form for creating/editing teams\n\n{{doc-important|This is lib.reviews for consumers to review/rate things; please translate ‘review’ in the sense of ‘critique, evaluation’!}}",
