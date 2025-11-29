@@ -60,12 +60,13 @@ Migrate forms one at a time, starting with simpler ones:
 **Delete operations:**
 - Review deletion ✅ (migrated to Zod with checkbox handling)
 
-### Phase 4: Deprecate Old System
+### Phase 4: Deprecate Old System ✅
 
-Once all forms migrated:
-1. Remove `routes/helpers/forms.ts`
-2. Remove `FormField` type and related helpers
-3. Update documentation
+All forms migrated, old system cleaned up:
+1. ✅ Removed `parseSubmission()` from `routes/helpers/forms.ts`
+2. ✅ Removed `FormField` type and related parsing code
+3. ✅ Removed `parseForm()` and `parseData()` from `abstract-bread-provider.ts`
+4. ✅ Kept CAPTCHA helpers (`getCaptcha`, `getQuestionCaptcha`, `processCaptchaAnswer`) - still needed
 
 ## Example: Before & After
 
@@ -234,3 +235,5 @@ Migration is successful if:
 - 2025-11-26: Migrated stage 2 of multi-file uploads (metadata form) to Zod with language, CSRF, and per-upload validation (description/creator/source/license) plus sanitized multilingual fields; redirects and flashes reuse legacy messages while keeping stage 1 streaming unchanged.
 - 2025-11-28: Migrated review deletion to Zod with checkbox preprocessing for `delete-thing` field (handles HTML checkbox behavior where unchecked = absent), CSRF validation, and consistent error flashing; removed `ReviewProvider.formDefs` and `FormField` import from review-provider.ts.
 - 2025-11-28: Migrated thing field editing to Zod with dynamic field names via computed properties (`thing-${field}`), inline language validation via `superRefine`, and automatic HTML escaping; replaced manual type guards and InvalidLanguageError catch handling with upfront Zod validation in `processTextFieldUpdate`.
+- 2025-11-28: Enhanced `validateLanguage()` helper in zod-flash.ts to handle empty strings and flash generic "need language" error; updated thing-form.hbs to display errors and preserve user input on validation failures.
+- 2025-11-28: Phase 4 cleanup complete - removed `parseSubmission()`, `FormField` types, and all related parsing code from routes/helpers/forms.ts; removed `parseForm()` and `parseData()` methods from abstract-bread-provider.ts; kept CAPTCHA helpers (getCaptcha, getQuestionCaptcha, processCaptchaAnswer) as they're still needed by registration flow.
