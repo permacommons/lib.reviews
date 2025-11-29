@@ -5,11 +5,16 @@ import i18n from 'i18n';
 import passport from 'passport';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
+import { mlString } from '../dal/index.ts';
+import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
 import InviteLink, {
   type InviteLinkInstance,
   type InviteLinkModel as InviteLinkModelConstructor,
 } from '../models/invite-link.ts';
+import Team, { type TeamInstance } from '../models/team.ts';
+import TeamJoinRequest, { type TeamJoinRequestInstance } from '../models/team-join-request.ts';
+import TeamSlug from '../models/team-slug.ts';
 import User from '../models/user.ts';
 import search from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
@@ -38,7 +43,7 @@ type ActionsRequestBody = {
   lang?: string;
   'redirect-to'?: string;
   'has-language-notice'?: string | boolean;
-  [key: string]: string | boolean | undefined;
+  [key: string]: string | string[] | boolean | undefined;
 };
 
 type ActionsRequestQuery = ParsedQs & {
@@ -269,13 +274,18 @@ router.get('/new/user', (req: ActionsRequest, res: ActionsResponse) => {
   res.redirect('/register');
 });
 
-router.get('/register', (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+router.get('/register', async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
   viewInSignupLanguage(req);
   if (config.requireInviteLinks)
     return render.template(req, res, 'invite-needed', {
       titleKey: 'register',
     });
-  else return sendRegistrationForm(req, res);
+  else
+    try {
+      await sendRegistrationForm(req, res);
+    } catch (error) {
+      next(error);
+    }
 });
 
 router.get(
@@ -293,7 +303,7 @@ router.get(
           detailsKey: 'invite link already used',
         });
       } else {
-        return sendRegistrationForm(req, res);
+        return await sendRegistrationForm(req, res);
       }
     } catch (error) {
       if (error.name === 'DocumentNotFound' || error.name === 'DocumentNotFoundError')
@@ -334,6 +344,11 @@ if (!config.requireInviteLinks) {
         email: formValues.email,
       };
       const user = await User.create(userPayload);
+
+      const joinTeamsParam = req.body['join-teams'];
+      if (typeof joinTeamsParam === 'string' || Array.isArray(joinTeamsParam)) {
+        await joinTeams(req, user as Express.User, joinTeamsParam);
+      }
 
       setSignupLanguage(req, res);
       req.login(user as Express.User, error => {
@@ -397,6 +412,11 @@ router.post(
         inviteLink.usedBy = user.id;
         await inviteLink.save();
 
+        const joinTeamsParam = req.body['join-teams'];
+        if (typeof joinTeamsParam === 'string' || Array.isArray(joinTeamsParam)) {
+          await joinTeams(req, user as Express.User, joinTeamsParam);
+        }
+
         setSignupLanguage(req, res);
         req.login(user as Express.User, error => {
           if (error) {
@@ -426,7 +446,7 @@ router.post(
   }
 );
 
-function sendRegistrationForm(
+async function sendRegistrationForm(
   req: ActionsRequest,
   res: ActionsResponse,
   formValues?: RegisterFormValues
@@ -435,6 +455,36 @@ function sendRegistrationForm(
 
   const { code } = req.params;
   const body: ActionsRequestBody = req.body ?? {};
+
+  const rawTeams = req.query.team;
+  const teamSlugs = Array.isArray(rawTeams)
+    ? rawTeams.map(String)
+    : typeof rawTeams === 'string'
+      ? [rawTeams]
+      : [];
+
+  const teamsToJoin: Array<{ slug: string; name: string; motto?: string }> = [];
+
+  if (teamSlugs.length > 0) {
+    const locale = req.locale;
+    for (const slugName of teamSlugs) {
+      const slug = await TeamSlug.getByName(slugName);
+      if (slug && slug.teamID) {
+        const team = await Team.filterWhere({ id: slug.teamID }).first();
+        if (team) {
+          const resolvedName = mlString.resolve(locale, team.name);
+          if (resolvedName && resolvedName.str) {
+            const resolvedMotto = mlString.resolve(locale, team.motto as MultilingualString);
+            teamsToJoin.push({
+              slug: slugName,
+              name: resolvedName.str,
+              motto: resolvedMotto?.str,
+            });
+          }
+        }
+      }
+    }
+  }
 
   render.template(
     req,
@@ -449,6 +499,7 @@ function sendRegistrationForm(
       scripts: ['register'],
       inviteCode: code,
       signupLanguage: req.query.signupLanguage || body.signupLanguage,
+      teamsToJoin,
     },
     {
       illegalUsernameCharacters: User.options.illegalChars.source,
@@ -499,4 +550,59 @@ function setSignupLanguage(req: ActionsRequest, res: ActionsResponse) {
     });
   }
 }
+
+async function joinTeams(
+  req: ActionsRequest,
+  user: Express.User,
+  teamsParam: string | string[] | undefined
+) {
+  if (!teamsParam) return;
+  const teamSlugs = Array.isArray(teamsParam) ? teamsParam : [teamsParam];
+  const teamSlugsUnique = [...new Set(teamSlugs)];
+
+  const teamsToJoin: TeamInstance[] = [];
+  const joinRequests: TeamJoinRequestInstance[] = [];
+
+  for (const slugName of teamSlugsUnique) {
+    if (typeof slugName !== 'string') continue;
+    const slug = await TeamSlug.getByName(slugName);
+    if (slug && slug.teamID) {
+      const team = await Team.filterWhere({ id: slug.teamID }).first();
+      if (team) {
+        if (team.modApprovalToJoin) {
+          const teamJoinRequest = new TeamJoinRequest({
+            teamID: team.id,
+            userID: user.id,
+            requestMessage: req.__('team signup requested'),
+            requestDate: new Date(),
+            status: 'pending',
+          });
+          joinRequests.push(teamJoinRequest);
+        } else {
+          teamsToJoin.push(team);
+        }
+      }
+    }
+  }
+
+  if (teamsToJoin.length > 0) {
+    const userWithTeams = await User.getWithTeams(user.id);
+    if (userWithTeams) {
+      const currentTeams = userWithTeams.teams || [];
+      const newTeams = [...currentTeams];
+      for (const t of teamsToJoin) {
+        if (!newTeams.find(nt => nt.id === t.id)) {
+          newTeams.push(t);
+        }
+      }
+      userWithTeams.teams = newTeams;
+      await userWithTeams.saveAll();
+    }
+  }
+
+  for (const request of joinRequests) {
+    await request.save();
+  }
+}
+
 export default router;

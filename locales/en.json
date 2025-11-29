@@ -189,6 +189,7 @@
     "team not found title": "Team not found",
     "new team": "Start a new team",
     "team name": "Team name",
+    "team signup requested": "Team sign-up requested during registration",
     "enter team name": "Enter short, descriptive name, e.g., Outdoor Lovers",
     "team motto": "Team motto",
     "enter team motto": "Enter a motto or slogan, e.g.: If it's got no ceiling, we'll review it!",
@@ -342,6 +343,10 @@
     "upload needs creator": "We need information about the creator for file '%s'.",
     "upload needs source": "We need information about the source for file '%s'.",
     "upload needs license": "We need information about the license for file '%s'.",
+    "join following teams": {
+      "one": "Join the following team",
+      "other": "Join the following teams"
+    },
     "teams to associate": "Teams to associate your review with",
     "not member of any teams yet": "You're not a member of any teams yet. Teams put you in touch with reviewers who share your interests, and they help readers find your reviews. <a href='/teams' target='_blank'>Join or start a team.</a>",
     "submitted team could not be found": "The relevant record for the team you are trying to add to your review could not be found. Perhaps it has been deleted?",

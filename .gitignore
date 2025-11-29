@@ -64,3 +64,4 @@ static/devdocs/*
 .greenlockrc
 .kiro
 migration-report.json
+.gemini
