@@ -132,6 +132,7 @@
 	"cancel": "Annulla",
 	"review of": "Recensione: %s",
 	"permission error": "Non disponi dei permessi necessari per eseguire questa azione.",
+	"invalid csrf token title": "Token di sicurezza non valido",
 	"permanent link": "Link permanente",
 	"something went wrong": "Oops! Qualcosa è andato storto.",
 	"report an error": "Registriamo tutti gli errori di questo tipo, ma puoi aiutarci riportandoci quello che stavi facendo quando hai ricevuto questo errore. Puoi <a href='https://github.com/permacommons/lib.reviews/issues/new'>aprire una segnalazione</a> su GitHub e la esamineremo, promesso!",
