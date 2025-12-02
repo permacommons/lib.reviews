@@ -68,6 +68,9 @@ export const createMockDAL = (overrides: Partial<DataAccessLayer> = {}): DataAcc
     async migrate() {
       // No-op for test doubles
     },
+    async rollback() {
+      // No-op for test doubles
+    },
     async query<T extends JsonObject = JsonObject>(
       _sql?: string,
       _params: unknown[] = [],

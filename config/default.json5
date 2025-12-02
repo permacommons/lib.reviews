@@ -104,7 +104,26 @@
  adapterUserAgent: 'lib.reviews import 0.1.0',
 
  // By default, we give each adapter 10 seconds to complete its work
- adapterTimeout: 10000,
+  adapterTimeout: 10000,
+
+  // Email infrastructure - disabled by default, enable when configured
+  email: {
+    enabled: false,
+    provider: "mailgun",
+    mailgun: {
+      apiKey: "",
+      domain: "",
+      from: "lib.reviews <noreply@lib.reviews>",
+      url: "https://api.mailgun.net"
+    }
+  },
+
+  // Password reset feature configuration
+  passwordReset: {
+    tokenExpirationHours: 3,
+    rateLimitPerIP: 10,
+    cooldownHours: 3
+  },
 
  // ElasticSearch settings. Set log to 'error' to minimize spamminess.
   search: {

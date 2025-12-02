@@ -1677,6 +1677,25 @@ div.dangerous-content-in-editor {
   padding:5px;
 }
 
+.password-reveal-toggle {
+  font-size: 0.9em;
+  margin-left: 0.5em;
+}
+
+.password-reveal-toggle:focus {
+  outline: 2px solid #999;
+  outline-offset: 2px;
+}
+
+// On mobile, stack the button below the input
+@media (max-width: 47.999em) {
+  .password-reveal-toggle {
+    display: block;
+    margin-left: 0;
+    margin-top: 0.5em;
+  }
+}
+
 // ------------- End modal dialog styles ---------------------------------------
 // ------------- Begin footer --------------------------------------------------
 

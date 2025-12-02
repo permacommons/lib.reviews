@@ -68,6 +68,7 @@ export interface TransactionOptions {
 export interface SaveOptions extends TransactionOptions {
   skipValidation?: boolean;
   includeSensitive?: string[];
+  updateSensitive?: string[];
 }
 
 export interface DeleteOptions extends TransactionOptions {
@@ -531,6 +532,7 @@ export interface DataAccessLayer {
   connect(): Promise<this>;
   disconnect(): Promise<void>;
   migrate(): Promise<void>;
+  rollback(migrationsPath?: string): Promise<void>;
   query<TRecord extends JsonObject = JsonObject>(
     text: string,
     params?: unknown[],
