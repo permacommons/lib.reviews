@@ -310,10 +310,44 @@ class DataAccessLayer implements DataAccessLayerContract {
   /**
    * Rollback the last migration (if supported)
    */
-  async rollback(): Promise<void> {
-    // For now, rollback is not implemented as it requires down migrations
-    // This would be implemented in a future iteration
-    throw new Error('Rollback not yet implemented');
+  async rollback(migrationsPath = 'migrations'): Promise<void> {
+    debug.db('Rolling back last migration...');
+
+    const downDir = path.join(migrationsPath, 'down');
+
+    try {
+      const result = await this.query<MigrationRow>(
+        'SELECT filename FROM migrations ORDER BY executed_at DESC, id DESC LIMIT 1'
+      );
+      const lastMigration = result.rows[0]?.filename;
+
+      if (!lastMigration) {
+        debug.db('No migrations to roll back');
+        return;
+      }
+
+      const downPath = path.join(downDir, lastMigration);
+      let downSQL: string;
+      try {
+        downSQL = await fs.readFile(downPath, 'utf8');
+      } catch (_error) {
+        const message = `Down migration not found for ${lastMigration} at ${downPath}`;
+        debug.error(message);
+        throw new Error(message);
+      }
+
+      await this.transaction(async client => {
+        await client.query(downSQL);
+        await client.query('DELETE FROM migrations WHERE filename = $1', [lastMigration]);
+      });
+
+      debug.db(`Rolled back migration: ${lastMigration}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      debug.error(`Rollback failed: ${message}`);
+      debug.error({ error: error instanceof Error ? error : new Error(message) });
+      throw error;
+    }
   }
 
   /**

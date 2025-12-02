@@ -19,9 +19,10 @@
             <div id="username-exists-error" class="validation-error">{{{__ "username exists"}}}</div>
         </div>
 
-        <div class="pure-control-group">
+        <div class="pure-control-group password-control">
             <label for="password">{{{__ "password"}}} <span class="required">*</span></label>
             <input id="password" name="password" type="password" placeholder="{{{__ "enter password"}}}" class="pure-input-1 login-form-input" data-required>
+            <button type="button" class="password-reveal-toggle pure-button button-rounded nojs-hidden" aria-pressed="false"><span class="fa fa-fw fa-eye spaced-icon">&nbsp;</span>{{{__ "show password"}}}</button>
         </div>
 
         <div class="pure-control-group">

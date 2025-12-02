@@ -58,6 +58,10 @@ const template = (
 
   const localeCode: LocaleCode = languages.isValid(req.locale) ? (req.locale as LocaleCode) : 'en';
   Object.assign(jsConfig.messages, languages.getCompositeNamesAsMessageObject(localeCode));
+  const defaultMessages = ['show password', 'hide password'] as const;
+  defaultMessages.forEach(key => {
+    jsConfig.messages[key] = req.__(key);
+  });
 
   vars.configScript = `window.config = ${JSON.stringify(jsConfig)};`;
 

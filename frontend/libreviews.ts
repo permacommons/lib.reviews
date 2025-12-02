@@ -88,6 +88,7 @@ export interface LibreviewsAPI {
   resolveString: typeof resolveString;
   getLanguageIDSpan: typeof getLanguageIDSpan;
   trimInput: typeof trimInput;
+  setupPasswordReveal: typeof setupPasswordReveal;
   enableRequiredGroup: typeof enableRequiredGroup;
   disableRequiredGroup: typeof disableRequiredGroup;
   repaintFocusedHelp: typeof repaintFocusedHelp;
@@ -437,6 +438,40 @@ function hideInputHelp(this: HTMLElement): void {
 }
 
 /**
+ * Adds password reveal toggle functionality to password inputs.
+ */
+function setupPasswordReveal(): void {
+  const showLabel = msg('show password');
+  const hideLabel = msg('hide password');
+
+  $('.password-reveal-toggle').on('click', function () {
+    const toggle = $(this);
+    const input = toggle.siblings('input[type="password"], input[type="text"]').first();
+    if (!input.length) return;
+
+    const isHidden = input.attr('type') === 'password';
+    const nextType = isHidden ? 'text' : 'password';
+    input.attr('type', nextType);
+    const label = isHidden ? hideLabel : showLabel;
+    const icon = toggle.find('.fa');
+
+    // Toggle icon between eye and eye-slash
+    if (isHidden) {
+      icon.removeClass('fa-eye').addClass('fa-eye-slash');
+    } else {
+      icon.removeClass('fa-eye-slash').addClass('fa-eye');
+    }
+
+    // Update text content (after the icon span)
+    const iconHTML = icon.prop('outerHTML');
+    toggle.html(iconHTML + label);
+    toggle.attr('aria-label', label);
+    toggle.attr('aria-pressed', String(isHidden));
+    input.trigger('focus');
+  });
+}
+
+/**
  * Adds custom jQuery plugin methods for form validation and UI patterns.
  */
 function initializePlugins(): void {
@@ -610,6 +645,8 @@ function initializeLibreviews(): LibreviewsAPI {
 
   $('input[data-auto-trim],textarea[data-auto-trim]').change(trimInput);
 
+  setupPasswordReveal();
+
   $('.long-text h2,.long-text h3').each(function () {
     $(this).prepend(
       `<a href="#${this.id}" class="fragment-link no-print"><span class="fa fa-link"></span></a>`
@@ -701,6 +738,7 @@ const libreviews: LibreviewsAPI = {
   resolveString,
   getLanguageIDSpan,
   trimInput,
+  setupPasswordReveal,
   enableRequiredGroup,
   disableRequiredGroup,
   repaintFocusedHelp,

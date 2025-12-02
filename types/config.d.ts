@@ -101,6 +101,21 @@ declare module 'config' {
     logger: LoggerFormat;
     qualifiedURL: string;
     devPort: number;
+    email?: {
+      enabled: boolean;
+      provider: string;
+      mailgun: {
+        apiKey: string;
+        domain: string;
+        from: string;
+        url: string;
+      };
+    };
+    passwordReset?: {
+      tokenExpirationHours: number;
+      rateLimitPerIP: number;
+      cooldownHours: number;
+    };
     https: HTTPSConfig;
     forceHTTPS?: boolean;
     postgres: PostgresConfig;

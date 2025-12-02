@@ -1,7 +1,9 @@
 import config from 'config';
 import type { Express } from 'express';
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import i18n from 'i18n';
+import isUUID from 'is-uuid';
 import passport from 'passport';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
@@ -12,6 +14,8 @@ import InviteLink, {
   type InviteLinkInstance,
   type InviteLinkModel as InviteLinkModelConstructor,
 } from '../models/invite-link.ts';
+import { userOptions } from '../models/manifests/user.ts';
+import PasswordResetToken from '../models/password-reset-token.ts';
 import Team, { type TeamInstance } from '../models/team.ts';
 import TeamJoinRequest, { type TeamJoinRequestInstance } from '../models/team-join-request.ts';
 import TeamSlug from '../models/team-slug.ts';
@@ -19,6 +23,7 @@ import User from '../models/user.ts';
 import search from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import debug from '../util/debug.ts';
+import { formatMailgunError, sendPasswordResetEmail } from '../util/email.ts';
 import actionHandler from './handlers/action-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
 import forms from './helpers/forms.ts';
@@ -54,6 +59,40 @@ type ActionsRequestQuery = ParsedQs & {
 const router = Router();
 const InviteLinkModel: InviteLinkModelConstructor = InviteLink;
 type CreateUserPayload = Parameters<typeof User.create>[0];
+
+function getPasswordResetCooldownHours(): number {
+  return config.get<number>('passwordReset.cooldownHours') ?? 3;
+}
+
+function renderPasswordResetRequested(
+  req: ActionsRequest,
+  res: ActionsResponse,
+  requestedEmail?: string
+) {
+  const emailParam = requestedEmail ?? '';
+  render.template(req, res, 'forgot-password', {
+    titleKey: 'password reset requested',
+    requestComplete: true,
+    requestedEmail: emailParam,
+    cooldownHours: getPasswordResetCooldownHours(),
+  });
+}
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: config.get<number>('passwordReset.rateLimitPerIP') ?? 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req: ActionsRequest, res: ActionsResponse) {
+    const rawEmail = typeof req.body?.email === 'string' ? req.body.email : undefined;
+    debug.util(
+      `Password reset request blocked by IP rate limit: ip=${req.ip}${
+        rawEmail ? ` email=${rawEmail}` : ''
+      }`
+    );
+    renderPasswordResetRequested(req, res, rawEmail);
+  },
+});
 
 const buildRegisterSchema = (req: ActionsRequest) =>
   z
@@ -269,6 +308,155 @@ router.post('/signin', (req: ActionsRequest, res: ActionsResponse, next: Handler
     });
   })(req, res, next);
 });
+
+const forgotPasswordSchema = z
+  .object({
+    _csrf: z.string().min(1),
+    email: z.string().email().max(128),
+  })
+  .strict();
+
+router.get('/forgot-password', (req: ActionsRequest, res: ActionsResponse) => {
+  const pageErrors = req.flash('pageErrors');
+  render.template(req, res, 'forgot-password', {
+    titleKey: 'forgot password',
+    cooldownHours: getPasswordResetCooldownHours(),
+    requestComplete: false,
+    pageErrors,
+  });
+});
+
+router.post(
+  '/forgot-password',
+  passwordResetLimiter,
+  async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+    try {
+      const formData = forgotPasswordSchema.parse(req.body);
+      const email = formData.email.trim().toLowerCase();
+
+      const cooldownHours = getPasswordResetCooldownHours();
+      const hasRecent = await PasswordResetToken.hasRecentRequest(email, cooldownHours);
+      if (hasRecent) {
+        debug.util(`Password reset email skipped due to cooldown for ${email}`);
+        renderPasswordResetRequested(req, res, email);
+        return;
+      }
+
+      const users = await User.filterWhere({
+        email,
+        password: User.ops.neq(null),
+      }).run();
+
+      if (users.length > 0) {
+        for (const user of users) {
+          const token = await PasswordResetToken.create(
+            user.id as string,
+            email,
+            req.ip as string | undefined
+          );
+
+          const language = typeof req.language === 'string' ? req.language : req.locale;
+          sendPasswordResetEmail(email, token.id as string, language).catch(error => {
+            debug.error(`Failed to send password reset email: ${formatMailgunError(error)}`);
+          });
+        }
+      } else {
+        debug.util(`Password reset email skipped because no user found for ${email}`);
+      }
+
+      renderPasswordResetRequested(req, res, email);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const email = typeof req.body.email === 'string' ? req.body.email : '';
+        req.flash('pageErrors', req.__('invalid email format', email));
+        return res.redirect('/forgot-password');
+      }
+      next(error);
+    }
+  }
+);
+
+const resetPasswordSchema = z
+  .object({
+    _csrf: z.string().min(1),
+    password: z.string().min(userOptions.minPasswordLength),
+  })
+  .strict();
+
+router.get('/reset-password/:token', async (req: ActionsRequest, res: ActionsResponse) => {
+  const tokenID = req.params.token;
+
+  if (!tokenID || !isUUID.v4(tokenID)) {
+    return render.template(req, res, 'reset-password', {
+      titleKey: 'reset password',
+      tokenValid: false,
+    });
+  }
+
+  const token = await PasswordResetToken.findByID(tokenID);
+  const tokenValid = !!token && token.isValid();
+
+  render.template(req, res, 'reset-password', {
+    titleKey: 'reset password',
+    token: tokenID,
+    tokenValid,
+  });
+});
+
+router.post(
+  '/reset-password/:token',
+  async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+    const tokenID = req.params.token;
+
+    try {
+      const formData = resetPasswordSchema.parse(req.body);
+
+      if (!tokenID || !isUUID.v4(tokenID)) {
+        req.flash('pageErrors', req.__('invalid reset token'));
+        return res.redirect(`/reset-password/${tokenID}`);
+      }
+
+      const token = await PasswordResetToken.findByID(tokenID);
+      if (!token || !token.isValid()) {
+        req.flash('pageErrors', req.__('invalid reset token'));
+        return res.redirect(`/reset-password/${tokenID}`);
+      }
+
+      const user = await token.getUser();
+      if (!user) {
+        debug.error(`Reset token ${tokenID} references non-existent user ${token.userID}`);
+        req.flash('pageErrors', req.__('invalid reset token'));
+        return res.redirect(`/reset-password/${tokenID}`);
+      }
+
+      await user.setPassword(formData.password);
+      await user.save({ updateSensitive: ['password'] });
+
+      await token.markAsUsed();
+      await PasswordResetToken.invalidateAllForUser(user.id);
+
+      req.login(user as Express.User, error => {
+        if (error) {
+          debug.error('Failed to log in user after password reset:', error);
+          req.flash('siteErrors', req.__('unknown error'));
+          return res.redirect('/signin');
+        }
+
+        req.flash('siteMessages', req.__('password reset success'));
+        return res.redirect('/');
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const message = error.issues.some(issue => issue.path.includes('password'))
+          ? req.__('password too short', String(userOptions.minPasswordLength))
+          : req.__('correct errors');
+        req.flash('pageErrors', message);
+        return res.redirect(`/reset-password/${tokenID}`);
+      }
+      next(error);
+    }
+  }
+);
 
 router.get('/new/user', (req: ActionsRequest, res: ActionsResponse) => {
   res.redirect('/register');

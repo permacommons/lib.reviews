@@ -16,6 +16,7 @@ import type { DataAccessLayer, JsonObject, ModelConstructor } from '../dal/lib/m
 import '../models/blog-post.ts';
 import '../models/file.ts';
 import '../models/invite-link.ts';
+import '../models/password-reset-token.ts';
 import '../models/review.ts';
 import '../models/team.ts';
 import '../models/team-join-request.ts';
