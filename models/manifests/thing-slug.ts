@@ -20,6 +20,7 @@ export const reservedSlugs = [
   'faq',
   'static',
   'terms',
+  'forgot-password',
 ] as const;
 
 const thingSlugManifest = {
