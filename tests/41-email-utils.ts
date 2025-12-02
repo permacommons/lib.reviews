@@ -1,8 +1,24 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'ava';
 import { randomUUID } from 'crypto';
+import hbs from 'hbs';
+import i18n from 'i18n';
+import languages from '../locales/languages.ts';
 import { formatMailgunError } from '../util/email.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Setup i18n for email template tests
+i18n.configure({
+  locales: languages.getValidLanguages(),
+  directory: path.join(__dirname, '../locales'),
+  defaultLocale: 'en',
+  updateFiles: false,
+  autoReload: false,
+});
 
 // Test the formatMailgunError function with various error types
 test.serial('formatMailgunError handles Mailgun API errors', t => {
@@ -53,30 +69,31 @@ test.serial('formatMailgunError handles primitive values', t => {
 });
 
 // Test email template system
-test.serial('English email templates exist (fallback language)', async t => {
-  const textPath = path.resolve(process.cwd(), 'views/email/password-reset-en.txt');
-  const htmlPath = path.resolve(process.cwd(), 'views/email/password-reset-en.hbs');
+test.serial('Unified email templates exist', async t => {
+  const textPath = path.resolve(process.cwd(), 'views/email/password-reset.txt');
+  const htmlPath = path.resolve(process.cwd(), 'views/email/password-reset.hbs');
 
-  await t.notThrowsAsync(fs.access(textPath), 'English text template exists');
-  await t.notThrowsAsync(fs.access(htmlPath), 'English HTML template exists');
+  await t.notThrowsAsync(fs.access(textPath), 'Unified text template exists');
+  await t.notThrowsAsync(fs.access(htmlPath), 'Unified HTML template exists');
 });
 
-test.serial('Email text template has correct structure', async t => {
-  const textPath = path.resolve(process.cwd(), 'views/email/password-reset-en.txt');
+test.serial('Email text template uses i18n helpers', async t => {
+  const textPath = path.resolve(process.cwd(), 'views/email/password-reset.txt');
   const content = await fs.readFile(textPath, 'utf-8');
 
-  t.true(content.startsWith('Subject:'), 'Text template starts with Subject line');
+  t.true(content.includes('{{__ "password reset email'), 'Text template uses i18n helpers');
   t.true(content.includes('{{resetURL}}'), 'Contains resetURL placeholder');
-  t.true(content.includes('{{expirationHours}}'), 'Contains expirationHours placeholder');
+  t.true(content.includes('expirationHours'), 'Contains expirationHours placeholder');
 });
 
-test.serial('Email HTML template has correct structure', async t => {
-  const htmlPath = path.resolve(process.cwd(), 'views/email/password-reset-en.hbs');
+test.serial('Email HTML template uses i18n helpers', async t => {
+  const htmlPath = path.resolve(process.cwd(), 'views/email/password-reset.hbs');
   const content = await fs.readFile(htmlPath, 'utf-8');
 
   t.true(content.includes('<!doctype html>'), 'HTML template has doctype');
+  t.true(content.includes('{{__ "password reset email'), 'HTML template uses i18n helpers');
   t.true(content.includes('{{resetURL}}'), 'Contains resetURL placeholder');
-  t.true(content.includes('{{expirationHours}}'), 'Contains expirationHours placeholder');
+  t.true(content.includes('expirationHours'), 'Contains expirationHours placeholder');
   t.true(content.includes('<a href="{{resetURL}}">'), 'Reset URL is in a link');
 });
 
@@ -130,4 +147,87 @@ test.serial('Reset URL construction builds valid URLs', t => {
   // Handles trailing slash correctly
   const trailingSlash = new URL(`reset-password/${token}`, 'https://lib.reviews/').toString();
   t.false(trailingSlash.includes('//reset-password'), 'Trailing slash normalized correctly');
+});
+
+// Test actual email generation with i18n
+test.serial('Email template renders in English with correct content', async t => {
+  const textTemplateSource = await fs.readFile('views/email/password-reset.txt', 'utf-8');
+  const htmlTemplateSource = await fs.readFile('views/email/password-reset.hbs', 'utf-8');
+
+  const textTemplate = hbs.handlebars.compile(textTemplateSource);
+  const htmlTemplate = hbs.handlebars.compile(htmlTemplateSource);
+
+  const context = {
+    resetURL: 'https://lib.reviews/reset-password/test123',
+    expirationHours: 3,
+    locale: 'en',
+    __: (phrase: string, ...args: (string | number)[]) =>
+      i18n.__({ phrase, locale: 'en' }, ...(args as string[])),
+  };
+
+  const subject = i18n.__({ phrase: 'password reset email subject', locale: 'en' });
+  const textContent = textTemplate(context);
+  const htmlContent = htmlTemplate(context);
+
+  // Verify subject
+  t.is(subject, 'Password Reset Request - lib.reviews', 'Subject is correct');
+
+  // Verify text content
+  t.true(textContent.includes('Hello'), 'Contains English greeting');
+  t.true(
+    textContent.includes('You (or someone else) requested a password reset'),
+    'Contains reset request message'
+  );
+  t.true(textContent.includes('https://lib.reviews/reset-password/test123'), 'Contains reset URL');
+  t.true(textContent.includes('3 hours'), 'Contains expiration time');
+  t.true(textContent.includes('Best regards'), 'Contains signature');
+
+  // Verify HTML content
+  t.true(htmlContent.includes('<!doctype html>'), 'HTML has doctype');
+  t.true(htmlContent.includes('Hello'), 'HTML contains greeting');
+  t.true(
+    htmlContent.includes('<a href="https://lib.reviews/reset-password/test123">'),
+    'HTML contains clickable link'
+  );
+});
+
+test.serial('Email template renders in German with correct content', async t => {
+  const textTemplateSource = await fs.readFile('views/email/password-reset.txt', 'utf-8');
+  const htmlTemplateSource = await fs.readFile('views/email/password-reset.hbs', 'utf-8');
+
+  const textTemplate = hbs.handlebars.compile(textTemplateSource);
+  const htmlTemplate = hbs.handlebars.compile(htmlTemplateSource);
+
+  const context = {
+    resetURL: 'https://lib.reviews/reset-password/test123',
+    expirationHours: 3,
+    locale: 'de',
+    __: (phrase: string, ...args: (string | number)[]) =>
+      i18n.__({ phrase, locale: 'de' }, ...(args as string[])),
+  };
+
+  const subject = i18n.__({ phrase: 'password reset email subject', locale: 'de' });
+  const textContent = textTemplate(context);
+  const htmlContent = htmlTemplate(context);
+
+  // Verify subject
+  t.is(subject, 'Neues Passwort setzen - lib.reviews', 'German subject is correct');
+
+  // Verify text content
+  t.true(textContent.includes('Hallo'), 'Contains German greeting');
+  t.true(
+    textContent.includes('Sie (oder jemand anderes) haben angefordert'),
+    'Contains German reset request message'
+  );
+  t.true(textContent.includes('https://lib.reviews/reset-password/test123'), 'Contains reset URL');
+  t.true(textContent.includes('3 Stunden'), 'Contains German expiration time');
+  t.true(textContent.includes('Mit freundlichen Grüßen'), 'Contains German signature');
+
+  // Verify HTML content
+  t.true(htmlContent.includes('<!doctype html>'), 'HTML has doctype');
+  t.true(htmlContent.includes('Hallo'), 'HTML contains German greeting');
+  t.true(
+    htmlContent.includes('<a href="https://lib.reviews/reset-password/test123">'),
+    'HTML contains clickable link'
+  );
 });

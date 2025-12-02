@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import config from 'config';
 import formData from 'form-data';
+import hbs from 'hbs';
+import i18n from 'i18n';
 import Mailgun from 'mailgun.js';
 import type { Interfaces, APIErrorType as MailgunApiError } from 'mailgun.js/definitions';
 
@@ -86,21 +88,32 @@ async function loadEmailTemplate(
 ): Promise<{ subject: string; text: string; html: string }> {
   const supportedLanguages = ['en', 'de'];
   const lang = supportedLanguages.includes(language) ? language : 'en';
-  const textTemplate = await readTemplate(`${templateName}-${lang}.txt`);
-  const htmlTemplate = await readTemplate(`${templateName}-${lang}.hbs`);
 
-  const subject = textTemplate.split('\n')[0]?.replace('Subject: ', '') ?? '';
-  const compiledText = substituteTemplate(textTemplate, vars);
-  const compiledHtml = substituteTemplate(htmlTemplate, vars);
+  // Load unified templates (no language suffix)
+  const textTemplateSource = await readTemplate(`${templateName}.txt`);
+  const htmlTemplateSource = await readTemplate(`${templateName}.hbs`);
+
+  // Compile templates with Handlebars
+  const textTemplate = hbs.handlebars.compile(textTemplateSource);
+  const htmlTemplate = hbs.handlebars.compile(htmlTemplateSource);
+
+  // Create context with template vars and i18n locale
+  const context = {
+    ...vars,
+    locale: lang,
+    // Add i18n helper functions to context
+    __: (phrase: string, ...args: (string | number)[]) =>
+      i18n.__({ phrase, locale: lang }, ...(args as string[])),
+  };
+
+  // Render templates
+  const compiledText = textTemplate(context);
+  const compiledHtml = htmlTemplate(context);
+
+  // Extract subject from locale strings
+  const subject = i18n.__({ phrase: 'password reset email subject', locale: lang });
 
   return { subject, text: compiledText, html: compiledHtml };
-}
-
-function substituteTemplate(template: string, vars: Record<string, string | number>) {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    const value = vars[key];
-    return value === undefined ? '' : String(value);
-  });
 }
 
 async function readTemplate(fileName: string): Promise<string> {
