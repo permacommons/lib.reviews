@@ -772,7 +772,7 @@ class ReviewProvider extends AbstractBREADProvider {
     });
   }
 
-  delete_POST(review: ReviewInstance): void {
+  async delete_POST(review: ReviewInstance): Promise<void> {
     const schema = buildDeleteReviewSchema(this.req);
     const parseResult = schema.safeParse(this.req.body);
 
@@ -791,6 +791,19 @@ class ReviewProvider extends AbstractBREADProvider {
       return this.renderPermissionError({
         titleKey: this.actions[this.action].titleKey,
       });
+
+    // Validate review count before allowing thing deletion
+    if (withThing && review.thing) {
+      const reviewCount = await review.thing.getReviewCount();
+      if (reviewCount !== 1) {
+        this.req.flash(
+          'pageErrors',
+          this.req.__('cannot delete thing with reviews', String(reviewCount))
+        );
+        void this.delete_GET(review);
+        return;
+      }
+    }
 
     const deleteFunc = withThing ? review.deleteAllRevisionsWithThing : review.deleteAllRevisions;
 
