@@ -197,7 +197,7 @@ function isAccountRequestFeatureEnabled(): boolean {
   const emailEnabled = config.has('email.enabled')
     ? Boolean(config.get<boolean>('email.enabled'))
     : false;
-  return Boolean(enabled && emailEnabled);
+  return Boolean(enabled && emailEnabled && config.requireInviteLinks);
 }
 
 router.get('/actions/search', (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {

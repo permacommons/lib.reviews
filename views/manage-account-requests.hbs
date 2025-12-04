@@ -8,7 +8,7 @@
   </div>
 {{/if}}
 
-<div class="tabs">
+<div class="tabs nojs-hidden">
   <button class="tab-button active" data-tab="pending">
     {{{__ "pending requests"}}} ({{pendingRequests.length}})
   </button>
@@ -18,6 +18,7 @@
 </div>
 
 <div id="pending-tab" class="tab-content active">
+  <h2 class="nojs-visible hidden-regular">{{{__ "pending requests"}}}</h2>
   {{#if pendingRequests.length}}
     {{#each pendingRequests}}
       <div class="account-request">
@@ -58,13 +59,13 @@
 
             <button
               type="button"
-              class="pure-button reject-button button-rounded"
+              class="pure-button reject-button button-rounded nojs-hidden"
               data-request-id="{{id}}">
               {{{__ "reject request"}}}
             </button>
           </div>
 
-          <div class="rejection-form hidden" id="rejection-{{id}}">
+          <div class="rejection-form" id="rejection-{{id}}">
             <label for="rejection-reason-{{id}}">
               {{{__ "rejection reason optional"}}}
               <textarea
@@ -73,6 +74,7 @@
                 rows="3"
                 class="max-width"></textarea>
             </label>
+            <p class="form-help-text">{{{__ "rejection reason note"}}}</p>
             <button
               type="submit"
               name="action"
@@ -82,7 +84,7 @@
             </button>
             <button
               type="button"
-              class="pure-button cancel-reject button-rounded"
+              class="pure-button cancel-reject button-rounded nojs-hidden"
               data-request-id="{{id}}">
               {{{__ "cancel"}}}
             </button>
@@ -95,7 +97,8 @@
   {{/if}}
 </div>
 
-<div id="moderated-tab" class="tab-content">
+<div id="moderated-tab" class="tab-content active">
+  <h2 class="nojs-visible hidden-regular">{{{__ "moderator log"}}}</h2>
   {{#if moderatedRequests.length}}
     <table class="pure-table pure-table-horizontal max-width">
       <thead>
@@ -135,9 +138,20 @@
 
 <script>
   (function () {
+    // Initialize tabs - hide all but the first
     const tabs = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
 
+    // Hide the moderated tab initially (JS-enabled only)
+    const moderatedTab = document.getElementById('moderated-tab');
+    if (moderatedTab) moderatedTab.classList.remove('active');
+
+    // Initialize rejection forms - hide them initially (JS-enabled only)
+    document.querySelectorAll('.rejection-form').forEach(form => {
+      form.classList.add('hidden');
+    });
+
+    // Tab switching
     tabs.forEach(button => {
       button.addEventListener('click', function () {
         const tabName = this.dataset.tab;
@@ -150,6 +164,7 @@
       });
     });
 
+    // Show rejection form
     document.querySelectorAll('.reject-button').forEach(button => {
       button.addEventListener('click', function () {
         const requestId = this.dataset.requestId;
@@ -160,6 +175,7 @@
       });
     });
 
+    // Cancel rejection
     document.querySelectorAll('.cancel-reject').forEach(button => {
       button.addEventListener('click', function () {
         const requestId = this.dataset.requestId;

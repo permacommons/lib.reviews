@@ -41,12 +41,12 @@ const accountRequestStaticMethods = defineStaticMethods(accountRequestManifest, 
   },
 
   /**
-   * Determine whether a given email already has a pending request
+   * Determine whether a given email already has a request (of any status)
    * within the cooldown window.
    *
    * @param email - Email address to check
    * @param cooldownHours - Cooldown duration in hours
-   * @returns True when a pending request exists in the window
+   * @returns True when any request exists in the window
    */
   async hasRecentRequest(email: string, cooldownHours: number): Promise<boolean> {
     if (!email || cooldownHours <= 0) return false;
@@ -55,7 +55,6 @@ const accountRequestStaticMethods = defineStaticMethods(accountRequestManifest, 
     try {
       const recent = await this.filterWhere({
         email: email.toLowerCase(),
-        status: 'pending',
         createdAt: this.ops.gte(cutoff),
       }).first();
       return !!recent;
