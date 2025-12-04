@@ -1,0 +1,10 @@
+{{__ "account request notification greeting"}}
+
+{{__ "account request notification intro plain"}}
+
+{{__ "account request notification instructions plain"}}
+{{manageURL}}
+
+{{__ "account request notification action info plain"}}
+
+{{__ "account request notification signature plain"}}

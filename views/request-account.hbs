@@ -1,0 +1,70 @@
+<div class="long-text">
+  <h1 id="page-header">{{{__ "request account"}}}</h1>
+
+<div class="long-text">
+  <p>{{{__ "request account intro"}}}</p>
+
+  {{> page_errors}}
+
+  <form class="pure-form pure-form-stacked account-request-form" action="/actions/request-account" method="post">
+    <input type="hidden" name="_csrf" value="{{csrfToken}}">
+
+    <label for="planned-reviews">
+      {{{__ "what kind of reviews planning"}}}
+      <textarea
+        id="planned-reviews"
+        name="plannedReviews"
+        rows="4"
+        required
+        class="max-width">{{#if formValues}}{{formValues.plannedReviews}}{{/if}}</textarea>
+    </label>
+
+    <label for="languages">
+      {{{__ "which languages interested"}}}
+      <input
+        type="text"
+        id="languages"
+        name="languages"
+        value="{{#if formValues}}{{formValues.languages}}{{/if}}"
+        required
+        class="max-width">
+    </label>
+
+    <label for="about-url">
+      {{{__ "where find out more about you"}}}
+      <textarea
+        id="about-url"
+        name="aboutLinks"
+        rows="3"
+        required
+        class="max-width"
+        placeholder="https://">{{#if formValues}}{{formValues.aboutLinks}}{{/if}}</textarea>
+    </label>
+
+    <label for="email">
+      {{{__ "email for invite link"}}}
+      <input
+        type="email"
+        id="email"
+        name="email"
+        value="{{#if formValues}}{{formValues.email}}{{/if}}"
+        required
+        class="max-width">
+    </label>
+
+    <label for="terms-accepted" class="pure-checkbox">
+      <input
+        type="checkbox"
+        id="terms-accepted"
+        name="termsAccepted"
+        required
+        {{#if formValues.termsAccepted}}checked{{/if}}>
+      {{{__ "read and agree to terms"}}}
+    </label>
+
+    <button type="submit" class="pure-button pure-button-primary button-rounded">
+      {{{__ "submit request"}}}
+    </button>
+  </form>
+</div>
+</div>

@@ -133,6 +133,8 @@ const userHandlers = {
         if (offsetDate)
           paginationURL = `/user/${user.urlName}/feed/before/${offsetDate.toISOString()}`;
 
+        const isOwnPage = req.user?.id === user.id;
+
         render.template(
           req,
           res,
@@ -142,6 +144,7 @@ const userHandlers = {
             titleParam: user.displayName,
             deferPageHeader: true, // two-col layout
             userInfo: user,
+            isOwnPage,
             feedItems,
             edit,
             scripts: loadEditor ? ['user', 'editor'] : ['user'],

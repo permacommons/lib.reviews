@@ -1,0 +1,11 @@
+{{__ "account request rejection greeting"}}
+
+{{__ "account request rejection intro plain"}}
+
+{{#if rejectionReason}}
+{{__ "account request rejection reason label plain"}} {{rejectionReason}}
+
+{{/if}}
+{{__ "account request rejection contact plain"}}
+
+{{__ "account request rejection signature plain"}}

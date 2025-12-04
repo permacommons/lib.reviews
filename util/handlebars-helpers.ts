@@ -13,6 +13,7 @@ import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import languages from '../locales/languages.ts';
 import type { ThingInstance } from '../models/manifests/thing.ts';
 import thingModelHandle from '../models/thing.ts';
+import { autolink } from '../routes/helpers/formatters.ts';
 import type { TemplateContext } from '../types/http/locals.ts';
 import { formatLongDate, formatShortDate } from './date.ts';
 import debug from './debug.ts';
@@ -447,6 +448,10 @@ hbs.registerHelper('linkify', str => {
       // email links won't get target="_blank"
     },
   });
+});
+
+hbs.registerHelper('autolink', (text: unknown) => {
+  return new hbs.handlebars.SafeString(autolink(String(text ?? '')));
 });
 
 function userLink(user?: { urlName?: string; displayName?: string } | null) {

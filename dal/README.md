@@ -281,7 +281,7 @@ Every manifest-based model ships a typed query entry point:
 
 - **`Model.filterWhere(literal)`** – Typed builder defined in `dal/lib/filter-where.ts`. Features include:
   - Typed predicate literals keyed by manifest fields.
-  - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `in`, `between/notBetween`, `containsAll`, `containsAny`, `jsonContains`, `not`).
+  - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `in/notIn`, `between/notBetween`, `containsAll`, `containsAny`, `jsonContains`, `not`).
   - Automatic revision guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) with opt-outs (`includeDeleted()`, `includeStale()`).
   - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `orderByRelation`, `limit`, `offset`, `getJoin`, `whereRelated`, `whereIn`, `chronologicalFeed`, `delete`, `count`, `average`).
   - Promise-like behaviour so `await Model.filterWhere({ ... })` works without `.run()`.

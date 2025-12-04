@@ -43,6 +43,7 @@ type InviteLinkTypes = ManifestExports<
     statics: {
       getAvailable(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
       getUsed(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
+      getAccountRequestLinks(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
       get(id: string): Promise<InviteLinkTypes['Instance']>;
     };
   }

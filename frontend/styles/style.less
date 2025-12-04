@@ -1696,6 +1696,139 @@ div.dangerous-content-in-editor {
   }
 }
 
+// ------------- Account request styles --------------------------------------
+
+.account-request-form textarea,
+.account-request-form input[type="text"],
+.account-request-form input[type="email"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 2rem;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.3s;
+
+  &:hover {
+    color: #333;
+  }
+
+  &.active {
+    color: #0078e7;
+    border-bottom-color: #0078e7;
+  }
+}
+
+.tab-content {
+  display: none;
+
+  &.active {
+    display: block;
+  }
+}
+
+.account-request {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background: #fff;
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.request-date {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.request-body {
+  margin-bottom: 1rem;
+}
+
+.request-field {
+  margin-bottom: 1rem;
+
+  strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #333;
+  }
+
+  p {
+    margin: 0;
+    color: #666;
+    white-space: pre-wrap;
+  }
+}
+
+.request-actions {
+  margin-top: 1rem;
+}
+
+.action-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  &.hidden {
+    display: none;
+  }
+}
+
+.rejection-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+
+  textarea {
+    margin-bottom: 1rem;
+  }
+
+  &.hidden {
+    display: none;
+  }
+}
+
+.status-approved {
+  color: #0c6;
+  font-weight: bold;
+}
+
+.status-rejected {
+  color: #c00;
+  font-weight: bold;
+}
+
+.no-requests {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+}
+
+// ------------- End account request styles ----------------------------------
+
 // ------------- End modal dialog styles ---------------------------------------
 // ------------- Begin footer --------------------------------------------------
 

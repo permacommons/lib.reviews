@@ -116,6 +116,13 @@ declare module 'config' {
       rateLimitPerIP: number;
       cooldownHours: number;
     };
+    accountRequests?: {
+      enabled: boolean;
+      rateLimitPerIP: number;
+      rateLimitWindowHours: number;
+      emailCooldownHours: number;
+      retentionDays: number;
+    };
     https: HTTPSConfig;
     forceHTTPS?: boolean;
     postgres: PostgresConfig;

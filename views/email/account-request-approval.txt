@@ -1,0 +1,12 @@
+{{__ "account request approval greeting"}}
+
+{{__ "account request approval intro plain"}}
+
+{{__ "account request approval instructions plain"}}
+{{registerURL}}
+
+{{__ "account request approval next steps plain"}}
+
+{{__ "account request approval contact plain"}}
+
+{{__ "account request approval signature plain"}}

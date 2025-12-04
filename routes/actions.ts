@@ -10,11 +10,13 @@ import { z } from 'zod';
 import { mlString } from '../dal/index.ts';
 import type { MultilingualString } from '../dal/lib/ml-string.ts';
 import languages from '../locales/languages.ts';
+import AccountRequest from '../models/account-request.ts';
 import InviteLink, {
   type InviteLinkInstance,
   type InviteLinkModel as InviteLinkModelConstructor,
 } from '../models/invite-link.ts';
-import { userOptions } from '../models/manifests/user.ts';
+import type { AccountRequestInstance } from '../models/manifests/account-request.ts';
+import { type UserView, userOptions } from '../models/manifests/user.ts';
 import PasswordResetToken from '../models/password-reset-token.ts';
 import Team, { type TeamInstance } from '../models/team.ts';
 import TeamJoinRequest, { type TeamJoinRequestInstance } from '../models/team-join-request.ts';
@@ -23,7 +25,13 @@ import User from '../models/user.ts';
 import search from '../search.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
 import debug from '../util/debug.ts';
-import { formatMailgunError, sendPasswordResetEmail } from '../util/email.ts';
+import {
+  formatMailgunError,
+  sendAccountRequestApproval,
+  sendAccountRequestNotification,
+  sendAccountRequestRejection,
+  sendPasswordResetEmail,
+} from '../util/email.ts';
 import actionHandler from './handlers/action-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
 import forms from './helpers/forms.ts';
@@ -48,6 +56,13 @@ type ActionsRequestBody = {
   lang?: string;
   'redirect-to'?: string;
   'has-language-notice'?: string | boolean;
+  plannedReviews?: string;
+  languages?: string;
+  aboutLinks?: string;
+  termsAccepted?: string;
+  requestId?: string;
+  action?: string;
+  rejectionReason?: string;
   [key: string]: string | string[] | boolean | undefined;
 };
 
@@ -94,6 +109,18 @@ const passwordResetLimiter = rateLimit({
   },
 });
 
+const accountRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler(req: ActionsRequest, res: ActionsResponse) {
+    viewInSignupLanguage(req);
+    req.flash('pageErrors', res.__('account request rate limit exceeded'));
+    return res.redirect('/actions/request-account');
+  },
+});
+
 const buildRegisterSchema = (req: ActionsRequest) =>
   z
     .object({
@@ -115,6 +142,29 @@ type RegisterFormValues = Partial<
   Pick<RegisterForm, 'username' | 'email' | 'returnTo' | 'signupLanguage'>
 >;
 
+const accountRequestSchema = (req: ActionsRequest) =>
+  z.object({
+    _csrf: z.string().min(1, req.__('need _csrf')),
+    plannedReviews: z.string().trim().min(1, req.__('account request need planned reviews')),
+    languages: z.string().trim().min(1, req.__('account request need languages')),
+    aboutLinks: z.string().trim().min(1, req.__('account request need about url')),
+    email: z.string().trim().min(1, req.__('need email')).email(req.__('invalid email format')),
+    // Checkbox is optional in form data (unchecked = not sent), but we require it to be 'on'
+    termsAccepted: z
+      .string()
+      .optional()
+      .refine(val => val === 'on', req.__('must accept terms'))
+      .transform(() => true),
+  });
+
+type AccountRequestForm = z.infer<ReturnType<typeof accountRequestSchema>>;
+type AccountRequestValues = Partial<
+  Pick<
+    AccountRequestForm,
+    'plannedReviews' | 'languages' | 'aboutLinks' | 'email' | 'termsAccepted'
+  >
+>;
+
 const extractRegisterFormValues = (
   data?: Partial<RegisterForm> | ActionsRequestBody
 ): RegisterFormValues | undefined => {
@@ -126,6 +176,29 @@ const extractRegisterFormValues = (
     signupLanguage: typeof data.signupLanguage === 'string' ? data.signupLanguage : undefined,
   };
 };
+
+const extractAccountRequestValues = (
+  data?: Partial<AccountRequestForm> | ActionsRequestBody
+): AccountRequestValues | undefined => {
+  if (!data) return undefined;
+  return {
+    plannedReviews: typeof data.plannedReviews === 'string' ? data.plannedReviews : undefined,
+    languages: typeof data.languages === 'string' ? data.languages : undefined,
+    aboutLinks: typeof data.aboutLinks === 'string' ? data.aboutLinks : undefined,
+    email: typeof data.email === 'string' ? data.email : undefined,
+    termsAccepted: data.termsAccepted === 'on' || data.termsAccepted === true,
+  };
+};
+
+function isAccountRequestFeatureEnabled(): boolean {
+  const enabled = config.has('accountRequests')
+    ? (config.get<{ enabled?: boolean }>('accountRequests')?.enabled ?? false)
+    : false;
+  const emailEnabled = config.has('email.enabled')
+    ? Boolean(config.get<boolean>('email.enabled'))
+    : false;
+  return Boolean(enabled && emailEnabled);
+}
 
 router.get('/actions/search', (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
   const queryValue = req.query.query;
@@ -225,14 +298,28 @@ async function renderInviteLinkPage(req: ActionsRequest, res: ActionsResponse, n
       next(new Error('User required to view invite links.'));
       return;
     }
-    const [pendingInviteLinks, usedInviteLinks]: [InviteLinkInstance[], InviteLinkInstance[]] =
-      await Promise.all([InviteLinkModel.getAvailable(user), InviteLinkModel.getUsed(user)]);
+    const [pendingInviteLinks, usedInviteLinks, allAccountRequestLinks]: [
+      InviteLinkInstance[],
+      InviteLinkInstance[],
+      InviteLinkInstance[],
+    ] = await Promise.all([
+      InviteLinkModel.getAvailable(user),
+      InviteLinkModel.getUsed(user),
+      InviteLinkModel.getAccountRequestLinks(user),
+    ]);
+
+    // Split account request links into pending and used
+    const accountRequestLinks = {
+      pendingLinks: allAccountRequestLinks.filter(link => !link.usedBy),
+      usedLinks: allAccountRequestLinks.filter(link => link.usedBy),
+    };
 
     render.template(req, res, 'invite', {
       titleKey: res.locals.titleKey,
       invitePage: true, // to tell template not to show call-to-action again
       pendingInviteLinks,
       usedInviteLinks,
+      accountRequestLinks,
       pageErrors: req.flash('pageErrors'),
       pageMessages: req.flash('pageMessages'),
     });
@@ -458,17 +545,123 @@ router.post(
   }
 );
 
+router.get(
+  '/actions/request-account',
+  async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+    viewInSignupLanguage(req);
+
+    if (!isAccountRequestFeatureEnabled()) {
+      return render.permissionError(req, res, {
+        titleKey: 'request account',
+        detailsKey: 'account requests disabled',
+      });
+    }
+
+    if (!config.requireInviteLinks) {
+      return res.redirect('/register');
+    }
+
+    try {
+      await renderAccountRequestForm(req, res, extractAccountRequestValues(req.body));
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  '/actions/request-account',
+  accountRequestLimiter,
+  async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+    viewInSignupLanguage(req);
+
+    if (!isAccountRequestFeatureEnabled()) {
+      return render.permissionError(req, res, {
+        titleKey: 'request account',
+        detailsKey: 'account requests disabled',
+      });
+    }
+
+    if (!config.requireInviteLinks) {
+      return res.redirect('/register');
+    }
+
+    const parseResult = accountRequestSchema(req).safeParse(req.body);
+
+    if (!parseResult.success) {
+      flashZodIssues(req, parseResult.error.issues, issue => formatZodIssueMessage(req, issue));
+      return renderAccountRequestForm(req, res, extractAccountRequestValues(req.body));
+    }
+
+    const formData = parseResult.data;
+    const email = formData.email.trim().toLowerCase();
+    const configValues = config.get('accountRequests') as {
+      rateLimitPerIP?: number;
+      rateLimitWindowHours?: number;
+      emailCooldownHours?: number;
+    };
+
+    try {
+      const maxRequests = configValues.rateLimitPerIP ?? 3;
+      const windowHours = configValues.rateLimitWindowHours ?? 24;
+      const ipLimitExceeded = await AccountRequest.checkIPRateLimit(
+        req.ip,
+        maxRequests,
+        windowHours
+      );
+
+      if (ipLimitExceeded) {
+        req.flash('pageErrors', res.__('account request rate limit exceeded'));
+        return renderAccountRequestForm(req, res, extractAccountRequestValues(req.body));
+      }
+
+      const cooldownHours = configValues.emailCooldownHours ?? 24;
+      const hasRecent = await AccountRequest.hasRecentRequest(email, cooldownHours);
+
+      if (hasRecent) {
+        req.flash('pageErrors', res.__('account request already pending'));
+        return renderAccountRequestForm(req, res, extractAccountRequestValues(req.body));
+      }
+
+      const language = req.language || 'en';
+
+      await AccountRequest.createRequest({
+        plannedReviews: formData.plannedReviews.trim(),
+        languages: formData.languages.trim(),
+        aboutLinks: formData.aboutLinks.trim(),
+        email,
+        language,
+        termsAccepted: formData.termsAccepted,
+        ipAddress: req.ip,
+      });
+      // Moderator notification emails must be in English since we don't store
+      // language preferences in the database (only in cookies)
+      sendAccountRequestNotification('en').catch(error => {
+        debug.error(`Failed to send account request notification: ${formatMailgunError(error)}`);
+      });
+
+      req.flash('siteMessages', res.__('account request submitted'));
+      return res.redirect('/');
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 router.get('/new/user', (req: ActionsRequest, res: ActionsResponse) => {
   res.redirect('/register');
 });
 
 router.get('/register', async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
   viewInSignupLanguage(req);
-  if (config.requireInviteLinks)
+  if (config.requireInviteLinks) {
+    if (isAccountRequestFeatureEnabled()) {
+      return res.redirect('/actions/request-account');
+    }
     return render.template(req, res, 'invite-needed', {
       titleKey: 'register',
     });
-  else
+  } else
     try {
       await sendRegistrationForm(req, res);
     } catch (error) {
@@ -634,6 +827,167 @@ router.post(
   }
 );
 
+router.get(
+  '/actions/manage-requests',
+  signinRequiredRoute(
+    'manage account requests',
+    async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+      if (!req.user?.isSiteModerator) {
+        return render.permissionError(req, res, {
+          titleKey: 'manage account requests',
+          detailsKey: 'must be site moderator',
+        });
+      }
+
+      if (!isAccountRequestFeatureEnabled()) {
+        return render.permissionError(req, res, {
+          titleKey: 'manage account requests',
+          detailsKey: 'account requests disabled',
+        });
+      }
+
+      try {
+        const pendingRequests = await AccountRequest.getPending();
+        const moderatedRequests = (await AccountRequest.getModerated(100)) as Array<
+          AccountRequestInstance & { moderator?: UserView }
+        >;
+
+        const moderatorIDs = [
+          ...new Set(
+            moderatedRequests
+              .map(request => request.moderatedBy)
+              .filter((id): id is string => typeof id === 'string' && id.length > 0)
+          ),
+        ];
+
+        if (moderatorIDs.length > 0) {
+          const moderators = await User.fetchView<UserView>('publicProfile', {
+            configure(builder) {
+              builder.whereIn('id', moderatorIDs, { cast: 'uuid[]' });
+            },
+          });
+          const moderatorMap = new Map<string, UserView>();
+          moderators.forEach(user => {
+            if (user.id) {
+              moderatorMap.set(user.id, user);
+            }
+          });
+
+          moderatedRequests.forEach(request => {
+            if (request.moderatedBy && moderatorMap.has(request.moderatedBy)) {
+              request.moderator = moderatorMap.get(request.moderatedBy);
+            }
+          });
+        }
+
+        render.template(req, res, 'manage-account-requests', {
+          titleKey: 'manage account requests',
+          pendingRequests,
+          moderatedRequests,
+          pageErrors: req.flash('pageErrors'),
+          pageMessages: req.flash('pageMessages'),
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  )
+);
+
+router.post(
+  '/actions/manage-requests',
+  signinRequiredRoute(
+    'manage account requests',
+    async (req: ActionsRequest, res: ActionsResponse, next: HandlerNext) => {
+      if (!req.user?.isSiteModerator) {
+        return render.permissionError(req, res, {
+          titleKey: 'manage account requests',
+          detailsKey: 'must be site moderator',
+        });
+      }
+
+      if (!isAccountRequestFeatureEnabled()) {
+        return render.permissionError(req, res, {
+          titleKey: 'manage account requests',
+          detailsKey: 'account requests disabled',
+        });
+      }
+
+      const requestId = typeof req.body.requestId === 'string' ? req.body.requestId.trim() : '';
+      const action = typeof req.body.action === 'string' ? req.body.action : '';
+      const rejectionReasonRaw =
+        typeof req.body.rejectionReason === 'string' ? req.body.rejectionReason : '';
+
+      if (!requestId || !isUUID.v4(requestId) || (action !== 'approve' && action !== 'reject')) {
+        req.flash('pageErrors', res.__('invalid account request action'));
+        return res.redirect('/actions/manage-requests');
+      }
+
+      try {
+        const accountRequest = (await AccountRequest.filterWhere({ id: requestId })
+          .includeSensitive(['email'])
+          .first()) as AccountRequestInstance | null;
+
+        if (!accountRequest) {
+          req.flash('pageErrors', res.__('invalid account request action'));
+          return res.redirect('/actions/manage-requests');
+        }
+
+        if (accountRequest.status !== 'pending') {
+          req.flash('pageErrors', res.__('request already processed'));
+          return res.redirect('/actions/manage-requests');
+        }
+
+        if (action === 'approve') {
+          const inviteLink: InviteLinkInstance = new InviteLinkModel({});
+          inviteLink.createdOn = new Date();
+          inviteLink.createdBy = req.user.id;
+          await inviteLink.save();
+
+          accountRequest.status = 'approved';
+          accountRequest.moderatedBy = req.user.id;
+          accountRequest.moderatedAt = new Date();
+          accountRequest.inviteLinkID = inviteLink.id;
+          accountRequest.rejectionReason = undefined;
+
+          await accountRequest.save();
+
+          const language = accountRequest.language || 'en';
+          sendAccountRequestApproval(accountRequest.email, inviteLink.id, language).catch(error => {
+            debug.error(`Failed to send approval email: ${formatMailgunError(error)}`);
+          });
+
+          req.flash('siteMessages', res.__('account request approved'));
+        } else if (action === 'reject') {
+          accountRequest.status = 'rejected';
+          accountRequest.moderatedBy = req.user.id;
+          accountRequest.moderatedAt = new Date();
+
+          const rejectionReason = rejectionReasonRaw.trim();
+          accountRequest.rejectionReason = rejectionReason || undefined;
+
+          await accountRequest.save();
+
+          if (rejectionReason) {
+            const language = accountRequest.language || 'en';
+            sendAccountRequestRejection(accountRequest.email, rejectionReason, language).catch(
+              error => {
+                debug.error(`Failed to send rejection email: ${formatMailgunError(error)}`);
+              }
+            );
+          }
+
+          req.flash('siteMessages', res.__('account request rejected'));
+        }
+
+        return res.redirect('/actions/manage-requests');
+      } catch (error) {
+        next(error);
+      }
+    }
+  )
+);
+
 async function sendRegistrationForm(
   req: ActionsRequest,
   res: ActionsResponse,
@@ -693,6 +1047,21 @@ async function sendRegistrationForm(
       illegalUsernameCharacters: User.options.illegalChars.source,
     }
   );
+}
+
+async function renderAccountRequestForm(
+  req: ActionsRequest,
+  res: ActionsResponse,
+  formValues?: AccountRequestValues
+) {
+  const pageErrors = req.flash('pageErrors');
+
+  render.template(req, res, 'request-account', {
+    titleKey: 'request account',
+    pageErrors,
+    formValues,
+    deferPageHeader: true,
+  });
 }
 
 // Check for external redirect in returnTo. If present, redirect to /, otherwise
