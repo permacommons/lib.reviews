@@ -1,6 +1,7 @@
 {
 	"@metadata": {
 		"authors": [
+			"Abijeet Patro",
 			"McDutchie",
 			"Proabscorp!",
 			"Saurmandal",
@@ -22,6 +23,8 @@
 	"enter username": "सदस्यनाम दर्ज करें",
 	"password": "पासवर्ड",
 	"enter password": "पासवर्ड दर्ज करें",
+	"password reset email greeting": "नमस्ते,",
+	"reject request": "अनुरोध अस्वीकृत करें",
 	"no account yet": "खाता नहीं है? <a href='/register'>खाता बनाना</a> त्वरित और आसान है।",
 	"invite link needed": "यहाँ पर खाता बनाने के लिए शुक्रिया! हम इस समय ध्यान से आगे बढ़ना चाहते हैं ताकि हम समुदाय की ज़रूरतों को पूरा कर सके, और ताकि हमारे पास एक-दूसरे को जानने का मौका हो। इसलिए खाता बनाने से पहले आपको एक आमंत्रण की ज़रूरत होगी। आमंत्रण पाने के तीन तरीके हैं:<ul><li>हमारे IRC चैट (<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>) में शामिल हों और एक आमंत्रण माँगें।<li>हमें <a href='https://fosstodon.org/@lib_reviews'>Mastodon</a> पर फ़ॉलो करें और एक सीधा संदेश भेजें।<li>अगर आप हमारे समुदाय से किसी सदस्य को जानते हैं, आप उनसे भी सीधे आमंत्रण माँग सकते हैं।</ul><p>उम्मीद है आप जल्द lib.reviews समुदाय का हिस्सा बनेंगे!",
 	"enter your info": "lib.reviews समुदाय में आपका स्वागत है! कृपया अपने नए खाते की जानकारी नीचे दर्ज करें।",
@@ -267,7 +270,6 @@
 	"join request message": "संदेश:",
 	"choose action": "इस अनुरोध के लिए एक कार्य चुनें:",
 	"defer request": "अनुरोध टालें",
-	"reject request": "अनुरोध अस्वीकृत करें",
 	"accept request": "अनुरोध स्वीकृत करें",
 	"enter message": "फैसले का एक कारण दें (वैकल्पिक)",
 	"process requests": "अनुरोधों को प्रोसेस करें",
