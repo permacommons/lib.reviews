@@ -198,6 +198,10 @@ export interface FilterWhereOperators<TRecord extends JsonObject> {
     values: NonEmptyArray<TValue>,
     options?: { cast?: string }
   ): FilterWhereOperator<K, TValue[]>;
+  notIn<K extends EqualityComparableKeys<TRecord>, TValue extends TRecord[K]>(
+    values: NonEmptyArray<TValue>,
+    options?: { cast?: string }
+  ): FilterWhereOperator<K, TValue[]>;
   not<K extends BooleanKeys<TRecord>>(): FilterWhereOperator<K, true>;
   between<K extends ComparableKeys<TRecord>>(
     lower: NonNullable<TRecord[K]>,

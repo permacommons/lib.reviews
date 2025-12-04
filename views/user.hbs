@@ -45,6 +45,17 @@
 <span class="user-label">{{{__ "user registration date"}}}</span><br>
 {{userInfo.registrationDate}}
 <p>
+{{#if isOwnPage}}
+{{#if userInfo.isSiteModerator}}
+{{#if accountRequestsEnabled}}
+<span class="user-label">{{{__ "moderation tools"}}}</span><br>
+<ul>
+<li><a href="/actions/manage-requests">{{{__ "manage account requests"}}}</a></li>
+</ul>
+<p>
+{{/if}}
+{{/if}}
+{{/if}}
 <span class="user-label">{{{__ "user teams"}}}</span><br>
 
 {{! Team list}}

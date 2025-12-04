@@ -125,6 +125,19 @@
     cooldownHours: 3
   },
 
+  accountRequests: {
+    // IP-based rate limiting
+    enabled: true,
+    rateLimitPerIP: 6,        // Max requests per IP
+    rateLimitWindowHours: 24, // Within 24 hours
+
+    // Email cooldown (prevent duplicate requests)
+    emailCooldownHours: 24,   // Wait 24h before requesting again with same email
+
+    // Retention
+    retentionDays: 90         // Keep approved/rejected requests for 90 days
+  },
+
  // ElasticSearch settings. Set log to 'error' to minimize spamminess.
   search: {
     port: 9200,

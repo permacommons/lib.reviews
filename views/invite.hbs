@@ -77,3 +77,69 @@
 {{/each}}
 </table>
 {{/if}}
+{{#if accountRequestLinks}}
+{{#if accountRequestLinks.pendingLinks.length}}
+<h2 class="sub-header-regular">{{{__ "pending account request invitations"}}}</h2>
+<p>{{{__ "account request invitations note"}}}</p>
+<table class="pure-table">
+{{#each accountRequestLinks.pendingLinks}}
+{{#if @first}}
+<tr>
+<thead>
+  <th>
+  {{{__ "created on"}}}
+</th>
+<th>
+  {{{__ "invite link"}}}
+</th>
+</thead>
+</tr>
+{{/if}}
+<tr>
+<td>
+{{this.createdOn}}
+</td>
+<td>
+<a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a></span> &nbsp;<button class="nojs-hidden pure-button button-rounded" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
+</td>
+</tr>
+{{/each}}
+</table>
+{{/if}}
+{{#if accountRequestLinks.usedLinks.length}}
+<h2 class="sub-header-regular">{{{__ "accepted account request invitations"}}}</h2>
+{{#unless accountRequestLinks.pendingLinks.length}}
+<p>{{{__ "account request invitations note"}}}</p>
+{{/unless}}
+<table class="pure-table">
+{{#each accountRequestLinks.usedLinks}}
+{{#if @first}}
+<tr>
+<thead>
+  <th>
+  {{{__ "created on"}}}
+</th>
+<th>
+  {{{__ "accepted by"}}}
+</th>
+<th>
+  {{{__ "accepted on"}}}
+</th>
+</thead>
+</tr>
+{{/if}}
+<tr>
+<td>
+{{this.createdOn}}
+</td>
+<td>
+{{{userLink this.usedByUser}}}
+</td>
+<td>
+{{{this.usedByUser.registrationDate}}}
+</td>
+</tr>
+{{/each}}
+</table>
+{{/if}}
+{{/if}}

@@ -13,6 +13,7 @@ import PostgresDAL from '../dal/index.ts';
 import { setBootstrapResolver } from '../dal/lib/model-handle.ts';
 
 import type { DataAccessLayer, JsonObject, ModelConstructor } from '../dal/lib/model-types.ts';
+import '../models/account-request.ts';
 import '../models/blog-post.ts';
 import '../models/file.ts';
 import '../models/invite-link.ts';

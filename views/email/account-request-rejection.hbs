@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <body>
+    <p>{{__ "account request rejection greeting"}}</p>
+    <p>{{{__ "account request rejection intro"}}}</p>
+    {{#if rejectionReason}}
+    <p>
+      <strong>{{__ "account request rejection reason label"}}</strong> {{rejectionReason}}
+    </p>
+    {{/if}}
+    <p>
+      {{{__ "account request rejection contact"}}}
+    </p>
+    <p>
+      {{{__ "account request rejection signature"}}}
+    </p>
+  </body>
+</html>

@@ -98,6 +98,16 @@ const template = (
   vars.qualifiedURL = config.qualifiedURL;
   vars.urlPath = parseURL(req.originalUrl).pathname ?? undefined;
 
+  // Check if account requests feature is enabled (only relevant in invite-only mode)
+  const accountRequestsEnabled = config.has('accountRequests')
+    ? (config.get<{ enabled?: boolean }>('accountRequests')?.enabled ?? false)
+    : false;
+  const emailEnabled = config.has('email.enabled')
+    ? Boolean(config.get<boolean>('email.enabled'))
+    : false;
+  vars.accountRequestsEnabled = accountRequestsEnabled && emailEnabled && config.requireInviteLinks;
+  vars.requireInviteLinks = config.requireInviteLinks;
+
   const registerRegex = /^\/register(\/|$)/;
   if (req.query.returnTo) vars.returnTo = String(req.query.returnTo);
   else if (req.path === '/signin' || registerRegex.test(req.path)) vars.returnTo = '/';

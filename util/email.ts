@@ -23,7 +23,7 @@ function getMailgunClient(): MailgunClient {
   const apiKey = config.get('email.mailgun.apiKey') as string;
   const url = config.get('email.mailgun.url') as string;
   if (!apiKey) {
-    debug.util('Password reset email not sent - Mailgun API key missing');
+    debug.util('Email not sent - Mailgun API key missing');
     return null;
   }
 
@@ -34,6 +34,24 @@ function getMailgunClient(): MailgunClient {
   });
 
   return mailgunClient;
+}
+
+function ensureEmailEnabled(feature: string): boolean {
+  if (config.get<boolean>('email.enabled')) return true;
+  debug.util(`${feature} not sent - email feature disabled in config`);
+  return false;
+}
+
+function ensureAccountRequestsEnabled(feature: string): boolean {
+  if (config.get<boolean>('accountRequests.enabled')) return true;
+  debug.util(`${feature} not sent - feature disabled`);
+  return false;
+}
+
+function getMailgunClientOrLog(feature: string): MailgunClient {
+  const client = getMailgunClient();
+  if (!client) debug.error(`${feature} not sent - Mailgun client unavailable`);
+  return client;
 }
 
 /**
@@ -48,22 +66,17 @@ export async function sendPasswordResetEmail(
   resetToken: string,
   language: string = 'en'
 ): Promise<void> {
-  if (!config.get<boolean>('email.enabled')) {
-    debug.util('Password reset email not sent - email feature disabled in config');
-    return;
-  }
+  if (!ensureEmailEnabled('Password reset email')) return;
 
-  const client = getMailgunClient();
-  if (!client) {
-    debug.error('Password reset email not sent - Mailgun client unavailable');
-    return;
-  }
+  const client = getMailgunClientOrLog('Password reset email');
+  if (!client) return;
 
   const qualifiedURL = config.get('qualifiedURL') as string;
   const resetURL = new URL(`reset-password/${resetToken}`, qualifiedURL).toString();
   const expirationHours = config.get<number>('passwordReset.tokenExpirationHours') ?? 3;
 
-  const { subject, text, html } = await loadEmailTemplate('password-reset', language, {
+  const subject = getEmailSubject('password reset email subject', language);
+  const { text, html } = await loadEmailTemplate('password-reset', language, {
     resetURL,
     expirationHours,
   });
@@ -81,13 +94,152 @@ export async function sendPasswordResetEmail(
   }
 }
 
+/**
+ * Notify moderators when a new account request is submitted.
+ *
+ * Note: Currently sends the same language to all moderators since user language
+ * preferences are stored in cookies, not the database. Should be called with 'en'.
+ *
+ * @param language - Language code for email localization (defaults to 'en')
+ */
+export async function sendAccountRequestNotification(language: string = 'en'): Promise<void> {
+  if (!ensureEmailEnabled('Account request notification')) return;
+  if (!ensureAccountRequestsEnabled('Account request notification')) return;
+
+  const client = getMailgunClientOrLog('Account request notification');
+  if (!client) return;
+
+  const User = (await import('../models/user.ts')).default;
+  const moderators = await User.filterWhere({ isSiteModerator: true })
+    .includeSensitive(['email'])
+    .run();
+  const moderatorsWithEmail = moderators.filter(m => m.email);
+
+  if (moderatorsWithEmail.length === 0) {
+    debug.util('No moderators with email addresses found');
+    return;
+  }
+
+  const qualifiedURL = config.get('qualifiedURL') as string;
+  const manageURL = new URL('actions/manage-requests', qualifiedURL).toString();
+
+  try {
+    const subject = getEmailSubject('account request notification subject', language);
+    const { text, html } = await loadEmailTemplate('account-request-notification', language, {
+      manageURL,
+    });
+
+    for (const moderator of moderatorsWithEmail) {
+      try {
+        await client.messages.create(config.get('email.mailgun.domain') as string, {
+          from: config.get('email.mailgun.from') as string,
+          to: [moderator.email as string],
+          subject,
+          text,
+          html,
+        });
+      } catch (error) {
+        debug.error(
+          `Failed to send account request notification to ${moderator.email}: ${formatMailgunError(error)}`
+        );
+      }
+    }
+  } catch (error) {
+    debug.error(`Failed to send account request notifications: ${formatMailgunError(error)}`);
+  }
+}
+
+/**
+ * Send invite code to approved account requester.
+ *
+ * @param to - Email address of the requester
+ * @param inviteCode - Invite link UUID for registration
+ * @param language - Language code for email localization (defaults to 'en')
+ */
+export async function sendAccountRequestApproval(
+  to: string,
+  inviteCode: string,
+  language: string = 'en'
+): Promise<void> {
+  if (!ensureEmailEnabled('Account approval email')) return;
+  if (!ensureAccountRequestsEnabled('Account approval email')) return;
+
+  const client = getMailgunClientOrLog('Account approval email');
+  if (!client) return;
+
+  const qualifiedURL = config.get('qualifiedURL') as string;
+  const registerURL = new URL(`register/${inviteCode}`, qualifiedURL).toString();
+
+  try {
+    const subject = getEmailSubject('account request approval subject', language);
+    const { text, html } = await loadEmailTemplate('account-request-approval', language, {
+      registerURL,
+    });
+
+    await client.messages.create(config.get('email.mailgun.domain') as string, {
+      from: config.get('email.mailgun.from') as string,
+      to: [to],
+      subject,
+      text,
+      html,
+    });
+  } catch (error) {
+    debug.error(`Failed to send account request approval: ${formatMailgunError(error)}`);
+  }
+}
+
+/**
+ * Send rejection email to account requester (optional).
+ *
+ * @param to - Email address of the requester
+ * @param rejectionReason - Reason for rejection to include in email
+ * @param language - Language code for email localization (defaults to 'en')
+ */
+export async function sendAccountRequestRejection(
+  to: string,
+  rejectionReason: string,
+  language: string = 'en'
+): Promise<void> {
+  if (!ensureEmailEnabled('Account rejection email')) return;
+  if (!ensureAccountRequestsEnabled('Account rejection email')) return;
+
+  const client = getMailgunClientOrLog('Account rejection email');
+  if (!client) return;
+
+  try {
+    const subject = getEmailSubject('account request rejection subject', language);
+    const { text, html } = await loadEmailTemplate('account-request-rejection', language, {
+      rejectionReason,
+    });
+
+    await client.messages.create(config.get('email.mailgun.domain') as string, {
+      from: config.get('email.mailgun.from') as string,
+      to: [to],
+      subject,
+      text,
+      html,
+    });
+  } catch (error) {
+    debug.error(`Failed to send account request rejection: ${formatMailgunError(error)}`);
+  }
+}
+
+function normalizeLanguage(language: string): string {
+  const supportedLanguages = ['en', 'de'];
+  return supportedLanguages.includes(language) ? language : 'en';
+}
+
+function getEmailSubject(subjectKey: string, language: string): string {
+  const lang = normalizeLanguage(language);
+  return i18n.__({ phrase: subjectKey, locale: lang });
+}
+
 async function loadEmailTemplate(
   templateName: string,
   language: string,
   vars: Record<string, string | number>
-): Promise<{ subject: string; text: string; html: string }> {
-  const supportedLanguages = ['en', 'de'];
-  const lang = supportedLanguages.includes(language) ? language : 'en';
+): Promise<{ text: string; html: string }> {
+  const lang = normalizeLanguage(language);
 
   // Load unified templates (no language suffix)
   const textTemplateSource = await readTemplate(`${templateName}.txt`);
@@ -97,23 +249,23 @@ async function loadEmailTemplate(
   const textTemplate = hbs.handlebars.compile(textTemplateSource);
   const htmlTemplate = hbs.handlebars.compile(htmlTemplateSource);
 
+  const translate = (phrase: string, ...args: (string | number)[]) =>
+    i18n.__({ phrase, locale: lang }, ...(args as string[]));
+
   // Create context with template vars and i18n locale
   const context = {
     ...vars,
     locale: lang,
     // Add i18n helper functions to context
     __: (phrase: string, ...args: (string | number)[]) =>
-      i18n.__({ phrase, locale: lang }, ...(args as string[])),
+      new hbs.handlebars.SafeString(translate(phrase, ...(args as string[]))),
   };
 
   // Render templates
   const compiledText = textTemplate(context);
   const compiledHtml = htmlTemplate(context);
 
-  // Extract subject from locale strings
-  const subject = i18n.__({ phrase: 'password reset email subject', locale: lang });
-
-  return { subject, text: compiledText, html: compiledHtml };
+  return { text: compiledText, html: compiledHtml };
 }
 
 async function readTemplate(fileName: string): Promise<string> {

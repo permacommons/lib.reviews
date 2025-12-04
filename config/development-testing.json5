@@ -9,6 +9,8 @@
     log: 'error'
   },
 
+  requireInviteLinks: false,
+
   // PostgreSQL configuration for DAL testing
   postgres: {
     host: "localhost",

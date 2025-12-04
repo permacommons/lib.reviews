@@ -1,0 +1,192 @@
+{{> page_errors}}
+
+{{#if pageMessages}}
+  <div id="page-messages">
+  {{#each pageMessages}}
+    <div class="message-box">{{{this}}}</div>
+  {{/each}}
+  </div>
+{{/if}}
+
+<div class="tabs nojs-hidden">
+  <button class="tab-button active" data-tab="pending">
+    {{{__ "pending requests"}}} ({{pendingRequests.length}})
+  </button>
+  <button class="tab-button" data-tab="moderated">
+    {{{__ "moderator log"}}}
+  </button>
+</div>
+
+<div id="pending-tab" class="tab-content active">
+  <h2 class="nojs-visible hidden-regular">{{{__ "pending requests"}}}</h2>
+  {{#if pendingRequests.length}}
+    {{#each pendingRequests}}
+      <div class="account-request">
+        <div class="request-header">
+          <strong>{{email}}</strong>
+          <span class="request-date">{{longDate createdAt}}</span>
+        </div>
+
+        <div class="request-body">
+          <div class="request-field">
+            <strong>{{{__ "what kind of reviews planning"}}}</strong>
+            <p>{{plannedReviews}}</p>
+          </div>
+
+          <div class="request-field">
+            <strong>{{{__ "which languages interested"}}}</strong>
+            <p>{{languages}}</p>
+          </div>
+
+          <div class="request-field">
+            <strong>{{{__ "where find out more about you"}}}</strong>
+            <p>{{{autolink aboutLinks}}}</p>
+          </div>
+        </div>
+
+        <form class="request-actions pure-form" action="/actions/manage-requests" method="post">
+          <input type="hidden" name="_csrf" value="{{../csrfToken}}">
+          <input type="hidden" name="requestId" value="{{id}}">
+
+          <div class="action-group">
+            <button
+              type="submit"
+              name="action"
+              value="approve"
+              class="pure-button pure-button-primary button-rounded">
+              {{{__ "approve request"}}}
+            </button>
+
+            <button
+              type="button"
+              class="pure-button reject-button button-rounded nojs-hidden"
+              data-request-id="{{id}}">
+              {{{__ "reject request"}}}
+            </button>
+          </div>
+
+          <div class="rejection-form" id="rejection-{{id}}">
+            <label for="rejection-reason-{{id}}">
+              {{{__ "rejection reason optional"}}}
+              <textarea
+                id="rejection-reason-{{id}}"
+                name="rejectionReason"
+                rows="3"
+                class="max-width"></textarea>
+            </label>
+            <p class="form-help-text">{{{__ "rejection reason note"}}}</p>
+            <button
+              type="submit"
+              name="action"
+              value="reject"
+              class="pure-button pure-button-primary button-rounded">
+              {{{__ "confirm rejection"}}}
+            </button>
+            <button
+              type="button"
+              class="pure-button cancel-reject button-rounded nojs-hidden"
+              data-request-id="{{id}}">
+              {{{__ "cancel"}}}
+            </button>
+          </div>
+        </form>
+      </div>
+    {{/each}}
+  {{else}}
+    <p class="no-requests">{{{__ "no pending requests"}}}</p>
+  {{/if}}
+</div>
+
+<div id="moderated-tab" class="tab-content active">
+  <h2 class="nojs-visible hidden-regular">{{{__ "moderator log"}}}</h2>
+  {{#if moderatedRequests.length}}
+    <table class="pure-table pure-table-horizontal max-width">
+      <thead>
+        <tr>
+          <th>{{{__ "email"}}}</th>
+          <th>{{{__ "requested"}}}</th>
+          <th>{{{__ "action"}}}</th>
+          <th>{{{__ "moderator"}}}</th>
+          <th>{{{__ "moderated at"}}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each moderatedRequests}}
+          <tr>
+            <td>{{email}}</td>
+            <td>{{longDate createdAt}}</td>
+            <td>
+              <span class="status-{{status}}">{{{__ status}}}</span>
+              {{#if rejectionReason}}
+                <br><small>{{rejectionReason}}</small>
+              {{/if}}
+            </td>
+            <td>
+              {{#if moderator}}
+                {{{userLink moderator}}}
+              {{/if}}
+            </td>
+            <td>{{longDate moderatedAt}}</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  {{else}}
+    <p class="no-requests">{{{__ "no moderated requests"}}}</p>
+  {{/if}}
+</div>
+
+<script>
+  (function () {
+    // Initialize tabs - hide all but the first
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    // Hide the moderated tab initially (JS-enabled only)
+    const moderatedTab = document.getElementById('moderated-tab');
+    if (moderatedTab) moderatedTab.classList.remove('active');
+
+    // Initialize rejection forms - hide them initially (JS-enabled only)
+    document.querySelectorAll('.rejection-form').forEach(form => {
+      form.classList.add('hidden');
+    });
+
+    // Tab switching
+    tabs.forEach(button => {
+      button.addEventListener('click', function () {
+        const tabName = this.dataset.tab;
+        tabs.forEach(btn => btn.classList.remove('active'));
+        this.classList.add('active');
+
+        tabContents.forEach(content => content.classList.remove('active'));
+        const activeContent = document.getElementById(`${tabName}-tab`);
+        if (activeContent) activeContent.classList.add('active');
+      });
+    });
+
+    // Show rejection form
+    document.querySelectorAll('.reject-button').forEach(button => {
+      button.addEventListener('click', function () {
+        const requestId = this.dataset.requestId;
+        const rejectionForm = document.getElementById(`rejection-${requestId}`);
+        const actionGroup = this.closest('.action-group');
+        if (rejectionForm) rejectionForm.classList.remove('hidden');
+        if (actionGroup) actionGroup.classList.add('hidden');
+      });
+    });
+
+    // Cancel rejection
+    document.querySelectorAll('.cancel-reject').forEach(button => {
+      button.addEventListener('click', function () {
+        const requestId = this.dataset.requestId;
+        const rejectionForm = document.getElementById(`rejection-${requestId}`);
+        const form = this.closest('form');
+        if (rejectionForm) rejectionForm.classList.add('hidden');
+        if (form) {
+          const actionGroup = form.querySelector('.action-group');
+          if (actionGroup) actionGroup.classList.remove('hidden');
+        }
+      });
+    });
+  })();
+</script>

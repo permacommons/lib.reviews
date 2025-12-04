@@ -279,6 +279,27 @@ function createOperators<TRecord extends JsonObject>(): FilterWhereOperators<TRe
       };
       return operator;
     },
+    notIn<K extends EqualityComparableKeys<TRecord>, TValue extends TRecord[K]>(
+      values: readonly [TValue, ...TValue[]] | [TValue, ...TValue[]],
+      options: { cast?: string } = {}
+    ): InternalFilterOperator<K, TValue[]> {
+      const normalized = normalizeNonEmptyArrayValue(values);
+      const operator: InternalFilterOperator<K, TValue[]> = {
+        [FILTER_OPERATOR_TOKEN]: true,
+        __allowedKeys: null as unknown as K,
+        value: normalized,
+        build({ builder, field, mutate }) {
+          const predicateOptions = {
+            valueTransform: (placeholder: string) =>
+              `(${placeholder}${options.cast ? `::${options.cast}` : ''})`,
+          };
+          return mutate
+            ? builder._addWhereCondition(field, '!= ALL', normalized, predicateOptions)
+            : builder._createPredicate(field, '!= ALL', normalized, predicateOptions);
+        },
+      };
+      return operator;
+    },
     not<K extends BooleanKeys<TRecord>>(): InternalFilterOperator<K, true> {
       const operator: InternalFilterOperator<K, true> = {
         [FILTER_OPERATOR_TOKEN]: true,
