@@ -752,16 +752,27 @@ class ReviewProvider extends AbstractBREADProvider {
     }
   }
 
-  delete_GET(review: ReviewInstance): void {
+  async delete_GET(review: ReviewInstance): Promise<void> {
     let pageErrors = this.req.flash('pageErrors');
+
+    // Get review count for the thing to determine if we should show delete-thing checkbox
+    let thingReviewCount = 0;
+    if (review.thing && typeof review.thing.getReviewCount === 'function') {
+      try {
+        thingReviewCount = await review.thing.getReviewCount();
+      } catch (_error) {
+        // If we can't get the count, default to 0 (won't show checkbox)
+      }
+    }
 
     this.renderTemplate('delete-review', {
       review,
       pageErrors,
+      thingReviewCount,
     });
   }
 
-  delete_POST(review: ReviewInstance): void {
+  async delete_POST(review: ReviewInstance): Promise<void> {
     const schema = buildDeleteReviewSchema(this.req);
     const parseResult = schema.safeParse(this.req.body);
 
@@ -769,7 +780,8 @@ class ReviewProvider extends AbstractBREADProvider {
       flashZodIssues(this.req, parseResult.error.issues, issue =>
         formatZodIssueMessage(this.req, issue)
       );
-      return this.delete_GET(review);
+      void this.delete_GET(review);
+      return;
     }
 
     const { 'delete-thing': withThing } = parseResult.data;
@@ -779,6 +791,19 @@ class ReviewProvider extends AbstractBREADProvider {
       return this.renderPermissionError({
         titleKey: this.actions[this.action].titleKey,
       });
+
+    // Validate review count before allowing thing deletion
+    if (withThing && review.thing) {
+      const reviewCount = await review.thing.getReviewCount();
+      if (reviewCount !== 1) {
+        this.req.flash(
+          'pageErrors',
+          this.req.__('cannot delete thing with reviews', String(reviewCount))
+        );
+        void this.delete_GET(review);
+        return;
+      }
+    }
 
     const deleteFunc = withThing ? review.deleteAllRevisionsWithThing : review.deleteAllRevisions;
 

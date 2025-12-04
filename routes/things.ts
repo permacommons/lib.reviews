@@ -265,6 +265,77 @@ router.get(
   }
 );
 
+router.get(
+  '/:id/delete',
+  (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse, next: HandlerNext) => {
+    const { id } = req.params;
+    slugs
+      .resolveAndLoadThing(req, res, id)
+      .then(async thing => {
+        const titleKey = 'delete thing';
+        thing.populateUserInfo(req.user);
+        if (!thing.userCanDelete) return render.permissionError(req, res, { titleKey });
+
+        // Check if thing has associated reviews
+        const reviewCount = await thing.getReviewCount();
+        if (reviewCount > 0) {
+          req.flash('pageErrors', req.__('cannot delete thing with reviews', String(reviewCount)));
+          return res.redirect(`/${id}`);
+        }
+
+        // Compute same variables as main thing page
+        const taggedURLs =
+          Array.isArray(thing.urls) && thing.urls.length > 1
+            ? urlUtils.getURLsByTag(thing.urls.slice(1), { onlyOneTag: true, sortResults: true })
+            : {};
+
+        render.template(req, res, 'delete-thing', {
+          thing,
+          titleKey,
+          singleColumn: true,
+          taggedURLs,
+          hasMoreThanOneReview:
+            typeof thing.numberOfReviews === 'number' ? thing.numberOfReviews > 1 : false,
+          activeSourceIDs: thing.getSourceIDsOfActiveSyncs(),
+        });
+      })
+      .catch(getResourceErrorHandler(req, res, next, 'thing', id));
+  }
+);
+
+router.post(
+  '/:id/delete',
+  (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse, next: HandlerNext) => {
+    const { id } = req.params;
+    slugs
+      .resolveAndLoadThing(req, res, id)
+      .then(async thing => {
+        const titleKey = 'thing deleted';
+        thing.populateUserInfo(req.user);
+        if (!thing.userCanDelete) return render.permissionError(req, res, { titleKey });
+
+        // Check if thing has associated reviews
+        const reviewCount = await thing.getReviewCount();
+        if (reviewCount > 0) {
+          req.flash('pageErrors', req.__('cannot delete thing with reviews', String(reviewCount)));
+          return res.redirect(`/${id}`);
+        }
+
+        thing
+          .deleteAllRevisions(req.user)
+          .then(() => {
+            search.deleteThing(thing);
+            render.template(req, res, 'thing-deleted', {
+              thing,
+              titleKey,
+            });
+          })
+          .catch(next);
+      })
+      .catch(getResourceErrorHandler(req, res, next, 'thing', id));
+  }
+);
+
 // Legacy redirects
 
 router.get('/thing/:id', (req: ThingRouteRequest<{ id: string }>, res: ThingRouteResponse) => {
