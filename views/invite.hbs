@@ -11,13 +11,13 @@
 <p>
 <form name="invite-form" method="post">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
-<button class="pure-button button-rounded">{{{__ "generate link"}}}</button>
+<button>{{{__ "generate link"}}}</button>
 </form>
 {{/if}}
 {{#if pendingInviteLinks}}
-<h2 class="sub-header-regular">{{{__ "pending invitations"}}}</h2>
+<h2>{{{__ "pending invitations"}}}</h2>
 <p>
-<table class="pure-table">
+<table>
 {{#each pendingInviteLinks}}
 {{#if @first}}<tr>
 <thead>
@@ -35,16 +35,16 @@
 {{this.createdOn}}
 </td>
 <td>
-<a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a></span> &nbsp;<button class="nojs-hidden pure-button button-rounded" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
+<a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a></span> <button class="nojs-hidden secondary outline" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
 </td>
 </tr>
 {{/each}}
 </table>
 {{/if}}
 {{#if usedInviteLinks}}
-<h2 class="sub-header-regular">{{{__ "accepted invitations"}}}</h2>
+<h2>{{{__ "accepted invitations"}}}</h2>
 <p>
-<table class="pure-table">
+<table>
 {{#each usedInviteLinks}}
 {{#if @first}}
 <tr>
@@ -79,9 +79,9 @@
 {{/if}}
 {{#if accountRequestLinks}}
 {{#if accountRequestLinks.pendingLinks.length}}
-<h2 class="sub-header-regular">{{{__ "pending account request invitations"}}}</h2>
+<h2>{{{__ "pending account request invitations"}}}</h2>
 <p>{{{__ "account request invitations note"}}}</p>
-<table class="pure-table">
+<table>
 {{#each accountRequestLinks.pendingLinks}}
 {{#if @first}}
 <tr>
@@ -100,18 +100,18 @@
 {{this.createdOn}}
 </td>
 <td>
-<a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a></span> &nbsp;<button class="nojs-hidden pure-button button-rounded" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
+<a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a></span> <button class="nojs-hidden secondary outline" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
 </td>
 </tr>
 {{/each}}
 </table>
 {{/if}}
 {{#if accountRequestLinks.usedLinks.length}}
-<h2 class="sub-header-regular">{{{__ "accepted account request invitations"}}}</h2>
+<h2>{{{__ "accepted account request invitations"}}}</h2>
 {{#unless accountRequestLinks.pendingLinks.length}}
 <p>{{{__ "account request invitations note"}}}</p>
 {{/unless}}
-<table class="pure-table">
+<table>
 {{#each accountRequestLinks.usedLinks}}
 {{#if @first}}
 <tr>

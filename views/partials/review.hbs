@@ -4,11 +4,11 @@
 <b>{{mlSafeText review.thing.label}}</b>
 {{!Show prettified URL, if available}}
 {{#if review.thing.urls.[0]}}
-<div class="review-url"><span class="fa fa-fw fa-external-link review-icon spaced-icon">&nbsp;</span>{{{link review.thing.urls.[0] (prettify review.thing.urls.[0])}}}</div>
+<div class="review-url"><span class="fa fa-fw fa-external-link review-icon spaced-icon"></span> {{{link review.thing.urls.[0] (prettify review.thing.urls.[0])}}}</div>
 {{/if}}
 {{#if review.thing.id}}
 <div class="review-thing-link">
-<span class="fa fa-fw fa-info-circle spaced-icon">&nbsp;</span><a href="/{{{review.thing.urlID}}}">{{{__ "more info"}}}</a>
+<span class="fa fa-fw fa-info-circle spaced-icon"></span> <a href="/{{{review.thing.urlID}}}">{{{__ "more info"}}}</a>
 </div>
 {{/if}}
 </div>
@@ -50,15 +50,15 @@
 {{!Review actions: Delete, edit, permanent link}}
 <div class="content-actions no-print">
 {{#if feed}}
-<span class="content-action"><a href="/review/{{review.id}}"><span class="fa fa-fw fa-link">&nbsp;</span>{{{__ "permanent link"}}}</a></span>
+<span class="content-action"><a href="/review/{{review.id}}"><span class="fa fa-fw fa-link"></span> {{{__ "permanent link"}}}</a></span>
 {{/if}}
 {{#unless hideDeleteControls}}
 {{#if review.userCanDelete}}
-<span class="content-action"><a href="/review/{{review.id}}/delete"{{#if singleReview}} accesskey="d" title="{{{__ "accesskey" "d"}}}"{{/if}}><span class="fa fa-fw fa-trash">&nbsp;</span>{{{__ "delete"}}}</a></span>
+<span class="content-action"><a href="/review/{{review.id}}/delete"{{#if singleReview}} accesskey="d" title="{{{__ "accesskey" "d"}}}"{{/if}}><span class="fa fa-fw fa-trash"></span> {{{__ "delete"}}}</a></span>
 {{/if}}
 {{/unless}}
 {{#if review.userCanEdit}}
-<span class="content-action"><a href="/review/{{review.id}}/edit"{{#if singleReview}} accesskey="e"  title="{{{__ "accesskey" "e"}}}"{{/if}}><span class="fa fa-fw fa-pencil">&nbsp;</span>{{{__ "edit"}}}</a></span>
+<span class="content-action"><a href="/review/{{review.id}}/edit"{{#if singleReview}} accesskey="e"  title="{{{__ "accesskey" "e"}}}"{{/if}}><span class="fa fa-fw fa-pencil"></span> {{{__ "edit"}}}</a></span>
 {{/if}}
 </div>
 </div>

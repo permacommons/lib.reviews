@@ -52,6 +52,7 @@ const template = (
     isTrusted: Boolean(req.user?.isTrusted),
     language: req.locale,
     userPrefersRichTextEditor: req.user?.prefersRichTextEditor,
+    userThemePreference: req.user?.themePreference || req.cookies?.theme,
     messages: {},
     ...extraJSConfig,
   };
@@ -118,6 +119,17 @@ const template = (
 
   vars.siteMessages = req.flash('siteMessages');
   vars.siteErrors = req.flash('siteErrors');
+
+  // Read theme preference: user preference > cookie > system default
+  // Only set dataTheme for explicit light/dark (not system, which is CSS default)
+  const userTheme = req.user?.themePreference;
+  const cookieTheme = req.cookies?.theme;
+  const effectiveTheme = userTheme || cookieTheme;
+
+  if (effectiveTheme === 'light' || effectiveTheme === 'dark') {
+    vars.dataTheme = effectiveTheme;
+  }
+
   res.render(view, vars);
 };
 

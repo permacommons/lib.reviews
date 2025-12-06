@@ -14,12 +14,13 @@ type ApiRouteResponse = HandlerResponse;
 const router = Router();
 const ThingHandle = Thing as ThingModel;
 
-// For true/false user preferences.
-router.post('/actions/:modify-preference', actionHandler.modifyPreference);
-
+// Specific routes must come before parameterized routes
 router.post('/actions/suppress-notice', actionHandler.suppressNotice);
 
 router.post('/actions/upload', actionHandler.upload);
+
+// For user preferences (boolean and enum types) - parameterized route
+router.post('/actions/:modify-preference', actionHandler.modifyPreference);
 
 // Query existence/properties of a thing (review subject)
 // look up by canonical URL name via /thing/:label or use URL query parameter

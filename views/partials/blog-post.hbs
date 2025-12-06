@@ -13,14 +13,14 @@
 <div class="blog-post-byline">{{{__ "byline" (userLink post.creator) (longDate post.createdOn)}}}</div>
 
 <div class="content-actions no-print">
-<span class="content-action"><a href="/team/{{post.teamID}}/post/{{post.id}}"><span class="fa fa-link fa-fw">&nbsp;</span>{{{__ "permanent link"}}}</a></span></span>
+<span class="content-action"><a href="/team/{{post.teamID}}/post/{{post.id}}"><span class="fa fa-link fa-fw"></span> {{{__ "permanent link"}}}</a></span>
 
 {{#if post.userCanDelete}}
-<span class="content-action"><a href="/team/{{post.teamID}}/post/{{post.id}}/delete"><span class="fa fa-trash fa-fw">&nbsp;</span>{{{__ "delete"}}}</a></span></span>
+<span class="content-action"><a href="/team/{{post.teamID}}/post/{{post.id}}/delete"><span class="fa fa-trash fa-fw"></span> {{{__ "delete"}}}</a></span>
 {{/if}}
 
 {{#if post.userCanEdit}}
-<span class="content-action"><a href="/team/{{post.teamID}}/post/{{post.id}}/edit"><span class="fa fa-pencil fa-fw">&nbsp;</span>{{{__ "edit"}}}</a></span></span>
+<span class="content-action"><a href="/team/{{post.teamID}}/post/{{post.id}}/edit"><span class="fa fa-pencil fa-fw"></span> {{{__ "edit"}}}</a></span>
 {{/if}}
 </div>
 

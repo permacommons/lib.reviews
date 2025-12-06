@@ -45,7 +45,7 @@ const DEV_CLIENT_ENTRY = path.posix.join(PUBLIC_ASSET_PREFIX, '@vite/client');
 const DEV_ENTRY_STYLES = new Map<string, string[]>([
   // Ensure core styles are linked eagerly during development to avoid a flash of
   // unstyled content while Vite injects CSS via JS.
-  ['lib', ['frontend/styles/vendor.css', 'frontend/styles/style.less']],
+  ['lib', ['frontend/styles/vendor.css', 'frontend/styles/style.css']],
 ]);
 
 /** Map between canonical entry names and their manifest source paths. */

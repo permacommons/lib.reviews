@@ -14,6 +14,7 @@ export interface FrontendConfig {
   userID?: string;
   isTrusted?: boolean;
   userPrefersRichTextEditor?: boolean;
+  userThemePreference?: 'light' | 'dark' | 'system';
 }
 
 declare global {

@@ -16,7 +16,11 @@ type UploadFile = {
 
 type ActionResponse = HandlerResponse;
 
-type PreferenceRequest = HandlerRequest<{ modify?: string }, unknown, { preferenceName?: string }>;
+type PreferenceRequest = HandlerRequest<
+  { modify?: string },
+  unknown,
+  { preferenceName?: string; value?: string }
+>;
 
 type NoticeRequest = HandlerRequest<Record<string, string>, unknown, { noticeType?: string }>;
 
@@ -27,35 +31,59 @@ type UploadRequest = HandlerRequest<Record<string, string>, unknown, UploadMetad
 type UploadMiddleware = (req: UploadRequest, res: ActionResponse, next: HandlerNext) => void;
 
 const actionHandler = {
-  // Handler for enabling, disabling or toggling a Boolean preference. Currently
-  // accepts one preference at a time, but should be easy to modify to handle
-  // bulk operations if needed.
+  // Handler for enabling, disabling, toggling, or setting user preferences.
+  // For boolean preferences: use enable, disable, or toggle actions
+  // For enum preferences: use set action with a value parameter
   modifyPreference(req: PreferenceRequest, res: ActionResponse, next: HandlerNext): void {
     const user = req.user;
     const preferenceName = String(req.body?.preferenceName ?? '').trim();
     const modifyAction = String(req.params?.modify ?? '');
+    const value = req.body?.value !== undefined ? String(req.body.value).trim() : undefined;
 
     if (!user) return api.signinRequired(req, res);
 
-    if (!user.getValidPreferences().includes(preferenceName))
+    const validPrefs = user.getValidPreferences();
+    if (!validPrefs.includes(preferenceName))
       return api.error(req, res, `Unknown preference: ${preferenceName}`);
 
+    // Map API preference names to model property names
+    const prefPropertyMap: Record<string, string> = {
+      theme: 'themePreference',
+    };
+    const propertyName = prefPropertyMap[preferenceName] || preferenceName;
+
     let message: string;
-    const oldValue = user[preferenceName] === undefined ? 'not set' : String(user[preferenceName]);
+    const oldValue = user[propertyName] === undefined ? 'not set' : String(user[propertyName]);
     switch (modifyAction) {
       case 'enable':
-        user[preferenceName] = true;
+        user[propertyName] = true;
         break;
       case 'disable':
-        user[preferenceName] = false;
+        user[propertyName] = false;
         break;
       case 'toggle':
-        user[preferenceName] = !user[preferenceName];
+        user[propertyName] = !user[propertyName];
+        break;
+      case 'set':
+        if (value === undefined) {
+          return api.error(req, res, 'Missing value parameter for set action');
+        }
+        // Validate enum values for specific preferences
+        if (preferenceName === 'theme') {
+          if (!['light', 'dark', 'system'].includes(value)) {
+            return api.error(
+              req,
+              res,
+              `Invalid theme value: ${value}. Must be light, dark, or system.`
+            );
+          }
+        }
+        user[propertyName] = value;
         break;
       default:
         return api.error(req, res, `Unknown preference action: ${modifyAction}`);
     }
-    const newValue = String(user[preferenceName]);
+    const newValue = String(user[propertyName]);
     message = oldValue === newValue ? 'Preference not altered.' : 'Preference changed.';
 
     const savePromise = typeof user.save === 'function' ? user.save() : Promise.resolve();

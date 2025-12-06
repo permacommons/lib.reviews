@@ -363,6 +363,7 @@ router.get('/signin', (req: ActionsRequest, res: ActionsResponse) => {
   const pageErrors = req.flash('pageErrors');
   render.template(req, res, 'signin', {
     titleKey: 'sign in',
+    deferPageHeader: true,
     pageErrors,
   });
 });

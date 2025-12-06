@@ -44,7 +44,7 @@
           </div>
         </div>
 
-        <form class="request-actions pure-form" action="/actions/manage-requests" method="post">
+        <form class="request-actions" action="/actions/manage-requests" method="post">
           <input type="hidden" name="_csrf" value="{{../csrfToken}}">
           <input type="hidden" name="requestId" value="{{id}}">
 
@@ -52,14 +52,13 @@
             <button
               type="submit"
               name="action"
-              value="approve"
-              class="pure-button pure-button-primary button-rounded">
+              value="approve">
               {{{__ "approve request"}}}
             </button>
 
             <button
               type="button"
-              class="pure-button reject-button button-rounded nojs-hidden"
+              class="secondary reject-button nojs-hidden"
               data-request-id="{{id}}">
               {{{__ "reject request"}}}
             </button>
@@ -71,20 +70,18 @@
               <textarea
                 id="rejection-reason-{{id}}"
                 name="rejectionReason"
-                rows="3"
-                class="max-width"></textarea>
+                rows="3"></textarea>
             </label>
             <p class="form-help-text">{{{__ "rejection reason note"}}}</p>
             <button
               type="submit"
               name="action"
-              value="reject"
-              class="pure-button pure-button-primary button-rounded">
+              value="reject">
               {{{__ "confirm rejection"}}}
             </button>
             <button
               type="button"
-              class="pure-button cancel-reject button-rounded nojs-hidden"
+              class="secondary cancel-reject nojs-hidden"
               data-request-id="{{id}}">
               {{{__ "cancel"}}}
             </button>
@@ -100,7 +97,7 @@
 <div id="moderated-tab" class="tab-content active">
   <h2 class="nojs-visible hidden-regular">{{{__ "moderator log"}}}</h2>
   {{#if moderatedRequests.length}}
-    <table class="pure-table pure-table-horizontal max-width">
+    <table>
       <thead>
         <tr>
           <th>{{{__ "email"}}}</th>

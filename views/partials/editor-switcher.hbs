@@ -4,9 +4,9 @@ If there are multiple textareas on a page, we want to only give access keys to t
 <div class="switcher-control nojs-hidden" data-pinnable>
 {{!Markdown button begins}}
 <span class="switcher-option {{#if user.prefersRichTextEditor}} switcher-option-selectable{{else}}switcher-option-selected{{/if}}"
-data-enable-markdown {{#unless noaccesskeys}}title="{{{__ "accesskey" "m"}}}" accesskey="m"{{/unless}}>{{#unless user.prefersRichTextEditor}}<span class="fa fa-fw fa-check-circle switcher-selected-indicator">&nbsp;</span>{{/unless}}{{{__ "markdown format"}}}</span>{{!RTE button begins}}<span class="switcher-option {{#if user.prefersRichTextEditor}} switcher-option-selected{{else}}switcher-option-selectable{{/if}}"  data-enable-rte
-{{#unless noaccesskeys}}title="{{{__ "accesskey" ","}}}" accesskey=","{{/unless}}>{{#if user.prefersRichTextEditor}}<span class="fa fa-fw fa-check-circle switcher-selected-indicator">&nbsp;</span>{{/if}}{{{__ "rich text format"}}}</span>
+data-enable-markdown {{#unless noaccesskeys}}title="{{{__ "accesskey" "m"}}}" accesskey="m"{{/unless}}><span class="fa fa-fw fa-check-circle switcher-selected-indicator{{#if user.prefersRichTextEditor}} hidden{{/if}}"></span> {{{__ "markdown format"}}}</span>{{!RTE button begins}}<span class="switcher-option {{#if user.prefersRichTextEditor}} switcher-option-selected{{else}}switcher-option-selectable{{/if}}"  data-enable-rte
+{{#unless noaccesskeys}}title="{{{__ "accesskey" ","}}}" accesskey=","{{/unless}}><span class="fa fa-fw fa-check-circle switcher-selected-indicator{{#unless user.prefersRichTextEditor}} hidden{{/unless}}"></span> {{{__ "rich text format"}}}</span>
 {{!Control to remember the preference for the RTE begins}}
 <span class="fa fa-fw fa-thumb-tack switcher-pin {{#if user.prefersRichTextEditor}}switcher-pinned{{else}}switcher-unpinned hidden{{/if}}" data-toggle-rte-preference
-{{#if user.prefersRichTextEditor}}title="{{{__ "forget rte preference"}}}{{else}}title="{{{__ "remember rte preference"}}}{{/if}}">&nbsp;</span>
+{{#if user.prefersRichTextEditor}}title="{{{__ "forget rte preference"}}}{{else}}title="{{{__ "remember rte preference"}}}{{/if}}"></span>
 </div>

@@ -65,3 +65,5 @@ static/devdocs/*
 .kiro
 migration-report.json
 .gemini
+# symlinked locally to AGENTS.md
+CLAUDE.md 

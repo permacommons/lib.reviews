@@ -2,7 +2,7 @@ import $ from './lib/jquery.js';
 import 'jquery-powertip';
 import 'jquery-modal';
 import './styles/vendor.css';
-import './styles/style.less';
+import './styles/style.css';
 import type { EditorView } from 'prosemirror-view';
 import Autocomplete from './lib/ac.js';
 import initializeSisyphus from './lib/sisyphus.js';
@@ -485,6 +485,101 @@ function setupPasswordReveal(): void {
 }
 
 /**
+ * Sets a cookie with the given name, value, and expiration days.
+ */
+function setCookie(name: string, value: string, days: number): void {
+  let expires = '';
+  if (days) {
+    const date = new Date();
+    date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
+    expires = '; expires=' + date.toUTCString();
+  }
+  document.cookie = name + '=' + (value || '') + expires + '; path=/';
+}
+
+/**
+ * Applies the theme by setting the data-theme attribute on the document element.
+ */
+function applyTheme(theme: string): void {
+  if (theme === 'system') {
+    // Remove the data-theme attribute to let CSS prefers-color-scheme handle it
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+  applyThemeLogo(theme);
+}
+
+/**
+ * Update the logo to match the current theme.
+ */
+function applyThemeLogo(theme: string): void {
+  const $homeLink = $('#home-link');
+  const logoAlt = $('#logo').attr('alt') || 'lib.reviews';
+
+  if (theme === 'dark') {
+    $homeLink.html(`<img src="/static/img/logo-dark.svg" id="logo" alt="${logoAlt}">`);
+  } else if (theme === 'light') {
+    $homeLink.html(`<img src="/static/img/logo.svg" id="logo" alt="${logoAlt}">`);
+  } else {
+    // System preference - use picture element with media query
+    $homeLink.html(
+      `<picture><source srcset="/static/img/logo-dark.svg" media="(prefers-color-scheme: dark)"><img src="/static/img/logo.svg" id="logo" alt="${logoAlt}"></picture>`
+    );
+  }
+}
+
+/**
+ * Sets up the theme switcher in the footer.
+ */
+function setupThemeSwitcher(): void {
+  // Read theme from window.config (set server-side from user preference or cookie)
+  const currentTheme = window.config?.userThemePreference || 'system';
+  applyTheme(currentTheme);
+
+  // Update active state
+  $('.theme-pill').removeClass('theme-pill-active');
+  $(`.theme-pill[data-theme-option="${currentTheme}"]`).addClass('theme-pill-active');
+
+  // Check if user is logged in
+  const isLoggedIn = Boolean(window.config?.userID);
+
+  // Handle theme switching
+  $('.theme-pill').on('click', function (e) {
+    e.preventDefault();
+
+    // Don't do anything if clicking the already-active pill
+    if ($(this).hasClass('theme-pill-active')) {
+      return;
+    }
+
+    const newTheme = $(this).attr('data-theme-option');
+    if (newTheme) {
+      applyTheme(newTheme);
+
+      // Update active state
+      $('.theme-pill').removeClass('theme-pill-active');
+      $(this).addClass('theme-pill-active');
+
+      // If logged in, save to database; otherwise use cookie
+      if (isLoggedIn) {
+        $.ajax({
+          type: 'POST',
+          url: '/api/actions/set-preference',
+          data: JSON.stringify({ preferenceName: 'theme', value: newTheme }),
+          contentType: 'application/json',
+          dataType: 'json',
+        }).catch(error => {
+          console.error('Failed to save theme preference:', error);
+        });
+      } else {
+        setCookie('theme', newTheme, 365);
+      }
+    }
+  });
+}
+
+/**
  * Adds custom jQuery plugin methods for form validation and UI patterns.
  */
 function initializePlugins(): void {
@@ -573,10 +668,6 @@ function initializePlugins(): void {
   };
 
   $.fn.toggleSwitcher = function () {
-    let $selectedIndicator = $(
-      '<span class="fa fa-fw fa-check-circle switcher-selected-indicator">&nbsp;</span>'
-    );
-
     let $from = this.find('.switcher-option.switcher-option-selected'),
       $to = this.find('.switcher-option').not('.switcher-option-selected');
 
@@ -584,12 +675,13 @@ function initializePlugins(): void {
       .removeClass('switcher-option-selected')
       .addClass('switcher-option-selectable')
       .find('.switcher-selected-indicator')
-      .remove();
+      .addClass('hidden');
 
     $to
       .removeClass('switcher-option-selectable')
       .addClass('switcher-option-selected')
-      .prepend($selectedIndicator);
+      .find('.switcher-selected-indicator')
+      .removeClass('hidden');
 
     return this;
   };
@@ -660,12 +752,6 @@ function initializeLibreviews(): LibreviewsAPI {
 
   setupPasswordReveal();
 
-  $('.long-text h2,.long-text h3').each(function () {
-    $(this).prepend(
-      `<a href="#${this.id}" class="fragment-link no-print"><span class="fa fa-link"></span></a>`
-    );
-  });
-
   $('.expand-link').click(function () {
     let target = $(this).attr('data-target');
     if (target) {
@@ -731,6 +817,8 @@ function initializeLibreviews(): LibreviewsAPI {
   updateContentClickHandlers();
 
   if ($('#search-input').length) setupSearch();
+
+  if ($('#theme-switcher').length) setupThemeSwitcher();
 
   console.log(
     '\n' +

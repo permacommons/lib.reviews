@@ -4,7 +4,7 @@
 {{/unless}}
 {{#if team.userCanBlog}}
 <p>
-<a href="/team/{{team.urlID}}/new/post" id="write-blog" class="pure-button button-rounded edit-button"><span class="fa fa-fw fa-pencil spaced-icon">&nbsp;</span>{{{__ "write a blog post"}}}</a><p>
+<a href="/team/{{team.urlID}}/new/post" id="write-blog" role="button" class="button-compact secondary"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "write a blog post"}}}</a><p>
 {{/if}}
 {{#if blogPosts}}
 {{#each blogPosts}}
@@ -17,7 +17,7 @@
 <br>
 {{#if blogPostsUTCISODate}}
 <a class="pagination-link" href="/team/{{team.id}}/blog/before/{{blogPostsUTCISODate}}"{{#unless noAccessKey}} accesskey="<" title="{{{__ "accesskey" "<"}}}"{{/unless}}>
-<span class="fa fa-angle-double-left fa-fw">&nbsp;</span>{{{__ "older blog posts"}}}
+<span class="fa fa-angle-double-left fa-fw"></span> {{{__ "older blog posts"}}}
 </a>
 {{/if}}
 </div>

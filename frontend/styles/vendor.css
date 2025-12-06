@@ -1,8 +1,7 @@
 /*!
  * Third-party styles bundled with lib.reviews frontend:
- * - purecss v3.0.0 (MIT License)
+ * - @picocss/pico v2.x (MIT License)
  * - @fortawesome/fontawesome-free v7.1.0 (Font: SIL OFL 1.1, CSS: MIT License)
  */
-@import 'purecss/build/pure-min.css';
-@import 'purecss/build/grids-responsive-min.css';
+@import '@picocss/pico/css/pico.min.css';
 @import '@fortawesome/fontawesome-free/css/all.min.css';

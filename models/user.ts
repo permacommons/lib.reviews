@@ -248,7 +248,7 @@ const userInstanceMethods = defineInstanceMethods(userManifest, {
    * @returns Array of preference names
    */
   getValidPreferences(): string[] {
-    return ['prefersRichTextEditor'];
+    return ['prefersRichTextEditor', 'theme'];
   },
 }) satisfies UserInstanceMethods;
 

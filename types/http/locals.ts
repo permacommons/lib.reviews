@@ -82,4 +82,5 @@ export interface TemplateContext extends AppLocals {
   localeChange?: { old: LocaleCodeWithUndetermined; new: LocaleCodeWithUndetermined };
   siteMessages?: string[];
   siteErrors?: string[];
+  dataTheme?: 'light' | 'dark';
 }
