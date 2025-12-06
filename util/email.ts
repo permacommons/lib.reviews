@@ -100,9 +100,18 @@ export async function sendPasswordResetEmail(
  * Note: Currently sends the same language to all moderators since user language
  * preferences are stored in cookies, not the database. Should be called with 'en'.
  *
+ * @param requestData - The account request data to include in the email
  * @param language - Language code for email localization (defaults to 'en')
  */
-export async function sendAccountRequestNotification(language: string = 'en'): Promise<void> {
+export async function sendAccountRequestNotification(
+  requestData: {
+    email: string;
+    plannedReviews: string;
+    languages: string;
+    aboutLinks: string;
+  },
+  language: string = 'en'
+): Promise<void> {
   if (!ensureEmailEnabled('Account request notification')) return;
   if (!ensureAccountRequestsEnabled('Account request notification')) return;
 
@@ -127,6 +136,10 @@ export async function sendAccountRequestNotification(language: string = 'en'): P
     const subject = getEmailSubject('account request notification subject', language);
     const { text, html } = await loadEmailTemplate('account-request-notification', language, {
       manageURL,
+      requesterEmail: requestData.email,
+      plannedReviews: truncateText(requestData.plannedReviews),
+      languages: truncateText(requestData.languages),
+      aboutLinks: truncateText(requestData.aboutLinks),
     });
 
     for (const moderator of moderatorsWithEmail) {
@@ -222,6 +235,19 @@ export async function sendAccountRequestRejection(
   } catch (error) {
     debug.error(`Failed to send account request rejection: ${formatMailgunError(error)}`);
   }
+}
+
+/**
+ * Truncate text to a maximum length, adding ellipsis if needed.
+ *
+ * @param text - Text to potentially truncate
+ * @param maxLength - Maximum length before truncation (defaults to 300)
+ * @returns Original text if short enough, otherwise truncated with ellipsis
+ */
+function truncateText(text: string | undefined, maxLength: number = 300): string {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 }
 
 function normalizeLanguage(language: string): string {

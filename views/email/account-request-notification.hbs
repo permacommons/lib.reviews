@@ -3,6 +3,13 @@
   <body>
     <p>{{__ "account request notification greeting"}}</p>
     <p>{{{__ "account request notification intro"}}}</p>
+
+    <h3>Request Details:</h3>
+    <p><strong>Email:</strong> {{requesterEmail}}</p>
+    <p><strong>Languages:</strong><br>{{languages}}</p>
+    <p><strong>Planned Reviews:</strong><br>{{plannedReviews}}</p>
+    <p><strong>About/Links:</strong><br>{{aboutLinks}}</p>
+
     <p>
       {{__ "account request notification instructions"}}<br>
       <a href="{{manageURL}}">{{manageURL}}</a>

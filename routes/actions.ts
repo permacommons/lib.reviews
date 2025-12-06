@@ -625,7 +625,7 @@ router.post(
 
       const language = req.language || 'en';
 
-      await AccountRequest.createRequest({
+      const createdRequest = await AccountRequest.createRequest({
         plannedReviews: formData.plannedReviews.trim(),
         languages: formData.languages.trim(),
         aboutLinks: formData.aboutLinks.trim(),
@@ -636,7 +636,15 @@ router.post(
       });
       // Moderator notification emails must be in English since we don't store
       // language preferences in the database (only in cookies)
-      sendAccountRequestNotification('en').catch(error => {
+      sendAccountRequestNotification(
+        {
+          email: createdRequest.email,
+          plannedReviews: createdRequest.plannedReviews,
+          languages: createdRequest.languages,
+          aboutLinks: createdRequest.aboutLinks,
+        },
+        'en'
+      ).catch(error => {
         debug.error(`Failed to send account request notification: ${formatMailgunError(error)}`);
       });
 
