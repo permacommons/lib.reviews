@@ -2,17 +2,17 @@
 
 {{__ "account request notification intro plain"}}
 
-Request Details:
+{{__ "account request notification details header"}}
 
-Email: {{requesterEmail}}
+{{__ "account request notification field email"}} {{requesterEmail}}
 
-Languages:
+{{__ "account request notification field languages"}}
 {{languages}}
 
-Planned Reviews:
+{{__ "account request notification field planned reviews"}}
 {{plannedReviews}}
 
-About/Links:
+{{__ "account request notification field about links"}}
 {{aboutLinks}}
 
 {{__ "account request notification instructions plain"}}
