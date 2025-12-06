@@ -1,21 +1,21 @@
 <div class="centered-column">
-<h1 id="page-header">
+<h1>
 {{{__ titleKey}}}
 </h1>
 {{#if noMatches}}
 <b>{{__ "no results" query}}</b>
 {{/if}}
 {{#if labelMatches}}
-<h2 class="sub-header-regular">{{{__ "matches in review subjects"}}}</h2>
+<h2>{{{__ "matches in review subjects"}}}</h2>
 {{#each labelMatches}}
 <h3 class="search-match-heading"><a href="/{{{this._source.urlID}}}">{{mlSafeText this._source.label}}</a></h3>
 {{#if (mlSafeText this._source.description)}}
-<div class="search-result-description"> <span class="fa fa-info-circle fa-fw">&nbsp;</span> {{mlSafeText this._source.description}}</div>
+<div class="search-result-description"><span class="fa fa-info-circle fa-fw"></span> {{mlSafeText this._source.description}}</div>
 {{/if}}
 {{/each}}
 {{/if}}
 {{#if textMatches}}
-<h2 class="sub-header-regular">{{{__ "matches in review text"}}}</h2>
+<h2>{{{__ "matches in review text"}}}</h2>
 {{#each textMatches}}
 <h3><a href="/{{{this._source.urlID}}}">{{mlSafeText this._source.label}}</a></h3>
 <p>

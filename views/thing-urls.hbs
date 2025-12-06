@@ -11,28 +11,32 @@
 <p>
 {{>page_errors}}
 <p>
-<form class="pure-form" method="post" autocomplete="off">
+<form method="post" autocomplete="off">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
-<table class="pure-table">
+<table class="url-table">
 <thead>
 <tr><th>{{{__ "web address"}}}</th><th>{{{__ "primary link" }}}</th></tr>
 </thead>
+<tbody>
 {{#times numberOfFields}}
-<tr valign="top">
+<tr>
 <td class="max-width"><input name="urls[]" data-url-input type="text" class="max-width" value="{{{lookup ../urls @zeroIndex}}}" placeholder="{{{__ "enter web address short"}}}" {{#if @first}}data-focus{{/if}}>
 {{! Placeholder, used by client-side validation code}}
 <div id="url-validation-{{@zeroIndex}}"></div>
 </td>
 <td><input type="radio" name="primary" value="{{@zeroIndex}}" {{#ifCond @zeroIndex '===' ../primary}}checked{{/ifCond}}></td>
-{{/times}}
 </tr>
-<tr id="add-more-row" class="nojs-hidden"><td colspan="2" align="right"><button type="button" id="add-more" class="pure-button button-rounded" accesskey="a" title="{{{__ "accesskey" "a"}}}">{{{__ "add more links"}}}</button></td>
+{{/times}}
+<tr id="add-more-row" class="nojs-hidden"><td colspan="2" align="right"><button type="button" id="add-more" class="secondary" accesskey="a" title="{{{__ "accesskey" "a"}}}">{{{__ "add more links"}}}</button></td></tr>
+</tbody>
 </table>
 <p>
 <div class="validation-error" id="form-error-message">
 {{{__ "correct errors"}}}
 </div>
-<button type="submit" data-check-required class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">
+<div class="buttons-group">
+<button type="submit" data-check-required accesskey="s" title="{{{__ "accesskey" "s"}}}">
 {{{__ "update links"}}}
 </button>
+</div>
 </form>

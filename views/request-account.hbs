@@ -1,12 +1,11 @@
-<div class="long-text">
-  <h1 id="page-header">{{{__ "request account"}}}</h1>
+<div class="centered-form">
+  <h1>{{{__ "request account"}}}</h1>
 
-<div class="long-text">
   <p>{{{__ "request account intro"}}}</p>
 
   {{> page_errors}}
 
-  <form class="pure-form pure-form-stacked account-request-form" action="/actions/request-account" method="post">
+  <form action="/actions/request-account" method="post">
     <input type="hidden" name="_csrf" value="{{csrfToken}}">
 
     <label for="planned-reviews">
@@ -15,8 +14,7 @@
         id="planned-reviews"
         name="plannedReviews"
         rows="4"
-        required
-        class="max-width">{{#if formValues}}{{formValues.plannedReviews}}{{/if}}</textarea>
+        required>{{#if formValues}}{{formValues.plannedReviews}}{{/if}}</textarea>
     </label>
 
     <label for="languages">
@@ -26,8 +24,7 @@
         id="languages"
         name="languages"
         value="{{#if formValues}}{{formValues.languages}}{{/if}}"
-        required
-        class="max-width">
+        required>
     </label>
 
     <label for="about-url">
@@ -37,7 +34,6 @@
         name="aboutLinks"
         rows="3"
         required
-        class="max-width"
         placeholder="https://">{{#if formValues}}{{formValues.aboutLinks}}{{/if}}</textarea>
     </label>
 
@@ -48,11 +44,10 @@
         id="email"
         name="email"
         value="{{#if formValues}}{{formValues.email}}{{/if}}"
-        required
-        class="max-width">
+        required>
     </label>
 
-    <label for="terms-accepted" class="pure-checkbox">
+    <label for="terms-accepted" class="checkbox-with-margin">
       <input
         type="checkbox"
         id="terms-accepted"
@@ -62,9 +57,8 @@
       {{{__ "read and agree to terms"}}}
     </label>
 
-    <button type="submit" class="pure-button pure-button-primary button-rounded">
+    <button type="submit">
       {{{__ "submit request"}}}
     </button>
   </form>
-</div>
 </div>

@@ -1,0 +1,3086 @@
+/*
+ * General remarks:
+ * - CSS variable names use dashes (--lr-nav-background, --pico-primary)
+ * - Class names also use dashes (.grid-with-sidebar, .theme-pill)
+ * - Modern CSS nesting syntax is used for maintainability
+ * - PostCSS mixins (via postcss-mixins plugin) are used to avoid duplication
+ *   in theme and component definitions - see @define-mixin and @mixin directives below
+ * - Browser support baseline is current evergreen browsers plus Firefox ESR
+ *   (as used by Tor Browser). Legacy vendor-prefixed fallbacks are avoided.
+ * - .nojs-hidden and .nojs-visible are defined in a <noscript> block in layout.hbs,
+ *   so they only apply when JavaScript is disabled
+ */
+
+/* ------------- Begin variables + generic classes ----------------------------- */
+
+/* ------------- Pico CSS Customization ---------------------------------------- */
+/* Customize Pico defaults to match lib.reviews design */
+
+/* ------------- Variable Strategy --------------------------------------------- */
+/*
+ * WHEN to use --lr- mappings vs --pico- directly:
+ *
+ * Use --lr- mappings for:
+ * - Component-specific contexts (--lr-autocomplete-*, --lr-switcher-*)
+ * - Different light/dark mappings (--lr-autocomplete-hover)
+ * - Custom values not in Pico (--lr-secondary-strong-background)
+ * - Semantic clarity (--lr-link-color vs --pico-primary)
+ *
+ * Use --pico- directly for:
+ * - Generic utilities (--pico-color, --pico-muted-color, --pico-border-radius)
+ * - One-off overrides (editor/library theme fixes)
+ * - Properties with no ambiguity
+ *
+ * Hover variables:
+ * --lr-user-link-hover-color → --pico-secondary-hover(-background)
+ * --lr-autocomplete-hover → --pico-dropdown-hover-background-color (light) / form-element (dark)
+ * --lr-secondary-strong-hover-background → custom ~10% lighter variation
+ * --lr-muted-hover → --pico-muted-color
+ */
+/* ------------- End Variable Strategy ----------------------------------------- */
+
+:root {
+  /* ========== Theme-agnostic variables (shared across all themes) ========== */
+  --pico-font-family: "Noto Sans", sans-serif;
+  --pico-font-size: 100%;
+  --pico-line-height: 1.4;
+  --pico-border-radius: 4px;
+
+  /* Layout variables */
+  --side-padding: 2em;
+
+  /* Content width */
+  --lr-content-max-width: 44em;
+
+  /* Heading spacing */
+  --lr-heading-spacing: 1.5rem;
+
+  /* Compact button sizing */
+  --lr-button-compact-font-size: 0.9rem;
+  --lr-button-compact-padding-block: 0.4rem;
+  --lr-button-compact-padding-inline: 0.9rem;
+  --lr-button-compact-gap: 0.35em;
+
+  /* Switcher spacing */
+  --lr-switcher-spacing: 0.35rem;
+
+  /* Z-index layers */
+  --z-editor: 1000;
+  --z-editor-prompt: 1001;
+  --z-autocomplete: 1002;
+  --z-modal-blocker: 1003;
+  --z-modal: 1004;
+
+  /* Status colors */
+  --error-color: red;
+  --warning-color: #ff6600;
+  --info-color: #ccc;
+  --lr-success-color: green;
+  --lr-success-strong-color: #0c6;
+  --lr-error-strong-color: #c00;
+
+  /* ========== Hover state variables ========== */
+  /* These map to Pico hover vars but allow semantic naming for lib.reviews contexts */
+  --lr-muted-hover: var(--pico-muted-color); /* For subtle elements like fragment links */
+
+  /* Reusable UI tokens */
+  --lr-separator-color: #eaeaea;
+  --lr-theme-pill-active-bg: #333;
+  --lr-theme-pill-active-text: #fff;
+  --lr-tooltip-bg: #333;
+  --lr-tooltip-bg-rgba: rgba(0, 0, 0, 0.8);
+
+  /* Common UI colors - prefer Pico variables where available */
+  --lr-destructive-bg: #cc3333;
+  --lr-destructive-text: #fff;
+
+  /* Text colors */
+  --lr-button-text-light: #fff;
+  --lr-fragment-link-color: #aaa;
+  --lr-muted-gray: #999;
+
+  /* ========== Default theme variables (Light mode) ========== */
+  --pico-background-color: #fafafa;
+  --pico-card-background-color: #fff;
+
+  --lr-nav-background: #fafafa;
+  --lr-nav-border: #f2f2f2;
+  --lr-main-background: #fff;
+
+  --lr-autocomplete-background: #fff;
+  --lr-autocomplete-hover: var(--pico-dropdown-hover-background-color, #f2f2f4);
+  --lr-autocomplete-border: #e6e6e9;
+
+  --lr-modal-background: #fff;
+  --lr-excerpt-background: #fcfcfc;
+  --lr-highlight-background: #eee;
+  --lr-preview-background: #fafafa;
+  --lr-preview-border: #ccc;
+
+  --lr-switcher-bg: #f0f0f0;
+  --lr-switcher-selected-bg: #fff;
+  --lr-switcher-border: #ddd;
+
+  --lr-header-color: #414042;
+  --lr-link-color: #1f5cad;
+  --lr-visited-color: #5E4398;
+
+  --lr-box-background: #fff;
+  --lr-box-border: #eee;
+
+  --lr-user-link-color: var(--pico-secondary-background);
+  --lr-user-link-hover-color: var(--pico-secondary-hover-background);
+
+  --lr-secondary-strong-background: rgb(62, 68, 76);
+  --lr-secondary-strong-hover-background: rgb(72, 78, 86);
+
+  /* Table background - distinct from main background */
+  --lr-table-background: #f8f8f8;
+}
+
+/* ========== Dark mode theme variables (mixin) ========== */
+@define-mixin dark-theme {
+  --pico-background-color: #13171f;
+  --pico-card-background-color: #1a1f28;
+
+  /* Dark-mode-only helper variable */
+  --autocomplete-background-dark: #252a3a;
+
+  --lr-nav-background: var(--pico-background-color);
+  --lr-nav-border: var(--pico-muted-border-color);
+  --lr-main-background: var(--pico-card-background-color);
+
+  --lr-autocomplete-background: var(--autocomplete-background-dark);
+  --lr-autocomplete-hover: var(--pico-form-element-background-color);
+  --lr-autocomplete-border: var(--pico-muted-border-color);
+
+  --lr-modal-background: var(--pico-card-background-color);
+  --lr-excerpt-background: var(--pico-card-background-color);
+  --lr-highlight-background: var(--pico-form-element-background-color);
+  --lr-preview-background: var(--pico-card-background-color);
+  --lr-preview-border: var(--pico-muted-border-color);
+
+  --lr-switcher-bg: var(--pico-form-element-background-color);
+  --lr-switcher-selected-bg: var(--pico-card-background-color);
+  --lr-switcher-border: var(--pico-muted-border-color);
+
+  --lr-header-color: #c2c7d0;
+  --lr-link-color: #6db3f2;
+  --lr-visited-color: #b8a5d3;
+
+  --lr-box-background: #2a303a;
+  --lr-box-border: #454d5c;
+
+  --lr-user-link-color: var(--pico-secondary);
+  --lr-user-link-hover-color: var(--pico-secondary-hover);
+
+  --lr-secondary-strong-background: rgb(58, 64, 72);
+  --lr-secondary-strong-hover-background: rgb(68, 74, 82);
+
+  --lr-separator-color: var(--pico-muted-border-color);
+  --lr-muted-hover: var(--pico-muted-color);
+
+  /* Table background - distinct from main background */
+  --lr-table-background: #2a303a;
+
+  /* Status colors - softer variants for dark mode */
+  --error-color: #ff6060;
+}
+
+/* ========== Dark mode: Forced via theme switcher ========== */
+[data-theme="dark"] {
+  @mixin dark-theme;
+}
+
+/* ========== Dark mode: System preference ========== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    @mixin dark-theme;
+  }
+}
+
+/* ========== Light mode: Forced via theme switcher ========== */
+/* Light is already the default in :root, so this is typically empty.
+   Only needed if you need to explicitly override system dark preference. */
+[data-theme="light"] {
+  /* Inherits all light values from :root */
+}
+
+/* ========== Mixins ========== */
+@define-mixin compact-button-base {
+  padding: 0.5rem 1rem;
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+  font-size: small;
+  font-weight: bold;
+  text-decoration: none;
+  font-style: normal;
+}
+
+/* ------------- End Pico CSS Customization ------------------------------------ */
+
+/*
+ * ------------- Semantic Grid System ------------------------------------------
+ * Simple CSS Grid layouts for common patterns. Mobile-first: stacks by default.
+ */
+
+/* Base grid container */
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+/* Form sections that need spacing from content above */
+.form-section {
+  margin-top: 1rem;
+}
+
+/* Review subject info (when editing existing review) */
+.review-subject-info {
+  margin-bottom: 1.5rem;
+}
+
+/* Two equal columns */
+.grid-halves {
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Form-specific grid: 2/3 + 1/3 columns without mobile reordering */
+.grid-form {
+  @media (min-width: 768px) {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+/* Page headers - apply globally within main content */
+#main-body h1 {
+  color: var(--pico-h1-color);
+  font-weight: normal;
+  font-size: 2.25rem;
+  margin-top: var(--lr-heading-spacing);
+  margin-bottom: var(--lr-heading-spacing);
+}
+
+#main-body h1.grid-adjacent {
+  margin-bottom: 0;
+}
+
+h2.subtitle {
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+#main-body h2 {
+  color: var(--lr-header-color);
+  font-weight: normal;
+  font-size: 1.5rem;
+  margin-top: var(--lr-heading-spacing);
+  margin-bottom: 1rem;
+}
+
+/* Two-column layouts with 2/3 + 1/3 ratio - sidebar version with reordering */
+.grid-with-sidebar {
+  /* Profile column (second child) first on mobile */
+  > div:nth-child(2) {
+    order: -1;
+  }
+
+  /* Override margin-top for grid context */
+  h2 {
+    margin-top: 0;
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: 2fr 1fr;
+
+    /* Reset order on desktop - profile on right */
+    > div:nth-child(2) {
+      order: 0;
+    }
+  }
+}
+
+/* Content with TOC: TOC on top (mobile), on right (desktop) */
+.grid-with-toc {
+  .toc {
+    order: -1; /* TOC first on mobile */
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: 2fr 1fr;
+    gap: 3rem;
+
+    .toc {
+      order: 1; /* TOC second (right side) on desktop */
+    }
+
+    .main-content {
+      order: 0;
+    }
+  }
+}
+
+/* ------------- End Semantic Grid System -------------------------------------- */
+
+body {
+  background: var(--pico-background-color);
+}
+
+/* Utility class for hiding elements with high specificity */
+.hidden {
+  display: none !important;
+}
+
+/* Variant without !important for JS toggling */
+.hidden-regular {
+  display: none;
+}
+
+/* Helper class for excluding from print */
+@media print
+{
+  .no-print
+  {
+    display: none !important;
+  }
+
+  .print-visible
+  {
+    display: block !important;
+  }
+}
+
+
+/* When things go wrong ... */
+.stack-trace {
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+
+/* Useful for many purposes */
+.max-width {
+  width:100%;
+}
+
+/* ------------- End variables + generic classes ------------------------------- */
+/* ------------- Begin navigation/logo ----------------------------------------- */
+
+#nav {
+  background: var(--lr-nav-background);
+  padding: 1em var(--side-padding) 2em var(--side-padding);
+  border-bottom: 1px solid var(--lr-nav-border);
+}
+
+/* Pico nav handles flexbox layout; we just adjust spacing */
+#nav nav {
+  padding: 0;
+}
+
+#nav nav > ul {
+  margin: 0;
+  padding: 0;
+}
+
+#nav nav > ul > li {
+  padding: 0 0.5em;
+}
+
+/* Desktop user menu: use gap for consistent spacing */
+#user-menu {
+  display: flex;
+  gap: 1.5em;
+  flex-wrap: wrap;
+}
+
+#nav #user-menu li {
+  padding: 0;
+}
+
+#user-menu li a,
+#user-menu li button {
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Mobile-only dropdown menu (Pico details.dropdown) */
+.user-menu-mobile {
+  display: none;
+  margin: 0;
+  padding: 0;
+}
+
+.user-menu-mobile > li {
+  padding: 0;
+}
+
+.user-menu-dropdown {
+  margin: 0;
+}
+
+.user-menu-dropdown > summary {
+  margin: 0;
+}
+
+.user-menu-dropdown > summary::after {
+  display: none !important;
+  content: none !important;
+  background-image: none !important;
+}
+
+.user-menu-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+.user-menu-dropdown > summary::marker {
+  content: "";
+}
+
+.user-menu-dropdown > summary .menu-icon {
+  text-shadow: none;
+}
+
+.user-menu-dropdown > ul li button {
+  width: 100%;
+}
+
+/* Tablet and mobile: stack nav vertically, wrap menu items horizontally */
+@media (max-width: 1024px) {
+  #nav nav {
+    flex-direction: row;
+    align-items: center;
+    column-gap: 0.75rem;
+  }
+
+  #user-menu {
+    display: none;
+  }
+
+  .user-menu-mobile {
+    display: flex;
+    width: auto;
+  }
+
+  .user-menu-dropdown {
+    display: inline-block;
+  }
+
+  .user-menu-mobile details.user-menu-dropdown {
+    display: inline-block;
+  }
+
+  .user-menu-dropdown > summary {
+    width: auto;
+  }
+
+  /* Light mode: dark icon on light button (instead of inverse secondary). */
+  [data-theme="light"] .user-menu-mobile details.user-menu-dropdown > summary {
+    --pico-background-color: var(--pico-card-background-color);
+    --pico-border-color: var(--pico-muted-border-color);
+    --pico-color: var(--pico-contrast);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) .user-menu-mobile details.user-menu-dropdown > summary {
+      --pico-background-color: var(--pico-card-background-color);
+      --pico-border-color: var(--pico-muted-border-color);
+      --pico-color: var(--pico-contrast);
+    }
+  }
+
+  .user-menu-mobile details.user-menu-dropdown > summary + ul {
+    left: auto;
+    right: 0;
+    width: auto;
+    min-width: 12rem;
+    max-width: calc(100vw - (2 * var(--side-padding)));
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    box-sizing: border-box;
+    background-color: var(--pico-card-background-color);
+    border-color: var(--pico-muted-border-color);
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.35);
+  }
+
+  .user-menu-mobile details.user-menu-dropdown:not([open]) > summary + ul {
+    pointer-events: none;
+  }
+
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li {
+    padding: 0.25rem 0.35rem;
+  }
+
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a,
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > form > button {
+    margin: 0;
+    padding: 0.65rem 0.9rem;
+    border-radius: var(--pico-border-radius);
+  }
+
+  /*
+   * Pico dropdown styles override <a> hover/focus backgrounds inside the panel,
+   * which breaks <a role="button"> contrast (e.g. white text on light hover bg).
+   * Force role="button" links to always render using Pico's button variables.
+   */
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a[role="button"],
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a[role="button"]:visited {
+    background-color: var(--pico-background-color);
+    border: var(--pico-border-width) solid var(--pico-border-color);
+    box-shadow: var(--pico-box-shadow);
+    color: var(--pico-color);
+    text-decoration: none;
+  }
+
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a[role="button"]:is(
+      [aria-current]:not([aria-current=false]),
+      :hover,
+      :active,
+      :focus,
+      :focus-visible
+    ),
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a[role="button"]:visited:is(
+      [aria-current]:not([aria-current=false]),
+      :hover,
+      :active,
+      :focus,
+      :focus-visible
+    ) {
+    background-color: var(--pico-background-color);
+    border-color: var(--pico-border-color);
+    box-shadow: var(--pico-box-shadow);
+    color: var(--pico-color);
+  }
+
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a.user-menu-center,
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a.user-menu-center:visited {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    text-align: center;
+  }
+
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a.user-menu-user {
+    max-width: 100%;
+  }
+
+  .user-menu-mobile details.user-menu-dropdown > summary + ul li > a.user-menu-user .user-menu-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #logo {
+    width: clamp(180px, 52vw, 260px);
+    height: auto;
+  }
+}
+
+/* Search container below nav */
+#search-container {
+  max-width: 600px;
+  margin: 1em auto 0;
+  padding: 0 var(--side-padding);
+}
+
+/* Make menu icons stand out a bit with shadow */
+.menu-icon {
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+/* Remove form margin inside nav */
+#signout-form {
+  margin: 0;
+}
+
+/* Normalize button styling in nav (Pico styles <a role="button"> and <button> differently) */
+#user-menu a[role="button"],
+#user-menu button,
+.user-menu-dropdown a[role="button"],
+.user-menu-dropdown button {
+  padding: 0.5rem 1rem;
+  margin: 0;
+}
+
+/* Shared secondary styling for buttons/links */
+button.secondary:not(.outline),
+a.secondary[role="button"]:not(.outline),
+a.secondary[role="button"]:not(.outline):visited,
+label.secondary[role="button"]:not(.outline) {
+  background: var(--lr-secondary-strong-background);
+  border: 1px solid var(--lr-secondary-strong-background);
+  color: var(--lr-button-text-light);
+}
+
+button.secondary:not(.outline):hover,
+a.secondary[role="button"]:not(.outline):hover,
+label.secondary[role="button"]:not(.outline):hover {
+  background: var(--lr-secondary-strong-hover-background);
+  border-color: var(--lr-secondary-strong-hover-background);
+  color: var(--lr-button-text-light);
+}
+
+/* Style user info links (username, invite) as regular links, not buttons */
+/* Include :visited to suppress different visited link styling */
+#user-link,
+#user-link:visited {
+  background: none;
+  border: none;
+  color: var(--lr-user-link-color);
+  text-decoration: none;
+  padding: 0.5rem 0;
+  display: inline-block;
+}
+
+#user-link:hover {
+  color: var(--lr-user-link-hover-color);
+  background: none;
+  text-decoration: none;
+}
+
+#invite-action,
+#invite-action:visited {
+  background: none;
+  border: none;
+  color: var(--lr-link-color);
+  text-decoration: none;
+  padding: 0.5rem 0;
+  display: inline-block;
+}
+
+#invite-action:hover {
+  color: var(--pico-primary);
+  background: none;
+  text-decoration: none;
+}
+
+/* Red heart with subtle glow effect (light mode default) */
+.invite-icon {
+  color: #f66;
+  text-shadow: 0 0 4px rgba(255, 102, 102, 0.3),
+               0 0 8px rgba(255, 102, 102, 0.15);
+  vertical-align: middle;
+  transition: all 0.2s ease;
+}
+
+#invite-action:hover .invite-icon {
+  text-shadow: 0 0 8px rgba(255, 102, 102, 0.5),
+               0 0 12px rgba(255, 102, 102, 0.25);
+  transform: scale(1.1);
+}
+
+/* Stronger glow for dark mode */
+[data-theme="dark"] .invite-icon {
+  text-shadow: 0 0 8px rgba(255, 102, 102, 0.6),
+               0 0 12px rgba(255, 102, 102, 0.3);
+}
+
+[data-theme="dark"] #invite-action:hover .invite-icon {
+  text-shadow: 0 0 12px rgba(255, 102, 102, 0.8),
+               0 0 20px rgba(255, 102, 102, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .invite-icon {
+    text-shadow: 0 0 8px rgba(255, 102, 102, 0.6),
+                 0 0 12px rgba(255, 102, 102, 0.3);
+  }
+
+  :root:not([data-theme]) #invite-action:hover .invite-icon {
+    text-shadow: 0 0 12px rgba(255, 102, 102, 0.8),
+                 0 0 20px rgba(255, 102, 102, 0.5);
+  }
+}
+
+/* Badge styling for invite count number */
+/* Match secondary button colors exactly */
+.invite-badge {
+  background-color: var(--pico-secondary-background);
+  color: var(--pico-secondary-inverse);
+  font-size: 0.75em;
+  font-weight: bold;
+  padding: 0.2em 0.5em;
+  border-radius: 10px;
+  display: inline-block;
+  line-height: 1;
+  vertical-align: middle;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+#invite-action:hover .invite-badge {
+  background-color: var(--pico-secondary-hover-background);
+  color: var(--pico-secondary-inverse);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transform: scale(1.05);
+}
+
+/* ------------- End navigation/logo ------------------------------------------- */
+/* ------------- Begin search -------------------------------------------------- */
+
+.search-form {
+  margin-bottom: 0;
+}
+
+#search-input {
+  width: 100%;
+  margin-bottom: 0;
+  background-color: var(--pico-card-background-color);
+}
+
+/* Autocompletion styles */
+.ac-wrap {
+  position: absolute;
+  z-index: var(--z-autocomplete);
+}
+
+.ac-rwrap {
+  background-color: var(--lr-autocomplete-background);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  border: 1px solid var(--lr-autocomplete-border);
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  margin-top: 0px;
+  margin-left: 5%;
+  margin-right: 5%;
+}
+
+.ac-row {
+  padding: 7px 10px 5px 10px;;
+  border-bottom: 1px solid var(--lr-autocomplete-border);
+  z-index: var(--z-autocomplete);
+  position:relative;
+  background: var(--lr-autocomplete-background);
+}
+
+.ac-row:hover {
+  background-color: var(--lr-autocomplete-hover);
+  cursor: pointer;
+}
+
+.ac-row.selected {
+  background-color: var(--lr-autocomplete-hover);
+}
+
+.ac-row:last-child {
+  border-bottom: none;
+}
+
+.ac-pr, .ac-sc {
+  vertical-align: baseline;
+  display: block;
+}
+
+.ac-pr {
+  color: var(--pico-color);
+}
+
+.ac-sc {
+  font-size: small;
+  padding-top: 5px;
+  color: var(--pico-muted-color, #666);
+}
+
+
+/* Autocomplete for adapters */
+.ac-adapter-get-more {
+  padding: 7px 10px 5px 10px;
+  display:flex;
+  align-items:center;
+  background: var(--lr-autocomplete-background);
+  position:relative;
+  z-index: var(--z-autocomplete);
+}
+
+.ac-adapter-no-results {
+  padding: 7px 10px 5px 10px;
+  background: var(--lr-autocomplete-background);
+  position:relative;
+  z-index: var(--z-autocomplete);
+  font-style:italic;
+  cursor:default;
+  color: var(--pico-muted-color, grey);
+}
+
+.ac-adapter-no-relevant-results {
+  color: var(--pico-muted-color, grey);
+  padding: 7px 10px 5px 10px;
+  font-style:italic;
+}
+
+.ac-adapter-more-results {
+  font-weight:bold;
+  font-size:small;
+  text-transform:uppercase;
+  text-align:center;
+  color: var(--lr-muted-gray);
+  width:33.33%;
+}
+
+.ac-adapter-get-active {
+  cursor:pointer;
+  color:#4848ca;
+}
+
+.ac-adapter-get-prev, .ac-adapter-get-next {
+  display:inline-block;
+  width:33.33%;
+  font-size:xx-large;
+  font-weight:bold;
+}
+
+.ac-adapter-get-next {
+  text-align:right;
+}
+
+.ac-adapter-get-prev {
+  text-align:left;
+}
+
+.ac-adapter-wrap {
+  position:absolute;
+  z-index: var(--z-autocomplete);
+}
+
+.ac-adapter-rwrap {
+  background-color: var(--lr-autocomplete-background);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  border: 1px solid var(--lr-autocomplete-border);
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  margin-top: 0px;
+}
+
+.ac-adapter-row {
+  padding: 7px 10px 5px 10px;
+  border-bottom: 1px solid var(--lr-autocomplete-border);
+  z-index: var(--z-autocomplete);
+  position:relative;
+  background: var(--lr-autocomplete-background);
+}
+
+.ac-adapter-row:hover {
+  background-color: var(--lr-autocomplete-hover);
+  cursor: pointer;
+}
+
+.ac-adapter-row.selected {
+  background-color: var(--lr-autocomplete-hover);
+}
+
+.ac-adapter-row:last-child {
+  border-bottom: none;
+}
+
+.ac-adapter-pr, .ac-adapter-sc {
+  vertical-align: baseline;
+  display: block;
+}
+
+.ac-adapter-pr {
+  color: var(--pico-color);
+}
+
+.ac-adapter-sc {
+  font-size: small;
+  padding-top: 5px;
+  color: var(--pico-muted-color, #333);
+}
+
+.search-highlight {
+  color: red;
+}
+
+.search-excerpt {
+  margin:0;
+  padding: 0.5em;
+  margin-bottom:1em;
+  background: var(--lr-excerpt-background);
+  border-style: dashed;
+  border-width: 1px;
+  border-color: var(--lr-preview-border);
+  border-radius: 10px;
+  display:inline-block;
+}
+
+.search-match-heading {
+  margin-bottom:0;
+}
+
+.hl {
+  background: var(--lr-highlight-background);
+}
+/* ------------- End search ---------------------------------------------------- */
+
+/* ------------- Begin content styles ------------------------------------------ */
+#main-body {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5em;
+  /* Fluid horizontal padding: min 2em, scales with viewport, max 8em */
+  padding-left: clamp(2em, 7vw, 8em);
+  padding-right: clamp(2em, 7vw, 8em);
+  background: var(--lr-main-background);
+}
+
+#footer a,
+#main-body a:not([role="button"]) {
+    text-decoration:none;
+    color: var(--lr-link-color);
+}
+
+#footer a:hover,
+#main-body a:not([role="button"]):hover {
+    text-decoration:underline;
+}
+
+#footer a:visited,
+#main-body a:not([role="button"]):visited {
+    color: var(--lr-visited-color);
+}
+
+#main-body a.fragment-link {
+  color: var(--lr-fragment-link-color);
+  text-decoration:none;
+  font-size:medium;
+  margin-right:0.5em;
+}
+
+#main-body a.fragment-link:visited {
+  color: var(--lr-fragment-link-color);
+}
+
+#main-body a.fragment-link:hover {
+  color: var(--lr-muted-hover);
+}
+
+#language-select {
+  height: auto;
+}
+
+#item-description {
+  color: var(--lr-header-color);
+}
+
+.inline-feed-headline {
+  color: var(--lr-header-color);
+  font-weight: normal;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.headline-with-link {
+  display:flex;
+  align-items: center;
+  font-size: 1.1em;
+  max-width: var(--lr-content-max-width);
+}
+
+.frontpage-headline {
+  padding-top: 2em;
+  margin-bottom: 1em;
+}
+
+.view-all-link {
+  margin-left:auto;
+}
+
+/* Navigation pill - reusable style for navigation links */
+.nav-pill {
+  font-size: 0.9rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  text-decoration: none;
+  display: inline-block;
+}
+
+#main-body a.nav-pill:hover {
+  border-color: var(--pico-muted-color);
+  text-decoration: none;
+}
+
+.pagination-footer {
+  padding-top: 1.5em;
+}
+
+#logo {
+   width:400px;
+   height:76.61px;
+   min-width:150px;
+}
+
+#home-link {
+    text-decoration: none;
+    color: var(--pico-color);
+}
+
+.error {
+    color: var(--error-color);
+}
+
+#page-errors {
+  margin-bottom: 1rem;
+}
+
+.warning {
+  color: var(--warning-color);
+}
+
+.lead {
+    font-size: 130%;
+}
+
+.divider {
+  width: 100%;
+  margin-bottom: 1.5em;
+  margin-top: 0;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.message-box, .error-box, .warning-box {
+  padding: 20px;
+  margin: 20px 0;
+  border: 1px solid var(--lr-box-border);
+  border-left-width: 5px;
+  border-radius: 3px;
+  background: var(--lr-box-background);
+}
+
+.message-box {
+  border-left-color: var(--lr-success-color);
+}
+
+#draft-notice {
+  display:none;
+}
+
+#abandon-draft {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+#upload-label {
+  margin-right: 0.25rem;
+}
+
+.message-button,
+.message-button-destructive {
+  font-size: var(--lr-button-compact-font-size);
+  font-weight: bold;
+  line-height: 1.2;
+  width: auto;
+  min-width: 6.5rem;
+  border-radius: var(--pico-border-radius);
+}
+
+.message-button-destructive {
+  background: var(--lr-destructive-bg);
+  color: var(--lr-destructive-text);
+  border: 1px solid var(--lr-destructive-bg);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+/* Ensure consistent padding/height across themes for compact notice actions */
+button.message-button,
+button.message-button-destructive,
+button.secondary.message-button,
+button.secondary.message-button-destructive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lr-button-compact-gap);
+  padding: var(--lr-button-compact-padding-block) var(--lr-button-compact-padding-inline);
+  width: auto; /* override Pico's 100% width for form buttons */
+}
+
+.error-box {
+  border-left-color: var(--error-color);
+}
+
+.warning-box {
+  border-left-color: var(--warning-color);
+}
+
+/* Buttons */
+
+/* Compact action button base styles */
+.button-compact,
+.button-compact:visited,
+.button-compact:hover {
+  @mixin compact-button-base;
+}
+
+/* Primary variant of compact button (blue) */
+button.button-compact-primary {
+  @mixin compact-button-base;
+  width: auto;
+}
+
+/* Remove bottom margin for join/leave buttons */
+form[name="join-team"] button.button-compact-primary,
+form[name="leave-team"] button.button-compact-primary {
+  margin-bottom: 0;
+}
+
+/* Destructive variant of compact button */
+.button-destructive,
+.button-destructive:visited,
+.button-destructive:hover {
+  @mixin compact-button-base;
+  background: var(--lr-destructive-bg);
+  border: 1px solid var(--lr-destructive-bg);
+  color: var(--lr-destructive-text);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+label {
+  font-weight: bold;
+}
+
+
+
+.spaced-icon {
+  margin-right:0.2em;
+}
+
+.review-icon {
+  width: 1.3em;
+  color: var(--pico-color);
+}
+
+.sync-icon {
+  color:#77bb77;
+  display: inline !important; /* Prevent wrapping icon by itself, overriding default */
+  margin-left:0.5em;
+  font-size:16px !important; /* Fixed size regardless of container */
+  vertical-align:middle;
+}
+
+/* Reviews */
+
+.review {
+  max-width: var(--lr-content-max-width);
+}
+
+.star-holder,
+.star-full {
+  width: 48px;
+  height: 64px;
+  padding: 6px;
+}
+
+.preview-star  {
+  padding: 2px;
+}
+
+textarea#review-text {
+  height: 14em;
+}
+
+.input-spinner {
+  float: right;
+  margin-right: 0.5em;
+  margin-top: -2em;
+  z-index: 2;
+  color: var(--pico-muted-color);
+}
+
+#help {
+  margin-left:1em;
+}
+
+#help, .help-text {
+  display: none; /* shown via JS, or overridden in document style when no JS */
+  overflow: auto;
+  max-height: 25em;
+  margin-left: 1em;
+  margin-right: 1em;
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+.help-heading {
+  color: var(--pico-muted-color);
+  font-weight:bold;
+}
+
+#review-terms-notice {
+  margin-top:1em;
+  font-size:small;
+}
+
+.buttons-group {
+  text-align: left;
+}
+
+.buttons-group button {
+  width: auto; /* override Pico's 100% width default for form controls */
+  min-width: 9rem;
+}
+
+#register-terms-notice {
+  margin-top:1em;
+  margin-bottom:1em;
+  font-size:medium;
+}
+
+#show-extra-fields {
+  color: var(--lr-visited-color);
+  cursor: pointer;
+}
+
+#extra-fields, #extra-fields-expanded {
+  display: none;
+}
+
+label.inline-label {
+  display:inline;
+  font-weight: normal;
+}
+
+label.inline-star-label {
+  margin-left:0.5em;
+  margin-right:1em;
+}
+
+.info-icon {
+  color: var(--info-color);
+}
+
+
+/* Hidden by default, shown via JS when validation fails */
+/* Use ID selectors for higher specificity to ensure they stay hidden */
+#required-fields-message,
+#form-error-message,
+.validation-error {
+  display: none;
+  color: var(--error-color);
+}
+
+#required-fields-message {
+  margin-bottom: 1rem;
+}
+
+.helper-links {
+  display: none;
+}
+
+.required {
+  color:var(--error-color);
+  font-weight:bold;
+  display:none;
+}
+
+.long-text {
+  max-width: var(--lr-content-max-width);
+  margin: auto;
+}
+
+/* When long-text is used with TOC layout, reduce centering and match feed styling */
+.grid-with-toc .long-text {
+  font-size: 1.1em;
+  line-height: 1.6;
+  margin: 0;
+
+  @media (min-width: 768px) {
+    max-width: var(--lr-content-max-width);
+  }
+}
+
+.long-text h1 {
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.long-text h2 {
+  margin-top: 2rem;
+}
+
+.long-text p {
+  margin-bottom: 1rem;
+}
+
+/* Table of contents styling */
+.toc {
+  background: transparent;
+  border-left: 2px solid var(--lr-box-border);
+  border-radius: 0;
+  padding: 0 0 0 1.5em;
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    margin-bottom: 0.5em;
+    margin-left: 0;
+    padding-left: 0;
+  }
+
+  a {
+    text-decoration: none;
+    color: var(--lr-link-color);
+    font-weight: 600;
+    font-size: 1.1em;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  /* Mobile: full width, margin bottom, no left border */
+  @media (max-width: 767px) {
+    border-left: none;
+    padding: 1.5rem 0 0 0;
+    margin: 0 0 1.5em 0;
+  }
+
+  /* Desktop: sticky positioning */
+  @media (min-width: 768px) {
+    position: sticky;
+    top: 2em;
+    max-height: calc(100vh - 4em);
+    overflow-y: auto;
+  }
+}
+
+
+#preview-contents {
+  margin-bottom: 1em;
+  border-style: solid;
+  border-width: 1px;
+  padding: 1em;
+  border-color: var(--lr-preview-border);
+  background: var(--lr-preview-background);
+  max-width: var(--lr-content-max-width);
+}
+
+#preview-review-title, #preview-headline, #preview-review-url {
+  margin-top: 0;
+  font-weight:normal;
+}
+
+#preview-review-url, #preview-header {
+  text-align: center;
+  color: var(--lr-header-color);
+  font-style: italic;
+}
+
+#preview-review-title {
+  margin-bottom: 0;
+}
+
+#preview-review-byline, #preview-blog-post-byline {
+  font-size: small;
+}
+
+#review-subject {
+  display:none;
+  margin-top:1em;
+}
+
+#resolved-info-container {
+  display:flex;
+  align-items:center;
+}
+
+#resolved-info-controls {
+  margin-left:0.5em;
+}
+
+#remove-resolved-info {
+  color:#444;
+  cursor:pointer;
+}
+
+#resolved-description, #resolved-thing {
+  font-size:small;
+}
+
+a#abandon-draft, a#abandon-draft:visited {
+  color: white;
+  font-style: normal;
+  font-size:small;
+}
+
+a#manage-urls, a#manage-urls:visited, a#manage-urls:hover,
+a#add-review, a#add-review:visited, a#add-review:hover,
+a#add-team, a#add-team:visited, a#add-team:hover,
+a#add-label, a#add-label:visited, a#add-label:hover,
+a#add-description, a#add-description:visited, a#add-description:hover,
+a#upload, a#upload:visited, a#upload:hover
+{
+  color: var(--pico-color);
+  font-size: small;
+  font-weight: bold;
+  text-decoration:none;
+  font-style:normal;
+}
+
+
+a#add-description {
+  display:inline;
+}
+
+a#add-description span.fa {
+  display:inline !important;
+}
+
+.inline-edit-button {
+  margin-left:0.5em;
+}
+
+.content-meta {
+  font-size:small;
+  color: var(--pico-muted-color);
+  display:flex;
+  align-items:flex-end;
+  flex-wrap:wrap;
+  margin-top: 0.75em;
+}
+
+.review-teams-and-byline {
+  margin-right:2em;
+}
+
+/* Right-align with byline/teams info on larger screens */
+@media (min-width: 35.501em) {
+
+  .content-actions {
+    margin-left:auto;
+  }
+}
+
+/* Space between action spans */
+.content-actions span.content-action + span {
+  margin-left:0.5em;
+}
+
+.file-actions {
+  font-size: small;
+
+}
+
+
+#preview-review-text h1, .review-text h1, .rte-container h1 {
+  font-size: 1.3em;
+  font-weight: normal;
+  --pico-typography-spacing-top: 1.5em;
+}
+
+#preview-review-text h2, .review-text h2, .rte-container h2 {
+  font-size: 1.2em;
+  font-weight: normal;
+  --pico-typography-spacing-top: 1.5em;
+}
+
+.review-feed, .blog-feed, .review {
+  max-width: var(--lr-content-max-width);
+  font-size: 1.1em;
+  line-height: 1.6;
+}
+
+hr.feed-separator, hr.team-separator {
+  border: 0;
+  height: 1px;
+  background: var(--lr-separator-color);
+  margin-top: 2em;
+  margin-bottom: 2em;
+}
+
+.review-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.review-star {
+  padding: 3px;
+  width: 32px;
+  height: 45px;
+}
+
+.review-title {
+ font-size: 1.5rem;
+ font-weight:normal;
+ margin-top: 0.25em;
+ margin-bottom: 0.3em;
+}
+
+.feed-item-header {
+  font-weight: bold;
+}
+
+.content-action {
+  white-space: nowrap;
+}
+
+.delete-preamble {
+  margin-bottom:1em;
+}
+
+.cancel-link {
+  margin-left:1em;
+  font-style:italic;
+}
+
+.language-button {
+  font-size:small;
+  margin-bottom:0.5em;
+}
+
+.inline-form {
+  display: inline;
+}
+
+.upload-form {
+  margin-top: 0;
+}
+
+#upload-label,
+#start-upload {
+  display: inline-flex;
+  align-items: center;
+}
+
+.language-identifier, .user-team-badge {
+  background: var(--lr-highlight-background);
+  font-size: x-small;
+  text-transform: uppercase;
+  padding:3px;
+  border-radius: 3px;
+  vertical-align:middle;
+  font-weight: normal;
+  font-style: normal;
+  white-space: nowrap;
+  margin-left: 0.5em;
+}
+
+a .language-identifier,
+a .user-team-badge {
+  color: var(--pico-muted-color);
+  display: inline-block;
+  text-decoration: none;
+}
+
+.language-identifier-icon {
+  color: var(--pico-muted-color, #777);
+}
+
+/* For inline display in search results, we add a border to lift it up from */
+/* background when row is highlighted. */
+.language-identifier-search-row {
+  margin-left:0.5em;
+  border-style:solid;
+  border-width:1px;
+  border-color: var(--lr-preview-border);
+  font-size:xx-small;
+}
+
+.user-team-badge {
+  font-weight: bold;
+  margin-left: 0.5em;
+  border-style: solid;
+  border-width:1px;
+  border-color: var(--lr-highlight-background);
+  background: var(--lr-excerpt-background);
+}
+
+.user-team-list li, .team-member-list li {
+  margin-bottom: 0.5em;
+}
+
+.user-label {
+  font-weight: bold;
+}
+
+
+.centered-column {
+  max-width: var(--lr-content-max-width);
+  margin: auto;
+}
+
+/* Narrower variant for simple forms (signin, register, etc.) */
+.centered-form {
+  max-width: 36em;
+  margin: auto;
+
+  button {
+    width: auto;
+  }
+}
+
+.checkbox-with-margin {
+  margin-bottom: 1rem;
+}
+
+/* When main-body contains a centered-form, align content together */
+#main-body:has(.centered-form) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  > .centered-form,
+  > #site-messages,
+  > #site-errors {
+    width: 100%;
+    max-width: 36em;
+  }
+}
+
+.team-info, .user-info {
+  padding-right: 3em;
+}
+
+#bio-textarea {
+  width: 100%;
+  height: 15em;
+  margin-bottom:0.25em;
+}
+
+#character-caption {
+  font-size: small;
+}
+
+#over-maximum-warning {
+  color: red;
+}
+
+.team-textarea {
+  height: 10em;
+}
+
+.login-form-input {
+  max-width: 30em;
+}
+
+/* Thing/item data */
+
+.thing-data-file-list {
+  line-height:1.5em;
+}
+
+.thing-data-file-name, .thing-data-file-credit {
+  font-size:85%;
+}
+
+
+.thing-data-urls-table {
+  font-size: small;
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.thing-data-urls-table-tag {
+  padding-right:1em;
+  vertical-align: top;
+}
+
+.thing-data-urls-table-link {
+  padding-right:0.5em;
+}
+
+.thing-data {
+  margin-bottom: 0.75em;
+  line-height: 1.5;
+}
+
+ul.thing-data-list,
+ul.thing-data-list > li {
+  list-style: none !important;
+  margin-left: 0;
+  padding-left: 0;
+  padding-inline-start: 0;
+}
+
+ul.thing-data-list > li::marker {
+  content: "";
+}
+
+.thing-data-list-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 0.25em;
+  line-height: 2em;
+  margin-bottom: 0.5em;
+}
+
+.thing-data-list-item .fa-li.thing-data-icon {
+  position: static;
+  width: auto;
+  margin-right: 0.4em;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+/* Group primary inline content so icons/buttons align naturally */
+.thing-data-primary {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+/* Container that keeps icon and URL together as one flex item */
+.thing-url-container {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  column-gap: 0.25em;
+  margin-bottom: 0.75rem;
+}
+
+/* URL wrapper within container */
+.thing-data-url-primary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* URL link: block display forces it to parent width, then truncates */
+.thing-data-url-primary > a:not([role]) {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Manage links button */
+#manage-urls {
+  margin-top: 0.5rem;
+}
+
+/* URL management table (/manage/urls page) */
+.url-table {
+  border: none;
+  border-collapse: collapse;
+
+  th,
+  td {
+    border: none;
+    vertical-align: middle;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    background-color: var(--lr-table-background);
+  }
+
+  /* Match header styling to body cells */
+  thead th {
+    font-weight: var(--pico-font-weight);
+  }
+
+  /* Remove bottom margin from inputs in table cells */
+  input[type="text"],
+  input[type="radio"] {
+    margin-bottom: 0;
+  }
+
+  /* Remove bottom margin from validation message containers */
+  div[id^="url-validation-"] {
+    margin-bottom: 0;
+  }
+
+  /* Align radio buttons vertically centered */
+  input[type="radio"] {
+    margin-top: 0;
+  }
+}
+
+/* Inline action buttons within thing data should align optically with text */
+.thing-data-primary a[role="button"].button-compact,
+.thing-data-primary button.button-compact,
+.thing-data-primary button.button-compact-primary,
+.thing-data-primary a[role="button"].button-destructive {
+  vertical-align: middle;
+  margin-top: 0;
+  margin-left: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Ensure secondary blocks (tables, lists, file lists) start on new line */
+ul.thing-data-list > li > table,
+ul.thing-data-list > li > div,
+ul.thing-data-list > li > p {
+  flex-basis: 100%;
+}
+
+.source-licenses {
+  margin-top:1em;
+  font-size:small;
+  color: var(--pico-muted-color);
+}
+
+.review-url {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display:block;
+}
+
+.review-text {
+  clear:right;
+  margin-top: 0.5em;
+  margin-bottom: 1em;
+}
+
+/* Team components */
+
+.team-signup-container {
+  display: inline-block;
+  vertical-align: top;
+  padding-top: 0.2em;
+  max-width: 30em;
+}
+
+.team-signup-item {
+  margin-bottom: 0.8em;
+}
+
+/* Team signup label styling (works with Pico forms) */
+.team-signup-label {
+  width: auto;
+  margin: 0;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+}
+
+.team-signup-label input[type="checkbox"] {
+  margin-top: 0.25em;
+  margin-right: 0.5em;
+  flex-shrink: 0;
+}
+
+.team-signup-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.team-signup-name {
+  font-weight: normal;
+}
+
+.team-signup-motto {
+  font-size: 0.95em;
+  color: var(--pico-muted-color);
+  line-height: 1.2;
+  font-weight: normal;
+}
+
+.team-header {
+  margin-bottom:0;
+}
+.team-motto {
+  font-style: italic;
+}
+
+.join-textarea-container {
+  margin-right:0.5em;
+}
+
+.join-textarea-container i {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.join-textarea {
+  width:100%;
+  height:6em;
+}
+
+.team-rules {
+  padding: 0.5em;
+  padding-left: 1em;
+  margin: 20px 0;
+  border-left-style:solid;
+  border-left-width: 5px;
+  border-left-color: #66a;
+}
+
+.team-list {
+  max-width: var(--lr-content-max-width);
+}
+
+.blog-post-textarea {
+  height: 15em;
+}
+
+.reject-request-textarea {
+  width: 30em;
+  height: 6em;
+}
+
+summary.content-warning-notice {
+  font-weight: bold;
+  cursor: pointer;
+}
+
+div.dangerous-content {
+  margin-left: 1em;
+  display: none;
+}
+
+/* Override standard caret, since it's not supported by all */
+/* browsers so we have to add our own anyway */
+summary.content-warning-notice::-webkit-details-marker, #review-form-details-summary::-webkit-details-marker {
+	    display: none;
+}
+
+summary.content-warning-notice, #review-form-details-summary {
+  display: inline; /* Shrinks focus border on click */
+}
+
+details.content-warning summary.content-warning-notice:before, #review-form-details #review-form-details-summary:before {
+  content: '\f0da';
+  font-family: 'FontAwesome';
+  padding-right: 5px;
+}
+
+details.content-warning[open] summary.content-warning-notice:before, #review-form-details[open] #review-form-details-summary:before {
+  content: '\f0d7';
+  font-family: 'FontAwesome';
+  padding-right: 5px;
+}
+
+#review-form-details summary::after {
+  display: none; /* Hide Pico default caret on the right */
+}
+
+#review-form-details-summary {
+  cursor: pointer;
+}
+
+.indented-control-group {
+  margin-left: 2em;
+}
+
+.placeholder-width {
+  min-width: 100%;
+}
+
+#upload-label, #upload-input, #start-upload, #start-upload-nojs {
+  font-size: small;
+}
+
+#upload-label,
+#start-upload {
+  display: inline-flex;
+  width: auto;
+  margin-top: 0; /* Remove top margin, already has spacing from above */
+  margin-bottom: 0.75rem; /* Reduce spacing before file list */
+}
+
+#start-upload-nojs {
+  width: auto;
+}
+
+#upload-input {
+  margin-bottom:0.5em;
+}
+
+#file-name-container {
+  margin-top:0.5em;
+  font-size:small;
+}
+
+/* File uploads and media */
+
+.upload-list {
+  margin:0;
+  padding-left:1.5em;
+}
+
+.uploads {
+  margin-top:1em;
+  font-size:90%;
+}
+
+.team-info img {
+  max-width: 100%;
+}
+
+.review-text img, #preview-review-text img, .rte-container img, .blog-post-text img {
+  max-width: 95%;
+  display:block;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+.file-preview img, .file-preview video, .file-preview audio {
+  max-width:400px; /* Backwards compatibility */
+  max-width:40vw;
+  max-height:40vh;
+  display:block;
+}
+
+/* Fill column in file feeds */
+.file-table .file-preview img, .file-preview video, .file-preview audio {
+  max-width:100%;
+  max-height:100%;
+}
+
+.html5-video-player, .html5-audio-player,
+.html5-video-player-in-editor, .html5-audio-player-in-editor {
+  max-width: 95%;
+  display:block;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+.html5-audio-player-in-editor {
+  min-width: 400px; /* Firefox otherwise collapses the element for no good reason */
+}
+
+ .user-info img {
+   max-width: 100%;
+ }
+
+
+/* For markdown captions, we swallow single linebreaks after images, and style */
+/* any text in bold or italic that follows as a caption. */
+.review-text img + br, #preview-review-text img + br, .rte-container img + br {
+  display:none;
+}
+
+.review-text img + br + em, #preview-review-text img + br + em, .rte-container img + br + em,
+.review-text img + br + strong, #preview-review-text img + br + strong, .rte-container img + br + strong
+ {
+  font-size:95%;
+  color: var(--pico-color);
+  display:block;
+  margin:0.5em 2.5% 0 2.5%;
+  padding-bottom:0.5em;
+  border-width:0 0 2px 0;
+  border-style:solid;
+  border-color: var(--lr-preview-border);
+}
+
+.invite-link {
+  font-family: monospace;
+  word-break: break-all;
+}
+
+/* Invite page styles */
+.invite-page-intro {
+  margin-bottom: 2rem;
+}
+
+.invite-generate-form {
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+.invite-generate-form button {
+  width: auto;
+}
+
+.invite-section {
+  margin-top: 2.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.invite-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.invite-section h2 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+}
+
+.invite-section-note {
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+  font-style: italic;
+  color: var(--pico-muted-color);
+}
+
+/* Add subtle visual distinction for account request sections */
+.invite-section-account-request {
+  padding-top: 2rem;
+  border-top: 2px solid var(--lr-separator-color);
+}
+
+.invite-table-wrapper {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.invite-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--lr-table-background);
+}
+
+.invite-table thead {
+  background: var(--pico-muted-border-color);
+}
+
+.invite-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: bold;
+  border-bottom: 2px solid var(--pico-muted-border-color);
+}
+
+.invite-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  vertical-align: middle;
+}
+
+.invite-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.invite-table tbody tr:hover {
+  background: var(--lr-highlight-background);
+}
+
+.invite-link-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.invite-link-cell .invite-link {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mobile: Stack table as cards */
+@media (max-width: 767px) {
+  .invite-table thead {
+    display: none;
+  }
+
+  .invite-table {
+    background: transparent;
+  }
+
+  .invite-table,
+  .invite-table tbody,
+  .invite-table tr,
+  .invite-table td {
+    display: block;
+  }
+
+  .invite-table tr {
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-radius: var(--pico-border-radius);
+    background: var(--pico-background-color);
+    padding: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .invite-table td {
+    padding: 0.75rem 1rem;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .invite-table td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: var(--pico-muted-color);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .invite-link-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .invite-link-wrapper button {
+    width: 100%;
+  }
+}
+
+.expand-container {
+  text-align:center;
+}
+
+.expand-label {
+  margin-right: 0.5em;
+}
+
+.expand-link {
+  cursor:pointer;
+}
+
+.expand-link-main-page {
+  padding: 3px;
+  color: var(--pico-color);
+}
+
+.blog-table {
+ border:0;
+}
+
+.blog-table td {
+  padding-right:0.5em;
+  padding-bottom:0.3em;
+}
+
+.blog-table tr {
+  vertical-align:top;
+}
+
+.review-metrics {
+  margin-top:2em;
+}
+
+.usage-list {
+  list-style:none;
+  padding:0;
+  margin:0;
+}
+
+.file-table-row {
+  display:flex;
+  flex-direction:row;
+  flex-grow:0;
+  width:100%;
+  flex-wrap:wrap;
+  padding-bottom:0.3em;
+}
+
+.file-table-label {
+  font-weight:bold;
+  min-width:10em;
+}
+
+.file-table-value {
+  padding-left:1em;
+  flex-grow:1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-table-name {
+  font-weight:bold;
+  padding-bottom:0.3em;
+}
+
+.file-table-delete {
+  font-size:small;
+  padding-bottom:0.3em;
+}
+
+.file-table-file {
+  padding-bottom:1.5em;
+}
+
+#review-form-details-teams, #review-form-details-social-image {
+  padding-left:1em;
+  padding-top:1em;
+}
+
+#social-media-image-select {
+  width: min(100%, 28rem);
+  padding-block: 0.55em;
+  line-height: 1.2;
+}
+
+
+
+/* ------------- End content styles -------------------------------------------- */
+/* ------------- Begin tooltip styles ------------------------------------------ */
+/**
+ * PowerTip
+ * https://stevenbenner.github.io/jquery-powertip/
+ *
+ * Stylesheet for the monochrome (default) theme.
+ */
+
+#powerTip a {
+  color:#ccc;
+}
+
+#powerTip {
+  cursor: default;
+  background-color: var(--lr-tooltip-bg);
+  background-color: var(--lr-tooltip-bg-rgba);
+  border-radius: 6px;
+  color: var(--lr-theme-pill-active-text);
+  display: none;
+  padding: 10px;
+  position: absolute;
+  white-space: nowrap;
+  z-index: 2147483647;
+}
+#powerTip:before {
+  content: "";
+  position: absolute;
+}
+#powerTip.n:before, #powerTip.s:before {
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+  left: 50%;
+  margin-left: -5px;
+}
+#powerTip.e:before, #powerTip.w:before {
+  border-bottom: 5px solid transparent;
+  border-top: 5px solid transparent;
+  margin-top: -5px;
+  top: 50%;
+}
+#powerTip.n:before {
+  border-top: 10px solid var(--lr-tooltip-bg);
+  border-top: 10px solid var(--lr-tooltip-bg-rgba);
+  bottom: -10px;
+}
+#powerTip.e:before {
+  border-right: 10px solid var(--lr-tooltip-bg);
+  border-right: 10px solid var(--lr-tooltip-bg-rgba);
+  left: -10px;
+}
+#powerTip.s:before {
+  border-bottom: 10px solid var(--lr-tooltip-bg);
+  border-bottom: 10px solid var(--lr-tooltip-bg-rgba);
+  top: -10px;
+}
+#powerTip.w:before {
+  border-left: 10px solid var(--lr-tooltip-bg);
+  border-left: 10px solid var(--lr-tooltip-bg-rgba);
+  right: -10px;
+}
+#powerTip.ne:before, #powerTip.se:before {
+  border-right: 10px solid transparent;
+  border-left: 0;
+  left: 10px;
+}
+#powerTip.nw:before, #powerTip.sw:before {
+  border-left: 10px solid transparent;
+  border-right: 0;
+  right: 10px;
+}
+#powerTip.ne:before, #powerTip.nw:before {
+  border-top: 10px solid var(--lr-tooltip-bg);
+  border-top: 10px solid var(--lr-tooltip-bg-rgba);
+  bottom: -10px;
+}
+#powerTip.se:before, #powerTip.sw:before {
+  border-bottom: 10px solid var(--lr-tooltip-bg);
+  border-bottom: 10px solid var(--lr-tooltip-bg-rgba);
+  top: -10px;
+}
+#powerTip.nw-alt:before, #powerTip.ne-alt:before,
+#powerTip.sw-alt:before, #powerTip.se-alt:before {
+  border-top: 10px solid var(--lr-tooltip-bg);
+  border-top: 10px solid var(--lr-tooltip-bg-rgba);
+  bottom: -10px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  left: 10px;
+}
+#powerTip.ne-alt:before {
+  left: auto;
+  right: 10px;
+}
+#powerTip.sw-alt:before, #powerTip.se-alt:before {
+  border-top: none;
+  border-bottom: 10px solid var(--lr-tooltip-bg);
+  border-bottom: 10px solid var(--lr-tooltip-bg-rgba);
+  bottom: auto;
+  top: -10px;
+}
+#powerTip.se-alt:before {
+  left: auto;
+  right: 10px;
+}
+
+/* ------------- End tooltip styles -------------------------------------------- */
+/* ------------- Begin editor styles ------------------------------------------- */
+
+/* Container height is obtained from textarea via JS */
+
+.rte-container .ProseMirror-prompt input[type="text"],
+.rte-container .ProseMirror-prompt textarea {
+  background: var(--pico-form-element-background-color);
+  border: none;
+  outline: none;
+}
+
+.rte-container .ProseMirror-prompt input[type="text"] {
+  padding: 0 4px;
+}
+
+.rte-container .ProseMirror-prompt-close {
+  position: absolute;
+  left: 2px; top: 1px;
+  color: var(--pico-muted-color);
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.rte-container .ProseMirror-prompt-close:after {
+  content: "✕";
+  font-size: 12px;
+}
+
+.rte-container .ProseMirror-invalid {
+  background: var(--pico-ins-color, #ffc);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: 5px 10px;
+  position: absolute;
+  min-width: 10em;
+}
+
+.rte-container .ProseMirror-prompt-buttons {
+  margin-top: 5px;
+}
+
+.switcher-control {
+  text-transform:uppercase;
+  font-size:small;
+  font-family:sans-serif;
+  display:inline-block;
+  margin-bottom:0.5em;
+}
+
+.switcher-option {
+  margin-right:-1px;
+  padding:10px;
+  display:inline-block;
+  user-select:none;
+}
+
+.switcher-control .switcher-option-selected {
+  border-style:solid;
+  border-width:1px;
+  background: var(--lr-switcher-selected-bg);
+  border-color: var(--lr-switcher-border);
+  font-weight:bold;
+  cursor:default;
+}
+
+.switcher-control .switcher-option-selectable {
+  border-style:solid;
+  border-width:1px;
+  background: var(--lr-switcher-bg);
+  color: var(--pico-color);
+  border-color: var(--lr-switcher-border);
+  cursor:pointer;
+}
+
+#source-selector {
+  margin-top:1em;
+  display:inline;
+}
+
+#source-selector select {
+  display:inline;
+  height:inherit;
+  font-size:small;
+  width: auto;
+  padding: 10px;
+  padding-right: 2.5rem; /* space for dropdown caret */
+}
+
+.switcher-pin {
+  cursor:pointer;
+  font-size:120% !important;
+}
+
+.switcher-pinned {
+  color: var(--pico-primary);
+}
+
+.switcher-unpinned {
+  color: var(--pico-muted-color);
+}
+
+.switcher-working {
+  pointer-events:none;
+  color: var(--pico-muted-color) !important;
+  cursor:default;
+}
+
+.switcher-unpinned:hover {
+  color: var(--pico-color);
+}
+
+.ProseMirror-menu-dropdown, .ProseMirror-menu-dropdown-item, .ProseMirror-prompt {
+  font-family:sans-serif;
+}
+
+/* For styling the editor as disabled when dialogs are opened */
+
+.rte-container .ProseMirror-disabled {
+  background: var(--pico-form-element-background-color);
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events:none;
+  user-select:none;
+}
+
+div.dangerous-content-in-editor {
+  padding-left:1em;
+  border-left-width:2px;
+  border-left-color:#aa0000;
+  border-left-style:solid;
+}
+
+/* To baseline "upload" icon in editor with text */
+.baselined-icon {
+  vertical-align:baseline !important;
+}
+
+/* RTE container and editor styles */
+/* Match spacing for markdown textareas that can be switched to RTE */
+textarea[data-markdown] {
+  margin-bottom: var(--lr-switcher-spacing);
+}
+
+/* Match spacing before source switcher to RTE switcher */
+#review-via-url-inputs input,
+#review-via-database-inputs input {
+  margin-bottom: var(--lr-switcher-spacing);
+}
+
+.rte-container {
+  width: inherit;
+  margin-bottom: 0.5em;
+  outline: 1px solid var(--pico-muted-border-color);
+  box-shadow: inset 0 1px 3px var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  box-sizing: border-box;
+  display: block;
+  position: relative;
+}
+
+.rte-container-full-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100% !important;
+  background: var(--pico-background-color);
+  z-index: 1000;
+}
+
+.rte-focused {
+  outline: 2px solid var(--pico-primary);
+}
+
+/* Override ProseMirror library's hardcoded colors for dark mode support */
+/* Using .rte-container parent selector for higher specificity without !important */
+.rte-container .ProseMirror {
+  background: var(--pico-form-element-background-color);
+  color: var(--pico-color);
+  overflow: auto;
+  padding-left: 1em;
+  padding-right: 1em;
+  border-radius: inherit;
+}
+
+.rte-container .ProseMirror:focus {
+  outline: none;
+}
+
+.rte-container .ProseMirror-full-screen {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-right: 1em;
+  max-width: 46em;
+}
+
+.rte-container .ProseMirror-menubar {
+  background: var(--pico-card-background-color);
+  color: var(--pico-color);
+  border-bottom-color: var(--pico-muted-border-color);
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+  padding-left: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.rte-container .ProseMirror-menubar-wrapper {
+  display: block;
+  border-radius: inherit;
+}
+
+.rte-container .ProseMirror-menubar-disabled {
+  opacity: 0.65;
+}
+
+.rte-container .ProseMirror-menu-dropdown-menu,
+.rte-container .ProseMirror-menu-submenu {
+  background: var(--pico-card-background-color);
+  color: var(--pico-color);
+  border-color: var(--pico-muted-border-color);
+}
+
+.rte-container .ProseMirror-menu-dropdown-item:hover {
+  background: var(--pico-form-element-background-color);
+}
+
+.rte-container .ProseMirror-menu-active {
+  background: var(--pico-form-element-background-color);
+}
+
+.rte-container .ProseMirror-prompt {
+  background: var(--pico-card-background-color);
+  padding: 5px 10px 5px 15px;
+  border: 1px solid var(--pico-muted-border-color);
+  position: absolute;
+  border-radius: 3px;
+  z-index: 1001;
+  box-shadow: -.5px 2px 5px rgba(0, 0, 0, .2);
+}
+
+.rte-container .ProseMirror-prompt h5 {
+  margin: 0;
+  font-weight: normal;
+  font-size: 100%;
+  color: var(--pico-color);
+}
+
+/* ------------- End editor styles --------------------------------------------- */
+/* ------------- Begin modal dialog styles ------------------------------------- */
+
+.blocker {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  width: 100%; height: 100%;
+  overflow: auto;
+  z-index: var(--z-modal-blocker);
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: rgb(0,0,0);
+  background-color: rgba(0,0,0,0.75);
+  text-align: center;
+}
+.blocker:before{
+  content: "";
+  display: inline-block;
+  height: 100%;
+  vertical-align: middle;
+  margin-right: -0.05em;
+}
+.blocker.behind {
+  background-color: transparent;
+}
+.modal {
+  display: none;
+  vertical-align: middle;
+  position: relative;
+  z-index: var(--z-modal);
+  max-width: 500px;
+  box-sizing: border-box;
+  width: 90%;
+  background: var(--lr-modal-background);
+  color: var(--pico-color);
+  padding: 15px 30px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px #000;
+  text-align: left;
+}
+
+.modal a.close-modal {
+  position: absolute;
+  top: -12.5px;
+  right: -12.5px;
+  display: block;
+  width: 30px;
+  height: 30px;
+  text-indent: -9999px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAYAAAA6/NlyAAAAAXNSR0IArs4c6QAAA3hJREFUaAXlm8+K00Acx7MiCIJH/yw+gA9g25O49SL4AO3Bp1jw5NvktC+wF88qevK4BU97EmzxUBCEolK/n5gp3W6TTJPfpNPNF37MNsl85/vN/DaTmU6PknC4K+pniqeKJ3k8UnkvDxXJzzy+q/yaxxeVHxW/FNHjgRSeKt4rFoplzaAuHHDBGR2eS9G54reirsmienDCTRt7xwsp+KAoEmt9nLaGitZxrBbPFNaGfPloGw2t4JVamSt8xYW6Dg1oCYo3Yv+rCGViV160oMkcd8SYKnYV1Nb1aEOjCe6L5ZOiLfF120EjWhuBu3YIZt1NQmujnk5F4MgOpURzLfAwOBSTmzp3fpDxuI/pabxpqOoz2r2HLAb0GMbZKlNV5/Hg9XJypguryA7lPF5KMdTZQzHjqxNPhWhzIuAruOl1eNqKEx1tSh5rfbxdw7mOxCq4qS68ZTjKS1YVvilu559vWvFHhh4rZrdyZ69Vmpgdj8fJbDZLJpNJ0uv1cnr/gjrUhQMuI+ANjyuwftQ0bbL6Erp0mM/ny8Fg4M3LtdRxgMtKl3jwmIHVxYXChFy94/Rmpa/pTbNUhstKV+4Rr8lLQ9KlUvJKLyG8yvQ2s9SBy1Jb7jV5a0yapfF6apaZLjLLcWtd4sNrmJUMHyM+1xibTjH82Zh01TNlhsrOhdKTe00uAzZQmN6+KW+sDa/JD2PSVQ873m29yf+1Q9VDzfEYlHi1G5LKBBWZbtEsHbFwb1oYDwr1ZiF/2bnCSg1OBE/pfr9/bWx26UxJL3ONPISOLKUvQza0LZUxSKyjpdTGa/vDEr25rddbMM0Q3O6Lx3rqFvU+x6UrRKQY7tyrZecmD9FODy8uLizTmilwNj0kraNcAJhOp5aGVwsAGD5VmJBrWWbJSgWT9zrzWepQF47RaGSiKfeGx6Szi3gzmX/HHbihwBser4B9UJYpFBNX4R6vTn3VQnez0SymnrHQMsRYGTr1dSk34ljRqS/EMd2pLQ8YBp3a1PLfcqCpo8gtHkZFHKkTX6fs3MY0blKnth66rKCnU0VRGu37ONrQaA4eZDFtWAu2fXj9zjFkxTBOo8F7t926gTp/83Kyzzcy2kZD6xiqxTYnHLRFm3vHiRSwNSjkz3hoIzo8lCKWUlg/YtGs7tObunDAZfpDLbfEI15zsEIY3U/x/gHHc/G1zltnAgAAAABJRU5ErkJggg==');
+
+}
+
+.modal-spinner {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translateY(-50%) translateX(-50%);
+  padding: 12px 16px;
+  border-radius: 5px;
+  background-color: #111;
+  height: 20px;
+}
+
+.modal-spinner > div {
+  border-radius: 100px;
+  background-color: #fff;
+  height: 20px;
+  width: 2px;
+  margin: 0 1px;
+  display: inline-block;
+  animation: sk-stretchdelay 1.2s infinite ease-in-out;
+}
+
+.modal-spinner .rect2 {
+  animation-delay: -1.1s;
+}
+
+.modal-spinner .rect3 {
+  animation-delay: -1.0s;
+}
+
+.modal-spinner .rect4 {
+  animation-delay: -0.9s;
+}
+
+@keyframes sk-stretchdelay {
+  0%, 40%, 100% {
+    transform: scaleY(0.5);
+  }  20% {
+    transform: scaleY(1.0);
+  }
+}
+
+#upload-modal {
+  max-width: 600px;
+}
+
+#upload-modal h3 {
+  color: var(--lr-header-color);
+}
+
+#upload-modal button,
+#upload-modal label[role="button"] {
+  display: inline-block;
+  width: auto; /* override Pico's 100% width for form buttons */
+}
+
+.upload-modal-buttondiv {
+  text-align:center;
+}
+.upload-modal-error {
+  margin-bottom:0.5em;
+}
+
+#upload-modal select {
+  height:auto;
+}
+
+#upload-modal-cancel-metadata {
+  cursor: pointer;
+}
+
+#upload-modal-metadata-info td {
+  font-size:small;
+  padding:5px 5px 5px 2px;
+}
+
+#upload-modal-spinner {
+  margin-left:0.5em;
+}
+
+
+.input-row {
+  vertical-align: top;
+}
+.input-row td {
+  padding:5px;
+}
+
+.password-reveal-toggle {
+  font-size: 0.9em;
+}
+
+.password-reveal-toggle:focus {
+  outline: 2px solid var(--lr-muted-gray);
+  outline-offset: 2px;
+}
+
+/* On mobile, stack the button below the input */
+@media (max-width: 47.999em) {
+  .password-reveal-toggle {
+    display: block;
+    margin-left: 0;
+    margin-top: 0.5em;
+  }
+}
+
+/* ------------- End modal dialog styles --------------------------------------- */
+
+/* ------------- Begin account request styles ---------------------------------- */
+
+.account-request-form textarea,
+.account-request-form input[type="text"],
+.account-request-form input[type="email"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 2px solid var(--lr-preview-border);
+  margin-bottom: 2rem;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--pico-muted-color, #666);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.3s;
+
+  &:hover {
+    color: var(--pico-color);
+  }
+
+  &.active {
+    color: var(--pico-primary);
+    border-bottom-color: var(--pico-primary);
+  }
+}
+
+.tab-content {
+  display: none;
+
+  &.active {
+    display: block;
+  }
+}
+
+.account-request {
+  border: 1px solid var(--lr-preview-border);
+  border-radius: var(--pico-border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background: var(--lr-main-background);
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--lr-preview-border);
+}
+
+.request-date {
+  color: var(--pico-muted-color, #666);
+  font-size: 0.9rem;
+}
+
+.request-body {
+  margin-bottom: 1rem;
+}
+
+.request-field {
+  margin-bottom: 1rem;
+
+  strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--pico-color);
+  }
+
+  p {
+    margin: 0;
+    color: var(--pico-muted-color, #666);
+    white-space: pre-wrap;
+  }
+}
+
+.request-actions {
+  margin-top: 1rem;
+}
+
+.action-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  &.hidden {
+    display: none;
+  }
+}
+
+.rejection-form {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--pico-muted-border-color);
+
+  textarea {
+    margin-bottom: 1rem;
+  }
+
+  &.hidden {
+    display: none;
+  }
+}
+
+.status-approved {
+  color: var(--lr-success-strong-color);
+  font-weight: bold;
+}
+
+.status-rejected {
+  color: var(--lr-error-strong-color);
+  font-weight: bold;
+}
+
+.no-requests {
+  color: var(--pico-muted-color, #666);
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* ------------- End account request styles ------------------------------------ */
+
+/* ------------- Begin footer -------------------------------------------------- */
+
+#footer {
+  font-size: small;
+  text-align: center;
+  padding: 2em 1em;
+  background: linear-gradient(to bottom, #fafafa, #ececec);
+  border-top: 2px solid var(--lr-nav-border);
+}
+
+@media (prefers-color-scheme: dark) {
+  #footer {
+    background: linear-gradient(to bottom, #15181f, #0d0f13);
+  }
+}
+
+[data-theme="dark"] #footer {
+  background: linear-gradient(to bottom, #15181f, #0d0f13);
+}
+
+[data-theme="light"] #footer {
+  background: linear-gradient(to bottom, #fafafa, #ececec);
+}
+
+#languages {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75em;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 1.5em;
+  padding: 1em 1.5em;
+  background: var(--lr-main-background);
+  border-radius: 1em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+#current-language-container {
+  font-weight: bold;
+  color: var(--pico-color);
+}
+
+#language-select {
+  width: auto;
+  margin: 0;
+  padding: 0.4em 0.8em;
+  border-radius: 1em;
+}
+
+#change-language-container button {
+  margin: 0;
+  padding: 0.4em 1em;
+  border-radius: 0.5em;
+  font-size: small;
+}
+
+/* Mobile: stack language selector vertically */
+@media (max-width: 767px) {
+  #languages {
+    flex-direction: column;
+    gap: 1em;
+    width: 100%;
+    padding: 1.5em;
+  }
+
+  #current-language-container {
+    display: none; /* Redundant on mobile */
+  }
+
+  #language-select {
+    width: 100%;
+    max-width: none;
+    padding: 0.6em 0.8em;
+  }
+
+  #change-language-container {
+    width: 100%;
+  }
+
+  #change-language-container button {
+    width: 100%;
+    padding: 0.6em 1em;
+  }
+}
+
+#theme-switcher {
+  margin-bottom: 1em;
+  font-size: small;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+
+  .theme-label {
+    color: var(--pico-muted-color);
+  }
+
+  .theme-pills {
+    display: inline-flex;
+    gap: 0.25em;
+  }
+
+  .theme-pill {
+    padding: 0.35em 0.9em;
+    border-radius: 1em;
+    background: transparent;
+    text-decoration: none;
+    cursor: pointer;
+
+    &.theme-pill-active {
+      background: var(--lr-theme-pill-active-bg);
+      color: var(--lr-theme-pill-active-text);
+      cursor: default;
+    }
+  }
+}
+
+#theme-switcher .theme-pill {
+  color: var(--lr-link-color);
+}
+
+#theme-switcher .theme-pill:visited {
+  color: var(--lr-link-color);
+}
+
+#footer-links {
+  margin-top: 1em;
+  line-height: 1.8;
+}
+
+/* ------------- End footer ---------------------------------------------------- */

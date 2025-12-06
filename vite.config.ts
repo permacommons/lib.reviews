@@ -11,7 +11,14 @@ export default defineConfig({
   base: '/assets/',
   appType: 'mpa',
   plugins: [],
-  server: { allowedHosts: ['dev.test'] },
+  server: {
+    allowedHosts: ['dev.test'],
+    // Avoid cache/revalidation timing issues in development (FOUCs observed when
+    // browser cache is enabled).
+    headers: {
+      'Cache-Control': 'no-store',
+    },
+  },
   build: {
     outDir: 'build/frontend',
     emptyOutDir: false,

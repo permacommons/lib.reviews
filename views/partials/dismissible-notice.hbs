@@ -1,8 +1,8 @@
 <div class="message-box" id="{{id}}">
-<span class="fa fa-fw fa-{{icon}} spaced-icon">&nbsp;</span> {{{__ messageKey }}}<p>
+<span class="fa fa-fw fa-{{icon}} spaced-icon"></span> {{{__ messageKey }}}<p>
 <form method="post" action="/actions/suppress-notice" target="_blank">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
-<button class="nojs-hidden pure-button button-rounded message-button" class="pure-button button-rounded message-button" data-dismiss-element="{{id}}"><span class="fa fa-fw fa-check-circle spaced-icon">&nbsp;</span>{{{__ "got it"}}}</button>
-<button name="noticeType" value="{{id}}" class="pure-button button-rounded message-button" data-suppress-notice="{{id}}"><span class="fa fa-fw fa-ban spaced-icon">&nbsp;</span>{{{__ "never show this again"}}}</button>
+<button class="nojs-hidden secondary message-button" data-dismiss-element="{{id}}"><span class="fa fa-fw fa-check-circle spaced-icon"></span> {{{__ "got it"}}}</button>
+<button name="noticeType" value="{{id}}" class="secondary message-button" data-suppress-notice="{{id}}"><span class="fa fa-fw fa-ban spaced-icon"></span> {{{__ "never show this again"}}}</button>
 </form>
 </div>

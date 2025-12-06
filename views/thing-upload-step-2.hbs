@@ -1,4 +1,4 @@
-<h2 id="sub-header">{{{__ "related to" (getThingLink thing)}}}</h2>
+<h2>{{{__ "related to" (getThingLink thing)}}}</h2>
 {{{__ "please complete your upload" }}}
 <div id="page-errors">
 {{#each pageErrors}}
@@ -6,7 +6,7 @@
 {{/each}}
 </div>
 <p>
-<form class="pure-form pure-form-stacked" method="post">
+<form method="post">
 <input type="hidden" name="_csrf" value="{{csrfToken}}">
 <input name="upload-language" type="hidden" value="{{#if uploadLanguage}}{{uploadLanguage}}{{else}}{{currentLanguage.langKey}}{{/if}}">
 {{#each uploadedFiles}}
@@ -15,70 +15,72 @@
 {{{renderFilePreview this}}}
 
 <p>
-<fieldset><div class="pure-g">
-  <div class="pure-u-1 pure-u-md-2-3">
-    <div class="pure-control-group">
-        <label for="upload-{{this.id}}-description">{{{__ "upload description"}}} <span class="required">*</span></label>
-        <textarea id="upload-{{this.id}}-description" name="upload[{{this.id}}][description]"  class="pure-input-1" data-required placeholder='{{{__ "enter description"}}}'>{{lookup (lookup ../formValues this.id) "description"}}</textarea>
-    </div>
-    <br>
+<fieldset>
+<div class="grid grid-with-sidebar">
+  <div>
+    <label for="upload-{{this.id}}-description">{{{__ "upload description"}}} <span class="required">*</span></label>
+    <textarea id="upload-{{this.id}}-description" name="upload[{{this.id}}][description]" data-required placeholder='{{{__ "enter description"}}}'>{{lookup (lookup ../formValues this.id) "description"}}</textarea>
   </div>
-  <div class="pure-u-1 pure-u-md-1-3">
+  <div>
     {{>help input=(substitute "upload-%1-description" this.id) helpLabel="upload description" helpText="upload description help"}}
   </div>
+</div>
 
-  <div class="pure-u-1">
-  <div class="pure-control-group">
-  <input type="radio" data-hide="expanded-info-{{this.id}}" data-disable-required-group="upload-metadata-{{this.id}}" id="upload-{{this.id}}-by-uploader" name="upload[{{this.id}}][by]" value="uploader" {{#unless (lookup (lookup ../formValues this.id) "by")}}checked{{/unless}}{{#ifCond (lookup (lookup ../formValues this.id) "by") '===' 'uploader'}}checked{{/ifCond}}> <label class="inline-label" for="upload-{{this.id}}-by-uploader">{{{__ "my own work"}}}</label><p>
-  <input type="radio" id="upload-{{this.id}}-by-other" name="upload[{{this.id}}][by]" value="other" data-show="expanded-info-{{this.id}}" data-enable-required-group="upload-metadata-{{this.id}}" {{#ifCond (lookup (lookup ../formValues this.id) "by") '===' 'other'}}checked{{/ifCond}}> <label class="inline-label" for="upload-{{this.id}}-by-other">{{{__ "someone else's work"}}}</label>
-  </div>
-  </div>
+<div>
+  <label for="upload-{{this.id}}-by-uploader">
+    <input type="radio" data-hide="expanded-info-{{this.id}}" data-disable-required-group="upload-metadata-{{this.id}}" id="upload-{{this.id}}-by-uploader" name="upload[{{this.id}}][by]" value="uploader" {{#unless (lookup (lookup ../formValues this.id) "by")}}checked{{/unless}}{{#ifCond (lookup (lookup ../formValues this.id) "by") '===' 'uploader'}}checked{{/ifCond}}>
+    {{{__ "my own work"}}}
+  </label>
+  <label for="upload-{{this.id}}-by-other">
+    <input type="radio" id="upload-{{this.id}}-by-other" name="upload[{{this.id}}][by]" value="other" data-show="expanded-info-{{this.id}}" data-enable-required-group="upload-metadata-{{this.id}}" {{#ifCond (lookup (lookup ../formValues this.id) "by") '===' 'other'}}checked{{/ifCond}}>
+    {{{__ "someone else's work"}}}
+  </label>
+</div>
 
-  <div class="hidden-regular nojs-visible placeholder-width" id="expanded-info-{{this.id}}">
-  <div class="pure-u-1 pure-u-md-2-3">
-    <div class="pure-control-group indented-control-group">
-        <label for="upload-{{this.id}}-creator">{{{__ "creator"}}} <span data-required-indicator-group="upload-metadata-{{this.id}}" class="hidden">*</span></label>
-        <input type="text" size="80" id="upload-{{this.id}}-creator" name="upload[{{this.id}}][creator]"  class="pure-input-1" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter creator name"}}}' value="{{lookup (lookup ../formValues this.id) "creator"}}">
+<div class="hidden-regular nojs-visible" id="expanded-info-{{this.id}}">
+  <div class="grid grid-form">
+    <div>
+      <label for="upload-{{this.id}}-creator">{{{__ "creator"}}} <span data-required-indicator-group="upload-metadata-{{this.id}}" class="hidden">*</span></label>
+      <input type="text" id="upload-{{this.id}}-creator" name="upload[{{this.id}}][creator]" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter creator name"}}}' value="{{lookup (lookup ../formValues this.id) "creator"}}">
     </div>
-    <br>
-  </div>
-  <div class="pure-u-1 pure-u-md-1-3">
-    {{>help input=(substitute "upload-%1-creator" this.id) helpLabel="creator" helpText="creator help"}}
-  </div>
-
-  <div class="pure-u-1 pure-u-md-2-3">
-    <div class="pure-control-group indented-control-group">
-        <label for="upload-{{this.id}}-source">{{{__ "source"}}} <span data-required-indicator-group="upload-metadata-{{this.id}}" class="hidden">*</span></label>
-        <input type="text" id="upload-{{this.id}}-source" name="upload[{{this.id}}][source]"  class="pure-input-1" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter source"}}}' value="{{lookup (lookup ../formValues this.id) "source"}}">
+    <div>
+      {{>help input=(substitute "upload-%1-creator" this.id) helpLabel="creator" helpText="creator help"}}
     </div>
-    <br>
-  </div>
-  <div class="pure-u-1 pure-u-md-1-3">
-    {{>help input=(substitute "upload-%1-source" this.id) helpLabel="source help label" helpText="source help"}}
+
+    <div>
+      <label for="upload-{{this.id}}-source">{{{__ "source"}}} <span data-required-indicator-group="upload-metadata-{{this.id}}" class="hidden">*</span></label>
+      <input type="text" id="upload-{{this.id}}-source" name="upload[{{this.id}}][source]" data-required-input-group="upload-metadata-{{this.id}}" placeholder='{{{__ "enter source"}}}' value="{{lookup (lookup ../formValues this.id) "source"}}">
+    </div>
+    <div>
+      {{>help input=(substitute "upload-%1-source" this.id) helpLabel="source help label" helpText="source help"}}
+    </div>
   </div>
 
-  <div class="pure-u-1 pure-u-md-2-3">
-    <div class="pure-control-group indented-control-group">
-      <b>{{{__ "license"}}}</b>
-      <p>
-        <input type="radio"  name="upload[{{this.id}}][license]" id="upload-license-{{this.id}}-fair-use" value="fair-use" {{#unless (lookup (lookup ../formValues this.id) "license")}}checked{{/unless}}{{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'fair-use'}}checked{{/ifCond}}> <label class="inline-label" for="upload-license-{{this.id}}-fair-use">{{{__ "fair use"}}}</label><p>
-
-        <input type="radio" id="upload-license-{{this.id}}-cc-0" name="upload[{{this.id}}][license]" value="cc-0" {{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'cc-0'}}checked{{/ifCond}}> <label class="inline-label" for="upload-license-{{this.id}}-cc-0">{{{__ "cc-0"}}}</label><p>
-
-        <input type="radio" id="upload-license-{{this.id}}-cc-by" name="upload[{{this.id}}][license]" value="cc-by" {{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'cc-by'}}checked{{/ifCond}}> <label class="inline-label" for="upload-license-{{this.id}}-cc-by">{{{__ "cc-by"}}}</label><p>
-
-        <input type="radio" id="upload-license-{{this.id}}-cc-by-sa" name="upload[{{this.id}}][license]" value="cc-by-sa" {{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'cc-by-sa'}}checked{{/ifCond}}> <label class="inline-label" for="upload-license-{{this.id}}-cc-by-sa">{{{__ "cc-by-sa"}}}</label><p>
-
+  <div class="form-section">
+    <b>{{{__ "license"}}}</b>
+    <label for="upload-license-{{this.id}}-fair-use">
+      <input type="radio" name="upload[{{this.id}}][license]" id="upload-license-{{this.id}}-fair-use" value="fair-use" {{#unless (lookup (lookup ../formValues this.id) "license")}}checked{{/unless}}{{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'fair-use'}}checked{{/ifCond}}>
+      {{{__ "fair use"}}}
+    </label>
+    <label for="upload-license-{{this.id}}-cc-0">
+      <input type="radio" id="upload-license-{{this.id}}-cc-0" name="upload[{{this.id}}][license]" value="cc-0" {{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'cc-0'}}checked{{/ifCond}}>
+      {{{__ "cc-0"}}}
+    </label>
+    <label for="upload-license-{{this.id}}-cc-by">
+      <input type="radio" id="upload-license-{{this.id}}-cc-by" name="upload[{{this.id}}][license]" value="cc-by" {{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'cc-by'}}checked{{/ifCond}}>
+      {{{__ "cc-by"}}}
+    </label>
+    <label for="upload-license-{{this.id}}-cc-by-sa">
+      <input type="radio" id="upload-license-{{this.id}}-cc-by-sa" name="upload[{{this.id}}][license]" value="cc-by-sa" {{#ifCond (lookup (lookup ../formValues this.id) "license") '===' 'cc-by-sa'}}checked{{/ifCond}}>
+      {{{__ "cc-by-sa"}}}
+    </label>
   </div>
-  </div>
-  </div>
+</div>
 
 {{#unless @last}}
-<div class="pure-u-1 pure-u-md-2-3">
 <hr class="feed-separator">
-</div>
 {{/unless}}
-</div></fieldset>
+</fieldset>
 {{/each}}
 
 <div class="validation-error" id="required-fields-message">
@@ -87,6 +89,6 @@
 <div class="validation-error" id="form-error-message">
 {{{__ "correct errors"}}}
 </div>
-<button id="finish-upload" class="pure-button pure-button-primary button-rounded" data-check-required type="submit">{{{__ "finish upload"}}}</button>
+<button id="finish-upload" data-check-required type="submit">{{{__ "finish upload"}}}</button>
 
 </form>

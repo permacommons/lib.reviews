@@ -55,12 +55,12 @@ export function openPrompt(spec: PromptSpec): void {
 
   const $submitButton = $('<button>')
     .attr('type', 'submit')
-    .addClass(`${prefix}-submit pure-button pure-button-primary`)
+    .addClass(`${prefix}-submit`)
     .text(msg('ok'));
 
   const $cancelButton = $('<button>')
     .attr('type', 'button')
-    .addClass(`${prefix}-cancel pure-button`)
+    .addClass(`${prefix}-cancel secondary`)
     .text(msg('cancel'));
 
   $cancelButton.on('click', close);

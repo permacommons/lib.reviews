@@ -2,34 +2,36 @@
 {{#if showLanguageNotice}}
 {{> dismissible_notice icon="globe" messageKey="editing in language" id="language-notice-thing" csrfToken=csrfToken}}
 {{/if}}
-<h1 id="page-header">{{{__ titleKey}}}</h1>
+<h1>{{{__ titleKey}}}</h1>
 {{#each pageErrors}}
   <div class="error">{{{this}}}</div>
 {{/each}}
-<form class="pure-form pure-form-aligned" method="post" action="">
+<form method="post" action="">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
 <input type="hidden" name="thing-language" value="{{currentLanguage.langKey}}">
 
 {{#if edit.label}}
-<input type="text" class="pure-input-1-2" id="thing-edit-label" name="thing-label" value="{{#if formValues.label}}{{formValues.label}}{{else}}{{mlSafeText thing.label false}}{{/if}}" placeholder="{{{__ "enter label"}}}" size="64" data-auto-trim data-focus>
-<button type="submit" id="save" name="thing-action" value="save" class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
+<label for="thing-edit-label">{{{__ "label"}}}</label>
+<input type="text" id="thing-edit-label" name="thing-label" value="{{#if formValues.label}}{{formValues.label}}{{else}}{{mlSafeText thing.label false}}{{/if}}" placeholder="{{{__ "enter label"}}}" data-auto-trim data-focus>
+<button type="submit" id="save" name="thing-action" value="save" class="button-compact-primary" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>
-<span class="fa fa-fw fa-question-circle info-icon spaced-icon">&nbsp;</span>{{{__ "thing label help"}}}
+<span class="fa fa-fw fa-question-circle info-icon spaced-icon"></span> {{{__ "thing label help"}}}
 {{/if}}
 {{#if edit.description}}
-<input type="text" class="pure-input-1-2" id="thing-edit-description" name="thing-description" value="{{#if formValues.description}}{{formValues.description}}{{else}}{{mlSafeText thing.description false}}{{/if}}" placeholder="{{{__ "enter thing description"}}}" size="128" data-auto-trim data-focus>
-<button type="submit" id="save" name="thing-action" value="save" class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
+<label for="thing-edit-description">{{{__ "description"}}}</label>
+<input type="text" id="thing-edit-description" name="thing-description" value="{{#if formValues.description}}{{formValues.description}}{{else}}{{mlSafeText thing.description false}}{{/if}}" placeholder="{{{__ "enter thing description"}}}" data-auto-trim data-focus>
+<button type="submit" id="save" name="thing-action" value="save" class="button-compact-primary" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>
-<span class="fa fa-fw fa-question-circle info-icon spaced-icon">&nbsp;</span>{{{__ "thing description help"}}}
+<span class="fa fa-fw fa-question-circle info-icon spaced-icon"></span> {{{__ "thing description help"}}}
 {{/if}}
 </form>
 <p>
 {{#if thing.urls}}
-<div id="item-url"><span class="fa fa-fw fa-external-link review-icon">&nbsp;</span>{{{link thing.urls.[0] (prettify thing.urls.[0])}}}</div>
+<div id="item-url"><span class="fa fa-fw fa-external-link review-icon"></span> {{{link thing.urls.[0] (prettify thing.urls.[0])}}}</div>
 {{/if}}
 {{# if (mlSafeText thing.description)}}
-<div id="item-description"><span class="fa fa-fw fa-info-circle review-icon">&nbsp;</span>{{mlSafeText thing.description}}</div>
+<div id="item-description"><span class="fa fa-fw fa-info-circle review-icon"></span> {{mlSafeText thing.description}}</div>
 {{/if}}
 </div>

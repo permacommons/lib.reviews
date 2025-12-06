@@ -363,6 +363,7 @@ router.get('/signin', (req: ActionsRequest, res: ActionsResponse) => {
   const pageErrors = req.flash('pageErrors');
   render.template(req, res, 'signin', {
     titleKey: 'sign in',
+    deferPageHeader: true,
     pageErrors,
   });
 });
@@ -407,6 +408,7 @@ router.get('/forgot-password', (req: ActionsRequest, res: ActionsResponse) => {
   const pageErrors = req.flash('pageErrors');
   render.template(req, res, 'forgot-password', {
     titleKey: 'forgot password',
+    deferPageHeader: true,
     cooldownHours: getPasswordResetCooldownHours(),
     requestComplete: false,
     pageErrors,
@@ -476,6 +478,7 @@ router.get('/reset-password/:token', async (req: ActionsRequest, res: ActionsRes
   if (!tokenID || !isUUID.v4(tokenID)) {
     return render.template(req, res, 'reset-password', {
       titleKey: 'reset password',
+      deferPageHeader: true,
       tokenValid: false,
     });
   }
@@ -485,6 +488,7 @@ router.get('/reset-password/:token', async (req: ActionsRequest, res: ActionsRes
 
   render.template(req, res, 'reset-password', {
     titleKey: 'reset password',
+    deferPageHeader: true,
     token: tokenID,
     tokenValid,
   });
@@ -1042,6 +1046,7 @@ async function sendRegistrationForm(
     'register',
     {
       titleKey: 'register',
+      deferPageHeader: true,
       pageErrors,
       formValues,
       questionCaptcha: forms.getQuestionCaptcha('register'),

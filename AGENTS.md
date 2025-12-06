@@ -1,9 +1,19 @@
 # lib.reviews Agent Notes
 
-This repository powers the lib.reviews platform. The codebase dates back several years and still reflects legacy patterns. We are in the middle of a long-running modernization effort.
+This repository powers the lib.reviews platform. It includes legacy patterns and is being modernized.
+
+## Tech Stack
+- Runtime/language: Node.js (>=22), TypeScript (ESM)
+- Backend: Express, Handlebars (`hbs`), `config`
+- Data/search: PostgreSQL (`pg`), sessions (`connect-pg-simple`), Elasticsearch client
+- Frontend: Vite (MPA) + TS modules, PicoCSS, jQuery, ProseMirror, PostCSS
+- Tooling: Biome (lint/format), AVA (+ Supertest/Nock/JSdom), TypeDoc
 
 ## Guidance for Agents
-- Preserve existing behavior unless instructions say otherwise; many routes have implicit dependencies.
-- When asked to draft a commit message, use conventional commit format. Keep the first line ≤50 chars, subsequent lines ≤72 chars, and limit bullet lists to at most four items (but do use bullets to expand on the headline). Only describe changes that remain in the current diff.
-- When migrating or editing TypeScript doc comments, omit explicit type annotations in `@param` tags; TypeScript already conveys that information.
-- `npm run test`, `npm run lint` and `npm run typecheck` must all pass upon completion of a task.
+- Preserve behavior unless explicitly told otherwise; many routes have implicit dependencies.
+- Code comments should describe the code that is there, not legacy behavior or intermediate steps.
+- Code comments are NOT a tool to support user-agent communication; they must only be added if they have long-term value.
+- If asked for a commit message, use Conventional Commits: subject ≤50 chars, body lines ≤72 chars, ≤4 bullets, describe only the current diff.
+- In TypeScript doc comments, omit types in `@param` tags.
+- If you touch TS/JS/backend, ensure `npm run lint`, `npm run typecheck`, and `npm run test` pass. `npm run test` may be blocked in restricted sandboxes; ask before running or tell the user to run it locally / with elevation.
+- During CSS-only iteration, you can usually rely on Vite HMR/dev server for feedback; run `npm run build:frontend` when changing PostCSS features (nesting/mixins), when the user reports Vite errors, or when anything about the CSS pipeline/bundling changes.

@@ -215,7 +215,10 @@ async function getApp(): Promise<express.Express> {
     '/assets',
     express.static(path.join(process.cwd(), 'build', 'frontend'), {
       fallthrough: true,
-      maxAge: '1y',
+      maxAge: process.env.NODE_ENV === 'production' ? '1y' : 0,
+      setHeaders: res => {
+        if (process.env.NODE_ENV !== 'production') res.setHeader('Cache-Control', 'no-store');
+      },
     })
   );
 
@@ -227,6 +230,9 @@ async function getApp(): Promise<express.Express> {
         configFile: viteConfigPath,
         server: {
           middlewareMode: true,
+          headers: {
+            'Cache-Control': 'no-store',
+          },
           watch: {
             usePolling: process.env.VITE_USE_POLLING === '1',
           },

@@ -1,0 +1,16 @@
+<div class="grid grid-with-toc">
+  <div class="main-content long-text">
+    {{> @partial-block}}
+  </div>
+
+  {{#if toc}}
+  <aside class="toc">
+    <h1>{{{__ "toc heading"}}}</h1>
+    <ul>
+      {{#each toc}}
+      <li><a href="#{{this.id}}">{{{this.text}}}</a></li>
+      {{/each}}
+    </ul>
+  </aside>
+  {{/if}}
+</div>

@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { Router } from 'express';
 import languages from '../locales/languages.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
+import { extractHeadings } from './helpers/headings.ts';
 import render from './helpers/render.ts';
 
 type PagesRouteRequest = HandlerRequest;
@@ -16,23 +17,27 @@ const stat = promisify(fs.stat);
 
 router.get('/terms', (req: PagesRouteRequest, res: PagesRouteResponse, next: HandlerNext) => {
   resolveMultilingualTemplate('terms', req.locale, req.app.locals.paths.runtimeRoot)
-    .then(templateName =>
+    .then(async templateName => {
+      const toc = await extractHeadings(templateName, req.app.locals.paths.runtimeRoot);
       render.template(req, res, templateName, {
         deferPageHeader: true,
         titleKey: 'terms',
-      })
-    )
+        toc,
+      });
+    })
     .catch(next);
 });
 
 router.get('/faq', (req: PagesRouteRequest, res: PagesRouteResponse, next: HandlerNext) => {
   resolveMultilingualTemplate('faq', req.locale, req.app.locals.paths.runtimeRoot)
-    .then(templateName =>
+    .then(async templateName => {
+      const toc = await extractHeadings(templateName, req.app.locals.paths.runtimeRoot);
       render.template(req, res, templateName, {
         deferPageHeader: true,
         titleKey: 'faq',
-      })
-    )
+        toc,
+      });
+    })
     .catch(next);
 });
 

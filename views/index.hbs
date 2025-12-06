@@ -6,13 +6,13 @@
 </div>
 <p>
 <div class="expand-container nojs-hidden no-print">
-<span class="expand-link-main-page expand-link" tabindex="0" data-target="extended-intro" data-toggle-text="{{__ "show less"}}"><span class="expand-label">{{__ "show more"}}</span><span class="fa fa-fw fa-chevron-down expand-icon">&nbsp;</span></span>
+<span class="expand-link-main-page expand-link" tabindex="0" data-target="extended-intro" data-toggle-text="{{__ "show less"}}"><span class="expand-label">{{__ "show more"}}</span> <span class="fa fa-fw fa-chevron-down expand-icon"></span></span>
 </div>
 <p>
 {{#if showBlog}}
 <div class="headline-with-link">
 <h2 class="inline-feed-headline">{{{__ "development diary"}}}</h2>
-<span class="view-all-link no-print"><a href="/team/{{team.id}}/blog">{{{__ "view all"}}}</a></span>
+<span class="view-all-link no-print"><a class="nav-pill" href="/team/{{team.id}}/blog">{{{__ "view all"}}}</a></span>
 </div>
 <p>
 <table class="blog-table">
@@ -27,7 +27,7 @@
 {{/if}}
 <div class="headline-with-link frontpage-headline">
 <h2 class="inline-feed-headline">{{{__ "explore teams"}}}</h2>
-<span class="view-all-link no-print"><a href="/teams">{{{__ "view all"}}}</a></span>
+<span class="view-all-link no-print"><a class="nav-pill" href="/teams">{{{__ "view all"}}}</a></span>
 </div>
 <p>
 {{{__ "team intro"}}}
@@ -41,7 +41,7 @@
 </p>
 <div class="headline-with-link frontpage-headline">
 <h2 class="inline-feed-headline">{{{__ "feed"}}}</h2>
-{{#if feedItems}}<span class="view-all-link no-print"><a href="/feed">{{{__ "view all"}}}</a></span>{{/if}}
+{{#if feedItems}}<span class="view-all-link no-print"><a class="nav-pill" href="/feed">{{{__ "view all"}}}</a></span>{{/if}}
 </div>
 <p>
 {{>feed}}

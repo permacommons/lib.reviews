@@ -335,11 +335,7 @@ function showModalForEditingExistingReview(data: { label: string; thing?: Thing 
     .append('<p>' + msg('previously reviewed') + '</p>')
     .append('<p><b>' + data.label + '</b></p>')
     .append('<p>' + msg('abandon form changes') + '</p>')
-    .append(
-      '<button class="pure-button pure-button-primary button-rounded" id="edit-existing-review">' +
-        msg('edit review') +
-        '</button>'
-    )
+    .append('<button id="edit-existing-review">' + msg('edit review') + '</button>')
     .append(
       '&nbsp;<a href="#" id="pick-different-subject">' + msg('pick a different subject') + '</a>'
     );

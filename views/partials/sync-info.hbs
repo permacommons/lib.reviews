@@ -1,5 +1,5 @@
 {{#if sync.active}}<span class="fa fa-refresh fa-fw sync-icon" data-powertip="{{{__ "synced info"}}}<br>{{{__ "sync source" (link (getSourceURL sync.source) (__ (getSourceMsgKey sync.source)) true)}}}{{#if sync.updated}}<br>{{{__ "sync date" (longDate sync.updated)}}}{{/if}}" title="{{{__ "synced info"}}}
 {{{__ "sync source" (__ (getSourceMsgKey sync.source))}}}
-{{#if sync.updated}}{{{__ "sync date" (longDate sync.updated)}}}{{/if}}">&nbsp;</span>{{else}}{{#ifCond thing.userCanEdit '&&' editable}}<a href="/{{{thing.urlID}}}/edit/{{{field}}}" id="add-{{{field}}}" class="pure-button button-rounded inline-edit-button no-print"><span class="fa fa fa-pencil spaced-icon">&nbsp;</span>{{{__ "edit"}}}</a>
+{{#if sync.updated}}{{{__ "sync date" (longDate sync.updated)}}}{{/if}}"></span>{{else}}{{#ifCond thing.userCanEdit '&&' editable}}<a href="/{{{thing.urlID}}}/edit/{{{field}}}" id="add-{{{field}}}" role="button" class="button-compact secondary no-print"><span class="fa fa fa-pencil spaced-icon"></span> {{{__ "edit"}}}</a>
 {{/ifCond}}
 {{/if}}

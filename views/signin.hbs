@@ -1,22 +1,24 @@
+<div class="centered-form">
+<h1>{{{__ "sign in"}}}</h1>
 <p>{{{__ "papers please" }}}</p>
 {{> page_errors}}
-<form class="pure-form pure-form-aligned" action="/signin" method="post">
+<form action="/signin" method="post">
 <input type="hidden" name="_csrf" value="{{csrfToken}}">
 <input type="hidden" name="returnTo" value="{{returnTo}}">
     <fieldset>
-        <div class="pure-control-group">
-            <label for="username">{{{__ "username"}}} <span class="required">*</span></label>
-            <input id="username" name="username" type="text" data-auto-trim placeholder="{{{__ "enter username"}}}" class="pure-input-1 login-form-input" data-required data-focus>
-        </div>
+        <label for="username">
+            {{{__ "username"}}} <span class="required">*</span>
+            <input id="username" name="username" type="text" data-auto-trim placeholder="{{{__ "enter username"}}}" data-required data-focus>
+        </label>
 
-        <div class="pure-control-group">
-            <label for="password">{{{__ "password"}}} <span class="required">*</span></label>
-            <input id="password" name="password" type="password" placeholder="{{{__ "enter password"}}}" class="pure-input-1 login-form-input" data-required>
-        </div>
+        <label for="password">
+            {{{__ "password"}}} <span class="required">*</span>
+            <input id="password" name="password" type="password" placeholder="{{{__ "enter password"}}}" data-required>
+        </label>
         <div class="validation-error" id="required-fields-message">
         {{{__ "complete all required fields"}}}
         </div>
-        <button id="signin-button" data-check-required type="submit" class="pure-button pure-button-primary button-rounded">{{{__ "sign in"}}}</button>
+        <button id="signin-button" data-check-required type="submit">{{{__ "sign in"}}}</button>
         <p><a href="/forgot-password">{{{__ "forgot your password"}}}</a></p>
         {{#if accountRequestsEnabled}}
         <p>{{{__ "no account yet invite only" }}}</p>
@@ -25,3 +27,4 @@
         {{/if}}
     </fieldset>
 </form>
+</div>

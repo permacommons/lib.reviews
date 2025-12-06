@@ -58,7 +58,7 @@ const renderLanguageIdentifier = (resolvedLanguage: string, locale: string | und
   const translationLocale = (locale ?? 'en') as LocaleCodeWithUndetermined;
   const languageName = languages.getCompositeName(resolvedLocale, translationLocale);
   return (
-    ` <span class="language-identifier" title="${languageName}">` +
+    `<span class="language-identifier" title="${languageName}">` +
     `<span class="fa fa-fw fa-globe language-identifier-icon">&nbsp;</span>${resolvedLanguage}</span>`
   );
 };
