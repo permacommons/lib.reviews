@@ -2,6 +2,19 @@
 
 {{__ "account request notification intro plain"}}
 
+Request Details:
+
+Email: {{requesterEmail}}
+
+Languages:
+{{languages}}
+
+Planned Reviews:
+{{plannedReviews}}
+
+About/Links:
+{{aboutLinks}}
+
 {{__ "account request notification instructions plain"}}
 {{manageURL}}
 
