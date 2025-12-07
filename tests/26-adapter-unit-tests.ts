@@ -146,6 +146,19 @@ test('Adapters report correct supported fields', t => {
   t.pass();
 });
 
+test('Wikidata adapter maps mul labels to und and requests mul', t => {
+  const adapter = new WikidataBackendAdapter();
+  const mlString = adapter.convertToMlString({
+    mul: { language: 'mul', value: 'Multilingual default' },
+  });
+
+  t.deepEqual(mlString, { und: 'Multilingual default' });
+  t.true(
+    adapter.getAcceptedWikidataLanguageCodes().includes('mul'),
+    'Adapter should request mul labels'
+  );
+});
+
 test('Adapter throttling serializes requests with configured delays', async t => {
   // Create a fresh OSM adapter instance with throttling enabled
   const osmAdapter = new OpenStreetMapBackendAdapter();

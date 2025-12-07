@@ -148,6 +148,8 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
    * not a valid native language.
    */
   getNativeLanguageCode(language: string): string | null {
+    // Wikidata's "mul" is the default label usable in any language; store as undetermined.
+    if (language.toLowerCase() === 'mul') return 'und';
     for (const k in nativeToWikidata) {
       if (nativeToWikidata[k].toUpperCase() === language.toUpperCase()) return k;
     }
@@ -156,7 +158,12 @@ export default class WikidataBackendAdapter extends AbstractBackendAdapter {
 
   /** Return array of the codes we can handle */
   getAcceptedWikidataLanguageCodes(): string[] {
-    return languages.getValidLanguages().map(language => this.getWikidataLanguageCode(language));
+    const supported = languages
+      .getValidLanguages()
+      .map(language => this.getWikidataLanguageCode(language));
+    // Include the Wikidata "mul" label so we can use it as undetermined if no better match exists.
+    supported.push('mul');
+    return supported;
   }
 
   /** Return codes in list format expected by API */
