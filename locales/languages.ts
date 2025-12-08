@@ -87,6 +87,11 @@ VALID_LANGUAGES.forEach(language => {
 });
 
 const SUPPORTED_LOCALES = [...VALID_LANGUAGES] as const;
+// Fallback list for unsupported locales: start with en/und, then all supported codes.
+const DEFAULT_FALLBACKS = ['en', 'und', ...SUPPORTED_LOCALES].filter(
+  // Deduplicate while preserving order (e.g., if 'und' ever shows up in SUPPORTED_LOCALES)
+  (value, index, self) => self.indexOf(value) === index
+) as LocaleCodeWithUndetermined[];
 // Precomputed fallback chains for each supported language. Built once at startup.
 const FALLBACKS_BY_LANG: Partial<Record<string, LocaleCodeWithUndetermined[]>> = {};
 
@@ -268,7 +273,11 @@ const languages = {
    */
   getFallbacks(langKey: string): LocaleCodeWithUndetermined[] {
     const cached = FALLBACKS_BY_LANG[langKey];
-    return cached ? [...cached] : ['en', 'und'];
+    if (cached) return [...cached];
+
+    // For unsupported locales, fall back to a stable list headed by en/und,
+    // followed by all supported languages sorted alphabetically.
+    return [...DEFAULT_FALLBACKS];
   },
 };
 
