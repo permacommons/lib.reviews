@@ -38,6 +38,7 @@ export interface DebugLoggerMap {
   db: Debugger;
   app: Debugger;
   util: Debugger;
+  i18n: Debugger;
   tests: Debugger;
   adapters: Debugger;
   webhooks: Debugger;
@@ -128,6 +129,7 @@ const debug: DebugLoggerMap = {
   db: debugModule('libreviews:db'),
   app: debugModule('libreviews:app'),
   util: debugModule('libreviews:util'),
+  i18n: debugModule('libreviews:i18n'),
   tests: debugModule('libreviews:tests'),
   adapters: debugModule('libreviews:adapters'),
   webhooks: debugModule('libreviews:webhooks'),

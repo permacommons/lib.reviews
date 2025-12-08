@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 // External dependencies
 import jsonfile from 'jsonfile';
-
+import debug from '../util/debug.ts';
 // Internal dependencies
 import ReportedError from '../util/reported-error.ts';
 
@@ -87,6 +87,88 @@ VALID_LANGUAGES.forEach(language => {
 });
 
 const SUPPORTED_LOCALES = [...VALID_LANGUAGES] as const;
+// Precomputed fallback chains for each supported language. Built once at startup.
+const FALLBACKS_BY_LANG: Partial<Record<string, LocaleCodeWithUndetermined[]>> = {};
+
+/**
+ * Build deterministic fallback sequences for all supported languages.
+ *
+ * Priority order:
+ * 1) Exact language
+ * 2) und (Wikidata mul)
+ * 3) Same base language (e.g., pt <-> pt-PT, sr-Latn for sr-Cyrl)
+ * 4) en
+ * 5) Same-script languages
+ * 6) Remaining supported languages in canonical order
+ *
+ * Uses Intl.Locale at startup only; lookup stays hot-path cheap.
+ */
+function buildFallbacks(): void {
+  const scriptByLang: Partial<Record<string, string | null>> = {};
+  const baseByLang: Partial<Record<string, string>> = {};
+
+  const getBase = (code: string): string => {
+    if (baseByLang[code]) return baseByLang[code]!;
+    try {
+      baseByLang[code] = new Intl.Locale(code).language || code.toLowerCase();
+    } catch {
+      baseByLang[code] = code.toLowerCase();
+    }
+    return baseByLang[code]!;
+  };
+
+  const getScript = (code: string): string | null => {
+    if (scriptByLang.hasOwnProperty(code)) return scriptByLang[code] ?? null;
+    try {
+      scriptByLang[code] = new Intl.Locale(code).maximize().script || null;
+    } catch {
+      scriptByLang[code] = null;
+    }
+    return scriptByLang[code];
+  };
+
+  const supported = [...SUPPORTED_LOCALES];
+
+  for (const lang of supported) {
+    const fallbacks: LocaleCodeWithUndetermined[] = [];
+    const seen = new Set<string>();
+    const append = (code?: string | null) => {
+      if (!code) return;
+      if (seen.has(code)) return;
+      seen.add(code);
+      fallbacks.push(code as LocaleCodeWithUndetermined);
+    };
+
+    append(lang);
+    append('und');
+
+    const base = getBase(lang);
+    for (const candidate of supported) {
+      if (candidate === lang) continue;
+      if (getBase(candidate) === base) append(candidate);
+    }
+
+    append('en');
+
+    const script = getScript(lang);
+    if (script) {
+      for (const candidate of supported) {
+        if (seen.has(candidate)) continue;
+        if (getScript(candidate) === script) append(candidate);
+      }
+    }
+
+    for (const candidate of supported) append(candidate);
+
+    FALLBACKS_BY_LANG[lang] = fallbacks;
+  }
+
+  debug.i18n(
+    `Language support initialized. ${supported.length} supported languages: ${supported.join(', ')}`
+  );
+}
+
+buildFallbacks();
 
 const languages = {
   /**
@@ -182,20 +264,10 @@ const languages = {
 
   /**
    * Returns an array of fallback languages to try first when selecting
-   * which language version to show.
+   * which language version to show. Precomputed at startup for speed.
    */
   getFallbacks(langKey: string): LocaleCodeWithUndetermined[] {
-    const fallbacks: LocaleCodeWithUndetermined[] = ['en', 'und'];
-    switch (langKey) {
-      case 'pt':
-        fallbacks.unshift('pt-PT');
-        break;
-      case 'pt-PT':
-        fallbacks.unshift('pt');
-        break;
-      default:
-    }
-    return fallbacks;
+    return FALLBACKS_BY_LANG[langKey] ?? ['en', 'und'];
   },
 };
 
