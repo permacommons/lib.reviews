@@ -267,7 +267,8 @@ const languages = {
    * which language version to show. Precomputed at startup for speed.
    */
   getFallbacks(langKey: string): LocaleCodeWithUndetermined[] {
-    return FALLBACKS_BY_LANG[langKey] ?? ['en', 'und'];
+    const cached = FALLBACKS_BY_LANG[langKey];
+    return cached ? [...cached] : ['en', 'und'];
   },
 };
 
