@@ -93,7 +93,6 @@ const DEFAULT_FALLBACKS = ['en', 'und', ...SUPPORTED_LOCALES].filter(
   (value, index, self) => self.indexOf(value) === index
 ) as LocaleCodeWithUndetermined[];
 // Precomputed fallback chains for each supported language. Built once at startup.
-const FALLBACKS_BY_LANG: Partial<Record<string, LocaleCodeWithUndetermined[]>> = {};
 
 /**
  * Build deterministic fallback sequences for all supported languages.
@@ -107,8 +106,15 @@ const FALLBACKS_BY_LANG: Partial<Record<string, LocaleCodeWithUndetermined[]>> =
  * 6) Remaining supported languages in canonical order
  *
  * Uses Intl.Locale at startup only; lookup stays hot-path cheap.
+ *
+ * @param options.minimalFallback
+ *  When true, stop after en (skip same-script + remaining languages). Used for search fallbacks.
  */
-function buildFallbacks(): void {
+function buildFallbackMap({
+  minimalFallback = false,
+}: {
+  minimalFallback?: boolean;
+} = {}): Record<string, LocaleCodeWithUndetermined[]> {
   const scriptByLang: Partial<Record<string, string | null>> = {};
   const baseByLang: Partial<Record<string, string>> = {};
 
@@ -134,6 +140,8 @@ function buildFallbacks(): void {
 
   const supported = [...SUPPORTED_LOCALES];
 
+  const result: Record<string, LocaleCodeWithUndetermined[]> = {};
+
   for (const lang of supported) {
     const fallbacks: LocaleCodeWithUndetermined[] = [];
     const seen = new Set<string>();
@@ -155,25 +163,30 @@ function buildFallbacks(): void {
 
     append('en');
 
-    const script = getScript(lang);
-    if (script) {
-      for (const candidate of supported) {
-        if (seen.has(candidate)) continue;
-        if (getScript(candidate) === script) append(candidate);
+    if (!minimalFallback) {
+      const script = getScript(lang);
+      if (script) {
+        for (const candidate of supported) {
+          if (seen.has(candidate)) continue;
+          if (getScript(candidate) === script) append(candidate);
+        }
       }
+
+      for (const candidate of supported) append(candidate);
     }
 
-    for (const candidate of supported) append(candidate);
-
-    FALLBACKS_BY_LANG[lang] = fallbacks;
+    result[lang] = fallbacks;
   }
 
-  debug.i18n(
-    `Language support initialized. ${supported.length} supported languages: ${supported.join(', ')}`
-  );
+  return result;
 }
 
-buildFallbacks();
+const FALLBACKS_BY_LANG = buildFallbackMap();
+const SEARCH_FALLBACKS_BY_LANG = buildFallbackMap({ minimalFallback: true });
+
+debug.i18n(
+  `Language support initialized. ${SUPPORTED_LOCALES.length} supported languages: ${SUPPORTED_LOCALES.join(', ')}`
+);
 
 const languages = {
   /**
@@ -277,6 +290,16 @@ const languages = {
 
     // For unsupported locales, fall back to a stable list headed by en/und,
     // followed by all supported languages sorted alphabetically.
+    return [...DEFAULT_FALLBACKS];
+  },
+
+  /**
+   * Returns a narrower fallback list for search/suggest: exact, und, same-base variants, en.
+   * Precomputed at startup for speed.
+   */
+  getSearchFallbacks(langKey: string): LocaleCodeWithUndetermined[] {
+    const cached = SEARCH_FALLBACKS_BY_LANG[langKey];
+    if (cached) return [...cached];
     return [...DEFAULT_FALLBACKS];
   },
 };
