@@ -2,6 +2,7 @@
 	"@metadata": {
 		"authors": [
 			"Ajeje Brazorf",
+			"Cquoi",
 			"Derugon",
 			"Ed g2s",
 			"Eloquence",
@@ -31,6 +32,11 @@
 	"password": "Mot de passe",
 	"enter password": "Entrez votre mot de passe",
 	"reject request": "Rejeter la demande",
+	"account request notification details header": "Détails de la demande :",
+	"account request notification field email": "Courriel :",
+	"account request notification field languages": "Langues :",
+	"account request notification field planned reviews": "Révisions prévues :",
+	"account request notification field about links": "À propos/Liens :",
 	"no account yet": "Vous n’avez pas encore de compte ? <a href=\"/register\">L’inscription</a> est rapide et facile.",
 	"invite link needed": "Merci de l’intérêt que vous portez à la création d’un compte ici ! Nous souhaitons grandir prudemment à ce stade afin de respecter les besoins de la communauté et aussi avoir assez de temps pour nous connaître les uns les autres. Pour cette raison vous aurez besoin d’un lien d’invitation pour créer un compte. Il existe trois manières simples d’obtenir un lien d’invitation :<ul><li>Rejoignez notre clavardage (<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>) et demandez un lien d’invitation.</li><li>Suivez-nous <a href=\"https://fosstodon.org/@lib_reviews\">sur Mastodon</a> et envoyez-nous un message.</li><li>Si vous connaissez un membre de la communauté, demandez-lui directement une invitation.</li></ul><p>Nous espérons sincèrement vous accueillir bientôt au sein de la communauté lib.reviews !",
 	"enter your info": "Bienvenue dans la communauté lib.reviews ! Veuillez saisir les informations de votre nouveau compte ci-dessous.",
