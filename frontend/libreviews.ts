@@ -305,8 +305,21 @@ function toggleDangerousContent(this: HTMLElement, event: JQuery.Event): void {
  * Initializes the autocomplete widget for the global search input.
  */
 function setupSearch(): void {
-  let ac = new Autocomplete($('#search-input')[0], null, requestFn, null, rowFn, triggerFn);
+  const inputEl = $('#search-input')[0] as HTMLInputElement;
+  let ac = new Autocomplete(inputEl, null, requestFn, null, rowFn, triggerFn);
   ac.delay = 0;
+
+  // Store reference for potential manual initialization
+  (inputEl as any)._autocomplete = ac;
+
+  // If input is already focused (user started typing before JS loaded),
+  // manually mount and trigger search for current value
+  if (document.activeElement === inputEl) {
+    ac.mount();
+    if (inputEl.value) {
+      ac.inputHandler();
+    }
+  }
 
   function triggerFn(result: SearchSuggestion | null, event?: Event): void {
     if (!result || !result.urlID) return;
