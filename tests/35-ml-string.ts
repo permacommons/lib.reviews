@@ -122,6 +122,30 @@ test('mlString rich text schema validates text/html pairing', t => {
   t.regex(extraKeyError?.message ?? '', /unsupported keys/);
 });
 
+test('mlString.resolve uses precomputed fallbacks', t => {
+  // Base match beats English/script.
+  const baseMatch = mlString.resolve('pt-PT', {
+    pt: 'Português',
+    en: 'English',
+    ar: 'Arabic',
+  });
+  t.deepEqual(baseMatch, { str: 'Português', lang: 'pt' });
+
+  // und beats base/English.
+  const undMatch = mlString.resolve('fr', {
+    und: 'Default',
+    en: 'English',
+  });
+  t.deepEqual(undMatch, { str: 'Default', lang: 'und' });
+
+  // Script grouping catches Cyrillic before unrelated scripts.
+  const scriptMatch = mlString.resolve('mk', {
+    uk: 'Українська',
+    de: 'Deutsch',
+  });
+  t.deepEqual(scriptMatch, { str: 'Українська', lang: 'uk' });
+});
+
 // ============================================================================
 // INTEGRATION TESTS - Model validation
 // ============================================================================

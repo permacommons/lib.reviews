@@ -252,37 +252,24 @@ const mlString = {
 
   /**
    * Find the best fit for a given language from a multilingual string object,
-   * taking into account fallbacks.
+   * taking into account fallbacks. Fallbacks are precomputed at startup for
+   * performance; this is called frequently in rendering paths.
    */
   resolve(lang: string, strObj: MultilingualString | null | undefined): ResolveResult | undefined {
     if (strObj === undefined || strObj === null) {
       return undefined;
     }
 
-    if (strObj[lang] !== undefined && strObj[lang] !== '') {
-      return {
-        str: strObj[lang],
-        lang,
-      };
+    const hasValue = (code: string): boolean => strObj[code] !== undefined && strObj[code] !== '';
+
+    if (hasValue(lang)) {
+      return { str: strObj[lang], lang };
     }
 
     const fallbackLanguages = languages.getFallbacks(lang);
     for (const fallbackLanguage of fallbackLanguages) {
-      const value = strObj[fallbackLanguage];
-      if (value !== undefined && value !== '') {
-        return {
-          str: value,
-          lang: fallbackLanguage,
-        };
-      }
-    }
-
-    for (const [availableLanguage, value] of Object.entries(strObj)) {
-      if (languages.isValid(availableLanguage) && value !== undefined && value !== '') {
-        return {
-          str: value,
-          lang: availableLanguage,
-        };
+      if (hasValue(fallbackLanguage)) {
+        return { str: strObj[fallbackLanguage], lang: fallbackLanguage };
       }
     }
 

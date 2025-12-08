@@ -296,8 +296,7 @@ const search = {
 
   // Generate language fallback and highlight options.
   getSearchOptions(fieldPrefix: string, lang: LocaleCode) {
-    const langs = languages.getFallbacks(lang);
-    if (lang !== 'en') langs.unshift(lang);
+    const langs = languages.getSearchFallbacks(lang);
 
     // Searches both stemmed and non-stemmed version
     const fields = langs.map(currentLang => `${fieldPrefix}.${currentLang}*`);
@@ -320,8 +319,7 @@ const search = {
   // (things).
   suggestThing(prefix = '', lang: LocaleCode = 'en'): Promise<SuggestThingResponse> {
     // We'll query all fallbacks back to English, and return all results
-    const langs = languages.getFallbacks(lang);
-    if (lang !== 'en') langs.unshift(lang);
+    const langs = languages.getSearchFallbacks(lang);
 
     const query: SearchParams = {
       index: 'libreviews',
@@ -497,6 +495,18 @@ const search = {
         debug.error({
           error,
         });
+      });
+  },
+
+  /**
+   * Delete the search index (use with caution; typically controlled via env flag).
+   */
+  deleteIndex(): Promise<unknown> {
+    return getClient()
+      .indices.delete({ index: 'libreviews' })
+      .catch(error => {
+        if (/\[index_not_found_exception\]/.test(String(error?.message ?? error))) return;
+        debug.error({ error });
       });
   },
 

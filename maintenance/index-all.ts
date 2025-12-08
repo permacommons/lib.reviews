@@ -16,12 +16,24 @@ const limit = promiseLimit<unknown>(2); // Throttle index updates
 debug.util.enabled = true;
 debug.errorLog.enabled = true;
 
+const shouldRecreateIndex = process.env.RECREATE_ES_INDEX === '1';
+
 async function updateIndices(): Promise<void> {
   await initializeDAL();
   debug.util('Using PostgreSQL models for indexing');
 
   // Get revisions we need to index & create indices
   // Only get current revisions (not old or deleted)
+  if (shouldRecreateIndex) {
+    debug.util('RECREATE_ES_INDEX=1 set: deleting and recreating search index');
+    try {
+      await search.deleteIndex();
+    } catch (error) {
+      debug.error('Problem deleting search index:');
+      debug.error(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
   const createIndicesPromise = search.createIndices();
   const [things, reviews] = await Promise.all([
     Thing.filterWhere({}).run() as Promise<IndexableThing[]>,
