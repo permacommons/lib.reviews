@@ -6,6 +6,7 @@
 			"Hydra",
 			"Liuxinyu970226",
 			"NeverBehave",
+			"Plana",
 			"Ral-hole",
 			"Winston Sung",
 			"列维劳德"
@@ -53,6 +54,7 @@
 	"password reset email signature": "此致，<br>lib.reviews团队",
 	"password reset email signature plain": "此致，\nlib.reviews团队",
 	"reject request": "拒绝请求",
+	"account request notification field email": "电子邮件：",
 	"no account yet": "尚未拥有账户么？<a href='/register'>注册</a>是很快很容易的。",
 	"invite link needed": "感谢您对在此拥有账户感兴趣！此时我们希望慎重地成长，这样我们可以跟得上社群所需要的，并且因此我们有足够的时间互相认识。基于这个原因，您需要邀请链接以创建账户。有三种方式可以获得邀请链接：<ul><li>加入我们的 IRC 聊天室（<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>）并请求邀请链接。<li>在 <a href='https://fosstodon.org/@lib_reviews'>Mastodon</a> 关注我们并向我们发送私信。<li>如果您认识我们社群成员之一，可以直接向 TA 请求邀请。</ul><p>我们真的很期待您加入 lib.reviews 社群。",
 	"enter your info": "欢迎来到lib.reviews社区！请在下方输入您的新账户的信息。",
