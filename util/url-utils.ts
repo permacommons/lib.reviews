@@ -58,6 +58,21 @@ const rules: URLRule[] = [
     id: 'imdb',
   },
   {
+    host: /^(www\.)?omdb\.org$/,
+    tags: ['databases', 'reviews'],
+    id: 'omdb',
+  },
+  {
+    host: /^(www\.)?themoviedb\.org$/,
+    tags: ['databases', 'reviews'],
+    id: 'tmdb',
+  },
+  {
+    host: /^(www\.)?thetvdb\.com$/,
+    tags: ['databases', 'reviews'],
+    id: 'tvdb',
+  },
+  {
     host: /^(www\.)?yelp\.com$/,
     tags: ['reviews', 'databases'],
     id: 'yelp',
