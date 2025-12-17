@@ -130,7 +130,7 @@ const rules: URLRule[] = [
 ];
 
 const placement: URLPlacement = {
-  databases: ['wikidata', 'imdb', 'ombd', 'tmdb', 'tvdb'],
+  databases: ['wikidata', 'imdb', 'omdb', 'tmdb', 'tvdb'],
   maps: ['openstreetmap'],
   reviews: ['yelp', 'tripadvisor', 'goodreads', 'librarything'],
   repositories: ['github', 'codeberg'],
