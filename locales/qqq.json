@@ -614,7 +614,7 @@
 	"itch source label": "Label that is used when describing links to itch.io.",
 	"gog source label": "Label that is used when describing links to GOG.com.",
 	"librarything source label": "Label that is used when describing links to LibraryThing.com.",
-	"fdroid soruce label": "Label that is used when describing links to f-droid.org.",
+	"fdroid source label": "Label that is used when describing links to f-droid.org.",
 	"github source label": "Label that is used when describing links to GitHub.com.",
 	"codeberg source label": "Label that is used when describing links to Codeberg.org.",
 	"search databases button label": "Label for button that lets users search external databases for review subjects.",
