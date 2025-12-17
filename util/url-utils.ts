@@ -20,29 +20,48 @@ export interface GetUrlsByTagOptions {
   sortResults?: boolean;
 }
 
+/**
+ * Escapes a string so it can be safely embedded as a literal within a `RegExp`
+ * pattern.
+ *
+ * @param value - Raw string that may contain regex metacharacters.
+ */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+}
+
+/**
+ * Creates a hostname matcher that accepts an optional leading `www.` prefix.
+ *
+ * @param hostname - Hostname to match.
+ */
+function hostWithOptionalWww(hostname: string): RegExp {
+  return new RegExp(`^(www\\.)?${escapeRegExp(hostname)}$`);
+}
+
 const urlRegex =
   /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!$&'()*+,;=]|:|@)|\/|\?)*)*$/i;
 
 const rules: URLRule[] = [
   {
-    host: /^(www\.)?amazon\.com$/,
+    host: hostWithOptionalWww('amazon.com'),
     converter: _stripAmazonQueryStrings,
     tags: ['shops', 'reviews'],
     id: 'amazon',
   },
   {
-    host: /^(www\.)?wikidata\.org$/,
+    host: hostWithOptionalWww('wikidata.org'),
     tags: ['databases', 'opendata'],
     id: 'wikidata',
     converter: _stripFragment,
   },
   {
-    host: /^(www\.)?goodreads\.com$/,
+    host: hostWithOptionalWww('goodreads.com'),
     tags: ['reviews', 'databases'],
     id: 'goodreads',
   },
   {
-    host: /^(www\.)?openstreetmap\.org$/,
+    host: hostWithOptionalWww('openstreetmap.org'),
     tags: ['maps', 'opendata', 'databases'],
     id: 'openstreetmap',
   },
@@ -53,37 +72,37 @@ const rules: URLRule[] = [
     converter: _stripOpenLibraryTitleSuffix,
   },
   {
-    host: /^(www\.)?imdb\.com$/,
+    host: hostWithOptionalWww('imdb.com'),
     tags: ['databases', 'reviews'],
     id: 'imdb',
   },
   {
-    host: /^(www\.)?omdb\.org$/,
+    host: hostWithOptionalWww('omdb.org'),
     tags: ['databases', 'reviews'],
     id: 'omdb',
   },
   {
-    host: /^(www\.)?themoviedb\.org$/,
+    host: hostWithOptionalWww('themoviedb.org'),
     tags: ['databases', 'reviews'],
     id: 'tmdb',
   },
   {
-    host: /^(www\.)?thetvdb\.com$/,
+    host: hostWithOptionalWww('thetvdb.com'),
     tags: ['databases', 'reviews'],
     id: 'tvdb',
   },
   {
-    host: /^(www\.)?yelp\.com$/,
+    host: hostWithOptionalWww('yelp.com'),
     tags: ['reviews', 'databases'],
     id: 'yelp',
   },
   {
-    host: /^(www\.)?tripadvisor\.com$/,
+    host: hostWithOptionalWww('tripadvisor.com'),
     tags: ['reviews', 'databases'],
     id: 'tripadvisor',
   },
   {
-    host: /^(www\.)?indiebound\.org$/,
+    host: hostWithOptionalWww('indiebound.org'),
     tags: ['shops'],
     id: 'indiebound',
   },
@@ -103,27 +122,27 @@ const rules: URLRule[] = [
     id: 'itch',
   },
   {
-    host: /^(www\.)?gog\.com$/,
+    host: hostWithOptionalWww('gog.com'),
     tags: ['shops'],
     id: 'gog',
   },
   {
-    host: /^(www\.)?librarything\.com$/,
+    host: hostWithOptionalWww('librarything.com'),
     tags: ['reviews'],
     id: 'librarything',
   },
   {
-    host: /^(www\.)?f-droid\.org$/,
+    host: hostWithOptionalWww('f-droid.org'),
     tags: ['shops'],
     id: 'fdroid',
   },
   {
-    host: /^(www\.)?github\.com$/,
+    host: hostWithOptionalWww('github.com'),
     tags: ['repositories'],
     id: 'github',
   },
   {
-    host: /^(www\.)?codeberg\.org$/,
+    host: hostWithOptionalWww('codeberg.org'),
     tags: ['repositories'],
     id: 'codeberg',
   },
