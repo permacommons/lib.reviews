@@ -107,13 +107,34 @@ const rules: URLRule[] = [
     tags: ['shops'],
     id: 'gog',
   },
+  {
+    host: /^(www\.)?librarything\.com$/,
+    tags: ['reviews'],
+    id: 'librarything',
+  },
+  {
+    host: /^(www\.)?f-droid\.org$/,
+    tags: ['shops'],
+    id: 'fdroid',
+  },
+  {
+    host: /^(www\.)?github\.com$/,
+    tags: ['repositories'],
+    id: 'github',
+  },
+  {
+    host: /^(www\.)?codeberg\.org$/,
+    tags: ['repositories'],
+    id: 'codeberg',
+  },
 ];
 
 const placement: URLPlacement = {
-  databases: ['wikidata', 'imdb'],
+  databases: ['wikidata', 'imdb', 'omdb', 'tmdb', 'tvdb'],
   maps: ['openstreetmap'],
-  reviews: ['yelp', 'tripadvisor', 'goodreads'],
-  shops: ['indiebound', 'itch', 'gog', 'steam', 'amazon'],
+  reviews: ['yelp', 'tripadvisor', 'goodreads', 'librarything'],
+  repositories: ['github', 'codeberg'],
+  shops: ['indiebound', 'itch', 'gog', 'steam', 'amazon', 'fdroid'],
   summaries: ['wikipedia'],
 };
 
