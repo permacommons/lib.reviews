@@ -20,12 +20,7 @@ import type { FileInstance } from '../models/file.ts';
 import File from '../models/file.ts';
 import type { ThingInstance } from '../models/manifests/thing.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../types/http/handlers.ts';
-import {
-  generateToken,
-  getTokenFromRequest,
-  getTokenFromState,
-  invalidCsrfTokenError,
-} from '../util/csrf.ts';
+import { generateToken, invalidCsrfTokenError, validateRequest } from '../util/csrf.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
@@ -326,10 +321,7 @@ function getUploadHandler(
 
     // Validate CSRF token first (now that req.body is populated by multer).
     // This ensures temp files are immediately cleaned up if CSRF is invalid.
-    const submittedToken = getTokenFromRequest(req);
-    const storedToken = getTokenFromState(req);
-
-    if (!submittedToken || !storedToken || submittedToken !== storedToken) {
+    if (!validateRequest(req)) {
       return abortUpload(invalidCsrfTokenError);
     }
 

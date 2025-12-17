@@ -162,8 +162,8 @@ async function getApp(): Promise<express.Express> {
   app.use(
     session({
       name: 'libreviews_session',
-      resave: true,
-      saveUninitialized: true,
+      resave: false,
+      saveUninitialized: false,
       secret: config.get('sessionSecret'),
       cookie: {
         maxAge: config.get('sessionCookieDuration') * 1000 * 60,
@@ -286,9 +286,10 @@ async function getApp(): Promise<express.Express> {
   });
 
   app.use('/api', api);
-  // Upload processing has to be done before CSRF middleware kicks in
-  app.use('/', stage1Router);
+  // Register CSRF middleware early so templated routes can call req.csrfToken().
+  // Multipart uploads validate CSRF after Multer has populated req.body.
   app.use(csrfSynchronisedProtection);
+  app.use('/', stage1Router);
   app.use('/', pages);
   app.use('/', reviews);
   app.use('/', actions);
