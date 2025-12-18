@@ -1034,6 +1034,10 @@ label.secondary[role="button"]:not(.outline):hover {
     font-size: 130%;
 }
 
+#extended-intro {
+  margin-top: 1rem;
+}
+
 .divider {
   width: 100%;
   margin-bottom: 1.5em;
@@ -1561,6 +1565,9 @@ hr.feed-separator, hr.team-separator {
   font-weight: normal;
   font-style: normal;
   white-space: nowrap;
+}
+
+.language-identifier {
   margin-left: 0.5em;
 }
 
@@ -1587,7 +1594,6 @@ a .user-team-badge {
 
 .user-team-badge {
   font-weight: bold;
-  margin-left: 0.5em;
   border-style: solid;
   border-width:1px;
   border-color: var(--lr-highlight-background);
@@ -1596,6 +1602,10 @@ a .user-team-badge {
 
 .user-team-list li, .team-member-list li {
   margin-bottom: 0.5em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  align-items: center;
 }
 
 .user-label {
@@ -2447,6 +2457,10 @@ details.content-warning[open] summary.content-warning-notice:before, #review-for
 
 .rte-container .ProseMirror-prompt-buttons {
   margin-top: 5px;
+
+  button {
+    width: auto;
+  }
 }
 
 .switcher-control {
@@ -2650,7 +2664,7 @@ textarea[data-markdown] {
 }
 
 .rte-container .ProseMirror-prompt h5 {
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   font-weight: normal;
   font-size: 100%;
   color: var(--pico-color);
@@ -2879,6 +2893,12 @@ textarea[data-markdown] {
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--lr-preview-border);
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
 }
 
 .request-date {
@@ -2915,6 +2935,10 @@ textarea[data-markdown] {
   gap: 0.5rem;
   flex-wrap: wrap;
 
+  button {
+    width: auto;
+  }
+
   &.hidden {
     display: none;
   }
@@ -2949,6 +2973,46 @@ textarea[data-markdown] {
   font-style: italic;
   text-align: center;
   padding: 2rem;
+}
+
+/* Responsive moderator log table - cards on mobile, table on desktop */
+.moderator-log-table {
+  @media (max-width: 768px) {
+    border: 0;
+
+    thead {
+      display: none;
+    }
+
+    tbody tr {
+      display: block;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--lr-preview-border);
+      border-radius: var(--pico-border-radius);
+      padding: 1rem;
+      background: var(--lr-main-background);
+    }
+
+    tbody td {
+      display: block;
+      text-align: left;
+      padding: 0.5rem 0;
+      border: none;
+      background: var(--lr-main-background);
+
+      &::before {
+        content: attr(data-label);
+        font-weight: bold;
+        display: block;
+        margin-bottom: 0.25rem;
+        color: var(--pico-color);
+      }
+
+      &:last-child {
+        border-bottom: 0;
+      }
+    }
+  }
 }
 
 /* ------------- End account request styles ------------------------------------ */

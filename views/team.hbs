@@ -16,6 +16,9 @@
 {{/each}}
 </div>
 <h1 class="grid-adjacent">{{{__ "team title" (mlSafeText team.name)}}}</h1>
+{{#if team.motto}}
+<h2 class="subtitle">{{mlSafeText team.motto false}}</h2>
+{{/if}}
 <div class="grid grid-with-sidebar">
 {{!LEFT COLUMN: REVIEWS}}
 <div>
@@ -53,8 +56,6 @@
 <div>
 <div class="team-info">
 <h2>{{{__ "team profile heading"}}}</h2>
-<span class="team-motto">{{mlSafeText team.motto false}}</span>
-<p>
 {{{mlHTML team.description.html}}}
 <p>
 <b>{{{__ "number of members"}}}</b> {{{team.members.length}}} <a href="/team/{{{team.urlID}}}/members">{{{__ "view list"}}}</a>
