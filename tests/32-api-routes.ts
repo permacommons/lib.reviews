@@ -289,6 +289,52 @@ test.serial('POST /api/actions/modify-preference rejects invalid preference name
   t.pass();
 });
 
+test.serial('POST /api/actions/set-preference sets theme preference', async t => {
+  const agent = supertest.agent(app);
+  const username = `ThemeUser-${Date.now()}`;
+  await registerTestUser(agent, {
+    username,
+    password: 'password123',
+  });
+
+  const response = await agent
+    .post('/api/actions/set-preference')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .type('json')
+    .send({ preferenceName: 'theme', value: 'dark' })
+    .expect(200)
+    .expect('Content-Type', /json/);
+
+  const body = response.body;
+  t.is(body.message, 'Preference changed.');
+  t.is(body.newValue, 'dark');
+  t.deepEqual(body.errors, []);
+  t.pass();
+});
+
+test.serial('POST /api/actions/set-preference rejects invalid theme values', async t => {
+  const agent = supertest.agent(app);
+  const username = `InvalidThemeUser-${Date.now()}`;
+  await registerTestUser(agent, {
+    username,
+    password: 'password123',
+  });
+
+  const response = await agent
+    .post('/api/actions/set-preference')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .type('json')
+    .send({ preferenceName: 'theme', value: 'invalid' })
+    .expect(400)
+    .expect('Content-Type', /json/);
+
+  const body = response.body;
+  t.is(body.message, 'Could not perform action.');
+  t.true(Array.isArray(body.errors));
+  t.true(body.errors.some(e => e.includes('Invalid theme value')));
+  t.pass();
+});
+
 // ============================================================================
 // POST /api/actions/suppress-notice - Notice Suppression
 // ============================================================================

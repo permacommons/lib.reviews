@@ -3,9 +3,9 @@
   <div class="delete-preamble">
   {{{__ "delete preamble"}}}
   </div>
-  <form class="pure-form pure-form-aligned" method="post" name="delete-form">
+  <form method="post" name="delete-form">
   <input type="hidden" value="{{csrfToken}}" name="_csrf">
-  <button type="submit" id="delete" name="team-action" value="delete" class="pure-button button-destructive button-rounded" accesskey="d" title="{{{__ "accesskey" "d"}}}"><span class="fa fa-fw fa-trash spaced-icon">&nbsp;</span> {{{__ "delete"}}}</button>
+  <button type="submit" id="delete" name="team-action" value="delete" class="message-button-destructive" accesskey="d" title="{{{__ "accesskey" "d"}}}"><span class="fa fa-fw fa-trash spaced-icon"></span> {{{__ "delete"}}}</button>
   <a class="cancel-link" href="/team/{{{team.urlID}}}">{{{__ "cancel"}}}</a>
   </form>
 </div>
@@ -15,17 +15,49 @@
 <div class="message-box">{{{this}}}</div>
 {{/each}}
 </div>
-<div class="pure-g">
-<div class="pure-u-1 pure-u-md-1-2">
-<div class="team-info">
-<h1 id="page-header" class="team-header">
-{{{__ "team title" (mlSafeText team.name)}}}
-</h1>
-<span class="team-motto">{{mlSafeText team.motto false}}</span>
+<h1 class="grid-adjacent">{{{__ "team title" (mlSafeText team.name)}}}</h1>
+{{#if team.motto}}
+<h2 class="subtitle">{{mlSafeText team.motto false}}</h2>
+{{/if}}
+<div class="grid grid-with-sidebar">
+{{!LEFT COLUMN: REVIEWS}}
+<div>
+<div class="headline-with-link">
+<h2>{{{__ "latest review"}}}</h2>
+{{#if team.reviews}}
+<span class="view-all-link no-print"><a class="nav-pill" href="/team/{{{team.urlID}}}/feed">{{{__ "view all"}}}</a></span>
+{{/if}}
+</div>
+{{#if team.userIsMember}}
 <p>
+<a href="/team/{{team.urlID}}/new/review" id="write-review" role="button" class="button-compact secondary"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "write a review"}}}</a>
+{{/if}}
+<p>
+{{#if team.reviews}}
+{{>feed feedItems=team.reviews teamFeed=true}}
+{{else}}
+{{{__ "no reviews for team"}}}
+{{/if}}
+<p>
+{{!BLOG POSTS}}
+<div class="team-blog">
+<div class="headline-with-link">
+<h2>{{{__ "latest blog posts"}}}</h2>
+{{#if blogPosts}}
+<span class="view-all-link no-print"><a class="nav-pill" href="/team/{{{team.urlID}}}/blog">{{{__ "view all"}}}</a></span>
+{{/if}}
+</div>
+{{>blog_feed noAccessKey=true}}
+</div>
+{{!/BLOG POSTS}}
+</div>
+{{!/LEFT COLUMN}}
+{{!RIGHT COLUMN: TEAM PROFILE}}
+<div>
+<div class="team-info">
+<h2>{{{__ "team profile heading"}}}</h2>
 {{{mlHTML team.description.html}}}
 <p>
-{{!LINK TO ROSTER AND MODERATORS LIST}}
 <b>{{{__ "number of members"}}}</b> {{{team.members.length}}} <a href="/team/{{{team.urlID}}}/members">{{{__ "view list"}}}</a>
 </p>
 <p>
@@ -38,7 +70,6 @@
 <li> {{{userLink this}}}{{#if (lookup ../founder this.id)}}<span class="user-team-badge">{{{__ "founder badge"}}}{{/if}}</span>
 {{/each}}
 </ul>
-{{!/LINK TO ROSTER AND MODERATORS LIST}}
 {{!JOIN FORM}}
 {{#if team.userCanJoin}} {{!Show join form to logged-in users who are not members}}
 <form name="join-team" action="/team/{{{team.urlID}}}/join" method="post" class="no-print">
@@ -53,21 +84,20 @@
 {{{mlHTML team.rules.html}}}
 </div>
 
+<label for="agree-to-rules">
 <input type="checkbox" id="agree-to-rules" name="agree-to-rules">
-<label for="agree-to-rules" class="inline-label">{{{__ "agree to the rules"}}}</label>
+{{{__ "agree to the rules"}}}
+</label>
 {{/if}}
-<p>
 {{#if team.modApprovalToJoin}}
 <div class="join-textarea-container">
 <i>{{{__ "approval required to join"}}}</i>
-<textarea class="pure-input-1 join-textarea" name="join-request-message">
+<textarea class="join-textarea" name="join-request-message">
 </textarea>
 </div>
-<p>
-<p>
-<button class="pure-button pure-button-primary button-rounded" type="submit" name="team-action" value="join">{{{__ "request membership"}}}</button>
+<button type="submit" name="team-action" value="join" class="button-compact-primary">{{{__ "request membership"}}}</button>
 {{else}}
-<button class="pure-button pure-button-primary button-rounded" type="submit" name="team-action" value="join">{{{__ "join"}}}</button>
+<button type="submit" name="team-action" value="join" class="button-compact-primary">{{{__ "join"}}}</button>
 {{/if}}
 </form>
 {{!/JOIN FORM}}
@@ -85,50 +115,25 @@
 {{#if team.userCanLeave}}
 <form name="leave-team" action="/team/{{{team.urlID}}}/leave" class="no-print" method="POST">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
-<button class="pure-button pure-button-primary button-rounded" type="submit" name="team-action" value="leave">{{{__ "leave team"}}}</button>
+<button type="submit" name="team-action" value="leave" class="button-compact-primary">{{{__ "leave team"}}}</button>
 </form>
 {{/if}}
 {{!/LEAVE FORM}}
-<p>
 {{!EDIT/DELETE}}
 {{#if team.userCanEdit}}
-<a href="/team/{{{team.urlID}}}/edit" id="edit-team" class="no-print pure-button button-rounded edit-button" accesskey="e" title="{{{__ "accesskey" "e"}}}"><span class="fa fa-fw fa-pencil spaced-icon">&nbsp;</span>{{{__ "edit"}}}</a>
+<h3>{{{__ "moderator actions"}}}</h3>
+{{/if}}
+{{#if team.userCanEdit}}
+<a href="/team/{{{team.urlID}}}/edit" id="edit-team" role="button" class="button-compact secondary no-print" accesskey="e" title="{{{__ "accesskey" "e"}}}"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "edit"}}}</a>
 {{/if}}
 {{#if team.userCanDelete}}
 {{#unless deleteForm}}
-<a href="/team/{{{team.urlID}}}/delete" id="edit-team" class="no-print pure-button button-rounded edit-button" accesskey="d" title="{{{__ "accesskey" "d"}}}"><span class="fa fa-fw fa-trash spaced-icon">&nbsp;</span>{{{__ "delete"}}}</a>
+<a href="/team/{{{team.urlID}}}/delete" id="delete-team" role="button" class="button-destructive no-print" accesskey="d" title="{{{__ "accesskey" "d"}}}"><span class="fa fa-fw fa-trash spaced-icon"></span> {{{__ "delete"}}}</a>
 {{/unless}}
 {{/if}}
-</div>
-</div>
 {{!/EDIT/DELETE}}
-{{!SECOND COLUMN: REVIEWS}}
-<div class="pure-u-1 pure-u-md-1-2">
-<div class="headline-with-link">
-<h2 class="inline-feed-headline">{{{__ "latest review"}}}</h2>{{#if team.reviews}}
-<span class="view-all-link no-print"><a href="/team/{{{team.urlID}}}/feed">{{{__ "view all"}}}</a></span>{{/if}}
-</div>
-<p>
-{{#unless team.reviews}}
-{{{__ "no reviews for team"}}}
-<p>
-{{/unless}}
-{{#if team.userIsMember}}
-<a href="/team/{{team.urlID}}/new/review" id="write-review" class="pure-button button-rounded edit-button"><span class="fa fa-fw fa-pencil spaced-icon">&nbsp;</span>{{{__ "write a review"}}}</a><p>
-{{/if}}
-{{#if team.reviews}}
-{{>feed feedItems=team.reviews teamFeed=true}}
-{{/if}}
-<p>
-{{!/SECOND COLUMN: REVIEWS}}
-<br>
-{{!SECOND COLUMN: BLOG POSTS}}
-<div class="team-blog">
-<div class="headline-with-link"><h2 class="inline-feed-headline">{{{__ "latest blog posts"}}}</h2>{{#if blogPosts}}<span class="view-all-link no-print"><a href="/team/{{{team.urlID}}}/blog">{{{__ "view all"}}}</a></span>{{/if}}</div>
-<p>
-{{>blog_feed noAccessKey=true}}
 </div>
 </div>
-{{!/SECOND COLUMN: BLOG POSTS}}
+{{!/RIGHT COLUMN}}
 </div>
 <!-- Permanent URL: {{qualifiedURL}}team/{{{team.urlID}}} -->

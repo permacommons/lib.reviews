@@ -1,3 +1,5 @@
+<div class="centered-form">
+<h1>{{{__ "register"}}}</h1>
 <p>{{{__ "enter your info" }}}</p>
 {{>page_errors}}
 <div id="page-warnings">
@@ -7,36 +9,36 @@
 </div>
 {{/if}}
 </div>
-<form class="pure-form pure-form-aligned" {{#if inviteCode}}action="/register/{{inviteCode}}"{{else}}action="/register"{{/if}} method="post">
+<form {{#if inviteCode}}action="/register/{{inviteCode}}"{{else}}action="/register"{{/if}} method="post">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
 <input type="hidden" name="returnTo" value="{{returnTo}}">
 <input type="hidden" name="signupLanguage" value="{{signupLanguage}}">
     <fieldset>
-        <div class="pure-control-group">
-            <label for="username">{{{__ "username"}}} <span class="required">*</span></label>
-            <input id="username" name="username" type="text" data-required data-auto-trim data-focus placeholder="{{{__ "enter username"}}}" value="{{formValues.username}}" class="pure-input-1 login-form-input">
+        <label for="username">
+            {{{__ "username"}}} <span class="required">*</span>
+            <input id="username" name="username" type="text" data-required data-auto-trim data-focus placeholder="{{{__ "enter username"}}}" value="{{formValues.username}}">
             <div id="username-characters-error" class="validation-error">{{{__ "invalid username characters" illegalUsernameCharactersReadable}}}</div>
             <div id="username-exists-error" class="validation-error">{{{__ "username exists"}}}</div>
-        </div>
+        </label>
 
-        <div class="pure-control-group password-control">
-            <label for="password">{{{__ "password"}}} <span class="required">*</span></label>
-            <input id="password" name="password" type="password" placeholder="{{{__ "enter password"}}}" class="pure-input-1 login-form-input" data-required>
-            <button type="button" class="password-reveal-toggle pure-button button-rounded nojs-hidden" aria-pressed="false"><span class="fa fa-fw fa-eye spaced-icon">&nbsp;</span>{{{__ "show password"}}}</button>
-        </div>
+        <label for="password" class="password-control">
+            {{{__ "password"}}} <span class="required">*</span>
+            <input id="password" name="password" type="password" placeholder="{{{__ "enter password"}}}" data-required>
+            <button type="button" class="password-reveal-toggle secondary nojs-hidden" aria-pressed="false"><span class="fa fa-fw fa-eye"></span> {{{__ "show password"}}}</button>
+        </label>
 
-        <div class="pure-control-group">
-            <label for="email">{{{__ "email optional"}}}</label>
-            <input id="email" name="email" type="text" data-auto-trim placeholder="{{{__ "enter email"}}}" value="{{formValues.email}}" size="30" class="pure-input-1 login-form-input">
-        </div>
+        <label for="email">
+            {{{__ "email optional"}}}
+            <input id="email" name="email" type="email" data-auto-trim placeholder="{{{__ "enter email"}}}" value="{{formValues.email}}">
+        </label>
 
         {{#if teamsToJoin}}
-        <div class="pure-control-group">
-            <label>{{{__n "join following teams" teamsToJoin.length}}}</label>
+        <fieldset>
+            <legend>{{{__n "join following teams" teamsToJoin.length}}}</legend>
             <div class="team-signup-container">
             {{#each teamsToJoin}}
                 <div class="team-signup-item">
-                    <label for="team-{{this.slug}}" class="pure-checkbox team-signup-label">
+                    <label for="team-{{this.slug}}" class="team-signup-label">
                         <input id="team-{{this.slug}}" type="checkbox" name="join-teams" value="{{this.slug}}" checked>
                         <div class="team-signup-content">
                             <div class="team-signup-name">{{{this.name}}}</div>
@@ -48,16 +50,16 @@
                 </div>
             {{/each}}
             </div>
-        </div>
+        </fieldset>
         {{/if}}
 
         {{#if questionCaptcha}}
-        <div class="pure-control-group">
         <p>{{{__ "captcha intro"}}}</p>
-            <label for="captcha-answer">{{{__ questionCaptcha.captcha.questionKey}}} <span class="required">*</span></label>
-            <input id="captcha-answer" name="captcha-answer" type="text" data-auto-trim data-required placeholder="{{{__ "enter captcha answer"}}}" class="pure-input-1 login-form-input">
+        <label for="captcha-answer">
+            {{{__ questionCaptcha.captcha.questionKey}}} <span class="required">*</span>
+            <input id="captcha-answer" name="captcha-answer" type="text" data-auto-trim data-required placeholder="{{{__ "enter captcha answer"}}}">
             <input name="captcha-id" value="{{questionCaptcha.id}}" type="hidden">
-        </div>
+        </label>
         {{/if}}
 
         <div id="register-terms-notice">{{{__ "agree to terms"}}}</div>
@@ -67,7 +69,8 @@
         <div class="validation-error" id="required-fields-message">
         {{{__ "complete all required fields"}}}
         </div>
-        <button type="submit" id="register-button" data-check-required class="pure-button pure-button-primary button-rounded">{{{__ "register"}}}</button>
+        <button type="submit" id="register-button" data-check-required>{{{__ "register"}}}</button>
         <p>{{{__ "already got an account" }}}</p>
     </fieldset>
 </form>
+</div>

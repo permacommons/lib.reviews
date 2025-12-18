@@ -25,8 +25,8 @@ if ($uploadInput.length && $startUpload.length) {
         count === 1 ? msg('one file selected') : msg('files selected', { stringParam: count });
 
       // We use a different icon to represent multiple files
-      if (count === 1) $uploadIcon.removeClass('fa-files-o').addClass('fa-file-image');
-      else $uploadIcon.removeClass('fa-file-image').addClass('fa-files-o');
+      if (count === 1) $uploadIcon.removeClass('fa-images').addClass('fa-file-image');
+      else $uploadIcon.removeClass('fa-file-image').addClass('fa-images');
 
       $uploadLabelText.text(countLabel);
       $startUpload.prop('disabled', false);

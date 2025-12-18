@@ -109,17 +109,17 @@ const __ = msg,
   getTemplate = () =>
     $(
       `<div id="upload-modal" class="hidden-regular">
-<form class="pure-form" id="upload-modal-form">
+<form id="upload-modal-form">
 <div id="upload-modal-page-1">
 <div class="upload-modal-buttondiv">
 <h3>${messages.head}</h3>
 <input type="file" name="files" id="upload-input" accept="image/*,video/webm,video/ogg,audio/*" class="hidden">
-<label id="upload-modal-label" for="upload-input" data-upload-count class="pure-button button-rounded" tabindex="0" data-focusable>
-<span class="fa fa-fw fa-file-image spaced-icon" id="upload-icon">&nbsp;</span><span id="upload-label-text">${messages.select}</span></label>
+<label id="upload-modal-label" for="upload-input" data-upload-count role="button" tabindex="0" data-focusable>
+<span class="fa fa-fw fa-file-image spaced-icon" id="upload-icon"></span> <span id="upload-label-text">${messages.select}</span></label>
 </div>
 <div id="upload-modal-page-1-expansion" class="hidden-regular">
 <p>
-<textarea id="upload-modal-description" name="description" class="pure-input-1" placeholder="${messages.placeholder.description}"></textarea>
+<textarea id="upload-modal-description" name="description" placeholder="${messages.placeholder.description}"></textarea>
 <p>
 <table>
 <tr class="input-row">
@@ -140,7 +140,7 @@ const __ = msg,
 <div id="upload-modal-need-description" class="upload-modal-error error hidden-regular">${messages.required.description}</div>
 <div id="upload-modal-need-rights" class="upload-modal-error error hidden-regular">${messages.required.rights}</div>
 <div class="upload-modal-buttondiv">
-<button id="upload-modal-start-upload" disabled class="pure-button pure-button-primary button-rounded" type="submit"><span class="fa fa-fw fa-cloud-upload spaced-icon">&nbsp;</span>${messages.start}</button><span id="upload-modal-spinner" class="fa fa-spinner fa-spin hidden-regular"></span>
+<button id="upload-modal-start-upload" disabled type="submit"><span class="fa fa-fw fa-cloud-upload spaced-icon"></span> ${messages.start}</button><span id="upload-modal-spinner" class="fa fa-spinner fa-spin hidden-regular"></span>
 </div>
 <div class="error" id="upload-errors"></div>
 </div>
@@ -151,15 +151,15 @@ const __ = msg,
 </span>
 <p>
 <p>
-<form id="upload-metadata-form" class="pure-form">
+<form id="upload-metadata-form">
 <label for="upload-metadata-creator">${messages.creator}<span class="required"> *</span></label><br>
-<input id="upload-metadata-creator" data-required type="text" class="pure-input-1" placeholder="${messages.placeholder.creator}">
+<input id="upload-metadata-creator" data-required type="text" placeholder="${messages.placeholder.creator}">
 <p>
 <label for="upload-metadata-source">${messages.source}<span class="required"> *</span></label><br>
-<input id="upload-metadata-source" data-required type="text" class="pure-input-1" name="source" placeholder="${messages.placeholder.source}">
+<input id="upload-metadata-source" data-required type="text" name="source" placeholder="${messages.placeholder.source}">
 <p>
 <label for="upload-metadata-license">${messages.license}<span class="required"> *</span></label><br>
-<select id="upload-metadata-license" data-required class="pure-input-1" name="license">
+<select id="upload-metadata-license" data-required name="license">
 <option value="" disabled selected>${messages.placeholder.license}</option>
 <option value="fair-use">${messages.licenses['fair-use']}</option>
 <option value="cc-0">${messages.licenses['cc-0']}</option>
@@ -167,7 +167,7 @@ const __ = msg,
 <option value="cc-by-sa">${messages.licenses['cc-by-sa']}</option>
 </select>
 <p>
-<button id="upload-modal-confirm-metadata" data-check-required class="pure-button pure-button-primary button-rounded">
+<button id="upload-modal-confirm-metadata" data-check-required>
 ${messages.ok}
 </button>
 </form>

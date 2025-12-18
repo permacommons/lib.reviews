@@ -4,142 +4,136 @@
 <div class="message-box">{{{this}}}</div>
 {{/each}}
 </div>
-<p>
-{{{__ "invite users intro"}}}
-<p>{{#if user.inviteLinkCount}}
-{{{__n "you can generate links" user.inviteLinkCount}}}
-<p>
-<form name="invite-form" method="post">
-<input type="hidden" value="{{csrfToken}}" name="_csrf">
-<button class="pure-button button-rounded">{{{__ "generate link"}}}</button>
-</form>
-{{/if}}
+
+<div class="invite-page-intro">
+  <p>{{{__ "invite users intro"}}}</p>
+
+  {{#if user.inviteLinkCount}}
+  <p>{{{__n "you can generate links" user.inviteLinkCount}}}</p>
+
+  <form name="invite-form" method="post" class="invite-generate-form">
+    <input type="hidden" value="{{csrfToken}}" name="_csrf">
+    <button type="submit">{{{__ "generate link"}}}</button>
+  </form>
+  {{/if}}
+</div>
+
 {{#if pendingInviteLinks}}
-<h2 class="sub-header-regular">{{{__ "pending invitations"}}}</h2>
-<p>
-<table class="pure-table">
-{{#each pendingInviteLinks}}
-{{#if @first}}<tr>
-<thead>
-<th>
-  {{{__ "created on"}}}
-</th>
-<th>
-  {{{__ "invite link"}}}
-</th>
-</thead>
-</tr>
+<section class="invite-section">
+  <h2>{{{__ "pending invitations"}}}</h2>
+
+  <div class="invite-table-wrapper">
+    <table class="invite-table">
+      <thead>
+        <tr>
+          <th>{{{__ "created on"}}}</th>
+          <th>{{{__ "invite link"}}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each pendingInviteLinks}}
+        <tr>
+          <td data-label="{{{__ "created on"}}}">{{this.createdOn}}</td>
+          <td data-label="{{{__ "invite link"}}}" class="invite-link-cell">
+            <div class="invite-link-wrapper">
+              <a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a>
+              <button class="nojs-hidden secondary outline button-compact" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
+            </div>
+          </td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
 {{/if}}
-<tr>
-<td>
-{{this.createdOn}}
-</td>
-<td>
-<a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a></span> &nbsp;<button class="nojs-hidden pure-button button-rounded" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
-</td>
-</tr>
-{{/each}}
-</table>
-{{/if}}
+
 {{#if usedInviteLinks}}
-<h2 class="sub-header-regular">{{{__ "accepted invitations"}}}</h2>
-<p>
-<table class="pure-table">
-{{#each usedInviteLinks}}
-{{#if @first}}
-<tr>
-<thead>
-  <th>
-  {{{__ "created on"}}}
-</th>
-<th>
-  {{{__ "accepted by"}}}
-</th>
-<th>
-  {{{__ "accepted on"}}}
-</th>
-</thead>
-</tr>
-{{/if}}
-<tr>
-<td>
-{{this.createdOn}}
-</td>
-<td>
-{{{userLink this.usedByUser}}}
-</td>
-<td>
-{{{this.usedByUser.registrationDate}}}
-</td>
+<section class="invite-section">
+  <h2>{{{__ "accepted invitations"}}}</h2>
 
-</tr>
-
-{{/each}}
-</table>
+  <div class="invite-table-wrapper">
+    <table class="invite-table">
+      <thead>
+        <tr>
+          <th>{{{__ "created on"}}}</th>
+          <th>{{{__ "accepted by"}}}</th>
+          <th>{{{__ "accepted on"}}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each usedInviteLinks}}
+        <tr>
+          <td data-label="{{{__ "created on"}}}">{{this.createdOn}}</td>
+          <td data-label="{{{__ "accepted by"}}}">{{{userLink this.usedByUser}}}</td>
+          <td data-label="{{{__ "accepted on"}}}">{{this.usedByUser.registrationDate}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+</section>
 {{/if}}
+
 {{#if accountRequestLinks}}
-{{#if accountRequestLinks.pendingLinks.length}}
-<h2 class="sub-header-regular">{{{__ "pending account request invitations"}}}</h2>
-<p>{{{__ "account request invitations note"}}}</p>
-<table class="pure-table">
-{{#each accountRequestLinks.pendingLinks}}
-{{#if @first}}
-<tr>
-<thead>
-  <th>
-  {{{__ "created on"}}}
-</th>
-<th>
-  {{{__ "invite link"}}}
-</th>
-</thead>
-</tr>
-{{/if}}
-<tr>
-<td>
-{{this.createdOn}}
-</td>
-<td>
-<a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a></span> &nbsp;<button class="nojs-hidden pure-button button-rounded" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
-</td>
-</tr>
-{{/each}}
-</table>
-{{/if}}
-{{#if accountRequestLinks.usedLinks.length}}
-<h2 class="sub-header-regular">{{{__ "accepted account request invitations"}}}</h2>
-{{#unless accountRequestLinks.pendingLinks.length}}
-<p>{{{__ "account request invitations note"}}}</p>
-{{/unless}}
-<table class="pure-table">
-{{#each accountRequestLinks.usedLinks}}
-{{#if @first}}
-<tr>
-<thead>
-  <th>
-  {{{__ "created on"}}}
-</th>
-<th>
-  {{{__ "accepted by"}}}
-</th>
-<th>
-  {{{__ "accepted on"}}}
-</th>
-</thead>
-</tr>
-{{/if}}
-<tr>
-<td>
-{{this.createdOn}}
-</td>
-<td>
-{{{userLink this.usedByUser}}}
-</td>
-<td>
-{{{this.usedByUser.registrationDate}}}
-</td>
-</tr>
-{{/each}}
-</table>
-{{/if}}
+  {{#if accountRequestLinks.pendingLinks.length}}
+  <section class="invite-section invite-section-account-request">
+    <h2>{{{__ "pending account request invitations"}}}</h2>
+    <p class="invite-section-note">{{{__ "account request invitations note"}}}</p>
+
+    <div class="invite-table-wrapper">
+      <table class="invite-table">
+        <thead>
+          <tr>
+            <th>{{{__ "created on"}}}</th>
+            <th>{{{__ "invite link"}}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each accountRequestLinks.pendingLinks}}
+          <tr>
+            <td data-label="{{{__ "created on"}}}">{{this.createdOn}}</td>
+            <td data-label="{{{__ "invite link"}}}" class="invite-link-cell">
+              <div class="invite-link-wrapper">
+                <a href="{{this.url}}" class="invite-link" id="invite-link-{{this.id}}">{{this.url}}</a>
+                <button class="nojs-hidden secondary outline button-compact" data-copy="invite-link-{{this.id}}">{{{__ "copy"}}}</button>
+              </div>
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{/if}}
+
+  {{#if accountRequestLinks.usedLinks.length}}
+  <section class="invite-section invite-section-account-request">
+    <h2>{{{__ "accepted account request invitations"}}}</h2>
+    {{#unless accountRequestLinks.pendingLinks.length}}
+    <p class="invite-section-note">{{{__ "account request invitations note"}}}</p>
+    {{/unless}}
+
+    <div class="invite-table-wrapper">
+      <table class="invite-table">
+        <thead>
+          <tr>
+            <th>{{{__ "created on"}}}</th>
+            <th>{{{__ "accepted by"}}}</th>
+            <th>{{{__ "accepted on"}}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each accountRequestLinks.usedLinks}}
+          <tr>
+            <td data-label="{{{__ "created on"}}}">{{this.createdOn}}</td>
+            <td data-label="{{{__ "accepted by"}}}">{{{userLink this.usedByUser}}}</td>
+            <td data-label="{{{__ "accepted on"}}}">{{this.usedByUser.registrationDate}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {{/if}}
 {{/if}}

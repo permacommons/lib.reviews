@@ -1,4 +1,4 @@
-<h2 id="sub-header">{{{__ "team title" (link teamURL teamName)}}}</h2>
+<h2>{{{__ "team title" (link teamURL teamName)}}}</h2>
 {{>page_errors}}
 <div id="page-messages">
 {{#each pageMessages}}
@@ -24,17 +24,23 @@
 <p>
 <b>{{{__ "choose action"}}}</b>
 <p>
+<label for="action-{{this.id}}-ignore">
 <input type="radio" name="action-{{this.id}}" value="ignore" id="action-{{this.id}}-ignore" checked>
-<label for="action-{{this.id}}-ignore" class="inline-label">{{{__ "defer request"}}}</label><p>
+{{{__ "defer request"}}}
+</label>
+<label for="action-{{this.id}}-reject">
 <input type="radio" name="action-{{this.id}}" value="reject" id="action-{{this.id}}-reject">
-<label for="action-{{this.id}}-reject" class="inline-label">{{{__ "reject request"}}}</label><p>
-<textarea class="reject-request-textarea" name="reject-reason-{{this.id}}" placeholder="{{{__ "enter message"}}}"></textarea><p>
+{{{__ "reject request"}}}
+</label>
+<textarea class="reject-request-textarea" name="reject-reason-{{this.id}}" placeholder="{{{__ "enter message"}}}"></textarea>
+<label for="action-{{this.id}}-accept">
 <input type="radio" name="action-{{this.id}}" value="accept" id="action-{{this.id}}-accept">
-<label for="action-{{this.id}}-accept" class="inline-label">{{{__ "accept request"}}}</label>
+{{{__ "accept request"}}}
+</label>
 {{/each}}
 </ul>
 <p>
-<button type="submit" id="submit" name="manage-requests-action" value="process-requests" class="pure-button pure-button-primary button-rounded">{{{__ "process requests"}}}</button>
+<button type="submit" id="submit" name="manage-requests-action" value="process-requests">{{{__ "process requests"}}}</button>
 
 </form>
 {{else}}

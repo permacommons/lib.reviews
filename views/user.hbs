@@ -8,24 +8,37 @@
 <div class="message-box">{{{this}}}</div>
 {{/each}}
 </div>
-<div class="pure-g">
-<div class="pure-u-1 pure-u-md-1-2">
+<h1 class="grid-adjacent">{{{__ titleKey titleParam}}}</h1>
+<div class="grid grid-with-sidebar">
+<div>
+<div class="headline-with-link">
+<h2>{{{__ "feed"}}}</h2>
+{{#if feedItems}}
+<span class="view-all-link no-print"><a class="nav-pill" href="/user/{{{userInfo.urlName}}}/feed">{{{__ "view all"}}}</a></span>
+{{/if}}
+</div>
+<p>
+{{#if feedItems}}
+{{>feed userFeed=true}}
+{{else}}
+{{{__ "no reviews for user"}}}
+{{/if}}
+</div>
+<div>
 <div class="user-info">
-<h1 id="page-header">{{{__ titleKey titleParam}}}</h1>
+<h2>{{{__ "bio heading"}}}</h2>
 {{#unless edit.bio}}
 {{#if userInfo.meta.bio}}
-<span class="user-label">{{{__ "user bio"}}}</span><br>
 {{{mlHTML userInfo.meta.bio.html}}}
 {{/if}}
 {{#if userInfo.userCanEditMetadata}}
-<a id="edit-bio" href="/user/{{userInfo.urlName}}/edit/bio" class="pure-button button-rounded">
-<span class="fa fa-pencil fa-fw spaced-icon">&nbsp;</span>{{#if userInfo.meta.bio}}{{{__ "edit bio"}}}{{else}}{{{__ "add bio"}}}{{/if}}
+<a id="edit-bio" href="/user/{{userInfo.urlName}}/edit/bio" role="button" class="button-compact secondary">
+<span class="fa fa-pencil fa-fw spaced-icon"></span> {{#if userInfo.meta.bio}}{{{__ "edit bio"}}}{{else}}{{{__ "add bio"}}}{{/if}}
 </a>
 {{/if}}
 {{else}}
-<span class="user-label">{{{__ "user bio"}}}</span><br>
-<form id="bio-form" name="bio-form" class="pure-form" action="" method="post">
-<textarea id="bio-textarea" class="pure-input-1" data-markdown name="bio-text">{{mlSafeText userInfo.meta.bio.text false}}</textarea>
+<form id="bio-form" name="bio-form" action="" method="post">
+<textarea id="bio-textarea" data-markdown name="bio-text">{{mlSafeText userInfo.meta.bio.text false}}</textarea>
 {{>editor_switcher}}
 <input type="hidden" value="{{currentLanguage.langKey}}" name="bio-language">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
@@ -37,13 +50,13 @@
 {{{__ "supports markdown"}}}
 <p>
 </div>
-<button type="submit" id="save" name="thing-action" value="save" class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
+<button type="submit" id="save" name="thing-action" value="save" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a href="/user/{{userInfo.urlName}}" class="cancel-link">{{{__ "cancel"}}}</a>
 </form>
 {{/unless}}
 <p>
 <span class="user-label">{{{__ "user registration date"}}}</span><br>
-{{userInfo.registrationDate}}
+<p>{{userInfo.registrationDate}}</p>
 <p>
 {{#if isOwnPage}}
 {{#if userInfo.isSiteModerator}}
@@ -76,19 +89,5 @@
 {{/if}}
 {{!End team list}}
 </div>
-</div>
-<div class="pure-u-1 pure-u-md-1-2">
-<div class="headline-with-link">
-<h2 class="inline-feed-headline">{{{__ "feed"}}}</h2>
-{{#if feedItems}}
-<span class="view-all-link no-print"><a href="/user/{{{userInfo.urlName}}}/feed">{{{__ "view all"}}}</a></span>
-{{/if}}
-</div>
-<p>
-{{#if feedItems}}
-{{>feed userFeed=true}}
-{{else}}
-{{{__ "no reviews for user"}}}
-{{/if}}
 </div>
 </div>

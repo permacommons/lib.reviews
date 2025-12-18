@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html{{#if dataTheme}} data-theme="{{dataTheme}}"{{/if}}>
 <head>
     <meta content="width=device-width, initial-scale=1" name="viewport">
     {{#if socialImage}}
@@ -39,55 +39,76 @@
 </head>
 
 <body>
-
-<div id="nav">
-    <div class="pure-g">
-        <div class="pure-u-1-1 pure-u-md-1-2 logo-container">
-            <a href="/" id="home-link" accesskey="h" title="{{__ "load frontpage"}}
-{{{__ "accesskey" "h"}}}"><img src="/static/img/logo.svg" id="logo" class="pure-img" alt="{{{__ "site name"}}}"></a>
-      </div>
-        <div class="pure-u-1-1 pure-u-md-1-2">
+<header id="nav">
+    <nav>
+        <ul>
+            <li>
+                <a href="/" id="home-link" accesskey="h" title="{{__ "load frontpage"}}
+{{{__ "accesskey" "h"}}}">{{#if dataTheme}}{{#ifCond dataTheme '===' 'dark'}}<img src="/static/img/logo-dark.svg" id="logo" alt="{{{__ "site name"}}}">{{else}}<img src="/static/img/logo.svg" id="logo" alt="{{{__ "site name"}}}">{{/ifCond}}{{else}}<picture><source srcset="/static/img/logo-dark.svg" media="(prefers-color-scheme: dark)"><img src="/static/img/logo.svg" id="logo" alt="{{{__ "site name"}}}"></picture>{{/if}}</a>
+            </li>
+        </ul>
+        <ul id="user-menu" class="no-print">
             {{#if user}}
-                <ul id="user-menu" class="no-print">
+            <li><a id="user-link" href="/user/{{user.urlName}}"><span class="fa fa-fw fa-user menu-icon"></span> {{user.displayName}}</a></li>
+            {{#if user.inviteLinkCount}}
+            <li><a id="invite-action" href="/actions/invite" title="{{{__n "help us grow" user.inviteLinkCount}}}"><span class="fa fa-fw fa-heart invite-icon menu-icon"></span></a></li>
+            {{/if}}
+            <li id="new-review-item"><a href="/new/review" id="new-review-button" role="button" accesskey="n" title="{{{__ "accesskey" "n"}}}"><span class="fa fa-fw fa-pencil menu-icon"></span> {{__ "new review"}}</a></li>
+            <li id="signout-item">
+                <form action="/signout" method="post" id="signout-form" name="signout-form">
+                    <input type="hidden" value="{{csrfToken}}" name="_csrf">
+                    <button class="secondary" id="signout-button" type="submit" accesskey="o" title="{{{__ "accesskey" "o"}}}"><span class="fa fa-fw fa-sign-out menu-icon"></span> {{{__ "sign out"}}}</button>
+                </form>
+            </li>
+            {{else}}
+            <li><a href="/signin?returnTo={{returnTo}}" role="button" accesskey="i" title="{{{__ "accesskey" "i"}}}">{{{__ "sign in"}}}</a></li>
+            {{#if accountRequestsEnabled}}
+            <li><a href="/actions/request-account" role="button" class="secondary">{{{__ "request account button"}}}</a></li>
+            {{else}}
+            <li><a href="/register?returnTo={{returnTo}}" role="button" class="secondary">{{{__ "register"}}}</a></li>
+            {{/if}}
+            {{/if}}
+        </ul>
 
-                    <li><a id="user-link" href="/user/{{user.urlName}}"><span class="fa fa-fw fa-user menu-icon">&nbsp;</span>{{user.displayName}}</a>
-                      {{#if user.inviteLinkCount}}
-                      <li>
-                      <a id="invite-action" href="/actions/invite" title="{{{__n "help us grow" user.inviteLinkCount}}}"><span class="fa fa-fw fa-heart invite-icon menu-icon">&nbsp;</span><span>{{{user.inviteLinkCount}}}</span></a>
-                      {{/if}}
-                    </li><br id="menu-break" class="hidden-regular">
-                    <li><a href="/new/review" id="new-review-button" class="pure-button pure-button-primary button-rounded" accesskey="n" title="{{{__ "accesskey" "n"}}}"><span  class="fa fa-fw fa-pencil spaced-icon menu-icon">&nbsp;</span><span id="new-review-button-label">{{__ "new review"}}</span></a></li>
+        <ul class="no-print user-menu-mobile">
+            <li>
+                <details class="dropdown user-menu-dropdown">
+                    <summary role="button" class="secondary" aria-label="Menu" title="Menu">
+                        <span class="fa fa-fw fa-bars menu-icon"></span>
+                    </summary>
+                    <ul>
+                        {{#if user}}
+                        <li><a class="user-menu-center user-menu-user" href="/user/{{user.urlName}}"><span class="fa fa-fw fa-user menu-icon"></span> <span class="user-menu-name">{{user.displayName}}</span></a></li>
+                        <li><a href="/new/review" role="button" title="{{{__ "accesskey" "n"}}}"><span class="fa fa-fw fa-pencil menu-icon"></span> {{__ "new review"}}</a></li>
                         <li>
-                            <form action="/signout" method="post" id="signout-form" name="signout-form">
+                            <form action="/signout" method="post" name="signout-form-mobile">
                                 <input type="hidden" value="{{csrfToken}}" name="_csrf">
-                                <button class="pure-button button-rounded" id="signout-button" type="submit" accesskey="o" title="{{{__ "accesskey" "o"}}}"><span class="fa fa-fw fa-sign-out spaced-icon menu-icon">&nbsp;</span><span id="signout-button-label">{{{__ "sign out"}}}</span></button>
+                                <button class="secondary" type="submit" title="{{{__ "accesskey" "o"}}}"><span class="fa fa-fw fa-sign-out menu-icon"></span> {{{__ "sign out"}}}</button>
                             </form>
                         </li>
-
-                </ul>
-            {{else}}
-                <ul id="user-menu" class="no-print">
-                    <li><a href="/signin?returnTo={{returnTo}}" class="pure-button pure-button-primary button-rounded" accesskey="i" title="{{{__ "accesskey" "i"}}}">{{{__ "sign in"}}}</a>
-                        {{#if accountRequestsEnabled}}
-                        <li><a href="/actions/request-account" class="pure-button button-rounded">{{{__ "request account button"}}}</a>
-                        {{else}}
-                        <li><a href="/register?returnTo={{returnTo}}" class="pure-button button-rounded">{{{__ "register"}}}</a>
+                        {{#if user.inviteLinkCount}}
+                        <li><a class="user-menu-center" href="/actions/invite" title="{{{__n "help us grow" user.inviteLinkCount}}}"><span class="fa fa-fw fa-heart invite-icon menu-icon"></span></a></li>
                         {{/if}}
-                </ul>
-            {{/if}}
-        </div>
-          <div class="pure-u-lg-7-24 pure-u-md-5-24">
-          </div>
-          <div class="search pure-u-1-1 pure-u-lg-10-24 pure-u-md-14-24 no-print">
-            <form class="pure-form search-form" autocomplete="off" action="/actions/search" method="get">
-              <label for="search-input"><span class="fa fa-search"></span></label><input name="query" id="search-input" class="pure-input-rounded" accesskey="f" title="{{{__ "accesskey" "f"}}}" placeholder="{{{__ "search lib.reviews"}}}" value="{{query}}">
-            </form>
-          </div>
-          <div class="pure-u-lg-7-24 pure-u-md-5-24">
-          </div>
+                        {{else}}
+                        <li><a href="/signin?returnTo={{returnTo}}" role="button" title="{{{__ "accesskey" "i"}}}">{{{__ "sign in"}}}</a></li>
+                        {{#if accountRequestsEnabled}}
+                        <li><a href="/actions/request-account" role="button" class="secondary">{{{__ "request account button"}}}</a></li>
+                        {{else}}
+                        <li><a href="/register?returnTo={{returnTo}}" role="button" class="secondary">{{{__ "register"}}}</a></li>
+                        {{/if}}
+                        {{/if}}
+                    </ul>
+                </details>
+            </li>
+        </ul>
+    </nav>
+    <div id="search-container" class="no-print">
+        <form class="search-form" role="search" action="/actions/search" method="get">
+            <input type="search" name="query" id="search-input" accesskey="f" title="{{{__ "accesskey" "f"}}}" placeholder="{{{__ "search lib.reviews"}}}" value="{{query}}" autocomplete="off">
+        </form>
     </div>
-</div>
-    <div id="main-body">
+</header>
+    <main id="main-body">
     {{#if singleColumn}}<div class="centered-column">{{/if}}
     {{#if localeChange}}
     <div id="uselang-notice" class="message-box">
@@ -96,29 +117,29 @@
     <input type="hidden" name="_csrf" value="{{csrfToken}}">
     <input type="hidden" name="redirect-to" value="{{urlPath}}">
     <br>
-    <button type="submit" name="lang" value="{{localeChange.new}}" class="message-button pure-button button-rounded">{{{__ "change language permanently"}}}</button> <a class="cancel-link" href="{{urlPath}}">{{{__ "reload this page" (getLanguageName localeChange.old)}}}</a>
+    <button type="submit" name="lang" value="{{localeChange.new}}" class="message-button">{{{__ "change language permanently"}}}</button> <a class="cancel-link" href="{{urlPath}}">{{{__ "reload this page" (getLanguageName localeChange.old)}}}</a>
     </form>
     </div>
     {{/if}}
     <div id="site-messages">
     {{#each siteMessages}}
-    <div class="message-box"><span class="fa fa-fw fa-bell spaced-icon">&nbsp;</span>{{{__ "site notification" this}}}</div>
+    <div class="message-box"><span class="fa fa-fw fa-bell spaced-icon"></span> {{{__ "site notification" this}}}</div>
     {{/each}}
     </div>
     <div id="site-errors">
     {{#each siteErrors}}
-    <div class="error-box"><span class="fa fa-fw fa-exclamation-triangle spaced-icon">&nbsp;</span>{{{__ "site error" this}}}</div>
+    <div class="error-box"><span class="fa fa-fw fa-exclamation-triangle spaced-icon"></span> {{{__ "site error" this}}}</div>
     {{/each}}
     </div>
     {{#unless deferPageHeader}}
-    <h1 id="page-header">{{{__ titleKey titleParam }}}</h1>
+    <h1>{{{__ titleKey titleParam }}}</h1>
     {{/unless}}
 
     {{{body}}}
     {{#if singleColumn}}</div>{{/if}}
-    </div>
-    <div id="footer" class="no-print">
-      <form id="languages" action="/actions/change-language" class="pure-form" method="post" name="languages">
+    </main>
+    <footer id="footer" class="no-print">
+      <form id="languages" action="/actions/change-language" method="post" name="languages">
         <span id="current-language-container">
         {{__ "current language"}}
         </span>
@@ -128,13 +149,21 @@
             <option value="{{this.langKey}}" {{#if this.isCurrentLanguage}}selected{{/if}}>{{this.langKey}} &ndash; {{{this.name}}}</option>
           {{/each}}
         </select>
-        <span id="change-language-container"><button name="language-action" value="change" type="submit" class="pure-button button-rounded"><span class="fa fa-fw fa-globe spaced-icon">&nbsp;</span>{{{__ "change language button"}}}</button></span>
+        <span id="change-language-container"><button name="language-action" value="change" type="submit" class="secondary"><span class="fa fa-fw fa-globe spaced-icon"></span> {{{__ "change language button"}}}</button></span>
         {{#if showLanguageNotice}}
         <input type="hidden" value="yes" name="has-language-notice">
         {{/if}}
       </form>
+      <div id="theme-switcher" class="nojs-hidden">
+        <span class="theme-label">{{{__ "theme label"}}}</span>
+        <div class="theme-pills">
+          <a href="#" class="theme-pill{{#ifCond dataTheme '===' 'light'}} theme-pill-active{{/ifCond}}" data-theme-option="light" accesskey="1" title="{{{__ "accesskey" "1"}}}">{{{__ "theme light"}}}</a>
+          <a href="#" class="theme-pill{{#ifCond dataTheme '===' 'dark'}} theme-pill-active{{/ifCond}}" data-theme-option="dark" accesskey="2" title="{{{__ "accesskey" "2"}}}">{{{__ "theme dark"}}}</a>
+          <a href="#" class="theme-pill{{#unless dataTheme}} theme-pill-active{{/unless}}" data-theme-option="system" accesskey="3" title="{{{__ "accesskey" "3"}}} {{{__ "theme system tooltip"}}}">{{{__ "theme system"}}}</a>
+        </div>
+      </div>
       <div id="footer-links">{{{__ "freedom"}}}<br><a href="/terms">{{{__ "terms"}}}</a> &ndash; {{{__ "code" "https://github.com/permacommons/lib.reviews"}}} &ndash; <a href="/static/downloads">{{{__ "database downloads"}}}</a> &ndash; <a href="/faq">{{{__ "faq acronym" }}}</a></div>
-    </div>
+    </footer>
   <script type="text/javascript">
   {{{configScript}}}
   var module = {}; // For scripts that hardcode requireJS

@@ -1,10 +1,10 @@
 <div class="centered-column">
-<h1 id="page-header">{{{__ titleKey}}}</h1>
+<h1>{{{__ titleKey}}}</h1>
 <p class="lead">{{{__ "teams intro"}}}</p>
 <p>
 {{#if user}}
 {{#if user.isTrusted}}
-<a href="/new/team" id="add-team" class="pure-button button-rounded"><span class="fa fa-users fa-fw spaced-icon">&nbsp;</span>{{{__ "new team"}}}</a>
+<a href="/new/team" id="add-team" role="button" class="secondary"><span class="fa fa-users fa-fw spaced-icon"></span> {{{__ "new team"}}}</a>
 <br>
 <br>
 {{else}}

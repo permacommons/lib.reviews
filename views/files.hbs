@@ -74,7 +74,7 @@
 
 {{#if this.userCanDelete}}
 <div class="file-table-delete">
-  <a href="/file/{{this.id}}/delete"><span class="fa fa-trash fa-fw">&nbsp;</span>{{{__ "delete file"}}}</a>
+  <a href="/file/{{this.id}}/delete"><span class="fa fa-trash fa-fw"></span> {{{__ "delete file"}}}</a>
 </div>
 {{/if}}
 
@@ -82,6 +82,6 @@
 {{/each}}
 
 {{#if paginationURL}}
-<a class="pagination-link no-print" href="{{paginationURL}}" accesskey="<" title="{{{__ "accesskey" "<"}}}"><span class="fa fa-fw fa-angle-double-left">&nbsp;</span>{{{__ "older files"}}}</a>
+<a class="nav-pill no-print" href="{{paginationURL}}" accesskey="<" title="{{{__ "accesskey" "<"}}}"><span class="fa fa-fw fa-angle-double-left"></span> {{{__ "older files"}}}</a>
 {{/if}}
 </div>

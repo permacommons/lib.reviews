@@ -1,6 +1,8 @@
-<li class="thing-data-list-item"> <span class="fa fa-li fa-picture-o thing-data-icon">&nbsp;</span>
-<span class="expand-link nojs-hidden no-print" tabindex="0" data-target="thing-data-file-list" data-toggle-text="{{__ "hide uploads"}}"><span class="expand-label">{{{__ "show uploads"}}}</span><span class="fa fa-fw fa-chevron-down expand-icon">&nbsp;</span></span>
+<li class="thing-data-list-item"><span class="fa fa-li fa-image thing-data-icon"></span>
+<span class="thing-data-primary">
+<span class="expand-link nojs-hidden no-print" tabindex="0" data-target="thing-data-file-list" data-toggle-text="{{__ "hide uploads"}}"><span class="expand-label">{{{__ "show uploads"}}}</span> <span class="fa fa-fw fa-chevron-down expand-icon"></span></span>
 <span class="nojs-visible print-visible hidden-regular">{{{__ "uploaded media"}}}</span>
+</span>
 <p>
 <div id="thing-data-file-list" class="hidden-regular nojs-visible print-visible">
 {{#each thing.files}}
@@ -11,7 +13,7 @@
 <div class="thing-data-file-credit">{{{__ "source in upload summary" (linkify (mlSafeText this.source))}}}</div>
 {{/if}}
 {{#if this.userCanDelete}}
-<div class="file-actions"><span class="file-action"><a href="/file/{{this.id}}/delete"><span class="fa fa-trash fa-fw">&nbsp;</span>{{{__ "delete file"}}}</a></span></div>
+<div class="file-actions"><span class="file-action"><a href="/file/{{this.id}}/delete"><span class="fa fa-trash fa-fw"></span> {{{__ "delete file"}}}</a></span></div>
 </div>
 {{/if}}
 <p>

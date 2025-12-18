@@ -65,6 +65,7 @@ const userSchema = {
   isSuperUser: types.boolean().default(false),
   suppressedNotices: types.array(types.string()),
   prefersRichTextEditor: types.boolean().default(false),
+  themePreference: types.string().enum(['light', 'dark', 'system']),
   urlName: types
     .virtual()
     .returns<string | undefined>()
@@ -138,6 +139,7 @@ const userManifest = {
     isSuperUser: 'is_super_user',
     suppressedNotices: 'suppressed_notices',
     prefersRichTextEditor: 'prefers_rich_text_editor',
+    themePreference: 'theme_preference',
   },
   relations: [
     {

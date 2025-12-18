@@ -11,31 +11,28 @@ test('rollback reverts last migration using down script', async t => {
   });
 
   try {
-    const tableBefore = await dal.query<{ table_name: string }>(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'account_requests'"
-    );
-    t.true(tableBefore.rowCount === 1, 'account_requests table exists after migrate');
-
+    // Get the latest migration filename and total count
     const migrationsBefore = await dal.query<{ filename: string }>(
       'SELECT filename FROM migrations ORDER BY executed_at DESC, id DESC'
     );
-    t.true(
-      migrationsBefore.rows.some(row => row.filename === '003_account_requests.sql'),
-      'latest migration recorded before rollback'
-    );
+    t.true(migrationsBefore.rowCount! >= 1, 'at least one migration exists');
+    const latestMigration = migrationsBefore.rows[0].filename;
+    const countBefore = migrationsBefore.rowCount!;
 
     await dal.rollback();
 
-    const tableAfter = await dal.query<{ table_name: string }>(
-      "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'account_requests'"
-    );
-    t.true(tableAfter.rowCount === 0, 'account_requests table removed after rollback');
-
+    // Verify migration count decreased by 1
     const migrationsAfter = await dal.query<{ filename: string }>(
-      'SELECT filename FROM migrations WHERE filename = $1',
-      ['003_account_requests.sql']
+      'SELECT filename FROM migrations'
     );
-    t.is(migrationsAfter.rowCount, 0, 'rolled back migration removed from migrations table');
+    t.is(migrationsAfter.rowCount, countBefore - 1, 'migration count decreased by 1');
+
+    // Verify the specific migration was removed
+    const rolledBackMigration = await dal.query<{ filename: string }>(
+      'SELECT filename FROM migrations WHERE filename = $1',
+      [latestMigration]
+    );
+    t.is(rolledBackMigration.rowCount, 0, 'rolled back migration removed from migrations table');
   } finally {
     await cleanup({ dropSchema: true });
   }

@@ -19,65 +19,55 @@
 
 <p>{{{__ "start team preamble"}}}
 </p>
-<form class="pure-form pure-form-stacked" id="team-form" name="team-form" method="post">
+<form id="team-form" name="team-form" method="post">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
 <fieldset>
-  <div class="pure-g">
-    <div class="pure-u-1 pure-u-md-2-3">
-      <div class="pure-control-group">
-        <label for="team-name">{{{__ "team name"}}} <span class="required">*</span></label>
-        <input id="team-name" name="team-name" type="text" class="pure-input-1" data-required data-focus placeholder="{{{__ "enter team name"}}}" value="{{mlSafeText formValues.name false}}">
-      </div>
-      <br>
+  <div class="grid grid-form">
+    <div>
+      <label for="team-name">{{{__ "team name"}}} <span class="required">*</span></label>
+      <input id="team-name" name="team-name" type="text" data-required data-focus placeholder="{{{__ "enter team name"}}}" value="{{mlSafeText formValues.name false}}">
     </div>
-    <div class="pure-u-1 pure-u-md-1-3">
+    <div>
       {{>help input="team-name" helpLabel="team name" helpText="team name help"}}
     </div>
-    <div class="pure-u-1 pure-u-md-2-3">
-      <div class="pure-control-group">
-        <label for="team-motto">{{{__ "team motto"}}} <span class="required">*</span></label>
-        <input id="team-motto" name="team-motto" type="text" class="pure-input-1" data-required placeholder="{{{__ "enter team motto"}}}" value="{{mlSafeText formValues.motto false}}">
-      </div>
-      <br>
+
+    <div>
+      <label for="team-motto">{{{__ "team motto"}}} <span class="required">*</span></label>
+      <input id="team-motto" name="team-motto" type="text" data-required placeholder="{{{__ "enter team motto"}}}" value="{{mlSafeText formValues.motto false}}">
     </div>
-    <div class="pure-u-1 pure-u-md-1-3">
+    <div>
       {{>help input="team-motto" helpLabel="team motto" helpText="team motto help"}}
     </div>
-    <div class="pure-u-1 pure-u-md-2-3">
-      <div class="pure-control-group">
-        <label for="team-description">{{{__ "team description"}}} <span class="required">*</span></label>
-        <textarea id="team-description" name="team-description" class="pure-input-1 team-textarea" data-required data-markdown placeholder="{{{__ "enter team description"}}}">{{mlSafeText formValues.description.text false}}</textarea>
-        {{>editor_switcher}}
-      </div>
-      <br>
+
+    <div>
+      <label for="team-description">{{{__ "team description"}}} <span class="required">*</span></label>
+      <textarea id="team-description" name="team-description" class="team-textarea" data-required data-markdown placeholder="{{{__ "enter team description"}}}">{{mlSafeText formValues.description.text false}}</textarea>
+      {{>editor_switcher}}
     </div>
-    <div class="pure-u-1 pure-u-md-1-3">
+    <div>
       {{>help input="team-description" helpLabel="team description help label" helpText="team description help"}}
     </div>
-    <div class="pure-u-1 pure-u-md-2-3">
-      <div class="pure-control-group">
-        <label for="team-rules">{{{__ "team rules"}}}</label>
-        <textarea id="team-rules" name="team-rules" class="pure-input-1 team-textarea" data-markdown placeholder="{{{__ "enter team rules"}}}">{{mlSafeText formValues.rules.text false}}</textarea>
-        {{>editor_switcher noaccesskeys=true}}
-      </div>
-      <br>
+
+    <div>
+      <label for="team-rules">{{{__ "team rules"}}}</label>
+      <textarea id="team-rules" name="team-rules" class="team-textarea" data-markdown placeholder="{{{__ "enter team rules"}}}">{{mlSafeText formValues.rules.text false}}</textarea>
+      {{>editor_switcher noaccesskeys=true}}
     </div>
-    <div class="pure-u-1 pure-u-md-1-3">
+    <div>
       {{>help input="team-rules" helpLabel="team rules help label" helpText="team rules help"}}
     </div>
-    <div class="pure-u-1 pure-u-md-2-3">
-      <div class="pure-control-group">
-        <input id="team-mod-approval-to-join" name="team-mod-approval-to-join" type="checkbox" {{#if formValues.modApprovalToJoin}}checked{{/if}}>
-        <label for="team-mod-approval-to-join" class="inline-label">{{{__ "mod approval to join"}}}</label>
-      </div>
-      <p>
-      <div class="pure-control-group">
-        <input id="team-only-mods-can-blog" name="team-only-mods-can-blog" type="checkbox" {{#if formValues.onlyModsCanBlog}}checked{{/if}}>
-        <label class="inline-label" for="team-only-mods-can-blog">{{{__ "only mods can blog"}}}</label>
-      </div>
-      <p>
-      <input id="team-language" name="team-language" type="hidden" value="{{currentLanguage.langKey}}">
-    </div>
+  </div>
+
+  <div class="form-section">
+    <label for="team-mod-approval-to-join">
+      <input id="team-mod-approval-to-join" name="team-mod-approval-to-join" type="checkbox" {{#if formValues.modApprovalToJoin}}checked{{/if}}>
+      {{{__ "mod approval to join"}}}
+    </label>
+    <label for="team-only-mods-can-blog">
+      <input id="team-only-mods-can-blog" name="team-only-mods-can-blog" type="checkbox" {{#if formValues.onlyModsCanBlog}}checked{{/if}}>
+      {{{__ "only mods can blog"}}}
+    </label>
+    <input id="team-language" name="team-language" type="hidden" value="{{currentLanguage.langKey}}">
   </div>
 </fieldset>
 <div class="validation-error" id="required-fields-message">
@@ -86,5 +76,8 @@
 <div class="validation-error" id="form-error-message">
   {{{__ "correct errors"}}}
 </div>
-  <button type="submit" id="save" name="team-action" value="publish" data-check-required class="pure-button pure-button-primary button-rounded" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
-  <button type="submit" id="preview" name="team-action" value="preview" class="pure-button button-rounded" accesskey="p" title="{{{__ "preview" "p"}}}">{{{__ "preview"}}}</button></form>
+<div class="buttons-group">
+  <button type="submit" id="save" name="team-action" value="publish" data-check-required accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
+  <button type="submit" id="preview" name="team-action" value="preview" class="secondary" accesskey="p" title="{{{__ "preview" "p"}}}">{{{__ "preview"}}}</button>
+</div>
+</form>
