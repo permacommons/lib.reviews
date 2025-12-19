@@ -154,7 +154,7 @@ const rules: URLRule[] = [
 ];
 
 const placement: URLPlacement = {
-  crowdfunding: ['liberapay', 'opencollective']
+  crowdfunding: ['liberapay', 'opencollective'],
   databases: ['wikidata', 'imdb', 'omdb', 'tmdb', 'tvdb'],
   maps: ['openstreetmap'],
   reviews: ['yelp', 'tripadvisor', 'goodreads', 'librarything'],
