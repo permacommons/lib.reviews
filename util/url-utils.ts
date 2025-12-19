@@ -107,7 +107,7 @@ const rules: URLRule[] = [
     id: 'indiebound',
   },
   {
-    host: /^(.*\.)?wikipedia\.org$/,
+    host: /^([a-z0-9-]+\.)?wikipedia\.org$/,
     tags: ['summaries', 'databases', 'opendata'],
     id: 'wikipedia',
   },
@@ -140,6 +140,11 @@ const rules: URLRule[] = [
     host: hostWithOptionalWww('github.com'),
     tags: ['repositories'],
     id: 'github',
+  },
+  {
+    host: hostWithOptionalWww('codeberg.org'),
+    tags: ['repositories'],
+    id: 'codeberg',
   },
   {
     host: hostWithOptionalWww('opencollective.com'),
