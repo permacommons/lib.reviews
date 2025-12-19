@@ -107,7 +107,7 @@ const rules: URLRule[] = [
     id: 'indiebound',
   },
   {
-    host: /^([a-z]*)?wikipedia\.org$/,
+    host: /^(.*\.)?wikipedia\.org$/,
     tags: ['summaries', 'databases', 'opendata'],
     id: 'wikipedia',
   },
@@ -142,13 +142,19 @@ const rules: URLRule[] = [
     id: 'github',
   },
   {
-    host: hostWithOptionalWww('codeberg.org'),
-    tags: ['repositories'],
-    id: 'codeberg',
+    host: hostWithOptionalWww('opencollective.com'),
+    tags: ['crowdfunding'],
+    id: 'opencollective',
+  },
+  {
+    host: hostWithOptionalWww('liberapay.com'),
+    tags: ['crowdfunding'],
+    id: 'liberapay',
   },
 ];
 
 const placement: URLPlacement = {
+  crowdfunding: ['liberapay', 'opencollective']
   databases: ['wikidata', 'imdb', 'omdb', 'tmdb', 'tvdb'],
   maps: ['openstreetmap'],
   reviews: ['yelp', 'tripadvisor', 'goodreads', 'librarything'],
