@@ -2602,6 +2602,7 @@ textarea[data-markdown] {
   background: var(--pico-form-element-background-color);
   color: var(--pico-color);
   overflow: auto;
+  padding-top: 0.75em;
   padding-left: 1em;
   padding-right: 1em;
   border-radius: inherit;
