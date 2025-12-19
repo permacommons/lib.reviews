@@ -10,6 +10,7 @@
 			"KlaasZ4usV",
 			"Mar(c)",
 			"McDutchie",
+			"Nortix",
 			"Robin van der Vliet",
 			"Siebrand",
 			"Sjoerddebruin"
@@ -503,6 +504,9 @@
 	"opendata tag label": "Open data",
 	"shops tag label": "Online winkels",
 	"repositories tag label": "Repositories",
+	"crowdfunding tag label": "Crowdfunding",
+	"liberapay source label": "Liberapay",
+	"opencollective source label": "Open Collective",
 	"github source label": "GitHub",
 	"codeberg source label": "Codeberg",
 	"librarything source label": "LibraryThing",

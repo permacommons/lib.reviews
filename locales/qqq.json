@@ -4,6 +4,7 @@
 			"Liuxinyu970226",
 			"McDutchie",
 			"Nike",
+			"Nortix",
 			"Robby",
 			"Verdy p"
 		]
@@ -602,6 +603,9 @@
 	"opendata tag label": "Label for a group of external links to open data sources regarding a review subject.\n\n{{Identical|Open data}}",
 	"shops tag label": "Label for a group of external links to online stores that relate to the review subject.",
 	"repositories tag label": "Label for a group of external links to repositories that relate to the review subject.",
+	"crowdfunding tag label": "Label for a group of external links to crowdfunding sites that relate to the review subject.",
+	"liberapay source label": "Label that is used when describing links to Liberapay",
+	"opencollective source label": "Label that is used when describing links to Open Collective",
 	"github source label": "Label that is used when describing links to GitHub.com.",
 	"codeberg source label": "Label that is used when describing links to Codeberg.org.",
 	"librarything source label": "Label that is used when describing links to LibraryThing.com.",
