@@ -2264,7 +2264,8 @@ details.content-warning[open] summary.content-warning-notice:before, #review-for
 }
 
 .review-metrics {
-  margin-top:2em;
+  margin-top: 0.5em;
+  margin-bottom: 1em;
 }
 
 .usage-list {
