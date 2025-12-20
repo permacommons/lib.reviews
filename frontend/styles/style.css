@@ -1429,6 +1429,12 @@ a#upload, a#upload:visited, a#upload:hover
   font-style:normal;
 }
 
+a#add-label {
+  margin-left: 1em;
+  margin-top: 0;
+  margin-bottom: 0;
+  vertical-align: middle;
+}
 
 a#add-description {
   display:inline;
