@@ -1429,6 +1429,12 @@ a#upload, a#upload:visited, a#upload:hover
   font-style:normal;
 }
 
+a#add-label {
+  margin-left: 1em;
+  margin-top: 0;
+  margin-bottom: 0;
+  vertical-align: middle;
+}
 
 a#add-description {
   display:inline;
@@ -1559,7 +1565,7 @@ hr.feed-separator, hr.team-separator {
   background: var(--lr-highlight-background);
   font-size: x-small;
   text-transform: uppercase;
-  padding:3px;
+  padding: 5px;
   border-radius: 3px;
   vertical-align:middle;
   font-weight: normal;
@@ -1595,17 +1601,22 @@ a .user-team-badge {
 .user-team-badge {
   font-weight: bold;
   border-style: solid;
-  border-width:1px;
-  border-color: var(--lr-highlight-background);
+  border-width: 1px;
+  border-color: var(--pico-muted-border-color);
   background: var(--lr-excerpt-background);
 }
 
 .user-team-list li, .team-member-list li {
   margin-bottom: 0.5em;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5em;
-  align-items: center;
+  line-height: 1.6;
+}
+
+.user-team-list li > *, .team-member-list li > * {
+  margin-right: 0.5em;
+}
+
+.user-team-list li > *:last-child, .team-member-list li > *:last-child {
+  margin-right: 0;
 }
 
 .user-label {
@@ -2253,7 +2264,8 @@ details.content-warning[open] summary.content-warning-notice:before, #review-for
 }
 
 .review-metrics {
-  margin-top:2em;
+  margin-top: 0.5em;
+  margin-bottom: 1em;
 }
 
 .usage-list {
@@ -2602,6 +2614,7 @@ textarea[data-markdown] {
   background: var(--pico-form-element-background-color);
   color: var(--pico-color);
   overflow: auto;
+  padding-top: 0.75em;
   padding-left: 1em;
   padding-right: 1em;
   border-radius: inherit;

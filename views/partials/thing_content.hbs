@@ -14,6 +14,11 @@
 {{/if}}
 {{#if otherReviews}}
 <h2>{{#if userReviews}}{{{__ "other reviews"}}}{{else}}{{{__ "reviews"}}}{{/if}}</h2>
+{{#if hasMoreThanOneReview}}
+<div class="review-metrics">
+{{{__ "review metrics" (__n "one or multiple stars" (round thing.averageStarRating 1)) (__n "one or multiple reviews" thing.numberOfReviews)}}}
+</div>
+{{/if}}
 {{#if user}}
 {{#unless userReviews}}
 <p><a href="/new/review/{{{thing.urlID}}}" id="add-review" role="button" class="button-compact secondary no-print"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "add your review"}}}</a></p>
@@ -100,11 +105,6 @@
 {{/unless}}
 {{#if thing.userCanUpload}}
 {{>upload_form}}
-{{/if}}
-{{#if hasMoreThanOneReview}}
-<div class="review-metrics">
-{{{__ "review metrics" (__n "one or multiple stars" (round thing.averageStarRating 1)) (__n "one or multiple reviews" thing.numberOfReviews)}}}
-</div>
 {{/if}}
 {{#if activeSourceIDs}}
 <div class="source-licenses">
