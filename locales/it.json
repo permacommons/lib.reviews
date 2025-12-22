@@ -17,7 +17,7 @@
 	"site name": "lib.reviews",
 	"welcome": "Benvenuto/a!",
 	"intro lead": "<b>Benvenuto su lib.reviews!</b> Stiamo costruendo una piattaforma libera, aperta e non-profit per la recensione di davvero tutto, in qualsiasi lingua.",
-	"intro message": "Siamo in via di sviluppo e, per ora, avrai bisogno di un collegamento di invito per registrarti. Se non sai come ottenerne uno, seguici <a href='https://fosstodon.org/@lib_reviews'>su Mastodon</a> inviaci un messaggio e ti aiuteremo.",
+	"intro message": "Per aiutarci a garantire che la nostra comunità sia composta da esseri umani, ti chiediamo di <a href='https://lib.reviews/actions/request-account'>richiedere un'utenza</a> se desideri unirti a noi!",
 	"find us on": "Ci puoi trovare anche <a href='https://github.com/permacommons/lib.reviews'>su GitHub</a> e chatta con noi su IRC (<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>).",
 	"change language": "Cambia in:",
 	"change language button": "Cambia lingua",
@@ -164,6 +164,7 @@
 	"page not found": "Non sembra esserci nulla qui. Se pensi che questo sia un errore, puoi <a href='https://github.com/permacommons/lib.reviews/issues/new'>segnalarcelo</a>.",
 	"delete review": "Cancella recensione",
 	"delete file": "Cancella il file",
+	"thing about heading": "Informazioni",
 	"edit review": "Modifica recensione",
 	"delete preamble": "Continua solo se sei certo che vuoi cancellare i seguenti dati. Dopo che si è proceduto, solo un amministratore può recuperarli, e possono essere rimossi in modo permanente come parte della pulizia periodica del database.",
 	"also delete thing": "Cancella anche la <a href='/thing/%s'>cosa</a> associata",
@@ -193,6 +194,7 @@
 	"user not found": "Utente non trovato",
 	"user not found text": "Non è stato trovato alcun utente con il nome specificato, '%s'.",
 	"user bio": "Biografia:",
+	"bio heading": "Biografia",
 	"add bio": "Aggiungi biografia",
 	"edit bio": "Modifica biografia",
 	"user registration date": "Data di registrazione:",
@@ -233,6 +235,7 @@
 	"team blog": "Blog del team: %s",
 	"latest blog posts": "Blog del team",
 	"join this team": "Unisciti a questo team",
+	"moderator actions": "Azioni del moderatore",
 	"join": "Unisciti",
 	"request membership": "Richiedi di aderire al team",
 	"approval required to join": "I nuovi membri devono essere approvati dai moderatori del team. Raccontagli qualcosa di te e di come ti piacerebbe essere coinvolto.",
@@ -463,5 +466,9 @@
 	"description": "Descrizione",
 	"file usage": "Utilizzo del file",
 	"upload date": "Data di caricamento",
-	"caption label": "Didascalia"
+	"caption label": "Didascalia",
+	"theme label": "Tema:",
+	"theme dark": "scuro",
+	"theme system": "sistema",
+	"toc heading": "Contenuti"
 }
