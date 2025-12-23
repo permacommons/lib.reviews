@@ -6,5 +6,6 @@
   "upload": "frontend/upload.ts",
   "user": "frontend/user.ts",
   "manage-urls": "frontend/manage-urls.ts",
+  "manage-account-requests": "frontend/manage-account-requests.ts",
   "upload-modal": "frontend/upload-modal.ts"
 }

@@ -329,6 +329,16 @@
     "team blog": "Team blog: %s",
     "team profile heading": "Team Profile",
     "latest blog posts": "Team blog",
+    "blog post count zero": "no posts",
+    "blog post count": {
+      "one": "1 post",
+      "other": "%d posts"
+    },
+    "review count zero": "no reviews",
+    "review count": {
+      "one": "1 review",
+      "other": "%d reviews"
+    },
     "join this team": "Join this team",
     "moderator actions": "Moderator actions",
     "join": "Join",

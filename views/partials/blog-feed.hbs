@@ -1,7 +1,4 @@
 <div class="blog-feed">
-{{#if team.userCanBlog}}
-<a href="/team/{{team.urlID}}/new/post" id="write-blog" role="button" class="button-compact secondary"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "write a blog post"}}}</a><p>
-{{/if}}
 {{#unless blogPosts}}
 {{{__ "no blog posts"}}}
 {{/unless}}

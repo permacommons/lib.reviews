@@ -530,6 +530,49 @@ function applyThemeLogo(theme: string): void {
 }
 
 /**
+ * Sets up tab switching functionality for any tabbed interfaces on the page.
+ */
+function setupTabs(): void {
+  const tabs = document.querySelectorAll('.tab-button');
+  const tabContents = document.querySelectorAll('.tab-content');
+  const tabLinks = document.querySelectorAll('[data-tab-link]');
+
+  if (tabs.length === 0) return;
+
+  // Hide all tab contents except the first active one
+  tabContents.forEach((content, index) => {
+    if (index > 0) {
+      content.classList.remove('active');
+    }
+  });
+
+  // Tab switching
+  tabs.forEach(button => {
+    button.addEventListener('click', function () {
+      const tabName = (this as HTMLElement).dataset.tab;
+      if (!tabName) return;
+
+      tabs.forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+
+      tabContents.forEach(content => content.classList.remove('active'));
+      const activeContent = document.getElementById(`${tabName}-tab`);
+      if (activeContent) activeContent.classList.add('active');
+
+      // Show/hide corresponding tab links (e.g., "View all" links)
+      tabLinks.forEach(link => {
+        const linkTab = (link as HTMLElement).dataset.tabLink;
+        if (linkTab === tabName) {
+          link.classList.remove('hidden');
+        } else {
+          link.classList.add('hidden');
+        }
+      });
+    });
+  });
+}
+
+/**
  * Sets up the theme switcher in the footer.
  */
 function setupThemeSwitcher(): void {
@@ -819,6 +862,8 @@ function initializeLibreviews(): LibreviewsAPI {
   if ($('#search-input').length) setupSearch();
 
   if ($('#theme-switcher').length) setupThemeSwitcher();
+
+  if ($('.tabs').length) setupTabs();
 
   console.log(
     '\n' +

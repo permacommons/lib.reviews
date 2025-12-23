@@ -437,9 +437,12 @@ class TeamProvider extends AbstractBREADProvider {
     const founder: Record<string, boolean> = {};
     if (typeof team.createdBy === 'string') founder[team.createdBy] = true;
 
-    BlogPost.getMostRecentBlogPosts(team.id, {
-      limit: 3,
-    }).then(result => {
+    Promise.all([
+      BlogPost.getMostRecentBlogPosts(team.id, {
+        limit: 3,
+      }),
+      BlogPost.filterWhere({ teamID: team.id }).count(),
+    ]).then(([result, blogPostCount]) => {
       let blogPosts = result.blogPosts ?? [];
       let offsetDate = result.offsetDate;
 
@@ -467,6 +470,7 @@ class TeamProvider extends AbstractBREADProvider {
         titleKey: 'team title',
         titleParam,
         blogPosts,
+        blogPostCount,
         joinErrors,
         pageMessages,
         founder,
