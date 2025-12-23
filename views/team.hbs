@@ -20,33 +20,56 @@
 <h2 class="subtitle">{{mlSafeText team.motto false}}</h2>
 {{/if}}
 <div class="grid grid-with-sidebar">
-{{!LEFT COLUMN: REVIEWS}}
+{{!LEFT COLUMN: REVIEWS AND BLOG}}
 <div>
-<div class="headline-with-link">
-<h2>{{{__ "latest review"}}}</h2>
-{{#if team.reviews}}
-<span class="view-all-link no-print"><a class="nav-pill" href="/team/{{{team.urlID}}}/feed">{{{__ "view all"}}}</a></span>
-{{/if}}
+<div class="tabs nojs-hidden">
+  <button class="tab-button active" data-tab="reviews">
+    {{{__ "latest review"}}} <span class="tab-count">({{#if team.reviewCount}}{{{__n "review count" team.reviewCount}}}{{else}}{{{__ "review count zero"}}}{{/if}})</span>
+  </button>
+  <button class="tab-button" data-tab="blog">
+    {{{__ "latest blog posts"}}} <span class="tab-count">({{#if blogPostCount}}{{{__n "blog post count" blogPostCount}}}{{else}}{{{__ "blog post count zero"}}}{{/if}})</span>
+  </button>
 </div>
-{{#if team.userIsMember}}
-<p>
-<a href="/team/{{team.urlID}}/new/review" id="write-review" role="button" class="button-compact secondary"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "write a review"}}}</a>
-{{/if}}
-<p>
+
+<div class="tab-actions nojs-hidden">
+  <div class="tab-action-buttons">
+    <span data-tab-link="reviews">
+      {{#if team.userIsMember}}
+      <a href="/team/{{team.urlID}}/new/review" id="write-review" role="button" class="button-compact secondary"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "write a review"}}}</a>
+      {{/if}}
+    </span>
+    <span class="hidden" data-tab-link="blog">
+      {{#if team.userCanBlog}}
+      <a href="/team/{{team.urlID}}/new/post" id="write-blog" role="button" class="button-compact secondary"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "write a blog post"}}}</a>
+      {{/if}}
+    </span>
+  </div>
+  <div class="tab-action-links">
+    <span data-tab-link="reviews">
+      {{#if team.reviews}}
+      <a class="nav-pill" href="/team/{{{team.urlID}}}/feed">{{{__ "view all"}}}</a>
+      {{/if}}
+    </span>
+    <span class="hidden" data-tab-link="blog">
+      {{#if blogPosts}}
+      <a class="nav-pill" href="/team/{{{team.urlID}}}/blog">{{{__ "view all"}}}</a>
+      {{/if}}
+    </span>
+  </div>
+</div>
+
+<div id="reviews-tab" class="tab-content nojs-visible active">
+<h2 class="nojs-visible hidden-regular">{{{__ "latest review"}}}</h2>
 {{#if team.reviews}}
 {{>feed feedItems=team.reviews teamFeed=true}}
 {{else}}
 {{{__ "no reviews for team"}}}
 {{/if}}
-<p>
-{{!BLOG POSTS}}
-<div class="team-blog">
-<div class="headline-with-link">
-<h2>{{{__ "latest blog posts"}}}</h2>
-{{#if blogPosts}}
-<span class="view-all-link no-print"><a class="nav-pill" href="/team/{{{team.urlID}}}/blog">{{{__ "view all"}}}</a></span>
-{{/if}}
 </div>
+
+{{!BLOG POSTS}}
+<div id="blog-tab" class="tab-content nojs-visible">
+<h2 class="nojs-visible hidden-regular">{{{__ "latest blog posts"}}}</h2>
 {{>blog_feed noAccessKey=true}}
 </div>
 {{!/BLOG POSTS}}

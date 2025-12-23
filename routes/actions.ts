@@ -898,6 +898,7 @@ router.get(
           moderatedRequests,
           pageErrors: req.flash('pageErrors'),
           pageMessages: req.flash('pageMessages'),
+          scripts: ['manage-account-requests'],
         });
       } catch (error) {
         next(error);

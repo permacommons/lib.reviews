@@ -2859,12 +2859,13 @@ textarea[data-markdown] {
 .tabs {
   display: flex;
   border-bottom: 2px solid var(--lr-preview-border);
-  margin-bottom: 2rem;
+  margin-bottom: 0;
 }
 
 .tab-button {
   background: none;
   border: none;
+  border-radius: 0;
   padding: 1rem 1.5rem;
   cursor: pointer;
   font-size: 1rem;
@@ -2883,8 +2884,23 @@ textarea[data-markdown] {
   }
 }
 
+.tab-count {
+  opacity: 0.6;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.tab-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  margin-bottom: 1rem;
+}
+
 .tab-content {
   display: none;
+  margin-top: 1.5rem;
 
   &.active {
     display: block;
@@ -2964,6 +2980,10 @@ textarea[data-markdown] {
 
   textarea {
     margin-bottom: 1rem;
+  }
+
+  button {
+    width: auto;
   }
 
   &.hidden {

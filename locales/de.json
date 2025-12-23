@@ -340,6 +340,16 @@
 	"team blog": "Team-Blog: %s",
 	"team profile heading": "Teamprofil",
 	"latest blog posts": "Neueste Blogbeiträge",
+	"blog post count zero": "keine Beiträge",
+	"blog post count": {
+		"one": "1 Beitrag",
+		"other": "%d Beiträge"
+	},
+	"review count zero": "keine Rezensionen",
+	"review count": {
+		"one": "1 Rezension",
+		"other": "%d Rezensionen"
+	},
 	"join this team": "Werde Mitglied in diesem Team",
 	"moderator actions": "Moderatoraktionen",
 	"join": "Mitglied werden",
