@@ -2875,7 +2875,7 @@ textarea[data-markdown] {
   transition: all 0.3s;
 
   &:hover {
-    color: var(--pico-color);
+    color: var(--pico-contrast);
   }
 
   &.active {
