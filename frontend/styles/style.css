@@ -2520,6 +2520,7 @@ details.content-warning[open] summary.content-warning-notice:before, #review-for
   width: auto;
   padding: 10px;
   padding-right: 2.5rem; /* space for dropdown caret */
+  margin-bottom: 0; /* override default select margin for consistent spacing with URL input mode */
 }
 
 .switcher-pin {
