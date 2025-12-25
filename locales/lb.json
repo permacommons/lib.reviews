@@ -144,6 +144,7 @@
 	"page not found title": "Säit net fonnt",
 	"delete review": "Bewäertung läschen",
 	"delete file": "Fichier läschen",
+	"thing about heading": "Iwwer",
 	"edit review": "Bewäertung änneren",
 	"review deleted": "Bewäertung geläscht",
 	"file deleted": "Fichier geläscht",
@@ -353,6 +354,10 @@
 	"maps tag label": "Kaarten",
 	"reviews tag label": "Internetsitten nokucken",
 	"opendata tag label": "Open Data",
+	"github source label": "GitHub",
+	"codeberg source label": "Codeberg",
+	"librarything source label": "LibraryThing",
+	"fdroid source label": "F-Droid",
 	"imdb source label": "IMDb",
 	"omdb source label": "omdb",
 	"tmdb source label": "TMDB",
@@ -397,5 +402,8 @@
 	"hide uploads": "Eropgeluede Medie verstoppen",
 	"caption label": "Beschrëftung",
 	"additional review settings": "Zousätzlech Astellungen",
-	"no social media image": "(Kee Bild festleeën)"
+	"no social media image": "(Kee Bild festleeën)",
+	"theme light": "hell",
+	"theme dark": "däischter",
+	"theme system": "System"
 }

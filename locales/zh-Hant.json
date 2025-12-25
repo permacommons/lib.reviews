@@ -340,6 +340,16 @@
 	"team blog": "團隊部落格：%s",
 	"team profile heading": "團隊資料",
 	"latest blog posts": "團隊部落格",
+	"blog post count zero": "沒有文章",
+	"blog post count": {
+		"one": "1 篇文章",
+		"other": "%d 篇文章"
+	},
+	"review count zero": "沒有評論",
+	"review count": {
+		"one": "1 篇評論",
+		"other": "%d 篇評論"
+	},
 	"join this team": "加入此團隊",
 	"moderator actions": "版主操作",
 	"join": "加入",

@@ -341,6 +341,16 @@
 	"team blog": "团队博客：%s",
 	"team profile heading": "团队资料",
 	"latest blog posts": "团队博客",
+	"blog post count zero": "没有博文",
+	"blog post count": {
+		"one": "1篇博文",
+		"other": "%d篇博文"
+	},
+	"review count zero": "没有点评",
+	"review count": {
+		"one": "1段点评",
+		"other": "%d段点评"
+	},
 	"join this team": "加入此团队",
 	"moderator actions": "版主操作",
 	"join": "加入",
