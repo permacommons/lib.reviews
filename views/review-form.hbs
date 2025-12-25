@@ -84,17 +84,17 @@
             {{>help input="review-search-database" helpLabel="review via wikidata help label" helpText="review via wikidata help text" nojsHidden=true}}
           </div>
 
-          <div>
+          <div class="review-label-group">
               <label for="review-label">{{{__ "review label"}}} <span class="required">*</span></label>
               <input id="review-label" name="review-label" type="text" data-auto-trim placeholder="{{{__ "enter label for review subject"}}}" value="{{mlSafeText formValues.label false}}">
           </div>
-          <div>
+          <div class="review-label-group">
             {{>help input="review-label" helpLabel="review label help label" helpText="review label help"}}
           </div>
         </div>
         {{/unless}}
         {{/if}}
-        <div class="grid grid-form">
+        <div class="grid grid-form form-section">
           <div>
               <label for="review-title">{{{__ "review title"}}} <span class="required">*</span></label>
               <input id="review-title" name="review-title" type="text" {{#if editing}}data-focus{{/if}} data-required placeholder='{{{__ "enter title"}}}' value="{{mlSafeText formValues.title false}}">
