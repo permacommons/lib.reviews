@@ -1182,7 +1182,7 @@ label {
 }
 
 textarea#review-text {
-  height: 14em;
+  height: 16em;
 }
 
 .input-spinner {
@@ -2442,6 +2442,7 @@ details.content-warning[open] summary.content-warning-notice:before, #review-for
 
 .rte-container .ProseMirror-prompt input[type="text"] {
   padding: 0 4px;
+  width: 100%;
 }
 
 .rte-container .ProseMirror-prompt-close {
@@ -2652,6 +2653,11 @@ textarea[data-markdown] {
   opacity: 0.65;
 }
 
+.rte-container .ProseMirror-menuitem,
+.rte-container .ProseMirror-menuseparator {
+  vertical-align: middle;
+}
+
 .rte-container .ProseMirror-menu-dropdown-menu,
 .rte-container .ProseMirror-menu-submenu {
   background: var(--pico-card-background-color);
@@ -2675,13 +2681,15 @@ textarea[data-markdown] {
   border-radius: 3px;
   z-index: 1001;
   box-shadow: -.5px 2px 5px rgba(0, 0, 0, .2);
+  width: 500px;
+  max-width: 90vw;
 }
 
 .rte-container .ProseMirror-prompt h5 {
-  margin: 0 0 0.5rem 0;
+  margin: 1rem 0;
   font-weight: normal;
-  font-size: 100%;
   color: var(--pico-color);
+  text-align: center;
 }
 
 /* ------------- End editor styles --------------------------------------------- */
