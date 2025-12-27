@@ -32,7 +32,7 @@ function coerceDate(input: DateInput): Date | null {
   return null;
 }
 
-/** Calls a `Date` formatter with optional locale handling. */
+/** Calls a `Date` formatter with optional locale handling in UTC timezone. */
 function formatWithLocale(
   date: Date,
   locale: string | undefined,
@@ -40,10 +40,12 @@ function formatWithLocale(
 ): string | undefined {
   if (!date) return undefined;
 
+  const options = { timeZone: 'UTC' };
+
   try {
-    return locale ? formatter.call(date, locale) : formatter.call(date);
+    return formatter.call(date, locale, options);
   } catch {
-    return formatter.call(date);
+    return formatter.call(date, undefined, options);
   }
 }
 
