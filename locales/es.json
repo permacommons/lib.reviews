@@ -221,6 +221,16 @@
 	"team title": "Equipo: %s",
 	"team blog": "Blog de equipo: %s",
 	"latest blog posts": "Blog de equipo",
+	"blog post count zero": "sin publicaciones",
+	"blog post count": {
+		"one": "1 publicación",
+		"other": " %d publicaciones"
+	},
+	"review count zero": "Sin revisiones",
+	"review count": {
+		"one": "1 revisión",
+		"other": " %d revisiones"
+	},
 	"join this team": "Únete a este equipo",
 	"join": "Unirte",
 	"request membership": "Solicitar membresía de equipo",
@@ -495,6 +505,9 @@
 	"reviews tag label": "Sitios de reseñas",
 	"opendata tag label": "Datos abiertos",
 	"shops tag label": "Tiendas en línea",
+	"crowdfunding tag label": "Financiación colectiva",
+	"liberapay source label": "Liberapay",
+	"opencollective source label": "Open Collective",
 	"imdb source label": "IMDb",
 	"omdb source label": "omdb",
 	"tmdb source label": "TMDB",

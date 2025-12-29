@@ -12,7 +12,7 @@
 	"site name": "Site name shown in page title",
 	"welcome": "Welcome message shown in page title of frontpage\n{{Identical|Welcome}}",
 	"intro lead": "Introduction shown on frontpage",
-	"intro message": "Introduction shown on frontpage. \"DM\" is an informal English abbreviation for a \"direct message\".",
+	"intro message": "Introduction shown on front page.",
 	"find us on": "Introduction shown on frontpage. Notes:\n* The link to the IRC channel was changed to use Libera.Chat, instead of the previous hosting provider which must no longer be referenced in any translation.",
 	"change language": "Language switcher shown at the bottom of every page",
 	"change language button": "Label fur button in the footer that executes a language change.",
