@@ -106,22 +106,56 @@ const baseCaptchaFields = z.object({
 });
 
 /**
- * Create a Zod schema for CAPTCHA validation if enabled for the given form.
- * Returns an empty schema if CAPTCHA is not configured for this form.
+ * Check if CAPTCHA is enabled for a given form.
  *
  * @param formKey Form identifier to check CAPTCHA configuration
- * @param translate Optional i18n function for error messages
+ * @returns true if CAPTCHA is enabled for this form
+ */
+export const isCaptchaEnabled = (formKey: string): boolean => {
+  const formsConfig = config.questionCaptcha.forms as Record<string, string | boolean | undefined>;
+  return Boolean(formsConfig[String(formKey)]);
+};
+
+/**
+ * Create a Zod schema for CAPTCHA fields if enabled for the given form.
+ * Returns an empty schema if CAPTCHA is not configured for this form.
+ * Note: This only adds the fields - validation must be applied separately using validateCaptcha.
+ *
+ * @param formKey Form identifier to check CAPTCHA configuration
  * @returns Zod schema for CAPTCHA fields or empty schema
  */
-export const createCaptchaSchema = (formKey: string, translate: TranslateFn = phrase => phrase) => {
-  const formsConfig = config.questionCaptcha.forms as Record<string, string | boolean | undefined>;
-  const isEnabled = formsConfig[String(formKey)];
-  if (!isEnabled) return z.object({});
+export const createCaptchaSchema = (formKey: string) => {
+  if (!isCaptchaEnabled(formKey)) return z.object({});
+  return baseCaptchaFields;
+};
+
+/**
+ * Create a superRefine callback that validates CAPTCHA answers.
+ * Must be called AFTER merging the CAPTCHA schema into the form schema.
+ *
+ * @param formKey Form identifier to check CAPTCHA configuration
+ * @param translate i18n function for error messages
+ * @returns superRefine callback function, or undefined if CAPTCHA is disabled
+ */
+export const validateCaptcha = (formKey: string, translate: TranslateFn = phrase => phrase) => {
+  if (!isCaptchaEnabled(formKey)) return undefined;
 
   const captchas = config.questionCaptcha.captchas as Array<{ answerKey: string }>;
 
-  return baseCaptchaFields.superRefine((data, ctx) => {
-    const captchaIndex = Number.parseInt(data['captcha-id'], 10);
+  return (data: Record<string, unknown>, ctx: z.RefinementCtx) => {
+    const captchaId = data['captcha-id'];
+    const captchaAnswer = data['captcha-answer'];
+
+    if (typeof captchaId !== 'string' || typeof captchaAnswer !== 'string') {
+      return;
+    }
+
+    // Skip validation if answer is empty - the basic field validation handles this
+    if (captchaAnswer.trim().length === 0) {
+      return;
+    }
+
+    const captchaIndex = Number.parseInt(captchaId, 10);
     const captcha = Number.isNaN(captchaIndex) ? undefined : captchas[captchaIndex];
 
     if (!captcha) {
@@ -134,7 +168,7 @@ export const createCaptchaSchema = (formKey: string, translate: TranslateFn = ph
     }
 
     const expected = translate(captcha.answerKey).toUpperCase();
-    const provided = data['captcha-answer'].trim().toUpperCase();
+    const provided = captchaAnswer.trim().toUpperCase();
 
     if (expected !== provided) {
       ctx.addIssue({
@@ -143,7 +177,7 @@ export const createCaptchaSchema = (formKey: string, translate: TranslateFn = ph
         message: translate('incorrect captcha answer'),
       });
     }
-  });
+  };
 };
 
 const zodForms = {
@@ -152,6 +186,8 @@ const zodForms = {
   csrfField,
   csrfSchema,
   createCaptchaSchema,
+  validateCaptcha,
+  isCaptchaEnabled,
   coerceString,
   preprocessArrayField,
   requiredTrimmedString,

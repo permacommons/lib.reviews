@@ -82,7 +82,8 @@
   // provide culturally appropriate customizations if needed.
   questionCaptcha: {
     forms: {
-      register: false
+      register: false,
+      requestAccount: false
     },
     captchas: [
       {

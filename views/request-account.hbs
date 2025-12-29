@@ -57,6 +57,15 @@
       {{{__ "read and agree to terms"}}}
     </label>
 
+    {{#if questionCaptcha}}
+    <p>{{{__ "captcha intro"}}}</p>
+    <label for="captcha-answer">
+      {{{__ questionCaptcha.captcha.questionKey}}} <span class="required">*</span>
+      <input id="captcha-answer" name="captcha-answer" type="text" data-auto-trim data-required placeholder="{{{__ "enter captcha answer"}}}">
+      <input name="captcha-id" value="{{questionCaptcha.id}}" type="hidden">
+    </label>
+    {{/if}}
+
     <button type="submit">
       {{{__ "submit request"}}}
     </button>
