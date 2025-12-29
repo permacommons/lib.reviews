@@ -121,8 +121,8 @@ const accountRequestLimiter = rateLimit({
   },
 });
 
-const buildRegisterSchema = (req: ActionsRequest) =>
-  z
+const buildRegisterSchema = (req: ActionsRequest) => {
+  const schema = z
     .object({
       _csrf: z.string().min(1, req.__('need _csrf')),
       username: z.string().min(1, req.__('need username')),
@@ -135,27 +135,40 @@ const buildRegisterSchema = (req: ActionsRequest) =>
       signupLanguage: z.string().optional(),
     })
     .strict()
-    .merge(zodForms.createCaptchaSchema('register', req.__.bind(req)));
+    .merge(zodForms.createCaptchaSchema('register'));
+
+  // Apply CAPTCHA validation after merge to ensure it runs on the full form data
+  const captchaValidator = zodForms.validateCaptcha('register', req.__.bind(req));
+  return captchaValidator ? schema.superRefine(captchaValidator) : schema;
+};
 
 type RegisterForm = z.infer<ReturnType<typeof buildRegisterSchema>>;
 type RegisterFormValues = Partial<
   Pick<RegisterForm, 'username' | 'email' | 'returnTo' | 'signupLanguage'>
 >;
 
-const accountRequestSchema = (req: ActionsRequest) =>
-  z.object({
-    _csrf: z.string().min(1, req.__('need _csrf')),
-    plannedReviews: z.string().trim().min(1, req.__('account request need planned reviews')),
-    languages: z.string().trim().min(1, req.__('account request need languages')),
-    aboutLinks: z.string().trim().min(1, req.__('account request need about url')),
-    email: z.string().trim().min(1, req.__('need email')).email(req.__('invalid email format')),
-    // Checkbox is optional in form data (unchecked = not sent), but we require it to be 'on'
-    termsAccepted: z
-      .string()
-      .optional()
-      .refine(val => val === 'on', req.__('must accept terms'))
-      .transform(() => true),
-  });
+const accountRequestSchema = (req: ActionsRequest) => {
+  const schema = z
+    .object({
+      _csrf: z.string().min(1, req.__('need _csrf')),
+      plannedReviews: z.string().trim().min(1, req.__('account request need planned reviews')),
+      languages: z.string().trim().min(1, req.__('account request need languages')),
+      aboutLinks: z.string().trim().min(1, req.__('account request need about url')),
+      email: z.string().trim().min(1, req.__('need email')).email(req.__('invalid email format')),
+      // Checkbox is optional in form data (unchecked = not sent), but we require it to be 'on'
+      termsAccepted: z
+        .string()
+        .optional()
+        .refine(val => val === 'on', req.__('must accept terms'))
+        .transform(() => true),
+    })
+    // Conditionally adds CAPTCHA fields if enabled in config (merges empty schema if disabled)
+    .merge(zodForms.createCaptchaSchema('requestAccount'));
+
+  // Apply CAPTCHA validation after merge to ensure it runs on the full form data
+  const captchaValidator = zodForms.validateCaptcha('requestAccount', req.__.bind(req));
+  return captchaValidator ? schema.superRefine(captchaValidator) : schema;
+};
 
 type AccountRequestForm = z.infer<ReturnType<typeof accountRequestSchema>>;
 type AccountRequestValues = Partial<
@@ -1074,6 +1087,7 @@ async function renderAccountRequestForm(
     titleKey: 'request account',
     pageErrors,
     formValues,
+    questionCaptcha: forms.getQuestionCaptcha('requestAccount'),
     deferPageHeader: true,
   });
 }

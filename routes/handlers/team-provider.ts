@@ -76,8 +76,7 @@ const buildTeamSchema = (req: HandlerRequest, language: string, formKey: string)
       'team-language': z.string().trim().min(1, req.__('need team-language')),
       'team-action': z.string().trim().min(1, req.__('need team-action')),
     })
-    .strict()
-    .merge(zodForms.createCaptchaSchema(formKey, req.__.bind(req)));
+    .strict();
 };
 
 type TeamFormSchemaOutput = z.infer<ReturnType<typeof buildTeamSchema>>;

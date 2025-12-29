@@ -54,8 +54,7 @@ const buildBlogPostSchema = (req: HandlerRequest, language: string, formKey: str
       'post-language': z.string().trim().min(1, req.__('need post-language')),
       'post-action': z.string().trim().min(1, req.__('need post-action')),
     })
-    .strict()
-    .merge(zodForms.createCaptchaSchema(formKey, req.__.bind(req)));
+    .strict();
 };
 
 type BlogPostFormSchemaOutput = z.infer<ReturnType<typeof buildBlogPostSchema>>;
