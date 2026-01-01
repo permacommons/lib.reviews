@@ -20,6 +20,7 @@
 			"Saimon",
 			"Stjn",
 			"Vlad5250",
+			"Vonavy",
 			"Wirbel78",
 			"Андрей",
 			"ЛосЯш"
@@ -28,7 +29,7 @@
 	"site name": "lib.reviews",
 	"welcome": "Добро пожаловать!",
 	"intro lead": "<b>Добро пожаловать на lib.reviews!</b> Мы создаём свободную, некоммерческую платформу с открытым исходным кодом, предназначенную для обзора абсолютно всего, на любом языке.",
-	"intro message": "Мы находимся в самом начале развития, и пока вам нужна пригласительная ссылка для регистрации. Если Вы не знаете, как её получить, подпишитесь на нас в <a href='https://fosstodon.org/@lib_reviews'>Mastodon</a>, отправьте нам сообщение, и мы ответим вам личным сообщением.",
+	"intro message": "Чтобы помочь нам убедиться, что наше сообщество состоит из людей, пожалуйста, <a href='https://lib.reviews/actions/request-account'>запросите создание учётной записи</a>, если вы хотите присоединиться к нам!",
 	"find us on": "Вы также можете найти нас <a href='https://github.com/permacommons/lib.reviews'>на GitHub</a> и пообщаться с нами в IRC (<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>).",
 	"change language": "Переключиться на:",
 	"change language button": "Изменить язык",

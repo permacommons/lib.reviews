@@ -193,6 +193,11 @@
 	"need team-description": "Mir brauchen eng Beschreiwung vun der Ekipp.",
 	"need team-rules": "Mir brauchen Ekippe-Reegelen.",
 	"team title": "Ekipp: %s",
+	"blog post count zero": "keng Bäiträg",
+	"blog post count": {
+		"one": "1 Bäitrag",
+		"other": "%d Bäiträg"
+	},
 	"join this team": "Bei dëser Ekipp matschaffen",
 	"join": "Matmaachen",
 	"agree to the rules": "Ech verstinn dës Reegelen a sinn domat averstane.",
