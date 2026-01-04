@@ -132,6 +132,11 @@ const rules: URLRule[] = [
     id: 'librarything',
   },
   {
+    host: hostWithOptionalWww('happycow.net'),
+    tags: ['reviews'],
+    id: 'happycow',
+  },
+  {
     host: hostWithOptionalWww('f-droid.org'),
     tags: ['shops'],
     id: 'fdroid',
@@ -162,7 +167,7 @@ const placement: URLPlacement = {
   crowdfunding: ['liberapay', 'opencollective'],
   databases: ['wikidata', 'imdb', 'omdb', 'tmdb', 'tvdb'],
   maps: ['openstreetmap'],
-  reviews: ['yelp', 'tripadvisor', 'goodreads', 'librarything'],
+  reviews: ['yelp', 'tripadvisor', 'goodreads', 'happycow', 'librarything'],
   repositories: ['github', 'codeberg'],
   shops: ['indiebound', 'itch', 'gog', 'steam', 'amazon', 'fdroid'],
   summaries: ['wikipedia'],

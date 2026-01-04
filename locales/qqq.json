@@ -611,6 +611,7 @@
 	"liberapay source label": "Label that is used when describing links to Liberapay",
 	"opencollective source label": "Label that is used when describing links to Open Collective",
 	"github source label": "Label that is used when describing links to GitHub.com.",
+	"happycow source label": "Label that is used when describing links to HappyCow.net",
 	"codeberg source label": "Label that is used when describing links to Codeberg.org.",
 	"librarything source label": "Label that is used when describing links to LibraryThing.com.",
 	"fdroid source label": "Label that is used when describing links to f-droid.org.",
