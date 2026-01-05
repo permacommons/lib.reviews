@@ -15,7 +15,7 @@
 	"welcome": "歡迎！",
 	"intro lead": "<b>歡迎來到 lib.reviews！</b>我們正打造一個自由、開放、且非營利可使用任何語言來發表任何事物評論的平台。",
 	"intro message": "請協助我們確保我們的社群是由實際人物組成，若您想加入我們，請<a href='https://lib.reviews/actions/request-account'>申請一個帳號</a>！",
-	"find us on": "您可以在 <a href='https://github.com/permacommons/lib.reviews'>GitHub</a> 上找到我們、或是在 IRC 上與我們聊天（在 <a href='https://libera.chat/'>libera.chat</a> 上的 <b>#lib.reviews</b> on ）。",
+	"find us on": "您可以在 <a href='https://github.com/permacommons/lib.reviews'>GitHub</a> 上找到我們，或是在 IRC 上與我們聊天（在 <a href='https://libera.chat/'>libera.chat</a> 上的 <b>#lib.reviews</b>）。",
 	"change language": "切換到：",
 	"change language button": "變更語言",
 	"sign in": "登入",

@@ -27,7 +27,7 @@
 	"site name": "lib.reviews",
 	"welcome": "Hoş geldiniz!",
 	"intro lead": "<b>lib.reviews sitesine hoş geldiniz!</b> Herhangi bir dilde, herhangi bir şey hakkında inceleme yazmak için ücretsiz, açık ve kâr amacı gütmeyen bir platform inşa ediyoruz.",
-	"intro message": "Erken geliştirme aşamasındayız ve şimdilik kaydolmak için bir davet bağlantısına ihtiyacınız var. Nasıl edineceğinizi bilmiyorsanız, bizi <a href='https://fosstodon.org/@lib_reviews'>Mastodon'da</a> takip edin, bize bir PM gönderin, size yardımcı olalım.",
+	"intro message": "Topluluğumuzun insanlardan oluşmasını sağlamamıza yardımcı olmak için, bize katılmak isterseniz lütfen <a href='https://lib.reviews/actions/request-account'>hesap talep edin</a>!",
 	"find us on": "Ayrıca bize <a href='https://github.com/permacommons/lib.reviews'>GitHub</a> ve IRC üzerinden (<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>) ulaşabilirsiniz.",
 	"change language": "Dil değiştirin:",
 	"change language button": "Dili değiştir",
