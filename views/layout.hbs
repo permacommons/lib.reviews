@@ -2,6 +2,7 @@
 <html{{#if dataTheme}} data-theme="{{dataTheme}}"{{/if}}>
 <head>
     <meta content="width=device-width, initial-scale=1" name="viewport">
+    {{#if review}}
     <meta property="og:type" content="article">
     <meta property="og:title" content="{{mlSafeText review.title false}}" />
     <meta property="og:description" content="{{{summarize (mlHTML review.html) 200}}}" />
@@ -9,11 +10,14 @@
     {{#if socialImage}}
     <meta property="og:image" content="{{{qualifiedURL}}}static/uploads/{{{socialImage}}}"/>
     <meta name="twitter:image" content="{{{qualifiedURL}}}static/uploads/{{{socialImage}}}" />
-    {{/if}}
     <meta name="twitter:card" content="summary_large_image" />
+    {{else}}
+    <meta name="twitter:card" content="summary" />
+    {{/if}}
     <meta name="twitter:site" content="@lib_reviews" />
     <meta name="twitter:title" content="{{mlSafeText review.title false}}" />
     <meta name="twitter:description" content="{{{summarize (mlHTML review.html) 200}}}" />
+    {{/if}}
     <title>{{{__ "site name"}}}{{#if titleKey}} - {{{__ titleKey titleParam }}}{{else}}{{#if titleString}} - {{{titleString}}}{{/if}}{{/if}}</title>
     {{#each embeddedFeeds}}
     <link href="{{{this.url}}}" type="{{{this.type}}}" rel="alternate" title="{{{this.title}}}" hreflang="{{{this.language}}}"/>
