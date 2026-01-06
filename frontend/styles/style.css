@@ -122,6 +122,7 @@
   --lr-switcher-border: #ddd;
 
   --lr-header-color: #414042;
+  --lr-user-heading-color: #666;
   --lr-link-color: #1f5cad;
   --lr-visited-color: #5E4398;
 
@@ -165,6 +166,7 @@
   --lr-switcher-border: var(--pico-muted-border-color);
 
   --lr-header-color: #c2c7d0;
+  --lr-user-heading-color: #b3b3b3;
   --lr-link-color: #6db3f2;
   --lr-visited-color: #b8a5d3;
 
@@ -1480,15 +1482,69 @@ a#add-description span.fa {
 }
 
 
-#preview-review-text h1, .review-text h1, .rte-container h1 {
-  font-size: 1.3em;
-  font-weight: normal;
+/* User-generated headings: h1 */
+#preview-review-text h1,
+#main-body .review-text h1,
+#main-body .rte-container h1,
+#main-body .blog-post-text h1 {
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--lr-user-heading-color);
   --pico-typography-spacing-top: 1.5em;
 }
 
-#preview-review-text h2, .review-text h2, .rte-container h2 {
-  font-size: 1.2em;
-  font-weight: normal;
+/* User-generated headings: h2 */
+#preview-review-text h2,
+#main-body .review-text h2,
+#main-body .rte-container h2,
+#main-body .blog-post-text h2 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--lr-user-heading-color);
+  --pico-typography-spacing-top: 1.5em;
+}
+
+/* User-generated headings: h3 */
+#preview-review-text h3,
+#main-body .review-text h3,
+#main-body .rte-container h3,
+#main-body .blog-post-text h3 {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--lr-user-heading-color);
+  --pico-typography-spacing-top: 1.5em;
+}
+
+/* User-generated headings: h4 */
+#preview-review-text h4,
+#main-body .review-text h4,
+#main-body .rte-container h4,
+#main-body .blog-post-text h4 {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--lr-user-heading-color);
+  --pico-typography-spacing-top: 1.5em;
+}
+
+/* User-generated headings: h5 */
+#preview-review-text h5,
+#main-body .review-text h5,
+#main-body .rte-container h5,
+#main-body .blog-post-text h5 {
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--lr-user-heading-color);
+  --pico-typography-spacing-top: 1.5em;
+}
+
+/* User-generated headings: h6 */
+#preview-review-text h6,
+#main-body .review-text h6,
+#main-body .rte-container h6,
+#main-body .blog-post-text h6 {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--lr-user-heading-color);
   --pico-typography-spacing-top: 1.5em;
 }
 
