@@ -350,6 +350,30 @@ const reviewStaticMethods = defineStaticMethods(reviewManifest, {
               .run();
             const thingMap = new Map<string, ThingInstance>();
 
+            // Batch fetch review counts for all things in a single query
+            let reviewCounts = new Map<string, number>();
+            if (thingIds.length > 0) {
+              try {
+                const { in: inOp } = this.ops;
+                reviewCounts = await this.filterWhere({
+                  thingID: inOp(thingIds as [string, ...string[]]),
+                })
+                  .groupBy('thingID')
+                  .aggregateGrouped('COUNT');
+                debug.db(`Batch fetched review counts for ${reviewCounts.size} things`);
+              } catch (countError) {
+                debug.error('Error fetching review counts:', countError);
+                // Continue without counts - things will have numberOfReviews = 0
+              }
+            }
+
+            // Populate review count for each thing from the batched result
+            things.forEach(thing => {
+              if (thing.id) {
+                thing.numberOfReviews = reviewCounts.get(thing.id) ?? 0;
+              }
+            });
+
             things.forEach(thingInstance => {
               if (thingInstance.id) {
                 thingMap.set(thingInstance.id, thingInstance);

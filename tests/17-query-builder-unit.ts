@@ -1076,3 +1076,152 @@ test('FilterWhereBuilder.decrement delegates to increment with negative amount',
   t.deepEqual(calls[0]?.params, ['user-1', -2]);
   t.is(model.tableName, 'counters');
 });
+
+test('QueryBuilder.groupBy adds GROUP BY clause', t => {
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
+
+  const result = qb.groupBy('name');
+
+  t.is(result, qb, 'groupBy should return builder for chaining');
+  t.is(qb._groupBy.length, 1);
+  t.is(qb._groupBy[0], 'test_table.name');
+});
+
+test('QueryBuilder.groupBy handles multiple fields', t => {
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
+
+  qb.groupBy(['name', 'id']);
+
+  t.is(qb._groupBy.length, 2);
+  t.is(qb._groupBy[0], 'test_table.name');
+  t.is(qb._groupBy[1], 'test_table.id');
+});
+
+test('QueryBuilder.groupBy preserves qualified field references', t => {
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
+
+  qb.groupBy('other_table.field');
+
+  t.is(qb._groupBy[0], 'other_table.field');
+});
+
+test('QueryBuilder.aggregateGrouped requires groupBy first', async t => {
+  const { qb } = createQueryBuilderHarness<DefaultRecord, JsonObject, DefaultInstance, string>();
+
+  await t.throwsAsync(async () => qb.aggregateGrouped('COUNT'), {
+    message: /aggregateGrouped requires groupBy/,
+  });
+});
+
+test('QueryBuilder.aggregateGrouped executes grouped COUNT query', async t => {
+  type Data = { id: string; category: string };
+  const calls: Array<{ sql?: string; params?: unknown[] }> = [];
+
+  const { qb } = createQueryBuilderHarness<
+    Data,
+    JsonObject,
+    ModelInstance<Data, JsonObject>,
+    string
+  >({
+    tableName: 'items',
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(sql?: string, params: unknown[] = []) {
+        calls.push({ sql, params });
+        return createQueryResult([
+          { group_key: 'electronics', aggregate_value: 5 },
+          { group_key: 'books', aggregate_value: 3 },
+        ] as unknown as TRecord[]);
+      },
+    },
+  });
+
+  qb.groupBy('category');
+  const result = await qb.aggregateGrouped('COUNT');
+
+  t.is(result.size, 2);
+  t.is(result.get('electronics'), 5);
+  t.is(result.get('books'), 3);
+  t.truthy(calls[0]?.sql?.includes('GROUP BY'));
+  t.truthy(calls[0]?.sql?.includes('COUNT(*)'));
+});
+
+test('QueryBuilder.aggregateGrouped supports AVG with field', async t => {
+  type Data = { id: string; category: string; price: number };
+  const calls: Array<{ sql?: string; params?: unknown[] }> = [];
+
+  const { qb } = createQueryBuilderHarness<
+    Data,
+    JsonObject,
+    ModelInstance<Data, JsonObject>,
+    string
+  >({
+    tableName: 'products',
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(sql?: string, params: unknown[] = []) {
+        calls.push({ sql, params });
+        return createQueryResult([
+          { group_key: 'electronics', aggregate_value: 299.99 },
+          { group_key: 'books', aggregate_value: 19.99 },
+        ] as unknown as TRecord[]);
+      },
+    },
+  });
+
+  qb.groupBy('category');
+  const result = await qb.aggregateGrouped('AVG', { aggregateField: 'price' });
+
+  t.is(result.size, 2);
+  t.is(result.get('electronics'), 299.99);
+  t.is(result.get('books'), 19.99);
+  t.truthy(calls[0]?.sql?.includes('AVG(products.price)'));
+});
+
+test('FilterWhereBuilder.groupBy resolves camelCase fields', t => {
+  type Data = { id: string; createdBy: string };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const schema = {
+    id: typesLib.string(),
+    createdBy: typesLib.string(),
+  } as unknown as ModelSchema<JsonObject, JsonObject>;
+
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({
+    schema,
+    camelToSnake: { createdBy: 'created_by' },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, false);
+  builder.groupBy('createdBy');
+
+  t.is(qb._groupBy.length, 1);
+  t.is(qb._groupBy[0], 'test_table.created_by');
+});
+
+test('FilterWhereBuilder.aggregateGrouped applies revision filters', async t => {
+  type Data = { id: string; thingID: string; _old_rev_of?: string | null; _rev_deleted?: boolean };
+  type Instance = ModelInstance<Data, JsonObject>;
+
+  const calls: Array<{ sql?: string; params?: unknown[] }> = [];
+  const { qb } = createQueryBuilderHarness<Data, JsonObject, Instance, string>({
+    tableName: 'reviews',
+    dalOverrides: {
+      async query<TRecord extends JsonObject = JsonObject>(sql?: string, params: unknown[] = []) {
+        calls.push({ sql, params });
+        return createQueryResult([
+          { group_key: 'thing-1', aggregate_value: 2 },
+        ] as unknown as TRecord[]);
+      },
+    },
+  });
+
+  const builder = new FilterWhereBuilder<Data, JsonObject, Instance, string>(qb, true);
+  builder.groupBy('thingID');
+  const result = await builder.aggregateGrouped('COUNT');
+
+  t.is(result.size, 1);
+  t.is(result.get('thing-1'), 2);
+
+  // Should have applied revision filters
+  t.truthy(calls[0]?.sql?.includes('_old_rev_of IS'));
+  t.truthy(calls[0]?.sql?.includes('_rev_deleted'));
+});

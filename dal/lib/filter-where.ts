@@ -730,6 +730,39 @@ class FilterWhereBuilder<
     return this._builder.average(dbField);
   }
 
+  groupBy(fields: string | string[]): this {
+    const fieldArray = Array.isArray(fields) ? fields : [fields];
+    const resolvedFields = fieldArray.map(field => {
+      const dbField = this._builder._resolveFieldName(field);
+      this._builder._assertResolvedField(dbField);
+      if (typeof dbField !== 'string') {
+        throw new TypeError('FilterWhereBuilder.groupBy requires string column references.');
+      }
+      return dbField;
+    });
+    this._builder.groupBy(resolvedFields);
+    return this;
+  }
+
+  async aggregateGrouped(
+    func: 'COUNT' | 'AVG' | 'SUM' | 'MIN' | 'MAX',
+    options: { aggregateField?: string } = {}
+  ): Promise<Map<string, number>> {
+    this._ensureRevisionFilters();
+    const resolvedOptions = { ...options };
+    if (options.aggregateField) {
+      const dbField = this._builder._resolveFieldName(options.aggregateField);
+      this._builder._assertResolvedField(dbField);
+      if (typeof dbField !== 'string') {
+        throw new TypeError(
+          'FilterWhereBuilder.aggregateGrouped requires a string column reference.'
+        );
+      }
+      resolvedOptions.aggregateField = dbField;
+    }
+    return this._builder.aggregateGrouped(func, resolvedOptions);
+  }
+
   /**
    * Atomically increment a numeric column scoped by the current predicates.
    *
