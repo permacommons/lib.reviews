@@ -283,7 +283,7 @@ Every manifest-based model ships a typed query entry point:
   - Typed predicate literals keyed by manifest fields.
   - Operator helpers exposed via `Model.ops` (`neq`, `gt/gte/lt/lte`, `in/notIn`, `between/notBetween`, `containsAll`, `containsAny`, `jsonContains`, `not`).
   - Automatic revision guards (`_old_rev_of IS NULL`, `_rev_deleted = false`) with opt-outs (`includeDeleted()`, `includeStale()`).
-  - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `orderByRelation`, `limit`, `offset`, `getJoin`, `whereRelated`, `whereIn`, `chronologicalFeed`, `delete`, `count`, `average`).
+  - Fluent chaining (`and`, `or`, `revisionData`, `orderBy`, `orderByRelation`, `limit`, `offset`, `getJoin`, `whereRelated`, `whereIn`, `chronologicalFeed`, `delete`, `count`, `average`, `groupBy`, `aggregateGrouped`).
   - Promise-like behaviour so `await Model.filterWhere({ ... })` works without `.run()`.
 
 Example:
@@ -308,7 +308,38 @@ const { rows } = await User.filterWhere({ id: someUser }).increment('inviteLinkC
 
 // Or decrement the same field atomically
 await User.filterWhere({ id: someUser }).decrement('inviteLinkCount', { by: 1 });
+
+// Grouped aggregations using GROUP BY
+const { in: inOp } = Review.ops;
+const reviewCounts = await Review.filterWhere({ thingID: inOp(thingIds) })
+  .groupBy('thingID')
+  .aggregateGrouped('COUNT');
+// Returns: Map<string, number> { 'thing-id-1' => 5, 'thing-id-2' => 3, ... }
+
+// Average rating per category
+const avgPrices = await Product.filterWhere({})
+  .groupBy('category')
+  .aggregateGrouped('AVG', { aggregateField: 'price' });
+// Returns: Map<string, number> { 'electronics' => 299.99, 'books' => 19.99, ... }
 ```
+
+### Grouped Aggregations
+
+Use `groupBy()` and `aggregateGrouped()` for batched aggregations:
+
+```ts
+// Batch fetch review counts for multiple things in a single query
+const { in: inOp } = Review.ops;
+const counts = await Review.filterWhere({ thingID: inOp(thingIds) })
+  .groupBy('thingID')
+  .aggregateGrouped('COUNT');
+
+things.forEach(thing => {
+  thing.reviewCount = counts.get(thing.id) ?? 0;
+});
+```
+
+Supports `COUNT`, `AVG`, `SUM`, `MIN`, `MAX`. Returns `Map<string, number>` keyed by the first `groupBy` field. For aggregates other than COUNT, specify `aggregateField` option.
 
 ## Batch Loading Relations
 

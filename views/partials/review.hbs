@@ -8,7 +8,7 @@
 {{/if}}
 {{#if review.thing.id}}
 <div class="review-thing-link">
-<span class="fa fa-fw fa-info-circle spaced-icon"></span> <a href="/{{{review.thing.urlID}}}">{{{__ "more info"}}}</a>
+<span class="fa fa-fw fa-info-circle spaced-icon"></span> <a href="/{{{review.thing.urlID}}}">{{#ifCond review.thing.numberOfReviews "===" 1}}{{{__ "more info"}}}{{else}}{{{__ "more info with review count" review.thing.numberOfReviews}}}{{/ifCond}}</a>
 </div>
 {{/if}}
 </div>

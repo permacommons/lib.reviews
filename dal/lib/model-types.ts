@@ -346,10 +346,15 @@ export interface ModelQueryBuilder<
     field: string,
     value: unknown
   ): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  groupBy(fields: string | string[]): ModelQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
   count(): Promise<number>;
   average(field: string): Promise<number | null>;
+  aggregateGrouped(
+    func: 'COUNT' | 'AVG' | 'SUM' | 'MIN' | 'MAX',
+    options?: { aggregateField?: string }
+  ): Promise<Map<string, number>>;
   [key: string]: unknown;
 }
 
@@ -421,10 +426,17 @@ export interface FilterWhereQueryBuilder<
   revisionData(
     criteria: FilterWhereLiteral<RevisionDataRecord, FilterWhereOperators<RevisionDataRecord>>
   ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
+  groupBy(
+    fields: string | string[]
+  ): FilterWhereQueryBuilder<TData, TVirtual, TInstance, TRelations>;
   run(): Promise<TInstance[]>;
   first(): Promise<TInstance | null>;
   count(): Promise<number>;
   average(field: Extract<keyof TData, string>): Promise<number | null>;
+  aggregateGrouped(
+    func: 'COUNT' | 'AVG' | 'SUM' | 'MIN' | 'MAX',
+    options?: { aggregateField?: string }
+  ): Promise<Map<string, number>>;
   delete(): Promise<number>;
   deleteById(id: string): Promise<number>;
   chronologicalFeed<K extends Extract<DateKeys<TData>, string>>(

@@ -213,6 +213,7 @@ class QueryBuilder<
   _params: unknown[];
   _paramIndex: number;
   _includeSensitive: string[];
+  _groupBy: string[];
   _joinSpecs?: Array<Record<string, unknown>>;
   _simpleJoins?: Record<string, RelationJoinInfo>;
   _complexJoins?: Record<string, ComplexJoinSpec>;
@@ -230,6 +231,7 @@ class QueryBuilder<
     this._where = [];
     this._joins = [];
     this._orderBy = [];
+    this._groupBy = [];
     this._limit = null;
     this._offset = null;
     this._params = [];
@@ -496,6 +498,24 @@ class QueryBuilder<
    */
   offset(count) {
     this._offset = count;
+    return this;
+  }
+
+  /**
+   * Add GROUP BY clause
+   * @param fields - Field or fields to group by
+   * @returns {QueryBuilder} This instance for chaining
+   */
+  groupBy(fields: string | string[]): this {
+    const fieldArray = Array.isArray(fields) ? fields : [fields];
+    for (const field of fieldArray) {
+      let expression = field;
+      if (typeof field === 'string' && !field.includes('(') && !field.includes('.')) {
+        const resolvedColumn = this._resolvePredicateColumn(null, field);
+        expression = `${this.tableName}.${resolvedColumn}`;
+      }
+      this._groupBy.push(expression);
+    }
     return this;
   }
 
@@ -1357,6 +1377,70 @@ class QueryBuilder<
   }
 
   /**
+   * Perform grouped aggregations with GROUP BY.
+   * Returns a map from the grouping key to the aggregate value.
+   *
+   * @param func - SQL aggregate function (e.g., 'COUNT', 'AVG')
+   * @param options - Configuration options
+   * @param options.aggregateField - Field to aggregate (required for AVG, SUM, etc.; omit for COUNT)
+   * @returns Map from group key to aggregate value
+   *
+   * @example
+   * // Count reviews per thing
+   * const counts = await Review.filterWhere({})
+   *   .whereIn('thingID', thingIds)
+   *   .groupBy('thingID')
+   *   .aggregateGrouped('COUNT');
+   * // Returns: Map { 'thing-id-1' => 5, 'thing-id-2' => 3, ... }
+   */
+  async aggregateGrouped(
+    func: 'COUNT' | 'AVG' | 'SUM' | 'MIN' | 'MAX',
+    options: { aggregateField?: string } = {}
+  ): Promise<Map<string, number>> {
+    try {
+      if (this._groupBy.length === 0) {
+        throw new Error('aggregateGrouped requires groupBy() to be called first');
+      }
+
+      let aggregateColumn = '*';
+      if (options.aggregateField) {
+        if (options.aggregateField.includes('.') || options.aggregateField.includes('(')) {
+          aggregateColumn = options.aggregateField;
+        } else {
+          const resolved = this._resolveFieldName(options.aggregateField);
+          if (typeof resolved !== 'string') {
+            throw new TypeError('aggregateGrouped requires a string field name');
+          }
+          aggregateColumn = `${this.tableName}.${resolved}`;
+        }
+      }
+
+      const aggregateExpr =
+        func === 'COUNT' ? `COUNT(${aggregateColumn})` : `${func}(${aggregateColumn})`;
+
+      const { sql, params } = this._buildGroupedAggregateQuery(aggregateExpr);
+      const result = await this.dal.query(sql, params);
+
+      const resultMap = new Map<string, number>();
+      for (const row of result.rows as Array<{
+        group_key: string;
+        aggregate_value: string | number;
+      }>) {
+        const key = String(row.group_key);
+        const value =
+          typeof row.aggregate_value === 'number'
+            ? row.aggregate_value
+            : Number(row.aggregate_value);
+        resultMap.set(key, Number.isNaN(value) ? 0 : value);
+      }
+
+      return resultMap;
+    } catch (error) {
+      throw convertPostgreSQLError(error);
+    }
+  }
+
+  /**
    * Delete records matching the query
    * @returns {Promise<Object>} Delete result
    */
@@ -1763,6 +1847,32 @@ class QueryBuilder<
     if (where.sql) {
       query += ' WHERE ' + where.sql;
     }
+
+    return { sql: query, params: where.params };
+  }
+
+  /**
+   * Build a grouped aggregate query with GROUP BY clause.
+   *
+   * @param aggregateExpr - Full aggregate expression (e.g., 'COUNT(*)', 'AVG(star_rating)')
+   * @returns SQL fragment plus bound params
+   * @private
+   */
+  _buildGroupedAggregateQuery(aggregateExpr: string) {
+    if (this._groupBy.length === 0) {
+      throw new Error('_buildGroupedAggregateQuery requires _groupBy to be set');
+    }
+
+    // Use the first GROUP BY field as the group key in the result
+    const groupByField = this._groupBy[0];
+    let query = `SELECT ${groupByField} as group_key, ${aggregateExpr} as aggregate_value FROM ${this.tableName}`;
+
+    const where = this._buildWhereClause({ qualifyColumns: true });
+    if (where.sql) {
+      query += ' WHERE ' + where.sql;
+    }
+
+    query += ' GROUP BY ' + this._groupBy.join(', ');
 
     return { sql: query, params: where.params };
   }
