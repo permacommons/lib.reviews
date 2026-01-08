@@ -61,6 +61,10 @@ router.get('/', async (req: ReviewsRouteRequest, res: ReviewsRouteResponse, next
       if (reviewThing && typeof reviewThing.populateUserInfo === 'function') {
         reviewThing.populateUserInfo(req.user);
       }
+
+      // Compute isLongReview flag for collapsible pattern
+      const htmlContent = item.html?.[item.originalLanguage || 'en'] || '';
+      item.isLongReview = htmlContent.length > 500;
     });
 
     // Set post permissions

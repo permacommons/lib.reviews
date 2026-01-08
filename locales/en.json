@@ -375,6 +375,8 @@
     "blog post has been deleted": "The blog post has been deleted. It's still accessible to administrators, but it may be permanently removed as part of routine maintenance.",
     "database downloads": "Database downloads",
     "older reviews": "Older reviews",
+    "read more": "Read more",
+    "read less": "Read less",
     "teams intro": "Teams are used to organize the work of the lib.reviews community, whether it's by topic or skillset. Check out the list below and join as many teams as you want.",
     "create your own team untrusted": "Want to create your own team? Your account is currently not trusted yet. Write a few reviews to gain trust.",
     "start team preamble": "Before creating a new team, please check out the <a href='/teams'>list of existing ones</a>. There might already be a group working towards your goals.",

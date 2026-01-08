@@ -21,9 +21,29 @@
 </div>
 <div class="review-title">{{mlSafeText review.title}}</div>
 {{!The actual review!}}
+{{#ifCond feed '&&' review.isLongReview}}
+{{!Collapsible review for long reviews in feeds}}
+<div class="review-excerpt">
+  <input
+    id="excerpt-toggle-{{review.id}}"
+    class="review-excerpt-toggle"
+    type="checkbox"
+    aria-controls="excerpt-text-{{review.id}}"
+  />
+  <div id="excerpt-text-{{review.id}}" class="review-excerpt-text" role="region">
+    {{{mlHTML review.html}}}
+  </div>
+  <label class="review-excerpt-control" for="excerpt-toggle-{{review.id}}">
+    <span class="closed-label">{{{__ "read more"}}}</span>
+    <span class="open-label">{{{__ "read less"}}}</span>
+  </label>
+</div>
+{{else}}
+{{!Regular review display for short reviews or non-feed contexts}}
 <div class="review-text">
 {{{mlHTML review.html}}}
 </div>
+{{/ifCond}}
 <p>
 
 

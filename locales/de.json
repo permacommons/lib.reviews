@@ -386,6 +386,8 @@
 	"blog post has been deleted": "Der Blog-Beitrag wurde gelöscht. Administratoren können weiterhin darauf zugreifen, aber er kann als Teil routinemäßiger Datenbankwartung permanent entfernt werden.",
 	"database downloads": "Datenbank-Downloads",
 	"older reviews": "Ältere Rezensionen",
+	"read more": "Mehr lesen",
+	"read less": "Weniger lesen",
 	"teams intro": "Wir verwenden Teams, um die Arbeit der lib.reviews-Gemeinschaft zu organisieren, sei es nach Thema oder Fähigkeiten. Schau dir die untenstehende Liste an und werde in so vielen Teams Mitglied, wie du möchtest.",
 	"create your own team untrusted": "Möchtest du dein eigenes Team anlegen? Dein Benutzerkonto hat noch nicht genügend Vertrauen von anderen Nutzern. Schreib ein paar Rezensionen, um Vertrauen zu gewinnen.",
 	"start team preamble": "Bevor du ein neues Team anlegst, schau dir bitte die <a href='/teams'>Liste der existierenden Teams</a> an. Es könnte sein, das es bereits ein Team gibt, das auf deine Ziele hinarbeitet.",

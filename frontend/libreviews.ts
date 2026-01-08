@@ -573,6 +573,64 @@ function setupTabs(): void {
 }
 
 /**
+ * Sets up auto-scroll behavior for collapsible review excerpts.
+ * When a user collapses an expanded review, smoothly scrolls to the
+ * top of the review to prevent disorientation.
+ * Also auto-expands reviews when text is selected (mainly so we do
+ * not break Ctrl+F by collapsing reviews).
+ */
+function setupReviewExcerptScroll(): void {
+  $('.review-excerpt-toggle').on('change', function () {
+    const checkbox = this as HTMLInputElement;
+
+    // Only scroll when collapsing (checked -> unchecked)
+    if (!checkbox.checked) {
+      // Find the parent review container
+      const reviewId = checkbox.id.replace('excerpt-toggle-', '');
+      const $review = $(`#review-${reviewId}`);
+
+      if ($review.length) {
+        // Smooth scroll to the top of the review with a small offset
+        const offset = $review.offset();
+        if (offset) {
+          $('html, body').animate(
+            {
+              scrollTop: offset.top - 20, // 20px offset from top for breathing room
+            },
+            400 // 400ms animation duration
+          );
+        }
+      }
+    }
+  });
+
+  // Auto-expand reviews when find-in-page (Ctrl+F) highlights text inside them
+  document.addEventListener('selectionchange', () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    // Check if the selection is not empty
+    const selectedText = selection.toString();
+    if (!selectedText || selectedText.trim().length === 0) return;
+
+    // Get the node containing the selection
+    const range = selection.getRangeAt(0);
+    const container = range.commonAncestorContainer;
+
+    // Find if this selection is inside a collapsed review excerpt
+    const $excerptText = $(container).closest('.review-excerpt-text');
+    if ($excerptText.length) {
+      const $toggle = $excerptText.siblings('.review-excerpt-toggle');
+
+      // If the review is collapsed, expand it
+      if ($toggle.length && !$toggle.prop('checked')) {
+        $toggle.prop('checked', true);
+      }
+    }
+  });
+}
+
+/**
  * Sets up the theme switcher in the footer.
  */
 function setupThemeSwitcher(): void {
@@ -864,6 +922,8 @@ function initializeLibreviews(): LibreviewsAPI {
   if ($('#theme-switcher').length) setupThemeSwitcher();
 
   if ($('.tabs').length) setupTabs();
+
+  if ($('.review-excerpt-toggle').length) setupReviewExcerptScroll();
 
   console.log(
     '\n' +

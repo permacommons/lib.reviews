@@ -354,10 +354,11 @@ class TeamProvider extends AbstractBREADProvider {
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id);
   }
 
-  // We just show a single review on the team entry page
+  // Show recent reviews on the team entry page
   loadDataWithMostRecentReview(): Promise<TeamInstance> {
     return slugs.resolveAndLoadTeam(this.req, this.res, this.id, {
       withReviews: true,
+      reviewLimit: 3,
     });
   }
 
@@ -384,7 +385,13 @@ class TeamProvider extends AbstractBREADProvider {
     team.populateUserInfo(this.req.user);
     const reviews = Array.isArray(team.reviews) ? team.reviews : [];
     team.reviews = reviews;
-    reviews.forEach(review => review.populateUserInfo(this.req.user));
+    reviews.forEach(review => {
+      review.populateUserInfo(this.req.user);
+
+      // Compute isLongReview flag for collapsible pattern
+      const htmlContent = review.html?.[review.originalLanguage || 'en'] || '';
+      review.isLongReview = htmlContent.length > 500;
+    });
 
     const currentLocale = typeof this.req.locale === 'string' ? this.req.locale : 'en';
     let titleParam = mlString.resolve(currentLocale, team.name as MultilingualString)?.str ?? '';
@@ -493,6 +500,11 @@ class TeamProvider extends AbstractBREADProvider {
     reviews.forEach(review => {
       review.populateUserInfo(this.req.user);
       if (review.thing) review.thing.populateUserInfo(this.req.user);
+
+      // Compute isLongReview flag for collapsible pattern
+      const htmlContent = review.html?.[review.originalLanguage || 'en'] || '';
+      review.isLongReview = htmlContent.length > 500;
+
       // For Atom feed - most recently modified item in the result set
       if (!updatedDate || review._revDate > updatedDate) updatedDate = review._revDate;
     });
