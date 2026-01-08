@@ -371,7 +371,7 @@
 	"blog post deleted": "Title for message shown when a blog post has been deleted",
 	"blog post has been deleted": "Content for message shown when a blog post has been deleted",
 	"database downloads": "Title for page offering database downloads",
-	"older reviews": "Link label for navigating to older reviews\n\n{{doc-important|This is lib.reviews for consumers to review/rate things; please translate 'review' in the sense of 'critique, evaluation'!}}",
+	"older reviews": "Link label for navigating to older reviews\n\n{{doc-important|This is lib.reviews for consumers to review/rate things; please translate ‘review’ in the sense of ‘critique, evaluation’!}}",
 	"read more": "Button label to expand a collapsed review in a feed",
 	"read less": "Button label to collapse an expanded review in a feed",
 	"teams intro": "Introduction shown on page showing a list of all teams",

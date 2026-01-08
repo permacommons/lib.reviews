@@ -273,6 +273,8 @@
 	"blog post has been deleted": "Le billet de blogue a été supprimé. Il est encore accessible aux administrateurs, mais il pourrait être supprimé définitivement par une routine de maintenance.",
 	"database downloads": "Téléchargements de base de données",
 	"older reviews": "Critiques plus anciennes",
+	"read more": "Lire davantage",
+	"read less": "Lire moins",
 	"teams intro": "Les équipes sont organisées pour organiser le travail de la communauté lib.reviews, que ce soit par sujet ou par domaine de compétence. Regardez dans la liste ci-dessous et rejoignez autant d’équipes que vous voulez.",
 	"create your own team untrusted": "Vous voulez créer votre propre équipe ? Votre compte n’est pas encore fiable. Écrivez quelques critiques pour gagner de la confiance.",
 	"start team preamble": "Avant de créer une nouvelle équipe, veuillez regarder la <a href=\"/teams\">liste de celles existant</a>. Il pourrait déjà y avoir un groupe qui travaille dans les mêmes objectifs.",
