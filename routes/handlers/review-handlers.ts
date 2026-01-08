@@ -70,6 +70,10 @@ const reviewHandlers = {
             item.populateUserInfo?.(req.user);
             if (item.thing) item.thing.populateUserInfo?.(req.user);
 
+            // Compute isLongReview flag for collapsible pattern
+            const htmlContent = item.html?.[item.originalLanguage || 'en'] || '';
+            item.isLongReview = htmlContent.length > 500;
+
             // For Atom feed - most recently modified item in the result set
             if (!updatedDate || item._revDate > updatedDate) updatedDate = item._revDate;
           });

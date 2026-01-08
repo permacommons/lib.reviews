@@ -104,6 +104,10 @@ const userHandlers = {
           if (item.thing) {
             item.thing.populateUserInfo(req.user);
           }
+
+          // Compute isLongReview flag for collapsible pattern
+          const htmlContent = item.html?.[item.originalLanguage || 'en'] || '';
+          item.isLongReview = htmlContent.length > 500;
         }
 
         let edit = {

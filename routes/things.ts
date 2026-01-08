@@ -391,6 +391,16 @@ async function loadThingAndReviews(
 
     otherReviews.feedItems.forEach(review => {
       review.populateUserInfo(req.user);
+
+      // Compute isLongReview flag for collapsible pattern
+      const htmlContent = review.html?.[review.originalLanguage || 'en'] || '';
+      review.isLongReview = htmlContent.length > 500;
+    });
+
+    // Compute isLongReview flag for user reviews
+    userReviews.forEach(review => {
+      const htmlContent = review.html?.[review.originalLanguage || 'en'] || '';
+      review.isLongReview = htmlContent.length > 500;
     });
 
     sendThing(req, res, thing, {

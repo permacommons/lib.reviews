@@ -1485,6 +1485,7 @@ a#add-description span.fa {
 /* User-generated headings: h1 */
 #preview-review-text h1,
 #main-body .review-text h1,
+#main-body .review-excerpt-text h1,
 #main-body .rte-container h1,
 #main-body .blog-post-text h1 {
   font-size: 1.15em;
@@ -1496,6 +1497,7 @@ a#add-description span.fa {
 /* User-generated headings: h2 */
 #preview-review-text h2,
 #main-body .review-text h2,
+#main-body .review-excerpt-text h2,
 #main-body .rte-container h2,
 #main-body .blog-post-text h2 {
   font-size: 1.1em;
@@ -1507,6 +1509,7 @@ a#add-description span.fa {
 /* User-generated headings: h3 */
 #preview-review-text h3,
 #main-body .review-text h3,
+#main-body .review-excerpt-text h3,
 #main-body .rte-container h3,
 #main-body .blog-post-text h3 {
   font-size: 1.05em;
@@ -1518,6 +1521,7 @@ a#add-description span.fa {
 /* User-generated headings: h4 */
 #preview-review-text h4,
 #main-body .review-text h4,
+#main-body .review-excerpt-text h4,
 #main-body .rte-container h4,
 #main-body .blog-post-text h4 {
   font-size: 1em;
@@ -1529,6 +1533,7 @@ a#add-description span.fa {
 /* User-generated headings: h5 */
 #preview-review-text h5,
 #main-body .review-text h5,
+#main-body .review-excerpt-text h5,
 #main-body .rte-container h5,
 #main-body .blog-post-text h5 {
   font-size: 0.95em;
@@ -1540,6 +1545,7 @@ a#add-description span.fa {
 /* User-generated headings: h6 */
 #preview-review-text h6,
 #main-body .review-text h6,
+#main-body .review-excerpt-text h6,
 #main-body .rte-container h6,
 #main-body .blog-post-text h6 {
   font-size: 0.9em;
@@ -1580,6 +1586,105 @@ hr.feed-separator, hr.team-separator {
  margin-top: 0.25em;
  margin-bottom: 0.3em;
 }
+
+/* ------------- Collapsible review excerpt pattern (for long reviews in feeds) --- */
+
+.review-excerpt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Visually hide the checkbox but keep it accessible to screen readers */
+.review-excerpt-toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.review-excerpt-text {
+  position: relative;
+  max-height: 500em; /* Large enough for any review */
+  overflow: hidden;
+  transition: max-height 0.4s ease-in-out;
+}
+
+/* When checkbox is not checked, limit height and make collapse instant */
+.review-excerpt-toggle:not(:checked) ~ .review-excerpt-text {
+  max-height: 11.6em;
+  transition: max-height 0s;
+}
+
+.review-excerpt-text::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3.4em;
+  background: linear-gradient(transparent, var(--pico-card-background-color));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Make fade appear instantly when collapsing, animate when expanding */
+.review-excerpt-toggle:not(:checked) ~ .review-excerpt-text::after {
+  opacity: 1;
+  transition: opacity 0s;
+}
+
+/* "Read more/less" button styling */
+.review-excerpt-control {
+  align-self: center;
+  padding: 0.4rem 0.8rem;
+  font-weight: 400;
+  color: var(--pico-muted-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.review-excerpt-control:hover,
+.review-excerpt-toggle:focus-visible ~ .review-excerpt-control {
+  color: var(--pico-contrast);
+  border-color: var(--pico-contrast);
+  background: transparent;
+}
+
+/* When expanded, keep same subtle style */
+.review-excerpt-toggle:checked ~ .review-excerpt-control {
+  color: var(--pico-muted-color);
+  border-color: var(--pico-muted-border-color);
+}
+
+/* Ensure hover works in expanded state too */
+.review-excerpt-toggle:checked ~ .review-excerpt-control:hover,
+.review-excerpt-toggle:checked:focus-visible ~ .review-excerpt-control {
+  color: var(--pico-contrast);
+  border-color: var(--pico-contrast);
+}
+
+/* Toggle label visibility based on state */
+.review-excerpt-control .open-label {
+  display: none;
+}
+
+.review-excerpt-toggle:checked ~ .review-excerpt-control .open-label {
+  display: inline;
+}
+
+.review-excerpt-toggle:checked ~ .review-excerpt-control .closed-label {
+  display: none;
+}
+
+/* ------------- End collapsible review excerpt pattern ----------------------- */
 
 .feed-item-header {
   font-weight: bold;
