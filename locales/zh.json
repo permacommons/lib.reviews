@@ -387,6 +387,8 @@
 	"blog post has been deleted": "博文已被删除。管理员仍然可以访问它，但它有可能在日常维护期间被永久移除。",
 	"database downloads": "数据库下载",
 	"older reviews": "较早点评",
+	"read more": "展开",
+	"read less": "折叠",
 	"teams intro": "团队常常组织 lib.reviews 社群的工作，无论按话题还是按技能组合来说。请检查下面的列表，并尽可能加入更多您希望加入的团队吧。",
 	"create your own team untrusted": "想要创建您自己的团队？您的账户当前尚未受信任。写一些点评以获得信任。",
 	"start team preamble": "在创建新团队之前，请先检查<a href='/teams'>现有的团队</a>。这里可能已经有了一个符合您目标的团队。",

@@ -118,7 +118,7 @@
 	"need captcha-answer": "Besvara utmaningsfrågan för att bekämpa automatiskt spam.",
 	"incorrect captcha answer": "Tyvärr, det är inte det rätta svaret på utmaningsfrågan.",
 	"invalid url": "Webbadressen verkar inte vara giltig. Observera att vi inte kan gissa protokollprefixet åt dig (vanligtvis http:// eller https://).",
-	"more info": "Fler recensioner och information",
+	"more info": "Mer information",
 	"add label": "Lägg till en etikett här",
 	"add description": "Lägg till en beskrivning här",
 	"edit": "Redigera",

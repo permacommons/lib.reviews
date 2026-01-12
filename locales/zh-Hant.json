@@ -386,6 +386,8 @@
 	"blog post has been deleted": "部落格文章已被刪除。雖然對於管理員仍可試著讀取，但有可能在維護期間被永久移除。",
 	"database downloads": "資料庫下載",
 	"older reviews": "較舊評論",
+	"read more": "展開",
+	"read less": "摺疊",
 	"teams intro": "團隊時常組織 lib.reviews 社群上的運作，無論是依議題或技能方面。在下方清單儘量找出您所希望加入的團隊吧。",
 	"create your own team untrusted": "想要建立屬於您自己的團隊？您的帳號尚未被信任，請多編寫一些評論來獲得信任。",
 	"start team preamble": "在建立一個新團隊前，請先查看<a href='/teams'>現有團隊清單</a>。也許已存在一個符合您目標的團隊群組。",
