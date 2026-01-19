@@ -48,6 +48,7 @@
 	"need password": "Dir musst e Passwuert aginn.",
 	"bad username": "Mir kenne kee Benotzer mat deem Numm.",
 	"bad password": "D'Passwuert gesäit net gutt aus.",
+	"accesskey": "Tastekombinatiounen: [Ännerungstast(e) + %s]",
 	"sign out": "Ofmellen",
 	"invalid email format": "„%s“ schéngt keng gülteg E-Mail-Adress ze sinn.",
 	"invalid username characters": "Am Benotzernumm däerf keent vun dësen Zeeche sinn: %s",

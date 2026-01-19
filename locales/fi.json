@@ -6,7 +6,8 @@
 			"McDutchie",
 			"Nike",
 			"Pyscowicz",
-			"Silvonen"
+			"Silvonen",
+			"Yupik"
 		]
 	},
 	"site name": "lib.reviews",
@@ -24,6 +25,7 @@
 	"password": "Salasana",
 	"enter password": "Kirjoita salasana",
 	"reject request": "Hylkää pyyntö",
+	"account request notification field languages": "Kielet:",
 	"no account yet": "Eikö sinulla vielä ole käyttäjätunnusta? <a href='/register'>Rekisteröinti</a> on nopeaa ja helppoa.",
 	"invite link needed": "Kiitos mielenkiinnostasi käyttäjätunnuksen tekemiseen täällä! Tässä vaiheessa haluamme kasvaa varovaisesti, jotta voimme pysyä yhteisön tarpeiden mukaisena, joten meillä on riittävästi aikaa tutustua toisiimme. Tästä syystä tarvitset kutsulinkin käyttätunnuksen tekemiseksi. On kolme helppoa tapaa kutsulinkin saamiseksi: <ul><li>Liity keskusteluhuoneeseemme (<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>) ja kysy kutsulinkkiä. <li>Seuraa meitä <a href='https://fosstodon.org/@lib_reviews'>Mastodonissa</a> ja lähetä meille suora viesti.<li>Jos tunnet jäsenen yhteisöstämme, pyydä heiltä suoraan kutsua.</ul><p>Odotamme mielellämme sinua tervetulleeksi lib.reviews -yhteisöön!",
 	"enter your info": "Tervetuloa lib.reviews-yhteisöön! Anna uuden käyttäjätunnuksesi tiedot alla.",
