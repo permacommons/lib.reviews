@@ -203,6 +203,7 @@
 	"review title too long": "Error that is shown if a user submits a form with text that is too long for the given field\n\n{{doc-important|This is lib.reviews for consumers to review/rate things; please translate ‘review’ in the sense of ‘critique, evaluation’!}}",
 	"invalid language code": "Error that is shown if a user submits a form with a language code that is invalid",
 	"html in text field": "Validation error shown when a user attempts to submit HTML in a text field where it is not allowed.",
+	"text too long": "Validation error shown when a user submits text that exceeds the maximum allowed length for a field.",
 	"feed": "Headline that is shown for activity feeds (currently just review feeds)\n\n{{doc-important|This is lib.reviews for consumers to review/rate things; please translate ‘review’ in the sense of ‘critique, evaluation’!}}",
 	"one or multiple stars": "Text representation for the number of stars of a given review, used for example as ALT text\n{{Identical|Star}}",
 	"one or multiple reviews": "Used as part of a summary line, currently only displayed for subjects with more than one review.\n{{Identical|Review}}\n\n{{doc-important|This is lib.reviews for consumers to review/rate things; please translate ‘review’ in the sense of ‘critique, evaluation’!}}",

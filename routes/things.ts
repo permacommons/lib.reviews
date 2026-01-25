@@ -497,6 +497,12 @@ function processTextFieldUpdate(
               : Promise.resolve(revision);
         else maybeUpdateSlug = Promise.resolve(revision); // Nothing to do
 
+        const handleSaveError = (error: unknown) => {
+          req.flashError?.(error);
+          const formValues = { [field]: text };
+          sendForm(req, res, thing, { [field]: true }, titleKey, formValues);
+        };
+
         maybeUpdateSlug
           .then(updatedRev => {
             updatedRev
@@ -505,9 +511,9 @@ function processTextFieldUpdate(
                 search.indexThing(updatedRev);
                 res.redirect(`/${id}`);
               })
-              .catch(next);
+              .catch(handleSaveError);
           })
-          .catch(next);
+          .catch(handleSaveError);
       });
     })
     .catch(getResourceErrorHandler(req, res, next, 'thing', id));

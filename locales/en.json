@@ -193,6 +193,7 @@
     "review title too long": "The submitted review title is too long.",
     "invalid language code": "The submitted language code, '%s', is not valid or recognized.",
     "html in text field": "The submitted content contains HTML tags which are not allowed in this field. Please remove any HTML formatting.",
+    "text too long": "The submitted text is too long for this field. Please shorten it.",
     "feed": "Latest reviews",
     "one or multiple stars": {
       "one": "%f star",
