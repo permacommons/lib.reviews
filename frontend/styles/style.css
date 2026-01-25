@@ -1439,7 +1439,8 @@ a#add-label {
 }
 
 a#add-description {
-  display:inline;
+  display: inline;
+  white-space: nowrap;
 }
 
 a#add-description span.fa {

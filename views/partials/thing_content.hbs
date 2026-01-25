@@ -70,9 +70,7 @@
 {{mlSafeText thing.description}}{{>sync_info thing=thing field="description" sync=thing.sync.description editable=true}}
 {{else}}
 {{#if thing.userCanEdit}}
-<a href="/{{{thing.urlID}}}/edit/description" id="add-description" role="button" class="button-compact secondary no-print"><span class="fa fa fa-pencil spaced-icon"></span>
-{{{__ "add description"}}}
-</a>
+<a href="/{{{thing.urlID}}}/edit/description" id="add-description" role="button" class="button-compact secondary no-print"><span class="fa fa-fw fa-pencil spaced-icon"></span> {{{__ "add description"}}}</a>
 {{/if}}
 {{/if}}
 </span>
