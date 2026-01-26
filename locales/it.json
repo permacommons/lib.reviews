@@ -120,6 +120,7 @@
 	"invalid star rating": "La valutazione inviata, '%s', non è valida.",
 	"review title too long": "Il titolo della recensione fornito è troppo lungo.",
 	"invalid language code": "Il codice lingua fornito, '%s', non è valido o riconosciuto.",
+	"text too long": "Il testo inviato è troppo lungo per questo campo. Accorcialo.",
 	"feed": "Ultime recensioni",
 	"one or multiple stars": {
 		"one": "%f stella",

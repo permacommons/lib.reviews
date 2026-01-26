@@ -133,7 +133,7 @@
 	"need captcha-answer": "Lütfen otomatik spam'i ayıklamak için meydan okuma sorusunu yanıtlayın.",
 	"incorrect captcha answer": "Üzgünüz, meydan okuma sorusunun doğru cevabı bu değil.",
 	"invalid url": "URL geçerli görünmüyor. Protokol önekini sizin için tahmin edemeyeceğimizi unutmayın (genellikle http:// veya https://).",
-	"more info": "Daha fazla inceleme ve bilgi",
+	"more info": "Daha fazla bilgi",
 	"add label": "Buraya etiket ekleyin",
 	"add description": "Buraya bir açıklama ekleyin",
 	"edit": "Düzenle",
