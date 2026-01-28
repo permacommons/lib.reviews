@@ -1,5 +1,5 @@
 import dal from 'rev-dal';
-import type { ManifestExports } from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 
@@ -23,18 +23,21 @@ const teamSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
-type TeamSlugBaseTypes = ManifestExports<typeof teamSlugManifest>;
-
-type TeamSlugTypes = ManifestExports<
+type TeamSlugInstanceMethodsMap = {
+  qualifiedSave(): Promise<TeamSlugInstanceBase>;
+};
+type TeamSlugInstanceBase = ManifestInstance<
   typeof teamSlugManifest,
-  {
-    statics: {
-      getByName(name: string): Promise<TeamSlugBaseTypes['Instance'] | null>;
-    };
-    instances: {
-      qualifiedSave(): Promise<TeamSlugBaseTypes['Instance']>;
-    };
-  }
+  TeamSlugInstanceMethodsMap
+>;
+type TeamSlugStaticMethodsMap = {
+  getByName(name: string): Promise<TeamSlugInstanceBase | null>;
+};
+type TeamSlugTypes = ManifestBundle<
+  typeof teamSlugManifest,
+  Record<never, never>,
+  TeamSlugStaticMethodsMap,
+  TeamSlugInstanceMethodsMap
 >;
 
 export type TeamSlugInstanceMethods = TeamSlugTypes['InstanceMethods'];

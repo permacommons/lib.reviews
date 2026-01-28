@@ -1,10 +1,5 @@
 import dal from 'rev-dal';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestModel,
-  StaticMethodsFrom,
-} from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { InferData, ModelManifest } from 'rev-dal/lib/model-manifest';
@@ -136,13 +131,8 @@ export type ReviewInstanceMethodsMap = {
   populateUserInfo(user: UserAccessContext | null | undefined): void;
   deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
 };
-export type ReviewInstanceMethods = InstanceMethodsFrom<
-  typeof reviewManifest,
-  ReviewInstanceMethodsMap,
-  ReviewRelations
->;
 export type ReviewInstance =
-  ManifestInstance<typeof reviewManifest, ReviewInstanceMethods> & ReviewRelations;
+  ManifestInstance<typeof reviewManifest, ReviewInstanceMethodsMap> & ReviewRelations;
 
 export type ReviewStaticMethodsMap = {
   getWithData(id: string): Promise<ReviewInstance | null>;
@@ -151,12 +141,14 @@ export type ReviewStaticMethodsMap = {
   findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
   getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
 };
-export type ReviewStaticMethods = StaticMethodsFrom<
+type ReviewTypes = ManifestBundle<
   typeof reviewManifest,
+  ReviewRelations,
   ReviewStaticMethodsMap,
-  ReviewInstanceMethods,
-  ReviewRelations
+  ReviewInstanceMethodsMap
 >;
+export type ReviewInstanceMethods = ReviewTypes['InstanceMethods'];
+export type ReviewStaticMethods = ReviewTypes['StaticMethods'];
 
 type ReviewData = InferData<typeof reviewManifest.schema>;
 
@@ -170,11 +162,7 @@ export type ReviewInputObject = Partial<ReviewData> & {
   teams?: TeamInstance[];
 };
 
-export type ReviewModel = ManifestModel<
-  typeof reviewManifest,
-  ReviewStaticMethods,
-  ReviewInstanceMethods
-> & { options: typeof reviewOptions };
+export type ReviewModel = ReviewTypes['Model'] & { options: typeof reviewOptions };
 
 /**
  * Create a typed reference to the Review model for use in cross-model dependencies.

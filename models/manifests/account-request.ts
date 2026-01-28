@@ -1,12 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import dal from 'rev-dal';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestModel,
-  StaticMethodsFrom,
-} from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { InviteLinkInstance, InviteLinkModel } from './invite-link.ts';
@@ -77,13 +72,8 @@ export type AccountRequestRelations = {
 };
 
 export type AccountRequestInstanceMethodsMap = Record<never, never>;
-export type AccountRequestInstanceMethods = InstanceMethodsFrom<
-  typeof accountRequestManifest,
-  AccountRequestInstanceMethodsMap,
-  AccountRequestRelations
->;
 export type AccountRequestInstance =
-  ManifestInstance<typeof accountRequestManifest, AccountRequestInstanceMethods> &
+  ManifestInstance<typeof accountRequestManifest, AccountRequestInstanceMethodsMap> &
   AccountRequestRelations;
 
 export type AccountRequestStaticMethodsMap = {
@@ -105,17 +95,16 @@ export type AccountRequestStaticMethodsMap = {
     ipAddress?: string;
   }): Promise<AccountRequestInstance>;
 };
-export type AccountRequestStaticMethods = StaticMethodsFrom<
+
+type AccountRequestTypes = ManifestBundle<
   typeof accountRequestManifest,
+  AccountRequestRelations,
   AccountRequestStaticMethodsMap,
-  AccountRequestInstanceMethods,
-  AccountRequestRelations
+  AccountRequestInstanceMethodsMap
 >;
-export type AccountRequestModel = ManifestModel<
-  typeof accountRequestManifest,
-  AccountRequestStaticMethods,
-  AccountRequestInstanceMethods
->;
+export type AccountRequestInstanceMethods = AccountRequestTypes['InstanceMethods'];
+export type AccountRequestStaticMethods = AccountRequestTypes['StaticMethods'];
+export type AccountRequestModel = AccountRequestTypes['Model'];
 
 /**
  * Lazy references to related models to avoid circular imports.

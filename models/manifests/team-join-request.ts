@@ -1,5 +1,5 @@
 import dal from 'rev-dal';
-import type { ManifestExports } from 'rev-dal/lib/create-model';
+import type { ManifestBundle } from 'rev-dal/lib/create-model';
 import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 
 const { types } = dal;
@@ -31,7 +31,7 @@ const teamJoinRequestManifest = {
   },
 } as const satisfies ModelManifest;
 
-type TeamJoinRequestTypes = ManifestExports<typeof teamJoinRequestManifest>;
+type TeamJoinRequestTypes = ManifestBundle<typeof teamJoinRequestManifest>;
 
 export type TeamJoinRequestInstance = TeamJoinRequestTypes['Instance'];
 export type TeamJoinRequestModel = TeamJoinRequestTypes['Model'];

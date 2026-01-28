@@ -3,12 +3,7 @@ import { randomUUID } from 'node:crypto';
 import config from 'config';
 
 import dal from 'rev-dal';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestModel,
-  StaticMethodsFrom,
-} from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { InferInstance, ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { UserView } from './user.ts';
@@ -42,13 +37,8 @@ const inviteLinkManifest = {
 export type InviteLinkRelations = { usedByUser?: UserView };
 
 export type InviteLinkInstanceMethodsMap = Record<never, never>;
-export type InviteLinkInstanceMethods = InstanceMethodsFrom<
-  typeof inviteLinkManifest,
-  InviteLinkInstanceMethodsMap,
-  InviteLinkRelations
->;
 export type InviteLinkInstance =
-  ManifestInstance<typeof inviteLinkManifest, InviteLinkInstanceMethods> & InviteLinkRelations;
+  ManifestInstance<typeof inviteLinkManifest, InviteLinkInstanceMethodsMap> & InviteLinkRelations;
 
 export type InviteLinkStaticMethodsMap = {
   getAvailable(user: { id?: string }): Promise<InviteLinkInstance[]>;
@@ -56,17 +46,15 @@ export type InviteLinkStaticMethodsMap = {
   getAccountRequestLinks(user: { id?: string }): Promise<InviteLinkInstance[]>;
   get(id: string): Promise<InviteLinkInstance>;
 };
-export type InviteLinkStaticMethods = StaticMethodsFrom<
+type InviteLinkTypes = ManifestBundle<
   typeof inviteLinkManifest,
+  InviteLinkRelations,
   InviteLinkStaticMethodsMap,
-  InviteLinkInstanceMethods,
-  InviteLinkRelations
+  InviteLinkInstanceMethodsMap
 >;
-export type InviteLinkModel = ManifestModel<
-  typeof inviteLinkManifest,
-  InviteLinkStaticMethods,
-  InviteLinkInstanceMethods
->;
+export type InviteLinkInstanceMethods = InviteLinkTypes['InstanceMethods'];
+export type InviteLinkStaticMethods = InviteLinkTypes['StaticMethods'];
+export type InviteLinkModel = InviteLinkTypes['Model'];
 
 /**
  * Create a lazy reference to the InviteLink model for use in other models.

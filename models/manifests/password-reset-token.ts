@@ -1,12 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import dal from 'rev-dal';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestModel,
-  StaticMethodsFrom,
-} from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { UserInstance } from './user.ts';
@@ -44,13 +39,8 @@ export type PasswordResetTokenInstanceMethodsMap = {
   markAsUsed(): Promise<void>;
   getUser(): Promise<UserInstance | null>;
 };
-export type PasswordResetTokenInstanceMethods = InstanceMethodsFrom<
-  typeof passwordResetTokenManifest,
-  PasswordResetTokenInstanceMethodsMap,
-  PasswordResetTokenRelations
->;
 export type PasswordResetTokenInstance =
-  ManifestInstance<typeof passwordResetTokenManifest, PasswordResetTokenInstanceMethods> &
+  ManifestInstance<typeof passwordResetTokenManifest, PasswordResetTokenInstanceMethodsMap> &
   PasswordResetTokenRelations;
 
 export type PasswordResetTokenStaticMethodsMap = {
@@ -59,17 +49,15 @@ export type PasswordResetTokenStaticMethodsMap = {
   invalidateAllForUser(userID: string): Promise<void>;
   hasRecentRequest(email: string, cooldownHours: number): Promise<boolean>;
 };
-export type PasswordResetTokenStaticMethods = StaticMethodsFrom<
+type PasswordResetTokenTypes = ManifestBundle<
   typeof passwordResetTokenManifest,
+  PasswordResetTokenRelations,
   PasswordResetTokenStaticMethodsMap,
-  PasswordResetTokenInstanceMethods,
-  PasswordResetTokenRelations
+  PasswordResetTokenInstanceMethodsMap
 >;
-export type PasswordResetTokenModel = ManifestModel<
-  typeof passwordResetTokenManifest,
-  PasswordResetTokenStaticMethods,
-  PasswordResetTokenInstanceMethods
->;
+export type PasswordResetTokenInstanceMethods = PasswordResetTokenTypes['InstanceMethods'];
+export type PasswordResetTokenStaticMethods = PasswordResetTokenTypes['StaticMethods'];
+export type PasswordResetTokenModel = PasswordResetTokenTypes['Model'];
 
 /**
  * Lazy reference to the PasswordResetToken model for use in other manifests.

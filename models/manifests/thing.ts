@@ -3,12 +3,7 @@ import type {
   AdapterLookupResult,
 } from '../../adapters/abstract-backend-adapter.ts';
 import dal from 'rev-dal';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestModel,
-  StaticMethodsFrom,
-} from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type {
@@ -246,13 +241,8 @@ export type ThingInstanceMethodsMap = {
   ): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
 };
 
-export type ThingInstanceMethods = InstanceMethodsFrom<
-  typeof thingManifest,
-  ThingInstanceMethodsMap,
-  ThingRelations
->;
 export type ThingInstance =
-  ManifestInstance<typeof thingManifest, ThingInstanceMethods> & ThingRelations;
+  ManifestInstance<typeof thingManifest, ThingInstanceMethodsMap> & ThingRelations;
 
 export type ThingStaticMethodsMap = {
   lookupByURL(
@@ -265,13 +255,15 @@ export type ThingStaticMethodsMap = {
   ): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
   getLabel(thing: ThingLabelSource | null | undefined, language: string): string | undefined;
 };
-export type ThingStaticMethods = StaticMethodsFrom<
+type ThingTypes = ManifestBundle<
   typeof thingManifest,
+  ThingRelations,
   ThingStaticMethodsMap,
-  ThingInstanceMethods,
-  ThingRelations
+  ThingInstanceMethodsMap
 >;
-export type ThingModel = ManifestModel<typeof thingManifest, ThingStaticMethods, ThingInstanceMethods>;
+export type ThingInstanceMethods = ThingTypes['InstanceMethods'];
+export type ThingStaticMethods = ThingTypes['StaticMethods'];
+export type ThingModel = ThingTypes['Model'];
 
 /**
  * Create a typed reference to the Thing model for use in cross-model dependencies.

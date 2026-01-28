@@ -1,10 +1,5 @@
 import dal from 'rev-dal';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestModel,
-  StaticMethodsFrom,
-} from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { InferData, InferVirtual, ModelManifest } from 'rev-dal/lib/model-manifest';
 import languages from '../../locales/languages.ts';
@@ -49,13 +44,8 @@ export type BlogPostRelations = { creator?: BlogPostCreator };
 export type BlogPostInstanceMethodsMap = {
   populateUserInfo(user: UserAccessContext | null | undefined): void;
 };
-export type BlogPostInstanceMethods = InstanceMethodsFrom<
-  typeof blogPostManifest,
-  BlogPostInstanceMethodsMap,
-  BlogPostRelations
->;
 export type BlogPostInstance =
-  ManifestInstance<typeof blogPostManifest, BlogPostInstanceMethods> & BlogPostRelations;
+  ManifestInstance<typeof blogPostManifest, BlogPostInstanceMethodsMap> & BlogPostRelations;
 
 export type BlogPostStaticMethodsMap = {
   getWithCreator(id: string): Promise<BlogPostInstance | null>;
@@ -68,19 +58,17 @@ export type BlogPostStaticMethodsMap = {
     options?: BlogPostFeedOptions
   ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
 };
-export type BlogPostStaticMethods = StaticMethodsFrom<
+type BlogPostTypes = ManifestBundle<
   typeof blogPostManifest,
+  BlogPostRelations,
   BlogPostStaticMethodsMap,
-  BlogPostInstanceMethods,
-  BlogPostRelations
+  BlogPostInstanceMethodsMap
 >;
-export type BlogPostData = InferData<typeof blogPostManifest.schema>;
-export type BlogPostVirtual = InferVirtual<typeof blogPostManifest.schema>;
-export type BlogPostModel = ManifestModel<
-  typeof blogPostManifest,
-  BlogPostStaticMethods,
-  BlogPostInstanceMethods
->;
+export type BlogPostInstanceMethods = BlogPostTypes['InstanceMethods'];
+export type BlogPostStaticMethods = BlogPostTypes['StaticMethods'];
+export type BlogPostData = BlogPostTypes['Data'];
+export type BlogPostVirtual = BlogPostTypes['Virtual'];
+export type BlogPostModel = BlogPostTypes['Model'];
 
 /**
  * Create a lazy reference to the BlogPost model for use in other models.

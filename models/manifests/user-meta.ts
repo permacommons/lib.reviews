@@ -1,5 +1,5 @@
 import dal from 'rev-dal';
-import type { ManifestExports } from 'rev-dal/lib/create-model';
+import type { ManifestBundle } from 'rev-dal/lib/create-model';
 import { ValidationError } from 'rev-dal/lib/errors';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { ModelManifest } from 'rev-dal/lib/model-manifest';
@@ -30,7 +30,7 @@ const userMetaManifest = {
   },
 } as const satisfies ModelManifest;
 
-type UserMetaTypes = ManifestExports<typeof userMetaManifest>;
+type UserMetaTypes = ManifestBundle<typeof userMetaManifest>;
 
 export type UserMetaInstance = UserMetaTypes['Instance'];
 export type UserMetaModel = UserMetaTypes['Model'];

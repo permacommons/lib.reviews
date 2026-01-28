@@ -1,10 +1,5 @@
 import dal from 'rev-dal';
-import type {
-  InstanceMethodsFrom,
-  ManifestInstance,
-  ManifestModel,
-  StaticMethodsFrom,
-} from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { ThingInstance } from './thing.ts';
@@ -77,26 +72,23 @@ export type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
 export type FileInstanceMethodsMap = {
   populateUserInfo(user: UserAccessContext | null | undefined): void;
 };
-export type FileInstanceMethods = InstanceMethodsFrom<
-  typeof fileManifest,
-  FileInstanceMethodsMap,
-  FileRelations
->;
-export type FileInstance =
-  ManifestInstance<typeof fileManifest, FileInstanceMethods> & FileRelations;
+export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethodsMap> &
+  FileRelations;
 
 export type FileStaticMethodsMap = {
   getStashedUpload(userID: string, name: string): Promise<FileInstance | undefined>;
   getValidLicenses(): readonly string[];
   getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileInstance>>;
 };
-export type FileStaticMethods = StaticMethodsFrom<
+type FileTypes = ManifestBundle<
   typeof fileManifest,
+  FileRelations,
   FileStaticMethodsMap,
-  FileInstanceMethods,
-  FileRelations
+  FileInstanceMethodsMap
 >;
-export type FileModel = ManifestModel<typeof fileManifest, FileStaticMethods, FileInstanceMethods>;
+export type FileInstanceMethods = FileTypes['InstanceMethods'];
+export type FileStaticMethods = FileTypes['StaticMethods'];
+export type FileModel = FileTypes['Model'];
 export const fileValidLicenses = validLicenseValues;
 
 /**

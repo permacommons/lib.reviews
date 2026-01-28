@@ -1,5 +1,5 @@
 import dal from 'rev-dal';
-import type { ManifestExports } from 'rev-dal/lib/create-model';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import { referenceModel } from 'rev-dal/lib/model-handle';
 import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 
@@ -45,18 +45,21 @@ const thingSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
-type ThingSlugBaseTypes = ManifestExports<typeof thingSlugManifest>;
-
-type ThingSlugTypes = ManifestExports<
+type ThingSlugInstanceMethodsMap = {
+  qualifiedSave(): Promise<ThingSlugInstanceBase | null>;
+};
+type ThingSlugInstanceBase = ManifestInstance<
   typeof thingSlugManifest,
-  {
-    statics: {
-      getByName(name: string): Promise<ThingSlugBaseTypes['Instance'] | null>;
-    };
-    instances: {
-      qualifiedSave(): Promise<ThingSlugBaseTypes['Instance'] | null>;
-    };
-  }
+  ThingSlugInstanceMethodsMap
+>;
+type ThingSlugStaticMethodsMap = {
+  getByName(name: string): Promise<ThingSlugInstanceBase | null>;
+};
+type ThingSlugTypes = ManifestBundle<
+  typeof thingSlugManifest,
+  Record<never, never>,
+  ThingSlugStaticMethodsMap,
+  ThingSlugInstanceMethodsMap
 >;
 
 export type ThingSlugInstanceMethods = ThingSlugTypes['InstanceMethods'];
