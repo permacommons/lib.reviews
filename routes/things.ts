@@ -3,7 +3,7 @@ import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
 import { z } from 'zod';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import languages from '../locales/languages.ts';
 import {
   type ReviewFeedResult,

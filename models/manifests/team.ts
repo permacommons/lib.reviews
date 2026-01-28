@@ -1,8 +1,8 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
-import type { ModelInstance } from '../../dal/lib/model-types.ts';
+import dal from 'rev-dal';
+import type { ManifestExports } from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { ModelManifest } from 'rev-dal/lib/model-manifest';
+import type { ModelInstance } from 'rev-dal/lib/model-types';
 import languages from '../../locales/languages.ts';
 import type { ReviewInstance } from './review.ts';
 import type { TeamJoinRequestInstance } from './team-join-request.ts';

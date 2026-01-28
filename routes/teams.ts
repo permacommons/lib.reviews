@@ -1,6 +1,6 @@
 import escapeHTML from 'escape-html';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
-import mlString from '../dal/lib/ml-string.ts';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
+import mlString from 'rev-dal/lib/ml-string';
 import languages from '../locales/languages.ts';
 import type { TeamInstance } from '../models/manifests/team.ts';
 import TeamJoinRequest from '../models/team-join-request.ts';

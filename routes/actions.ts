@@ -7,8 +7,8 @@ import isUUID from 'is-uuid';
 import passport from 'passport';
 import type { ParsedQs } from 'qs';
 import { z } from 'zod';
-import { mlString } from '../dal/index.ts';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
+import { mlString } from 'rev-dal';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import languages from '../locales/languages.ts';
 import AccountRequest from '../models/account-request.ts';
 import InviteLink, {

@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import isUUID from 'is-uuid';
 
 // Internal dependencies
-import errors from '../../dal/lib/errors.ts';
+import errors from 'rev-dal/lib/errors';
 import type { TeamInstance } from '../../models/manifests/team.ts';
 import type { ThingInstance } from '../../models/manifests/thing.ts';
 import Team from '../../models/team.ts';

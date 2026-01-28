@@ -71,7 +71,12 @@ sudo -u postgres createdb libreviews_test -O libreviews_user
 Run the provided setup script:
 
 ```bash
-sudo -u postgres psql -f dal/setup-db-grants.sql
+sudo -u postgres psql \
+  -v app_db=libreviews \
+  -v app_user=libreviews_user \
+  -v test_db=libreviews_test \
+  -v test_user=libreviews_user \
+  -f node_modules/rev-dal/setup-db-grants.sql
 ```
 
 This script:
@@ -92,7 +97,7 @@ The application automatically applies pending migrations on startup. You can sto
 ### Troubleshooting
 
 - **Connection failures:** Verify PostgreSQL is running on `localhost:5432`
-- **Permission errors:** Re-run `dal/setup-db-grants.sql`
+- **Permission errors:** Re-run `node_modules/rev-dal/setup-db-grants.sql`
 - **Missing extensions:** Ensure `pgcrypto` exists in both databases
 - **Asset build issues:** Delete `build/frontend` and rebuild
 
@@ -139,7 +144,7 @@ lib.reviews is a TypeScript application using modern ESM patterns.
 | [Express](https://expressjs.com/) V5 | Web application framework |
 | [PostgreSQL](https://www.postgresql.org/) | Primary storage backend |
 | [ElasticSearch](https://www.elastic.co/) | Search backend |
-| Custom DAL (`dal/`) | Data Access Layer with revision tracking |
+| Custom DAL (`rev-dal`) | Data Access Layer with revision tracking |
 | [Handlebars](http://handlebarsjs.com/) | Server-side templates |
 | [LESS](http://lesscss.org/) | CSS pre-processor |
 | [PureCSS](https://purecss.io/) | Grid system and base styles |
@@ -230,7 +235,7 @@ npm run docs:coverage
 
 lib.reviews uses PostgreSQL with a custom Data Access Layer (DAL).
 
-**See [`dal/README.md`](./dal/README.md) for comprehensive documentation** on:
+**See the rev-dal README for comprehensive documentation** on:
 - Manifest-based model architecture
 - Type-safe query interface with `filterWhere()`
 - Cross-model references and circular dependency resolution

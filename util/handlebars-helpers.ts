@@ -8,7 +8,7 @@ import linkifyHTML from 'linkify-html';
 import stripTags from 'striptags';
 import adapters from '../adapters/adapters.ts';
 // Internal dependencies
-import mlString, { type MultilingualString } from '../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from 'rev-dal/lib/ml-string';
 import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import languages from '../locales/languages.ts';
 import type { ThingInstance } from '../models/manifests/thing.ts';

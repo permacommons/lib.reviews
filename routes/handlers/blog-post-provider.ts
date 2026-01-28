@@ -4,7 +4,7 @@ import { resolve as resolveURL } from 'node:url';
 import config from 'config';
 import i18n from 'i18n';
 import { z } from 'zod';
-import type { MultilingualString } from '../../dal/lib/ml-string.ts';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import type { LocaleCodeWithUndetermined } from '../../locales/languages.ts';
 import languages from '../../locales/languages.ts';
 import BlogPostModel, { type BlogPostInstance } from '../../models/blog-post.ts';

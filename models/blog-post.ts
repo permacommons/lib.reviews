@@ -2,8 +2,8 @@ import {
   defineInstanceMethods,
   defineModel,
   defineStaticMethods,
-} from '../dal/lib/create-model.ts';
-import { DocumentNotFound } from '../dal/lib/errors.ts';
+} from 'rev-dal/lib/create-model';
+import { DocumentNotFound } from 'rev-dal/lib/errors';
 import debug from '../util/debug.ts';
 import blogPostManifest, {
   type BlogPostFeedOptions,

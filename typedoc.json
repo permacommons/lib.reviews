@@ -8,7 +8,6 @@
     "vite.config.ts",
     "frontend",
     "bootstrap",
-    "dal",
     "models",
     "routes",
     "util",

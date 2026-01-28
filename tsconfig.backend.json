@@ -18,7 +18,6 @@
     "bootstrap/**/*.ts",
     "config/**/*.js",
     "config/**/*.ts",
-    "dal/**/*.js",
     "deployment/**/*.js",
     "models/**/*.js",
     "models/**/*.ts",

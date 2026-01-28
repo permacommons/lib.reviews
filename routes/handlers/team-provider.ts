@@ -4,7 +4,7 @@ import config from 'config';
 import escapeHTML from 'escape-html';
 import i18n from 'i18n';
 import { z } from 'zod';
-import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from 'rev-dal/lib/ml-string';
 import BlogPost from '../../models/blog-post.ts';
 import type { TeamInstance as TeamManifestInstance } from '../../models/manifests/team.ts';
 import type { TeamJoinRequestInstance } from '../../models/manifests/team-join-request.ts';

@@ -1,7 +1,12 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import dal from 'rev-dal';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestModel,
+  StaticMethodsFrom,
+} from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { InferData, InferVirtual, ModelManifest } from 'rev-dal/lib/model-manifest';
 import languages from '../../locales/languages.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
@@ -39,35 +44,43 @@ const blogPostManifest = {
   },
 } as const satisfies ModelManifest;
 
-type BlogPostRelations = { creator?: BlogPostCreator };
+export type BlogPostRelations = { creator?: BlogPostCreator };
 
-type BlogPostTypes = ManifestExports<
+export type BlogPostInstanceMethodsMap = {
+  populateUserInfo(user: UserAccessContext | null | undefined): void;
+};
+export type BlogPostInstanceMethods = InstanceMethodsFrom<
   typeof blogPostManifest,
-  {
-    relations: BlogPostRelations;
-    statics: {
-      getWithCreator(id: string): Promise<BlogPostTypes['Instance'] | null>;
-      getMostRecentBlogPosts(
-        teamID: string,
-        options?: BlogPostFeedOptions
-      ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
-      getMostRecentBlogPostsBySlug(
-        teamSlugName: string,
-        options?: BlogPostFeedOptions
-      ): Promise<{ blogPosts: BlogPostTypes['Instance'][]; offsetDate?: Date }>;
-    };
-    instances: {
-      populateUserInfo(user: UserAccessContext | null | undefined): void;
-    };
-  }
+  BlogPostInstanceMethodsMap,
+  BlogPostRelations
 >;
+export type BlogPostInstance =
+  ManifestInstance<typeof blogPostManifest, BlogPostInstanceMethods> & BlogPostRelations;
 
-export type BlogPostInstanceMethods = BlogPostTypes['InstanceMethods'];
-export type BlogPostInstance = BlogPostTypes['Instance'];
-export type BlogPostStaticMethods = BlogPostTypes['StaticMethods'];
-export type BlogPostData = BlogPostTypes['Data'];
-export type BlogPostVirtual = BlogPostTypes['Virtual'];
-export type BlogPostModel = BlogPostTypes['Model'];
+export type BlogPostStaticMethodsMap = {
+  getWithCreator(id: string): Promise<BlogPostInstance | null>;
+  getMostRecentBlogPosts(
+    teamID: string,
+    options?: BlogPostFeedOptions
+  ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
+  getMostRecentBlogPostsBySlug(
+    teamSlugName: string,
+    options?: BlogPostFeedOptions
+  ): Promise<{ blogPosts: BlogPostInstance[]; offsetDate?: Date }>;
+};
+export type BlogPostStaticMethods = StaticMethodsFrom<
+  typeof blogPostManifest,
+  BlogPostStaticMethodsMap,
+  BlogPostInstanceMethods,
+  BlogPostRelations
+>;
+export type BlogPostData = InferData<typeof blogPostManifest.schema>;
+export type BlogPostVirtual = InferVirtual<typeof blogPostManifest.schema>;
+export type BlogPostModel = ManifestModel<
+  typeof blogPostManifest,
+  BlogPostStaticMethods,
+  BlogPostInstanceMethods
+>;
 
 /**
  * Create a lazy reference to the BlogPost model for use in other models.

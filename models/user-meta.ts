@@ -1,4 +1,4 @@
-import { defineModel } from '../dal/lib/create-model.ts';
+import { defineModel } from 'rev-dal/lib/create-model';
 import userMetaManifest, {
   type UserMetaInstance,
   type UserMetaModel,

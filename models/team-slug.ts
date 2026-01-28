@@ -2,8 +2,8 @@ import {
   defineInstanceMethods,
   defineModel,
   defineStaticMethods,
-} from '../dal/lib/create-model.ts';
-import { ConstraintError, DuplicateSlugNameError } from '../dal/lib/errors.ts';
+} from 'rev-dal/lib/create-model';
+import { ConstraintError, DuplicateSlugNameError } from 'rev-dal/lib/errors';
 import debug from '../util/debug.ts';
 import teamSlugManifest, {
   type TeamSlugInstance,

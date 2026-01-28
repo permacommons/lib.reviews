@@ -1,6 +1,6 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import dal from 'rev-dal';
+import type { ManifestExports } from 'rev-dal/lib/create-model';
+import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 
 const { types } = dal;
 

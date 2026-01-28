@@ -48,11 +48,16 @@ else
   log 'Database libreviews_test already exists.'
 fi
 
-log 'Applying database grants and extensions…'
-sudo -u postgres psql -f "$REPO_ROOT/dal/setup-db-grants.sql" >/dev/null
-
 log 'Installing npm dependencies…'
 npm install
+
+log 'Applying database grants and extensions…'
+sudo -u postgres psql \
+  -v app_db=libreviews \
+  -v app_user=libreviews_user \
+  -v test_db=libreviews_test \
+  -v test_user=libreviews_user \
+  -f "$REPO_ROOT/node_modules/rev-dal/setup-db-grants.sql" >/dev/null
 
 log 'Building frontend assets…'
 npm run build:frontend

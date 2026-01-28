@@ -1,9 +1,9 @@
 import config from 'config';
 import isUUID from 'is-uuid';
 
-import { defineModel, defineStaticMethods } from '../dal/lib/create-model.ts';
-import { DocumentNotFound } from '../dal/lib/errors.ts';
-import type { ModelInstance } from '../dal/lib/model-types.ts';
+import { defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
+import { DocumentNotFound } from 'rev-dal/lib/errors';
+import type { ModelInstance } from 'rev-dal/lib/model-types';
 import debug from '../util/debug.ts';
 import { referenceAccountRequest } from './manifests/account-request.ts';
 import inviteLinkManifest, {

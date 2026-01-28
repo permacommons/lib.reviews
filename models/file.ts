@@ -2,7 +2,7 @@ import {
   defineInstanceMethods,
   defineModel,
   defineStaticMethods,
-} from '../dal/lib/create-model.ts';
+} from 'rev-dal/lib/create-model';
 import fileManifest, {
   type FileFeedOptions,
   type FileFeedResult,

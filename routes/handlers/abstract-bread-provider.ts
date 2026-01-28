@@ -1,5 +1,5 @@
 import express from 'express';
-import mlString, { type MultilingualString } from '../../dal/lib/ml-string.ts';
+import mlString, { type MultilingualString } from 'rev-dal/lib/ml-string';
 import type {
   BoundRenderFunction,
   BoundTemplateRenderer,
