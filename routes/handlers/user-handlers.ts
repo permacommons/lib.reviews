@@ -1,5 +1,5 @@
 import escapeHTML from 'escape-html';
-import type { MultilingualRichText } from '../../dal/lib/ml-string.ts';
+import type { MultilingualRichText } from 'rev-dal/lib/ml-string';
 import type { TeamInstance } from '../../models/manifests/team.ts';
 import type { UserMetaInstance } from '../../models/manifests/user-meta.ts';
 import Review from '../../models/review.ts';

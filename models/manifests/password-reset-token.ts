@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { UserInstance } from './user.ts';
 
 const { types } = dal;
@@ -32,32 +32,34 @@ const passwordResetTokenManifest = {
   },
 } as const satisfies ModelManifest;
 
-type PasswordResetTokenTypes = ManifestExports<
-  typeof passwordResetTokenManifest,
-  {
-    relations: { user?: UserInstance };
-    statics: {
-      create(
-        userID: string,
-        email: string,
-        ipAddress?: string
-      ): Promise<PasswordResetTokenTypes['Instance']>;
-      findByID(tokenID: string): Promise<PasswordResetTokenTypes['Instance'] | null>;
-      invalidateAllForUser(userID: string): Promise<void>;
-      hasRecentRequest(email: string, cooldownHours: number): Promise<boolean>;
-    };
-    instances: {
-      isValid(): boolean;
-      markAsUsed(): Promise<void>;
-      getUser(): Promise<UserInstance | null>;
-    };
-  }
->;
+export type PasswordResetTokenRelations = { user?: UserInstance };
 
-export type PasswordResetTokenInstance = PasswordResetTokenTypes['Instance'];
-export type PasswordResetTokenModel = PasswordResetTokenTypes['Model'];
-export type PasswordResetTokenStaticMethods = PasswordResetTokenTypes['StaticMethods'];
+export type PasswordResetTokenInstanceMethodsMap = {
+  isValid(): boolean;
+  markAsUsed(): Promise<void>;
+  getUser(): Promise<UserInstance | null>;
+};
+export type PasswordResetTokenInstance = ManifestInstance<
+  typeof passwordResetTokenManifest,
+  PasswordResetTokenInstanceMethodsMap
+> &
+  PasswordResetTokenRelations;
+
+export type PasswordResetTokenStaticMethodsMap = {
+  create(userID: string, email: string, ipAddress?: string): Promise<PasswordResetTokenInstance>;
+  findByID(tokenID: string): Promise<PasswordResetTokenInstance | null>;
+  invalidateAllForUser(userID: string): Promise<void>;
+  hasRecentRequest(email: string, cooldownHours: number): Promise<boolean>;
+};
+type PasswordResetTokenTypes = ManifestBundle<
+  typeof passwordResetTokenManifest,
+  PasswordResetTokenRelations,
+  PasswordResetTokenStaticMethodsMap,
+  PasswordResetTokenInstanceMethodsMap
+>;
 export type PasswordResetTokenInstanceMethods = PasswordResetTokenTypes['InstanceMethods'];
+export type PasswordResetTokenStaticMethods = PasswordResetTokenTypes['StaticMethods'];
+export type PasswordResetTokenModel = PasswordResetTokenTypes['Model'];
 
 /**
  * Lazy reference to the PasswordResetToken model for use in other manifests.

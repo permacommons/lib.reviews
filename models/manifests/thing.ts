@@ -1,13 +1,13 @@
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { InferInstance, ModelManifest } from 'rev-dal/lib/model-manifest';
+import type { ModelInstance } from 'rev-dal/lib/model-types';
 import type {
   AdapterLookupData,
   AdapterLookupResult,
 } from '../../adapters/abstract-backend-adapter.ts';
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import type { MultilingualString } from '../../dal/lib/ml-string.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
-import type { ModelInstance } from '../../dal/lib/model-types.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
@@ -132,7 +132,7 @@ const thingManifest = {
     createdBy: types.string().uuid(4).required(true),
 
     // Virtual fields for compatibility
-    urlID: types.virtual().default(function (this: ThingTypes['BaseInstance']) {
+    urlID: types.virtual().default(function (this: ModelInstance) {
       const slugName =
         typeof this.getValue === 'function'
           ? this.getValue('canonicalSlugName')
@@ -209,16 +209,16 @@ const thingManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type ThingRelations = { reviews?: ReviewInstance[]; files?: FileInstance[] };
+export type ThingRelations = { reviews?: ReviewInstance[]; files?: FileInstance[] };
 
-type ThingBaseTypes = ManifestExports<typeof thingManifest, { relations: ThingRelations }>;
+type ThingInstanceBase = InferInstance<typeof thingManifest> & ThingRelations;
 
-type ThingInstanceMethodsMap = {
+export type ThingInstanceMethodsMap = {
   initializeFieldsFromAdapter(adapterResult: AdapterLookupResult): void;
   populateUserInfo(user: UserAccessContext | null | undefined): void;
-  populateReviewMetrics(): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  populateReviewMetrics(): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
   setURLs(urls: string[]): void;
-  updateActiveSyncs(userID?: string): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  updateActiveSyncs(userID?: string): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
   getReviewsByUser(user: UserAccessContext | null | undefined): Promise<ReviewInstance[]>;
   getAverageStarRating(): Promise<number>;
   getReviewCount(): Promise<number>;
@@ -227,37 +227,35 @@ type ThingInstanceMethodsMap = {
   updateSlug(
     userID: string,
     language?: string
-  ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  ): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
   addFilesByIDsAndSave(
     fileIDs: string[],
     userID?: string
-  ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
+  ): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
 };
 
-type ThingTypes = ManifestExports<
-  typeof thingManifest,
-  {
-    relations: ThingRelations;
-    statics: {
-      lookupByURL(
-        url: string,
-        userID?: string | null
-      ): Promise<Array<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>>;
-      getWithData(
-        id: string,
-        options?: { withFiles?: boolean; withReviewMetrics?: boolean }
-      ): Promise<ThingBaseTypes['Instance'] & ThingInstanceMethodsMap>;
-      getLabel(thing: ThingLabelSource | null | undefined, language: string): string | undefined;
-    };
-    instances: ThingInstanceMethodsMap;
-  }
->;
+export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethodsMap> &
+  ThingRelations;
 
-// Use intersection pattern for relation types
-// Fields are optional because they're only populated when relations are loaded
+export type ThingStaticMethodsMap = {
+  lookupByURL(
+    url: string,
+    userID?: string | null
+  ): Promise<Array<ThingInstanceBase & ThingInstanceMethodsMap>>;
+  getWithData(
+    id: string,
+    options?: { withFiles?: boolean; withReviewMetrics?: boolean }
+  ): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
+  getLabel(thing: ThingLabelSource | null | undefined, language: string): string | undefined;
+};
+type ThingTypes = ManifestBundle<
+  typeof thingManifest,
+  ThingRelations,
+  ThingStaticMethodsMap,
+  ThingInstanceMethodsMap
+>;
 export type ThingInstanceMethods = ThingTypes['InstanceMethods'];
 export type ThingStaticMethods = ThingTypes['StaticMethods'];
-export type ThingInstance = ThingTypes['Instance'];
 export type ThingModel = ThingTypes['Model'];
 
 /**

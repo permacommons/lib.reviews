@@ -1,20 +1,16 @@
 import { randomUUID } from 'crypto';
 import { decodeHTML } from 'entities';
 import isUUID from 'is-uuid';
+import type { JoinOptions } from 'rev-dal';
+import dal from 'rev-dal';
+import { defineInstanceMethods, defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
+import type { VersionedModelInstance } from 'rev-dal/lib/model-types';
 import type {
   AdapterLookupData,
   AdapterLookupResult,
 } from '../adapters/abstract-backend-adapter.ts';
 import adapters from '../adapters/adapters.ts';
-import type { JoinOptions } from '../dal/index.ts';
-import dal from '../dal/index.ts';
-import {
-  defineInstanceMethods,
-  defineModel,
-  defineStaticMethods,
-} from '../dal/lib/create-model.ts';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
-import type { VersionedModelInstance } from '../dal/lib/model-types.ts';
 import search from '../search.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';

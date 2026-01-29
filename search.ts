@@ -7,7 +7,7 @@ import type {
   SearchResponse,
 } from 'elasticsearch';
 import elasticsearch from 'elasticsearch';
-import mlString from './dal/lib/ml-string.ts';
+import mlString from 'rev-dal/lib/ml-string';
 import languages from './locales/languages.ts';
 import type { ReviewInstance } from './models/manifests/review.ts';
 import type { ThingInstance } from './models/manifests/thing.ts';

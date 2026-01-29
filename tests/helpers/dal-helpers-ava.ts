@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
-import revision from '../../dal/lib/revision.ts';
-import types from '../../dal/lib/type.ts';
+import revision from 'rev-dal/lib/revision';
+import types from 'rev-dal/lib/type';
 import type DALFixtureAVA from '../fixtures/dal-fixture-ava.ts';
 
 export interface EnsureUserSeed {

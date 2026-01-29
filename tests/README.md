@@ -4,7 +4,7 @@
 
 Complete the Database Setup steps in `CONTRIBUTING.md` before running these tests.
 This covers creating the `libreviews` and `libreviews_test` databases, granting
-privileges (via `dal/setup-db-grants.sql`), installing extensions, and priming
+privileges (via `node_modules/rev-dal/setup-db-grants.sql`), installing extensions, and priming
 the schema. Once those steps are done you can boot the app or execute the test
 suite without additional setup.
 
@@ -90,48 +90,6 @@ To see detailed debug output during test runs, set `DEBUG` to the relevant names
 - If you add asynchronous teardown logic outside the fixture, await it inside a
   `test.after.always` hook; otherwise AVA reports “Failed to exit” timeouts.
 
-## Shared DAL/unit mocks for fast, typed unit tests
-
-Use the consolidated helpers in `tests/helpers/dal-mocks.ts` to avoid re-implementing light-weight DAL/model stubs in each suite.
-
-Typical usage patterns:
-
-```ts
-import test from 'ava';
-import {
-  createQueryBuilderHarness,
-  createMockDAL,
-  createQueryResult
-} from './helpers/dal-mocks.ts';
-
-// 1) QueryBuilder harness for unit tests (no DB)
-test('QueryBuilder can be instantiated', t => {
-  const { qb } = createQueryBuilderHarness(); // model + query builder + mock DAL
-  t.truthy(qb);
-});
-
-// 2) Overriding DAL.query in a focused test
-test('Model constructor maps camelCase fields to snake_case columns', async t => {
-  const captured: Array<{ sql: string; params: unknown[] }> = [];
-  const mockDAL = createMockDAL({
-    async query<TRecord>(sql: string, params: unknown[] = []) {
-      captured.push({ sql, params });
-      // Provide a row compatible with caller expectations while satisfying generics
-      const row = { id: 'generated-id', camel_case_field: params[0] } as unknown as TRecord;
-      return createQueryResult<TRecord>([row]);
-    }
-  });
-
-  // ... initialize a model with mockDAL, run code under test, assert captured queries
-});
-```
-
-Guidelines:
-
-- Keep query return types generic. When a test needs to synthesize a row, construct a structural object and coerce through `unknown` to `TRecord`. This matches the `DataAccessLayer.query<TRecord>` contract and avoids “could be a different subtype” warnings.
-- Prefer `createQueryBuilderHarness()` for pure QueryBuilder tests. It wires a default schema and registers the model in the mock DAL registry so joins and metadata work without a database.
-- If a test needs to check SQL/params, override `query` in the `createMockDAL({...})` call and push captured entries into a local array.
-
 ## COUNT(*) and aggregate result patterns
 
 node-postgres returns `COUNT(*)` as text in most configurations. Convert at the call site in tests:
@@ -139,7 +97,7 @@ node-postgres returns `COUNT(*)` as text in most configurations. Convert at the 
 - Use `Number(row.count)` when a numeric value is expected.
 - Or, if you want `parseInt`, wrap with `String(...)` and pass radix: `parseInt(String(row.count), 10)`.
 
-Examples are used in tests like `tests/10-dal-revision-system.ts`.
+Examples are used across database-backed tests.
 
 ## Search mocking and guards
 

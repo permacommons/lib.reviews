@@ -1,8 +1,13 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports, ManifestInstance } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { InferData, InferVirtual, ModelManifest } from '../../dal/lib/model-manifest.ts';
-import type { GetOptions, ModelConstructor, ModelInstance } from '../../dal/lib/model-types.ts';
+import dal from 'rev-dal';
+import type {
+  InstanceMethodsFrom,
+  ManifestInstance,
+  ManifestModel,
+  StaticMethodsFrom,
+} from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { InferData, InferVirtual, ModelManifest } from 'rev-dal/lib/model-manifest';
+import type { GetOptions, ModelConstructor, ModelInstance } from 'rev-dal/lib/model-types';
 import type { TeamInstance } from './team.ts';
 import type { UserMetaInstance } from './user-meta.ts';
 
@@ -220,23 +225,23 @@ type UserStaticMethodsMap = {
   canonicalize(name: string): string;
 };
 
-type UserTypes = ManifestExports<
+export type UserInstanceMethods = InstanceMethodsFrom<
   typeof userManifest,
-  {
-    relations: UserRelations;
-    statics: UserStaticMethodsMap;
-    instances: UserInstanceMethodsMap;
-  }
+  UserInstanceMethodsMap,
+  UserRelations
 >;
-
-export type UserInstanceMethods = UserTypes['InstanceMethods'];
-export type UserStaticMethods = UserTypes['StaticMethods'];
 export type UserInstance = ManifestInstance<typeof userManifest, UserInstanceMethods> &
   UserRelations;
+export type UserStaticMethods = StaticMethodsFrom<
+  typeof userManifest,
+  UserStaticMethodsMap,
+  UserInstanceMethods,
+  UserRelations
+>;
 
 type UserExtraStatics = { options: typeof userOptions };
-type UserModelBase = ModelConstructor<UserTypes['Data'], UserTypes['Virtual'], UserInstance>;
-export type UserModel = UserModelBase & UserStaticMethods & UserExtraStatics;
+export type UserModel = ManifestModel<typeof userManifest, UserStaticMethods, UserInstanceMethods> &
+  UserExtraStatics;
 
 /**
  * Create a lazy reference to the User model for use in other models.

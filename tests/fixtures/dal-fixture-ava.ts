@@ -1,11 +1,11 @@
 import { randomUUID } from 'crypto';
 import pgModule from 'pg';
+import { defineModel, initializeManifestModels } from 'rev-dal/lib/create-model';
+import type { ModelSchemaField } from 'rev-dal/lib/model';
+import type { ModelManifest } from 'rev-dal/lib/model-manifest';
+import ModelRegistry from 'rev-dal/lib/model-registry';
+import type { DataAccessLayer, ModelConstructor } from 'rev-dal/lib/model-types';
 import { createTestHarness } from '../../bootstrap/dal.ts';
-import { defineModel, initializeManifestModels } from '../../dal/lib/create-model.ts';
-import type { ModelSchemaField } from '../../dal/lib/model.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
-import ModelRegistry from '../../dal/lib/model-registry.ts';
-import type { DataAccessLayer, ModelConstructor } from '../../dal/lib/model-types.ts';
 import type { TeamModel } from '../../models/manifests/team.ts';
 import { logNotice, logOK } from '../helpers/test-helpers.ts';
 

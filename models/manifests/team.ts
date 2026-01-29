@@ -1,8 +1,8 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
-import type { ModelInstance } from '../../dal/lib/model-types.ts';
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { InferInstance, ModelManifest } from 'rev-dal/lib/model-manifest';
+import type { ModelInstance } from 'rev-dal/lib/model-types';
 import languages from '../../locales/languages.ts';
 import type { ReviewInstance } from './review.ts';
 import type { TeamJoinRequestInstance } from './team-join-request.ts';
@@ -63,7 +63,7 @@ const teamManifest = {
     userCanDelete: types.virtual().default(false),
     // Note: relation fields (members, moderators, joinRequests, reviews) are typed via intersection pattern
     reviewCount: types.virtual<number>().default(undefined),
-    urlID: types.virtual().default(function (this: TeamTypes['BaseInstance']) {
+    urlID: types.virtual().default(function (this: InferInstance<typeof teamManifest>) {
       const slugName =
         typeof this.getValue === 'function'
           ? this.getValue('canonicalSlugName')
@@ -110,35 +110,36 @@ const teamManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type TeamRelations = {
+export type TeamRelations = {
   members?: UserView[];
   moderators?: UserView[];
   joinRequests?: TeamJoinRequestInstance[];
   reviews?: ReviewInstance[];
 };
 
-type TeamBaseTypes = ManifestExports<typeof teamManifest, { relations: TeamRelations }>;
-
 type TeamInstanceMethodsMap = {
   populateUserInfo(user: ModelInstance | UserAccessContext | null | undefined): void;
   updateSlug(
     userID: string,
     language?: string | null
-  ): Promise<TeamBaseTypes['Instance'] & TeamInstanceMethodsMap>;
+  ): Promise<TeamInstanceBase & TeamInstanceMethodsMap>;
 };
 
-type TeamTypes = ManifestExports<
+type TeamInstanceBase = ManifestInstance<typeof teamManifest, TeamInstanceMethodsMap> &
+  TeamRelations;
+
+type TeamStaticMethodsMap = {
+  getWithData(
+    id: string,
+    options?: TeamGetWithDataOptions
+  ): Promise<TeamInstanceBase & TeamInstanceMethodsMap>;
+};
+
+type TeamTypes = ManifestBundle<
   typeof teamManifest,
-  {
-    relations: TeamRelations;
-    statics: {
-      getWithData(
-        id: string,
-        options?: TeamGetWithDataOptions
-      ): Promise<TeamBaseTypes['Instance'] & TeamInstanceMethodsMap>;
-    };
-    instances: TeamInstanceMethodsMap;
-  }
+  TeamRelations,
+  TeamStaticMethodsMap,
+  TeamInstanceMethodsMap
 >;
 
 // Relation-backed fields stay optional since they are only populated when loaded

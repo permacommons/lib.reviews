@@ -1,5 +1,5 @@
 import i18n from 'i18n';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
 
 /**
  * Resolves i18n message keys for the given locale, merging multiple key lists

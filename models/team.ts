@@ -1,14 +1,10 @@
 import { randomUUID } from 'crypto';
 import isUUID from 'is-uuid';
 
-import dal from '../dal/index.ts';
-import {
-  defineInstanceMethods,
-  defineModel,
-  defineStaticMethods,
-} from '../dal/lib/create-model.ts';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
-import type { ModelInstance } from '../dal/lib/model-types.ts';
+import dal from 'rev-dal';
+import { defineInstanceMethods, defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
+import type { ModelInstance } from 'rev-dal/lib/model-types';
 import debug from '../util/debug.ts';
 import { generateSlugName } from '../util/slug.ts';
 import { referenceReview } from './manifests/review.ts';

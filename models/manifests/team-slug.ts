@@ -1,7 +1,7 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 
 const { types } = dal;
 
@@ -23,18 +23,18 @@ const teamSlugManifest = {
   },
 } as const satisfies ModelManifest;
 
-type TeamSlugBaseTypes = ManifestExports<typeof teamSlugManifest>;
-
-type TeamSlugTypes = ManifestExports<
+type TeamSlugInstanceMethodsMap = {
+  qualifiedSave(): Promise<TeamSlugInstanceBase>;
+};
+type TeamSlugInstanceBase = ManifestInstance<typeof teamSlugManifest, TeamSlugInstanceMethodsMap>;
+type TeamSlugStaticMethodsMap = {
+  getByName(name: string): Promise<TeamSlugInstanceBase | null>;
+};
+type TeamSlugTypes = ManifestBundle<
   typeof teamSlugManifest,
-  {
-    statics: {
-      getByName(name: string): Promise<TeamSlugBaseTypes['Instance'] | null>;
-    };
-    instances: {
-      qualifiedSave(): Promise<TeamSlugBaseTypes['Instance']>;
-    };
-  }
+  Record<never, never>,
+  TeamSlugStaticMethodsMap,
+  TeamSlugInstanceMethodsMap
 >;
 
 export type TeamSlugInstanceMethods = TeamSlugTypes['InstanceMethods'];

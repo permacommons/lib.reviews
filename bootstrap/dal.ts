@@ -9,10 +9,10 @@
 import type { PostgresConfig } from 'config';
 
 import config from 'config';
-import PostgresDAL from '../dal/index.ts';
-import { setBootstrapResolver } from '../dal/lib/model-handle.ts';
+import PostgresDAL, { setDebugLogger, setLanguageProvider } from 'rev-dal';
+import { setBootstrapResolver } from 'rev-dal/lib/model-handle';
 
-import type { DataAccessLayer, JsonObject, ModelConstructor } from '../dal/lib/model-types.ts';
+import type { DataAccessLayer, JsonObject, ModelConstructor } from 'rev-dal/lib/model-types';
 import '../models/account-request.ts';
 import '../models/blog-post.ts';
 import '../models/file.ts';
@@ -26,6 +26,7 @@ import '../models/thing.ts';
 import '../models/thing-slug.ts';
 import '../models/user.ts';
 import '../models/user-meta.ts';
+import languages from '../locales/languages.ts';
 import debug from '../util/debug.ts';
 
 type ModelInitializer = (dal: DataAccessLayer) => Promise<void>;
@@ -36,12 +37,15 @@ const PostgresDALFactoryValue =
   typeof PostgresDAL === 'function' ? PostgresDAL : (PostgresDAL as { default?: unknown }).default;
 
 if (typeof PostgresDALFactoryValue !== 'function') {
-  throw new TypeError('Postgres DAL factory not found. Ensure ../dal/index.ts exports a function.');
+  throw new TypeError('Postgres DAL factory not found. Ensure rev-dal is installed.');
 }
 
 const PostgresDALFactory = PostgresDALFactoryValue as (
   config?: Partial<PostgresConfig> & JsonObject
 ) => DataAccessLayer;
+
+setLanguageProvider(languages);
+setDebugLogger(debug);
 
 // Models now register themselves via manifest side effects on import.
 
@@ -210,7 +214,7 @@ export async function registerAllModels(
   }
 
   try {
-    const { initializeManifestModels } = await import('../dal/lib/create-model.ts');
+    const { initializeManifestModels } = await import('rev-dal/lib/create-model');
     initializeManifestModels(dal);
     debug.db('Initialized manifest-based models');
   } catch (error) {

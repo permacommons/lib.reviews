@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 
 import config from 'config';
 
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { InferInstance, ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { UserView } from './user.ts';
 
 const { types } = dal;
@@ -22,7 +22,7 @@ const inviteLinkManifest = {
     createdOn: types.date().default(() => new Date()),
     usedBy: types.string().uuid(4),
     // Note: usedByUser relation is typed via intersection pattern on InviteLinkInstance
-    url: types.virtual().default(function (this: InviteLinkTypes['BaseInstance']) {
+    url: types.virtual().default(function (this: InferInstance<typeof inviteLinkManifest>) {
       const identifier = typeof this.getValue === 'function' ? this.getValue('id') : this.id;
       return identifier ? `${config.qualifiedURL}register/${identifier}` : undefined;
     }),
@@ -34,24 +34,28 @@ const inviteLinkManifest = {
   },
 } as const satisfies ModelManifest;
 
-type InviteLinkRelations = { usedByUser?: UserView };
+export type InviteLinkRelations = { usedByUser?: UserView };
 
-type InviteLinkTypes = ManifestExports<
+export type InviteLinkInstanceMethodsMap = Record<never, never>;
+export type InviteLinkInstance = ManifestInstance<
   typeof inviteLinkManifest,
-  {
-    relations: InviteLinkRelations;
-    statics: {
-      getAvailable(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
-      getUsed(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
-      getAccountRequestLinks(user: { id?: string }): Promise<InviteLinkTypes['Instance'][]>;
-      get(id: string): Promise<InviteLinkTypes['Instance']>;
-    };
-  }
->;
+  InviteLinkInstanceMethodsMap
+> &
+  InviteLinkRelations;
 
-// Use intersection pattern for relation types
+export type InviteLinkStaticMethodsMap = {
+  getAvailable(user: { id?: string }): Promise<InviteLinkInstance[]>;
+  getUsed(user: { id?: string }): Promise<InviteLinkInstance[]>;
+  getAccountRequestLinks(user: { id?: string }): Promise<InviteLinkInstance[]>;
+  get(id: string): Promise<InviteLinkInstance>;
+};
+type InviteLinkTypes = ManifestBundle<
+  typeof inviteLinkManifest,
+  InviteLinkRelations,
+  InviteLinkStaticMethodsMap,
+  InviteLinkInstanceMethodsMap
+>;
 export type InviteLinkInstanceMethods = InviteLinkTypes['InstanceMethods'];
-export type InviteLinkInstance = InviteLinkTypes['Instance'];
 export type InviteLinkStaticMethods = InviteLinkTypes['StaticMethods'];
 export type InviteLinkModel = InviteLinkTypes['Model'];
 

@@ -1,4 +1,4 @@
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import adapterMessagesJson from '../frontend/messages/adapter-keys.json' with { type: 'json' };
 import editorMessagesJson from '../frontend/messages/editor-keys.json' with { type: 'json' };
 import uploadModalMessagesJson from '../frontend/messages/upload-modal-keys.json' with {

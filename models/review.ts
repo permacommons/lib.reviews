@@ -1,13 +1,9 @@
 import { randomUUID } from 'crypto';
+import type { JoinOptions } from 'rev-dal';
+import dal from 'rev-dal';
+import { defineInstanceMethods, defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
+import type { RevisionActor } from 'rev-dal/lib/model-types';
 import adapters from '../adapters/adapters.ts';
-import type { JoinOptions } from '../dal/index.ts';
-import dal from '../dal/index.ts';
-import {
-  defineInstanceMethods,
-  defineModel,
-  defineStaticMethods,
-} from '../dal/lib/create-model.ts';
-import type { RevisionActor } from '../dal/lib/model-types.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';
 import { type FileInstance } from './manifests/file.ts';

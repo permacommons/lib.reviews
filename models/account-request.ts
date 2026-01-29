@@ -1,4 +1,4 @@
-import { defineModel, defineStaticMethods } from '../dal/lib/create-model.ts';
+import { defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
 import debug from '../util/debug.ts';
 import accountRequestManifest, {
   type AccountRequestInstance,

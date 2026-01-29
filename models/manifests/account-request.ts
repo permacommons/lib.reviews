@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { InviteLinkInstance, InviteLinkModel } from './invite-link.ts';
 import { referenceInviteLink } from './invite-link.ts';
 import type { UserModel, UserView } from './user.ts';
@@ -66,38 +66,47 @@ const accountRequestManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type AccountRequestTypes = ManifestExports<
-  typeof accountRequestManifest,
-  {
-    relations: {
-      moderator?: UserView;
-      inviteLink?: InviteLinkInstance;
-    };
-    statics: {
-      getPending(): Promise<AccountRequestTypes['Instance'][]>;
-      getModerated(limit?: number): Promise<AccountRequestTypes['Instance'][]>;
-      hasRecentRequest(email: string, cooldownHours: number): Promise<boolean>;
-      checkIPRateLimit(
-        ipAddress: string | undefined,
-        maxRequests: number,
-        windowHours: number
-      ): Promise<boolean>;
-      createRequest(data: {
-        plannedReviews: string;
-        languages: string;
-        aboutLinks: string;
-        email: string;
-        language: string;
-        termsAccepted: boolean;
-        ipAddress?: string;
-      }): Promise<AccountRequestTypes['Instance']>;
-    };
-  }
->;
+export type AccountRequestRelations = {
+  moderator?: UserView;
+  inviteLink?: InviteLinkInstance;
+};
 
-export type AccountRequestInstance = AccountRequestTypes['Instance'];
-export type AccountRequestModel = AccountRequestTypes['Model'];
+export type AccountRequestInstanceMethodsMap = Record<never, never>;
+export type AccountRequestInstance = ManifestInstance<
+  typeof accountRequestManifest,
+  AccountRequestInstanceMethodsMap
+> &
+  AccountRequestRelations;
+
+export type AccountRequestStaticMethodsMap = {
+  getPending(): Promise<AccountRequestInstance[]>;
+  getModerated(limit?: number): Promise<AccountRequestInstance[]>;
+  hasRecentRequest(email: string, cooldownHours: number): Promise<boolean>;
+  checkIPRateLimit(
+    ipAddress: string | undefined,
+    maxRequests: number,
+    windowHours: number
+  ): Promise<boolean>;
+  createRequest(data: {
+    plannedReviews: string;
+    languages: string;
+    aboutLinks: string;
+    email: string;
+    language: string;
+    termsAccepted: boolean;
+    ipAddress?: string;
+  }): Promise<AccountRequestInstance>;
+};
+
+type AccountRequestTypes = ManifestBundle<
+  typeof accountRequestManifest,
+  AccountRequestRelations,
+  AccountRequestStaticMethodsMap,
+  AccountRequestInstanceMethodsMap
+>;
+export type AccountRequestInstanceMethods = AccountRequestTypes['InstanceMethods'];
 export type AccountRequestStaticMethods = AccountRequestTypes['StaticMethods'];
+export type AccountRequestModel = AccountRequestTypes['Model'];
 
 /**
  * Lazy references to related models to avoid circular imports.

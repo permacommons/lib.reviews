@@ -10,7 +10,7 @@ declare global {
     interface User extends RequestUser {}
 
     interface Request {
-      dal?: import('../dal/index.ts').DalContext;
+      dal?: import('rev-dal').DalContext;
       locale: string;
       language?: LibReviews.LocaleCodeWithUndetermined;
       localeChange?: {

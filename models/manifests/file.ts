@@ -1,7 +1,7 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { ThingInstance } from './thing.ts';
 import type { UserAccessContext, UserView } from './user.ts';
 
@@ -67,27 +67,26 @@ export interface FileFeedResult<TItem> {
   offsetDate?: Date;
 }
 
-type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
+export type FileRelations = { uploader?: UserView; things?: ThingInstance[] };
 
-type FileTypes = ManifestExports<
+export type FileInstanceMethodsMap = {
+  populateUserInfo(user: UserAccessContext | null | undefined): void;
+};
+export type FileInstance = ManifestInstance<typeof fileManifest, FileInstanceMethodsMap> &
+  FileRelations;
+
+export type FileStaticMethodsMap = {
+  getStashedUpload(userID: string, name: string): Promise<FileInstance | undefined>;
+  getValidLicenses(): readonly string[];
+  getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileInstance>>;
+};
+type FileTypes = ManifestBundle<
   typeof fileManifest,
-  {
-    relations: FileRelations;
-    statics: {
-      getStashedUpload(userID: string, name: string): Promise<FileTypes['Instance'] | undefined>;
-      getValidLicenses(): readonly string[];
-      getFileFeed(options?: FileFeedOptions): Promise<FileFeedResult<FileTypes['Instance']>>;
-    };
-    instances: {
-      populateUserInfo(user: UserAccessContext | null | undefined): void;
-    };
-  }
+  FileRelations,
+  FileStaticMethodsMap,
+  FileInstanceMethodsMap
 >;
-
-// Use intersection pattern for relation types
-// Fields are optional because they're only populated when relations are loaded
 export type FileInstanceMethods = FileTypes['InstanceMethods'];
-export type FileInstance = FileTypes['Instance'];
 export type FileStaticMethods = FileTypes['StaticMethods'];
 export type FileModel = FileTypes['Model'];
 export const fileValidLicenses = validLicenseValues;

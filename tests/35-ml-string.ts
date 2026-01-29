@@ -1,7 +1,6 @@
 import test from 'ava';
 
-import { QueryError, ValidationError } from '../dal/lib/errors.ts';
-import mlString from '../dal/lib/ml-string.ts';
+import { QueryError, ValidationError } from 'rev-dal/lib/errors';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
@@ -29,122 +28,6 @@ test.before(async () => {
 });
 
 test.after.always(unmockSearch);
-
-test('mlString.getSchema rejects HTML by default (strict mode)', t => {
-  const schema = mlString.getSchema();
-
-  const error = t.throws(
-    () => {
-      schema.validate({ en: '<p>Hello</p>' }, 'ml');
-    },
-    { instanceOf: ValidationError }
-  );
-
-  t.regex(error?.message ?? '', /contains HTML tags/);
-});
-
-test('mlString.getSchema allows HTML when allowHTML is true', t => {
-  const schema = mlString.getSchema({ allowHTML: true });
-
-  t.notThrows(() => {
-    schema.validate({ en: '<p>Hello</p>' }, 'ml');
-  });
-});
-
-test('mlString.getSchema rejects HTML when allowHTML is false', t => {
-  const schema = mlString.getSchema({ allowHTML: false });
-
-  const error = t.throws(
-    () => {
-      schema.validate({ en: '<em>Not allowed</em>' }, 'ml');
-    },
-    { instanceOf: ValidationError }
-  );
-
-  t.regex(error?.message ?? '', /contains HTML tags/);
-});
-
-test('mlString plain text schema enforces plain text for arrays', t => {
-  const schema = mlString.getSafeTextSchema({ array: true });
-
-  t.notThrows(() => {
-    schema.validate({ en: ['One', 'Two'] }, 'ml');
-  });
-
-  const error = t.throws(
-    () => {
-      schema.validate({ en: ['Okay', '<b>nope</b>'] }, 'ml');
-    },
-    { instanceOf: ValidationError }
-  );
-
-  t.regex(error?.message ?? '', /contains HTML tags/);
-});
-
-test('mlString HTML schema permits HTML content', t => {
-  const schema = mlString.getHTMLSchema();
-
-  t.notThrows(() => {
-    schema.validate({ en: '<section><p>Allowed</p></section>' }, 'ml');
-  });
-});
-
-test('mlString rich text schema validates text/html pairing', t => {
-  const schema = mlString.getRichTextSchema();
-
-  t.notThrows(() => {
-    schema.validate({
-      text: { en: 'Markdown source' },
-      html: { en: '<p>Rendered HTML</p>' },
-    });
-  });
-
-  const htmlError = t.throws(
-    () => {
-      schema.validate({
-        text: { en: '<strong>bad</strong>' },
-      });
-    },
-    { instanceOf: ValidationError }
-  );
-  t.regex(htmlError?.message ?? '', /contains HTML tags/);
-
-  const extraKeyError = t.throws(
-    () => {
-      schema.validate({
-        text: { en: 'Okay' },
-        html: { en: '<p>Ok</p>' },
-        preview: { en: 'Nope' },
-      });
-    },
-    { instanceOf: ValidationError }
-  );
-  t.regex(extraKeyError?.message ?? '', /unsupported keys/);
-});
-
-test('mlString.resolve uses precomputed fallbacks', t => {
-  // Base match beats English/script.
-  const baseMatch = mlString.resolve('pt-PT', {
-    pt: 'Português',
-    en: 'English',
-    ar: 'Arabic',
-  });
-  t.deepEqual(baseMatch, { str: 'Português', lang: 'pt' });
-
-  // und beats base/English.
-  const undMatch = mlString.resolve('fr', {
-    und: 'Default',
-    en: 'English',
-  });
-  t.deepEqual(undMatch, { str: 'Default', lang: 'und' });
-
-  // Script grouping catches Cyrillic before unrelated scripts.
-  const scriptMatch = mlString.resolve('mk', {
-    uk: 'Українська',
-    de: 'Deutsch',
-  });
-  t.deepEqual(scriptMatch, { str: 'Українська', lang: 'uk' });
-});
 
 // ============================================================================
 // INTEGRATION TESTS - Model validation

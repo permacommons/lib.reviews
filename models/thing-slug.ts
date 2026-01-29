@@ -1,9 +1,5 @@
-import {
-  defineInstanceMethods,
-  defineModel,
-  defineStaticMethods,
-} from '../dal/lib/create-model.ts';
-import { ConstraintError } from '../dal/lib/errors.ts';
+import { defineInstanceMethods, defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
+import { ConstraintError } from 'rev-dal/lib/errors';
 import debug from '../util/debug.ts';
 import thingSlugManifest, {
   reservedSlugs,

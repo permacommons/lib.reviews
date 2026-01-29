@@ -18,7 +18,7 @@ import { decodeHTML } from 'entities';
 import type { Request, Response } from 'express';
 import express from 'express';
 import irc from 'irc-upd';
-import type { MultilingualString } from '../dal/lib/ml-string.ts';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
 
 interface ReviewWebhookPayload {
   thingURLs?: string[];

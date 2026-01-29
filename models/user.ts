@@ -1,12 +1,8 @@
 import bcrypt from 'bcrypt';
 
-import {
-  defineInstanceMethods,
-  defineModel,
-  defineStaticMethods,
-} from '../dal/lib/create-model.ts';
-import { DocumentNotFound } from '../dal/lib/errors.ts';
-import type { GetOptions, ModelInstance } from '../dal/lib/model-types.ts';
+import { defineInstanceMethods, defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
+import { DocumentNotFound } from 'rev-dal/lib/errors';
+import type { GetOptions, ModelInstance } from 'rev-dal/lib/model-types';
 import type { ReportedErrorOptions } from '../util/abstract-reported-error.ts';
 import debug from '../util/debug.ts';
 import ReportedError from '../util/reported-error.ts';

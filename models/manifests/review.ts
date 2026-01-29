@@ -1,9 +1,9 @@
-import dal from '../../dal/index.ts';
-import type { ManifestExports } from '../../dal/lib/create-model.ts';
-import type { MultilingualString } from '../../dal/lib/ml-string.ts';
-import { referenceModel } from '../../dal/lib/model-handle.ts';
-import type { ModelManifest } from '../../dal/lib/model-manifest.ts';
-import type { InstanceMethod, RevisionActor } from '../../dal/lib/model-types.ts';
+import dal from 'rev-dal';
+import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
+import type { MultilingualString } from 'rev-dal/lib/ml-string';
+import { referenceModel } from 'rev-dal/lib/model-handle';
+import type { InferData, ModelManifest } from 'rev-dal/lib/model-manifest';
+import type { InstanceMethod, RevisionActor } from 'rev-dal/lib/model-types';
 import languages from '../../locales/languages.ts';
 import type { FileInstance } from './file.ts';
 import type { TeamInstance } from './team.ts';
@@ -120,35 +120,37 @@ const reviewManifest = {
   ],
 } as const satisfies ModelManifest;
 
-type ReviewRelations = {
+export type ReviewRelations = {
   thing?: ThingInstance;
   teams?: TeamInstance[];
   creator?: UserView;
   socialImage?: FileInstance;
 };
 
-type ReviewTypes = ManifestExports<
-  typeof reviewManifest,
-  {
-    relations: ReviewRelations;
-    statics: {
-      getWithData(id: string): Promise<ReviewTypes['Instance'] | null>;
-      create(
-        reviewObj: ReviewInputObject,
-        options?: ReviewCreateOptions
-      ): Promise<ReviewTypes['Instance']>;
-      validateSocialImage(options?: ReviewValidateSocialImageOptions): void;
-      findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
-      getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
-    };
-    instances: {
-      populateUserInfo(user: UserAccessContext | null | undefined): void;
-      deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
-    };
-  }
->;
+export type ReviewInstanceMethodsMap = {
+  populateUserInfo(user: UserAccessContext | null | undefined): void;
+  deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
+};
+export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethodsMap> &
+  ReviewRelations;
 
-type ReviewData = ReviewTypes['Data'];
+export type ReviewStaticMethodsMap = {
+  getWithData(id: string): Promise<ReviewInstance | null>;
+  create(reviewObj: ReviewInputObject, options?: ReviewCreateOptions): Promise<ReviewInstance>;
+  validateSocialImage(options?: ReviewValidateSocialImageOptions): void;
+  findOrCreateThing(reviewObj: ReviewInputObject): Promise<ThingInstance>;
+  getFeed(options?: ReviewFeedOptions): Promise<ReviewFeedResult>;
+};
+type ReviewTypes = ManifestBundle<
+  typeof reviewManifest,
+  ReviewRelations,
+  ReviewStaticMethodsMap,
+  ReviewInstanceMethodsMap
+>;
+export type ReviewInstanceMethods = ReviewTypes['InstanceMethods'];
+export type ReviewStaticMethods = ReviewTypes['StaticMethods'];
+
+type ReviewData = InferData<typeof reviewManifest.schema>;
 
 /**
  * Input for creating a review - combines schema fields with additional create-time data.
@@ -160,9 +162,6 @@ export type ReviewInputObject = Partial<ReviewData> & {
   teams?: TeamInstance[];
 };
 
-export type ReviewInstanceMethods = ReviewTypes['InstanceMethods'];
-export type ReviewStaticMethods = ReviewTypes['StaticMethods'];
-export type ReviewInstance = ReviewTypes['Instance'];
 export type ReviewModel = ReviewTypes['Model'] & { options: typeof reviewOptions };
 
 /**

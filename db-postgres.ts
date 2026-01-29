@@ -7,13 +7,17 @@
 
 import type { PostgresConfig } from 'config';
 import config from 'config';
-import createDataAccessLayer from './dal/index.ts';
-import type { DataAccessLayer } from './dal/lib/model-types.ts';
+import createDataAccessLayer, { setDebugLogger, setLanguageProvider } from 'rev-dal';
+import type { DataAccessLayer } from 'rev-dal/lib/model-types';
+import languages from './locales/languages.ts';
 import debug from './util/debug.ts';
 
 type JsonObject = Record<string, unknown>;
 
 const PostgresDALFactory = createDataAccessLayer;
+
+setLanguageProvider(languages);
+setDebugLogger(debug);
 
 let postgresDAL: DataAccessLayer | null = null;
 let connectionPromise: Promise<DataAccessLayer> | null = null;
