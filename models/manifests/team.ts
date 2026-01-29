@@ -125,8 +125,8 @@ type TeamInstanceMethodsMap = {
   ): Promise<TeamInstanceBase & TeamInstanceMethodsMap>;
 };
 
-type TeamInstanceBase =
-  ManifestInstance<typeof teamManifest, TeamInstanceMethodsMap> & TeamRelations;
+type TeamInstanceBase = ManifestInstance<typeof teamManifest, TeamInstanceMethodsMap> &
+  TeamRelations;
 
 type TeamStaticMethodsMap = {
   getWithData(

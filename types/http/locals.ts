@@ -1,6 +1,6 @@
-import type { ViteDevServer } from 'vite';
 import type { DalContext } from 'rev-dal';
 import type { DataAccessLayer } from 'rev-dal/lib/model-types';
+import type { ViteDevServer } from 'vite';
 import type { UserInstance } from '../../models/user.ts';
 import type WebHookDispatcher from '../../util/webhooks.ts';
 

@@ -1,8 +1,8 @@
 // External dependencies
 import config from 'config';
 import escapeHTML from 'escape-html';
-import { z } from 'zod';
 import mlString, { type MultilingualString } from 'rev-dal/lib/ml-string';
+import { z } from 'zod';
 import languages from '../../locales/languages.ts';
 import File, { type FileInstance } from '../../models/file.ts';
 import {

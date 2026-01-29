@@ -1,11 +1,7 @@
 import config from 'config';
 import isUUID from 'is-uuid';
 
-import {
-  defineInstanceMethods,
-  defineModel,
-  defineStaticMethods,
-} from 'rev-dal/lib/create-model';
+import { defineInstanceMethods, defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
 import debug from '../util/debug.ts';
 import passwordResetTokenManifest, {
   type PasswordResetTokenInstance,

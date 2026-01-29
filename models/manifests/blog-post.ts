@@ -44,8 +44,11 @@ export type BlogPostRelations = { creator?: BlogPostCreator };
 export type BlogPostInstanceMethodsMap = {
   populateUserInfo(user: UserAccessContext | null | undefined): void;
 };
-export type BlogPostInstance =
-  ManifestInstance<typeof blogPostManifest, BlogPostInstanceMethodsMap> & BlogPostRelations;
+export type BlogPostInstance = ManifestInstance<
+  typeof blogPostManifest,
+  BlogPostInstanceMethodsMap
+> &
+  BlogPostRelations;
 
 export type BlogPostStaticMethodsMap = {
   getWithCreator(id: string): Promise<BlogPostInstance | null>;

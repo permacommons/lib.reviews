@@ -37,8 +37,11 @@ const inviteLinkManifest = {
 export type InviteLinkRelations = { usedByUser?: UserView };
 
 export type InviteLinkInstanceMethodsMap = Record<never, never>;
-export type InviteLinkInstance =
-  ManifestInstance<typeof inviteLinkManifest, InviteLinkInstanceMethodsMap> & InviteLinkRelations;
+export type InviteLinkInstance = ManifestInstance<
+  typeof inviteLinkManifest,
+  InviteLinkInstanceMethodsMap
+> &
+  InviteLinkRelations;
 
 export type InviteLinkStaticMethodsMap = {
   getAvailable(user: { id?: string }): Promise<InviteLinkInstance[]>;

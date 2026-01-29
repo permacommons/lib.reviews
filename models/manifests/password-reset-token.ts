@@ -39,8 +39,10 @@ export type PasswordResetTokenInstanceMethodsMap = {
   markAsUsed(): Promise<void>;
   getUser(): Promise<UserInstance | null>;
 };
-export type PasswordResetTokenInstance =
-  ManifestInstance<typeof passwordResetTokenManifest, PasswordResetTokenInstanceMethodsMap> &
+export type PasswordResetTokenInstance = ManifestInstance<
+  typeof passwordResetTokenManifest,
+  PasswordResetTokenInstanceMethodsMap
+> &
   PasswordResetTokenRelations;
 
 export type PasswordResetTokenStaticMethodsMap = {

@@ -1,18 +1,13 @@
-import type {
-  AdapterLookupData,
-  AdapterLookupResult,
-} from '../../adapters/abstract-backend-adapter.ts';
 import dal from 'rev-dal';
 import type { ManifestBundle, ManifestInstance } from 'rev-dal/lib/create-model';
 import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import { referenceModel } from 'rev-dal/lib/model-handle';
-import type {
-  InferData,
-  InferInstance,
-  InferVirtual,
-  ModelManifest,
-} from 'rev-dal/lib/model-manifest';
+import type { InferInstance, ModelManifest } from 'rev-dal/lib/model-manifest';
 import type { ModelInstance } from 'rev-dal/lib/model-types';
+import type {
+  AdapterLookupData,
+  AdapterLookupResult,
+} from '../../adapters/abstract-backend-adapter.ts';
 import languages from '../../locales/languages.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
@@ -216,8 +211,6 @@ const thingManifest = {
 
 export type ThingRelations = { reviews?: ReviewInstance[]; files?: FileInstance[] };
 
-type ThingData = InferData<typeof thingManifest.schema>;
-type ThingVirtual = InferVirtual<typeof thingManifest.schema>;
 type ThingInstanceBase = InferInstance<typeof thingManifest> & ThingRelations;
 
 export type ThingInstanceMethodsMap = {
@@ -241,8 +234,8 @@ export type ThingInstanceMethodsMap = {
   ): Promise<ThingInstanceBase & ThingInstanceMethodsMap>;
 };
 
-export type ThingInstance =
-  ManifestInstance<typeof thingManifest, ThingInstanceMethodsMap> & ThingRelations;
+export type ThingInstance = ManifestInstance<typeof thingManifest, ThingInstanceMethodsMap> &
+  ThingRelations;
 
 export type ThingStaticMethodsMap = {
   lookupByURL(

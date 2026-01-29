@@ -240,11 +240,7 @@ export type UserStaticMethods = StaticMethodsFrom<
 >;
 
 type UserExtraStatics = { options: typeof userOptions };
-export type UserModel = ManifestModel<
-  typeof userManifest,
-  UserStaticMethods,
-  UserInstanceMethods
-> &
+export type UserModel = ManifestModel<typeof userManifest, UserStaticMethods, UserInstanceMethods> &
   UserExtraStatics;
 
 /**

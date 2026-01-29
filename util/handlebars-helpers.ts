@@ -5,10 +5,10 @@ import type { HelperOptions } from 'handlebars';
 import hbs from 'hbs';
 import i18n from 'i18n';
 import linkifyHTML from 'linkify-html';
-import stripTags from 'striptags';
-import adapters from '../adapters/adapters.ts';
 // Internal dependencies
 import mlString, { type MultilingualString } from 'rev-dal/lib/ml-string';
+import stripTags from 'striptags';
+import adapters from '../adapters/adapters.ts';
 import type { LocaleCodeWithUndetermined } from '../locales/languages.ts';
 import languages from '../locales/languages.ts';
 import type { ThingInstance } from '../models/manifests/thing.ts';

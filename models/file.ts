@@ -1,8 +1,4 @@
-import {
-  defineInstanceMethods,
-  defineModel,
-  defineStaticMethods,
-} from 'rev-dal/lib/create-model';
+import { defineInstanceMethods, defineModel, defineStaticMethods } from 'rev-dal/lib/create-model';
 import fileManifest, {
   type FileFeedOptions,
   type FileFeedResult,

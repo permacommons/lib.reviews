@@ -72,8 +72,10 @@ export type AccountRequestRelations = {
 };
 
 export type AccountRequestInstanceMethodsMap = Record<never, never>;
-export type AccountRequestInstance =
-  ManifestInstance<typeof accountRequestManifest, AccountRequestInstanceMethodsMap> &
+export type AccountRequestInstance = ManifestInstance<
+  typeof accountRequestManifest,
+  AccountRequestInstanceMethodsMap
+> &
   AccountRequestRelations;
 
 export type AccountRequestStaticMethodsMap = {

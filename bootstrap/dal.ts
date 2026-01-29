@@ -26,8 +26,8 @@ import '../models/thing.ts';
 import '../models/thing-slug.ts';
 import '../models/user.ts';
 import '../models/user-meta.ts';
-import debug from '../util/debug.ts';
 import languages from '../locales/languages.ts';
+import debug from '../util/debug.ts';
 
 type ModelInitializer = (dal: DataAccessLayer) => Promise<void>;
 

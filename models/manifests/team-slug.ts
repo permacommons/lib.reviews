@@ -26,10 +26,7 @@ const teamSlugManifest = {
 type TeamSlugInstanceMethodsMap = {
   qualifiedSave(): Promise<TeamSlugInstanceBase>;
 };
-type TeamSlugInstanceBase = ManifestInstance<
-  typeof teamSlugManifest,
-  TeamSlugInstanceMethodsMap
->;
+type TeamSlugInstanceBase = ManifestInstance<typeof teamSlugManifest, TeamSlugInstanceMethodsMap>;
 type TeamSlugStaticMethodsMap = {
   getByName(name: string): Promise<TeamSlugInstanceBase | null>;
 };

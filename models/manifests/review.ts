@@ -131,8 +131,8 @@ export type ReviewInstanceMethodsMap = {
   populateUserInfo(user: UserAccessContext | null | undefined): void;
   deleteAllRevisionsWithThing(user: RevisionActor): Promise<[unknown, unknown]>;
 };
-export type ReviewInstance =
-  ManifestInstance<typeof reviewManifest, ReviewInstanceMethodsMap> & ReviewRelations;
+export type ReviewInstance = ManifestInstance<typeof reviewManifest, ReviewInstanceMethodsMap> &
+  ReviewRelations;
 
 export type ReviewStaticMethodsMap = {
   getWithData(id: string): Promise<ReviewInstance | null>;
