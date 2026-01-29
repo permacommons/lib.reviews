@@ -205,6 +205,7 @@
 	"review title too long": "Der Rezensionstitel ist zu lang.",
 	"invalid language code": "Der Sprachcode '%s' ist ungültig oder wurde nicht erkannt.",
 	"html in text field": "Die eingereichten Inhalte enthalten HTML-Tags, die in diesem Feld nicht erlaubt sind. Bitte entfernen Sie alle HTML-Formatierungen.",
+	"text too long": "Der eingegebene Text ist zu lang für dieses Feld. Bitte kürze ihn.",
 	"feed": "Neueste Rezensionen",
 	"one or multiple stars": {
 		"one": "%f Stern",
