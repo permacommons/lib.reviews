@@ -77,10 +77,13 @@ jobs:
           psql -h localhost -U postgres -c "CREATE DATABASE libreviews OWNER libreviews_user;"
           psql -h localhost -U postgres -c "CREATE DATABASE libreviews_test OWNER libreviews_user;"
 
-          psql -h localhost -U postgres -f dal/setup-db-grants.sql
-
       - name: Install dependencies
         run: npm ci
+
+      - name: Apply DAL database grants
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -f node_modules/rev-dal/setup-db-grants.sql
 
       - name: Type check
         run: npm run typecheck:ci
@@ -93,4 +96,3 @@ jobs:
 
       - name: Run tests
         run: npm run test
-
