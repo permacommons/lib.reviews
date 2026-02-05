@@ -1,6 +1,7 @@
 {
 	"@metadata": {
 		"authors": [
+			"Bachounda",
 			"FiberAhmed",
 			"McDutchie",
 			"Meno25",
@@ -141,7 +142,7 @@
 	"thing not found": "لم نجد شيئا بالعنوان المحدد '%s'. ربما تم حذفه؟",
 	"file not found title": "لم يتم العثور على الملف",
 	"file not found": "لم نعثر على ملف به المعرف المحدد، %s; ربما تم حذفه؟",
-	"review not found title": "لم يتم العثور على المراجعة",
+	"review not found title": "المراجعة غير موجودة",
 	"review not found": "لم نجد مراجعة بالعنوان المحدد '%s'. ربما تم حذفه؟",
 	"enter label": "أدخل عنوانا مختصرا",
 	"enter thing description": "أدخل وصفا موجزا",
