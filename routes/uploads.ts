@@ -499,7 +499,7 @@ async function validateSVG(filePath: string): Promise<string> {
       userMessage: 'unrecognized file type',
       userMessageParams: [''],
     });
-  const data = await readFile(filePath);
+  const data = await readFile(filePath, 'utf8');
   if (isSVG(data)) return 'image/svg+xml';
   else
     throw new ReportedError({
