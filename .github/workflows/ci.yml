@@ -83,7 +83,13 @@ jobs:
       - name: Apply DAL database grants
         env:
           PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -f node_modules/rev-dal/setup-db-grants.sql
+        run: >-
+          psql -h localhost -U postgres
+          -v app_db=libreviews
+          -v app_user=libreviews_user
+          -v test_db=libreviews_test
+          -v test_user=libreviews_user
+          -f node_modules/rev-dal/setup-db-grants.sql
 
       - name: Type check
         run: npm run typecheck:ci
