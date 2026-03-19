@@ -29,6 +29,8 @@
 	"request account": "계정 요청",
 	"request account button": "계정 요청",
 	"reject request": "요청 거절",
+	"account request notification subject": "새 계정 요청 - lib.reviews",
+	"account request notification greeting": "안녕하세요,",
 	"account request notification field email": "이메일:",
 	"account request notification field languages": "언어:",
 	"no account yet": "아직 계정이 없나요? <a href='/register'>가입</a>은 빠르고 쉽습니다.",
