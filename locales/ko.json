@@ -12,6 +12,7 @@
 	"site name": "lib.reviews",
 	"welcome": "환영합니다!",
 	"intro lead": "<b>lib.reviews에 오신 것을 환영합니다!</b> 어떤 언어로든 모든 것을 검토할 수 있는 자유롭고 열려 있으며 비영리적인 플랫폼을 구축하고 있습니다.",
+	"find us on": "우리의 활동은 <a href='https://github.com/permacommons/lib.reviews'>GitHub</a>와 IRC(<b>#lib.reviews</b> on <a href='https://libera.chat/'>libera.chat</a>) 채팅에서도 확인할 수 있습니다.",
 	"change language": "다음으로 전환:",
 	"change language button": "언어 변경",
 	"sign in": "로그인",
@@ -24,6 +25,7 @@
 	"hide password": "비밀번호 숨기기",
 	"enter password": "비밀번호 입력",
 	"forgot password": "비밀번호 잊음",
+	"forgot password intro": "당신의 이메일 주소를 입력하세요.",
 	"reset password": "비밀번호 재설정",
 	"new password": "새 비밀번호",
 	"request account": "계정 요청",
@@ -262,6 +264,7 @@
 	"reviews tag label": "검토 사이트",
 	"opendata tag label": "개방형 데이터",
 	"shops tag label": "온라인 스토어",
+	"github source label": "GitHub",
 	"imdb source label": "IMDb",
 	"amazon source label": "아마존",
 	"openstreetmap source label": "오픈스트리트맵",
@@ -304,5 +307,9 @@
 	"source data licensing": "소스 데이터 라이선스:",
 	"additional review settings": "추가 설정",
 	"social media image": "소셜 미디어 이미지(링크 미리 보기용)",
-	"invalid image selected": "유효하지 않은 소셜 미디어 이미지가 선택되었습니다."
+	"invalid image selected": "유효하지 않은 소셜 미디어 이미지가 선택되었습니다.",
+	"theme label": "테마:",
+	"theme light": "라이트",
+	"theme dark": "다크",
+	"theme system": "시스템"
 }
