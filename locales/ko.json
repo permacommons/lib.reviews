@@ -4,6 +4,7 @@
 			"Jerrykim306",
 			"McDutchie",
 			"Revi",
+			"Tensama0415",
 			"YeBoy371",
 			"Ykhwong",
 			"아라"
@@ -31,6 +32,8 @@
 	"request account": "계정 요청",
 	"request account button": "계정 요청",
 	"reject request": "요청 거절",
+	"approved": "승인됨",
+	"rejected": "거부됨",
 	"account request notification subject": "새 계정 요청 - lib.reviews",
 	"account request notification greeting": "안녕하세요,",
 	"account request notification field email": "이메일:",
