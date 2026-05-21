@@ -104,7 +104,7 @@
 	"enter thing description": "간략한 설명을 입력하세요",
 	"save": "저장",
 	"cancel": "취소",
-	"permission error": "이 동작을 수행할 권한이 없습니다.",
+	"permission error": "이 작업을 수행할 권한이 없습니다.",
 	"permanent link": "고유 링크",
 	"something went wrong": "여기서 무언가 잘못되었습니다.",
 	"error details": "보고서에 다음 내용을 포함해 주십시오:",
