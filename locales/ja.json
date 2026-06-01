@@ -11,6 +11,7 @@
 			"Phantomize",
 			"Saurmandal",
 			"Shirayuki",
+			"Tensama0415",
 			"かしわのはみん",
 			"ネイ"
 		]
@@ -123,7 +124,7 @@
 	"need captcha-answer": "機械的なスパムを避けるために質問に答えてください。",
 	"incorrect captcha answer": "すみません、正しい答えではありません。",
 	"invalid url": "URLが正しくないようです。プロトコルの接頭辞（通常はhttp:// か https://）は推測できませんのでご注意ください。",
-	"more info": "その他のレビューとお知らせ",
+	"more info": "詳細情報",
 	"add label": "ラベルをここに追加",
 	"add description": "説明を追加",
 	"edit": "編集",
@@ -344,7 +345,7 @@
 	"upload needs creator": "ファイル '%s' には作成者についての情報が必要です。",
 	"upload needs source": "ファイル '%s' には情報源についての情報が必要です。",
 	"upload needs license": "ファイル '%s' にはライセンスについての情報が必要です。",
-	"teams to associate": "あなたのレビューを関連付けるチーム（省略可能）",
+	"teams to associate": "あなたのレビューを関連付けるチーム",
 	"not member of any teams yet": "あなたはまだどのチームにも参加していません。チームに入ればあなたの興味に合致するレビューアとつながることができ、読者があなたのレビューを見つける手助けをしてくれるでしょう。<a href='/teams' target='_blank'>チームに参加または自分で始める</a>。",
 	"submitted team could not be found": "あなたがレビューに追加しようとしているチーム向けの関連記録が見つかりません。削除されたもののようです。",
 	"user is not member of submitted team": "あなたは登録したチームのメンバーではないようです。最近退会しましたか？",
