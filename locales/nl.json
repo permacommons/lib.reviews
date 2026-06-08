@@ -46,7 +46,7 @@
 	"new password": "Nieuw wachtwoord",
 	"enter new password": "Voer hieronder uw nieuwe wachtwoord in. Wachtwoorden moeten minimaal 6 tekens lang zijn.",
 	"invalid reset token": "Deze koppeling voor het opnieuw instellen van uw wachtwoord is incorrect of verlopen. Koppelingen voor het opnieuw instellen van uw wachtwoord zijn 3 uur geldig en kunnen slechts één keer worden gebruikt. <a href='/forgot-password'>Vraag een nieuwe koppeling aan voor het opnieuw instellen van uw wachtwoord</a>.",
-	"password reset success": "Uw wachtwoord is succesvol opnieuw ingesteld. U bent nu aangemeld.",
+	"password reset success": "Uw wachtwoord is opnieuw ingesteld. U bent nu aangemeld.",
 	"password reset email subject": "Verzoek om wachtwoordherstel - lib.reviews",
 	"password reset email greeting": "Hallo,",
 	"password reset email intro": "U (of iemand anders) heeft een verzoek ingediend om het wachtwoord van uw <a href=\"https://lib.reviews\">lib.reviews-</a> account opnieuw in te stellen.",
