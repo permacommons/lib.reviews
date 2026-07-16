@@ -75,7 +75,7 @@
     "markdown-it": "^14.2.0",
     "markdown-it-container": "^4.0.0",
     "markdown-it-html5-media": "^0.8.0",
-    "morgan": "^1.10.1",
+    "morgan": "^1.11.0",
     "multer": "^2.2.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
