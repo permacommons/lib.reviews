@@ -6,6 +6,7 @@
 			"Nike",
 			"Nortix",
 			"Robby",
+			"Toliño",
 			"Verdy p"
 		]
 	},
@@ -296,7 +297,7 @@
 	"edit bio": "Button for editing a user bio on the user page",
 	"user registration date": "Label for registration date that is shown on the user page",
 	"moderation tools": "Label for moderation tools section that is shown on the user page for site moderators viewing their own page",
-	"user teams": "Label for user's team memberships taht is shown on the user page",
+	"user teams": "Label for user's team memberships that is shown on the user page",
 	"no teams yet": "Text that is shown when a given user is not a member of any teams yet",
 	"max characters": "Text that is shown below the bio field on user page when editing bio, indicating maximum length of the field",
 	"remaining characters": "Text that is shown indicating number of characters user still can add to bio in bio field on user page, %s is substituted with number",
