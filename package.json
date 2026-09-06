@@ -40,7 +40,7 @@
     "@fortawesome/fontawesome-free": "^7.1.0",
     "@picocss/pico": "^2.1.1",
     "bcrypt": "^6.0.0",
-    "body-parser": "^2.2.1",
+    "body-parser": "^2.3.0",
     "cldr-localenames-full": "^29.0.0",
     "compression": "^1.8.1",
     "config": "^4.1.1",
