@@ -329,7 +329,7 @@ class BlogPostProvider extends AbstractBREADProvider {
                 this.req.flash('pageMessages', this.req.__('edit saved'));
                 this.res.redirect(`/team/${team.urlID}/post/${newRev.id}`);
               })
-              .catch(this.next);
+              .catch(this.getResourceErrorHandler('post', this.postID));
           })
           .catch(this.next);
       })

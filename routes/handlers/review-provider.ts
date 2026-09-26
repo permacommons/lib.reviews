@@ -1,6 +1,7 @@
 // External dependencies
 import config from 'config';
 import escapeHTML from 'escape-html';
+import { RevisionConflictError } from 'rev-dal/lib/errors';
 import mlString, { type MultilingualString } from 'rev-dal/lib/ml-string';
 import { z } from 'zod';
 import languages from '../../locales/languages.ts';
@@ -650,6 +651,12 @@ class ReviewProvider extends AbstractBREADProvider {
       await this.add_GET(formValues, review.thing);
     };
 
+    const handleSaveError = async (error: unknown) => {
+      if (error instanceof RevisionConflictError)
+        return this.getResourceErrorHandler('review', String(this.id))(error);
+      await abort(error);
+    };
+
     this.resolveTeamData(formValues)
       .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
       .then((uploadedFiles: FileInstance[]) => {
@@ -696,7 +703,7 @@ class ReviewProvider extends AbstractBREADProvider {
                 this.req.flash('pageMessages', this.req.__('edit saved'));
                 this.res.redirect(`/review/${newRev.id}`);
               })
-              .catch(abort);
+              .catch(handleSaveError);
           })
           .catch(abort);
       })

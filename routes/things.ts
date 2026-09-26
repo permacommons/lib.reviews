@@ -2,6 +2,7 @@ import * as url from 'node:url';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import { Router } from 'express';
+import { RevisionConflictError } from 'rev-dal/lib/errors';
 import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import { z } from 'zod';
 import languages from '../locales/languages.ts';
@@ -151,7 +152,10 @@ router.post(
           thing.populateUserInfo(req.user);
           if (!thing.userCanEdit) return render.permissionError(req, res, { titleKey });
 
-          processThingURLsUpdate({ req, res, thing, titleKey });
+          processThingURLsUpdate(
+            { req, res, thing, titleKey },
+            getResourceErrorHandler(req, res, next, 'thing', id)
+          );
         })
         .catch(getResourceErrorHandler(req, res, next, 'thing', id));
     }
@@ -498,6 +502,8 @@ function processTextFieldUpdate(
         else maybeUpdateSlug = Promise.resolve(revision); // Nothing to do
 
         const handleSaveError = (error: unknown) => {
+          if (error instanceof RevisionConflictError)
+            return getResourceErrorHandler(req, res, next, 'thing', id)(error);
           req.flashError?.(error);
           const formValues = { [field]: text };
           sendForm(req, res, thing, { [field]: true }, titleKey, formValues);
@@ -659,8 +665,12 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
   );
 }
 
-// Handle data from a POST request for the "manage URLs" route
-function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
+// Handle data from a POST request for the "manage URLs" route. Edit conflicts
+// are passed to the resource error handler.
+function processThingURLsUpdate(
+  paramsObj: ThingURLsFormParams,
+  handleResourceError: (error: unknown) => void
+) {
   const { req, res, titleKey, thing } = paramsObj;
   const { schema, primaryField, urlsField } = buildThingURLsSchema(req);
   const parseResult = schema.safeParse(req.body);
@@ -743,6 +753,7 @@ function processThingURLsUpdate(paramsObj: ThingURLsFormParams) {
             sendThingURLsForm({ req, res, titleKey, thing: revision });
           })
           .catch(error => {
+            if (error instanceof RevisionConflictError) return handleResourceError(error);
             // Problem with syncs
             req.flashError?.(error);
             sendThingURLsForm({ req, res, titleKey, thing, formValues });

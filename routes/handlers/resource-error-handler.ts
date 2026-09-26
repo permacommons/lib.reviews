@@ -7,8 +7,8 @@ type ResourceError = {
   message?: string;
 };
 
-// Generic handler for 404s, missing revisions or old revisions (when we don't
-// want them!).
+// Generic handler for 404s, missing revisions, old revisions (when we don't
+// want them!) and edit conflicts.
 export default function getResourceErrorHandler(
   req: HandlerRequest,
   res: HandlerResponse,
@@ -54,6 +54,14 @@ export default function getResourceErrorHandler(
         render.resourceError(req, res, {
           titleKey: 'stale revision error title',
           bodyKey: 'stale revision error',
+          bodyParam: escapedBodyParam,
+        });
+        break;
+      case 'RevisionConflictError':
+        res.status(409);
+        render.resourceError(req, res, {
+          titleKey: 'edit conflict error title',
+          bodyKey: 'edit conflict error',
           bodyParam: escapedBodyParam,
         });
         break;
