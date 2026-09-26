@@ -357,6 +357,7 @@
     "stale revision error": "The provided address points to an outdated version that can no longer be modified.",
     "edit conflict error title": "Edit conflict",
     "edit conflict error": "Someone else changed this page while you were editing it, so your changes were not saved. Please reload the page and make your edit again.",
+    "edit conflict notice": "Someone else changed this while you were editing it, so your changes have not been saved yet. Compare them with the <a href='%s' target='_blank'>current version</a>. If you save again, your changes will replace theirs.",
     "team has been deleted": "The team has been deleted. It's still accessible to administrators, but it may be permanently removed as part of routine maintenance.",
     "browse teams": "Browse teams",
     "new blog post": "Write a new blog post",

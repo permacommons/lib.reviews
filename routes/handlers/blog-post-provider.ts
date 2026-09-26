@@ -13,6 +13,12 @@ import type { TeamInstance } from '../../models/manifests/team.ts';
 // Internal dependencies
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
+import {
+  flashEditConflict,
+  getSubmittedRevID,
+  hasEditConflict,
+  revIDField,
+} from '../helpers/edit-conflicts.ts';
 import feeds from '../helpers/feeds.ts';
 import slugs from '../helpers/slugs.ts';
 import {
@@ -53,6 +59,7 @@ const buildBlogPostSchema = (req: HandlerRequest, language: string, formKey: str
         .pipe(zodForms.createMultilingualMarkdownField(language, renderLocale)),
       'post-language': z.string().trim().min(1, req.__('need post-language')),
       'post-action': z.string().trim().min(1, req.__('need post-action')),
+      'rev-id': revIDField,
     })
     .strict();
 };
@@ -96,12 +103,20 @@ const extractBlogPostFormValues = (
   };
 };
 
+// Values an edit in the given language may overwrite
+const selectEditedPostValues = (post: BlogPostInstance, language: string) => [
+  post.title?.[language],
+  post.text?.[language],
+];
+
 class BlogPostProvider extends AbstractBREADProvider {
   protected declare language?: LocaleCodeWithUndetermined;
   protected declare utcISODate?: string;
   protected declare postID: string;
   protected isPreview = false;
   protected editing = false;
+  // Revision the edit form is based on
+  protected revID?: string;
 
   constructor(
     req: HandlerRequest,
@@ -241,6 +256,7 @@ class BlogPostProvider extends AbstractBREADProvider {
         team,
         isPreview: this.isPreview,
         editing: this.editing,
+        revID: this.revID,
         scripts: ['editor'],
       },
       {
@@ -258,6 +274,7 @@ class BlogPostProvider extends AbstractBREADProvider {
         if (!this.userCanEditPost(blogPost)) return false;
 
         this.editing = true;
+        this.revID = blogPost._revID;
         this.add_GET(team, blogPost);
       })
       .catch(this.getResourceErrorHandler('post', this.postID));
@@ -265,11 +282,12 @@ class BlogPostProvider extends AbstractBREADProvider {
 
   async edit_POST(team: TeamInstance): Promise<void> {
     BlogPostModel.getWithCreator(this.postID)
-      .then(blogPost => {
+      .then(async blogPost => {
         if (!blogPost) return this.handleMissingResource('post', this.postID);
         if (!this.userCanEditPost(blogPost)) return false;
 
         this.editing = true;
+        this.revID = getSubmittedRevID(this.req.body);
 
         const formKey = 'edit-post';
         const languageBodyValue = this.req.body?.['post-language'];
@@ -314,6 +332,16 @@ class BlogPostProvider extends AbstractBREADProvider {
 
         if (this.isPreview || this.req.flashHas?.('pageErrors'))
           return this.add_GET(team, formValues);
+
+        const conflict = await hasEditConflict(BlogPostModel, blogPost, this.revID, rev =>
+          selectEditedPostValues(rev, language)
+        );
+        if (conflict) {
+          this.revID = blogPost._revID;
+          flashEditConflict(this.req, `/team/${team.urlID}/post/${blogPost.id}`);
+          this.res.status(409);
+          return this.add_GET(team, formValues);
+        }
 
         blogPost
           .newRevision(this.req.user, {

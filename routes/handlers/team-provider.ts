@@ -13,6 +13,12 @@ import Team from '../../models/team.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import debug from '../../util/debug.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
+import {
+  flashEditConflict,
+  getSubmittedRevID,
+  hasEditConflict,
+  revIDField,
+} from '../helpers/edit-conflicts.ts';
 import feeds from '../helpers/feeds.ts';
 import slugs from '../helpers/slugs.ts';
 import {
@@ -75,6 +81,7 @@ const buildTeamSchema = (req: HandlerRequest, language: string, formKey: string)
         .optional(),
       'team-language': z.string().trim().min(1, req.__('need team-language')),
       'team-action': z.string().trim().min(1, req.__('need team-action')),
+      'rev-id': revIDField,
     })
     .strict();
 };
@@ -124,9 +131,21 @@ const extractTeamFormValues = (
   };
 };
 
+// Values an edit in the given language may overwrite
+const selectEditedTeamValues = (team: TeamInstance, language: string) => [
+  team.name?.[language],
+  team.motto?.[language],
+  team.description?.text?.[language],
+  team.rules?.text?.[language],
+  team.onlyModsCanBlog,
+  team.modApprovalToJoin,
+];
+
 class TeamProvider extends AbstractBREADProvider {
   protected isPreview = false;
   protected editing = false;
+  // Revision the edit form is based on
+  protected revID?: string;
   protected declare format?: string;
   protected declare language?: string;
 
@@ -342,6 +361,7 @@ class TeamProvider extends AbstractBREADProvider {
         pageErrors: this.isPreview ? undefined : pageErrors,
         formValues,
         isPreview: this.isPreview,
+        revID: this.revID,
         scripts: ['editor'],
       },
       {
@@ -377,7 +397,9 @@ class TeamProvider extends AbstractBREADProvider {
     });
   }
 
+  // Also re-renders the form from edit_POST, which sets revID itself
   edit_GET(team: TeamInstance | TeamFormValues): void {
+    if (this.method === 'GET') this.revID = (team as TeamInstance)._revID;
     this.add_GET(team as TeamFormValues);
   }
 
@@ -554,7 +576,7 @@ class TeamProvider extends AbstractBREADProvider {
     }
   }
 
-  edit_POST(team: TeamInstance): void {
+  async edit_POST(team: TeamInstance): Promise<void> {
     const formKey = 'edit-team';
     const languageValue = this.req.body?.['team-language'];
     const language: string =
@@ -562,6 +584,7 @@ class TeamProvider extends AbstractBREADProvider {
     const teamAction =
       typeof this.req.body?.['team-action'] === 'string' ? this.req.body['team-action'] : undefined;
     this.isPreview = teamAction === 'preview';
+    this.revID = getSubmittedRevID(this.req.body);
 
     validateLanguage(this.req, language);
 
@@ -584,6 +607,21 @@ class TeamProvider extends AbstractBREADProvider {
 
     const currentUser = this.req.user;
     if (!currentUser) return this.renderSigninRequired();
+
+    let conflict: boolean;
+    try {
+      conflict = await hasEditConflict(Team, team, this.revID, rev =>
+        selectEditedTeamValues(rev, language)
+      );
+    } catch (error) {
+      return this.next(error);
+    }
+    if (conflict) {
+      this.revID = team._revID;
+      flashEditConflict(this.req, `/team/${team.urlID}`);
+      this.res.status(409);
+      return this.edit_GET(formValues);
+    }
 
     team
       .newRevision(currentUser, {

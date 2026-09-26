@@ -40,6 +40,8 @@
 </div>
 <form id="review-form" name="review-form" method="post" data-submit-uploaded-files>
   <input type="hidden" value="{{csrfToken}}" name="_csrf" id="review-token" data-ignore-autosave>
+  {{! Not data-ignore-autosave: a draft must keep the revision it is based on}}
+  {{#if revID}}<input type="hidden" value="{{revID}}" name="rev-id" id="review-rev-id">{{/if}}
     <fieldset>
         {{#if thing}}
         <div class="review-subject-info">

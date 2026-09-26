@@ -8,6 +8,7 @@
 {{/each}}
 <form method="post" action="">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
+{{#if revID}}<input type="hidden" value="{{revID}}" name="rev-id">{{/if}}
 <input type="hidden" name="thing-language" value="{{currentLanguage.langKey}}">
 
 {{#if edit.label}}

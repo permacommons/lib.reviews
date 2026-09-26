@@ -25,6 +25,12 @@ import getMessages from '../../util/get-messages.ts';
 import md, { getMarkdownMessageKeys } from '../../util/md.ts';
 import ReportedError from '../../util/reported-error.ts';
 import urlUtils from '../../util/url-utils.ts';
+import {
+  flashEditConflict,
+  getSubmittedRevID,
+  hasEditConflict,
+  revIDField,
+} from '../helpers/edit-conflicts.ts';
 import slugs from '../helpers/slugs.ts';
 import {
   flashZodIssues,
@@ -216,6 +222,7 @@ const buildReviewSchema = (
       teams: teamsField,
       files: filesField,
       'review-social-image': socialImageField,
+      'rev-id': revIDField,
     })
     .strict();
 
@@ -311,9 +318,19 @@ const extractReviewFormValues = (
   return formValues;
 };
 
+// Values an edit in the given language may overwrite
+const selectEditedReviewValues = (review: ReviewInstance, language: string) => [
+  review.title?.[language],
+  review.text?.[language],
+  review.starRating,
+  review.socialImageID,
+];
+
 class ReviewProvider extends AbstractBREADProvider {
   protected isPreview = false;
   protected editing = false;
+  // Revision the edit form is based on
+  protected revID?: string;
 
   constructor(
     req: HandlerRequest,
@@ -430,6 +447,7 @@ class ReviewProvider extends AbstractBREADProvider {
         pageMessages,
         thing,
         editing: !!this.editing,
+        revID: this.revID,
       },
       {
         editing: !!this.editing,
@@ -596,6 +614,7 @@ class ReviewProvider extends AbstractBREADProvider {
 
   async edit_GET(review: ReviewInstance): Promise<void> {
     this.editing = true;
+    this.revID = review._revID;
     await this.add_GET(review, review.thing);
   }
 
@@ -608,6 +627,7 @@ class ReviewProvider extends AbstractBREADProvider {
         ? (this.req.body['review-action'] as 'publish' | 'preview')
         : undefined;
     this.isPreview = reviewActionRaw === 'preview';
+    this.revID = getSubmittedRevID(this.req.body);
     validateLanguage(this.req, language);
     const { schema, fields } = buildReviewSchema(this.req, language, {
       requireURL: false,
@@ -659,7 +679,7 @@ class ReviewProvider extends AbstractBREADProvider {
 
     this.resolveTeamData(formValues)
       .then(() => File.getMultipleNotStaleOrDeleted(formValues.files))
-      .then((uploadedFiles: FileInstance[]) => {
+      .then(async (uploadedFiles: FileInstance[]) => {
         formValues.uploads = review.thing.files
           ? uploadedFiles.concat(review.thing.files)
           : uploadedFiles;
@@ -667,6 +687,16 @@ class ReviewProvider extends AbstractBREADProvider {
         // As with creation, back to edit form if we have errors or
         // are previewing
         if (this.isPreview || this.req.flashHas?.('pageErrors')) return abort();
+
+        const conflict = await hasEditConflict(Review, review, this.revID, rev =>
+          selectEditedReviewValues(rev, language)
+        );
+        if (conflict) {
+          this.revID = review._revID;
+          flashEditConflict(this.req, `/review/${review.id}`);
+          this.res.status(409);
+          return abort();
+        }
 
         // Save the edit
         review

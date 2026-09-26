@@ -2,12 +2,19 @@ import escapeHTML from 'escape-html';
 import { RevisionConflictError } from 'rev-dal/lib/errors';
 import type { MultilingualRichText } from 'rev-dal/lib/ml-string';
 import type { TeamInstance } from '../../models/manifests/team.ts';
+import type { UserInstance } from '../../models/manifests/user.ts';
 import type { UserMetaInstance } from '../../models/manifests/user-meta.ts';
 import Review from '../../models/review.ts';
 import User from '../../models/user.ts';
+import UserMeta from '../../models/user-meta.ts';
 import type { HandlerNext, HandlerRequest, HandlerResponse } from '../../types/http/handlers.ts';
 import frontendMessages from '../../util/frontend-messages.ts';
 import md from '../../util/md.ts';
+import {
+  flashEditConflict,
+  getSubmittedRevID,
+  hasEditConflict,
+} from '../helpers/edit-conflicts.ts';
 import feeds from '../helpers/feeds.ts';
 import render from '../helpers/render.ts';
 import getResourceErrorHandler from './resource-error-handler.ts';
@@ -47,6 +54,24 @@ const userHandlers = {
         res.redirect(`/user/${user.urlName}`);
       } else {
         const meta = user.meta as UserMetaInstance;
+        const conflict = await hasEditConflict(
+          UserMeta,
+          meta,
+          getSubmittedRevID(req.body),
+          rev => (rev.bio as MultilingualRichText | undefined)?.text?.[bioLanguage]
+        );
+        if (conflict) {
+          const pageUser = await User.findByURLName(name, { withData: true, withTeams: true });
+          pageUser.populateUserInfo(req.user);
+          flashEditConflict(req, `/user/${user.urlName}`);
+          res.status(409);
+          return await userHandlers.sendUserPage(req, res, pageUser, {
+            editBio: true,
+            bioForm: { text: bio },
+            bioRevID: meta._revID,
+          });
+        }
+
         const metaRev = await meta.newRevision(req.user, {
           tags: ['update-bio-via-user'],
         });
@@ -93,89 +118,101 @@ const userHandlers = {
 
         if (decodeURIComponent(user.urlName) !== name) return res.redirect(`/user/${user.urlName}`);
 
-        const result = await Review.getFeed({
-          createdBy: user.id,
-          limit: 3,
-          withThing: true,
-          withTeams: true,
+        await userHandlers.sendUserPage(req, res, user, {
+          editBio: options.editBio,
+          bioRevID: options.editBio ? user.meta?._revID : undefined,
         });
-
-        let feedItems = result.feedItems;
-        let offsetDate = result.offsetDate;
-
-        for (let item of feedItems) {
-          item.populateUserInfo(req.user);
-          if (item.thing) {
-            item.thing.populateUserInfo(req.user);
-          }
-
-          // Compute isLongReview flag for collapsible pattern
-          const htmlContent = item.html?.[item.originalLanguage || 'en'] || '';
-          item.isLongReview = htmlContent.length > 500;
-        }
-
-        let edit = {
-          bio: options.editBio,
-        };
-
-        let loadEditor = options.editBio;
-
-        // For easy lookup in template
-        const modOf: Record<string, boolean> = {};
-        (user.moderatorOf as TeamInstance[] | undefined)?.forEach(t => (modOf[t.id] = true));
-
-        const founderOf: Record<string, boolean> = {};
-        (user.teams as TeamInstance[] | undefined)?.forEach(t => {
-          if (t.createdBy && t.createdBy == user.id) founderOf[t.id] = true;
-        });
-
-        let pageErrors = req.flash('pageErrors');
-        let pageMessages = req.flash('pageMessages');
-
-        let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
-          atomURLPrefix: `/user/${user.urlName}/feed/atom`,
-          atomURLTitleKey: 'atom feed of reviews by this user',
-        });
-
-        let paginationURL;
-        if (offsetDate)
-          paginationURL = `/user/${user.urlName}/feed/before/${offsetDate.toISOString()}`;
-
-        const isOwnPage = req.user?.id === user.id;
-
-        render.template(
-          req,
-          res,
-          'user',
-          {
-            titleKey: 'user',
-            titleParam: user.displayName,
-            deferPageHeader: true, // two-col layout
-            userInfo: user,
-            isOwnPage,
-            feedItems,
-            edit,
-            scripts: loadEditor ? ['user', 'editor'] : ['user'],
-            pageErrors,
-            pageMessages,
-            teams: user.teams,
-            modOf,
-            founderOf,
-            paginationURL,
-            embeddedFeeds,
-          },
-          {
-            messages: loadEditor
-              ? frontendMessages.getEditorMessages(
-                  typeof req.locale === 'string' ? req.locale : 'en'
-                )
-              : {},
-          }
-        );
       } catch (error) {
         return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
       }
     };
+  },
+
+  // Render a user's page, optionally with the bio form
+  async sendUserPage(
+    req: HandlerRequest,
+    res: HandlerResponse,
+    user: UserInstance,
+    options: { editBio: boolean; bioForm?: { text: string }; bioRevID?: string }
+  ) {
+    const result = await Review.getFeed({
+      createdBy: user.id,
+      limit: 3,
+      withThing: true,
+      withTeams: true,
+    });
+
+    let feedItems = result.feedItems;
+    let offsetDate = result.offsetDate;
+
+    for (let item of feedItems) {
+      item.populateUserInfo(req.user);
+      if (item.thing) {
+        item.thing.populateUserInfo(req.user);
+      }
+
+      // Compute isLongReview flag for collapsible pattern
+      const htmlContent = item.html?.[item.originalLanguage || 'en'] || '';
+      item.isLongReview = htmlContent.length > 500;
+    }
+
+    let edit = {
+      bio: options.editBio,
+    };
+
+    let loadEditor = options.editBio;
+
+    // For easy lookup in template
+    const modOf: Record<string, boolean> = {};
+    (user.moderatorOf as TeamInstance[] | undefined)?.forEach(t => (modOf[t.id] = true));
+
+    const founderOf: Record<string, boolean> = {};
+    (user.teams as TeamInstance[] | undefined)?.forEach(t => {
+      if (t.createdBy && t.createdBy == user.id) founderOf[t.id] = true;
+    });
+
+    let pageErrors = req.flash('pageErrors');
+    let pageMessages = req.flash('pageMessages');
+
+    let embeddedFeeds = feeds.getEmbeddedFeeds(req, {
+      atomURLPrefix: `/user/${user.urlName}/feed/atom`,
+      atomURLTitleKey: 'atom feed of reviews by this user',
+    });
+
+    let paginationURL;
+    if (offsetDate) paginationURL = `/user/${user.urlName}/feed/before/${offsetDate.toISOString()}`;
+
+    const isOwnPage = req.user?.id === user.id;
+
+    render.template(
+      req,
+      res,
+      'user',
+      {
+        titleKey: 'user',
+        titleParam: user.displayName,
+        deferPageHeader: true, // two-col layout
+        userInfo: user,
+        isOwnPage,
+        feedItems,
+        edit,
+        scripts: loadEditor ? ['user', 'editor'] : ['user'],
+        pageErrors,
+        pageMessages,
+        teams: user.teams,
+        modOf,
+        founderOf,
+        paginationURL,
+        embeddedFeeds,
+        bioForm: options.bioForm,
+        bioRevID: options.bioRevID,
+      },
+      {
+        messages: loadEditor
+          ? frontendMessages.getEditorMessages(typeof req.locale === 'string' ? req.locale : 'en')
+          : {},
+      }
+    );
   },
 
   getUserFeedHandler(options) {

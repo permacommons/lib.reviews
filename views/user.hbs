@@ -38,10 +38,11 @@
 {{/if}}
 {{else}}
 <form id="bio-form" name="bio-form" action="" method="post">
-<textarea id="bio-textarea" data-markdown name="bio-text">{{mlSafeText userInfo.meta.bio.text false}}</textarea>
+<textarea id="bio-textarea" data-markdown name="bio-text">{{#if bioForm}}{{bioForm.text}}{{else}}{{mlSafeText userInfo.meta.bio.text false}}{{/if}}</textarea>
 {{>editor_switcher}}
 <input type="hidden" value="{{currentLanguage.langKey}}" name="bio-language">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
+{{#if bioRevID}}<input type="hidden" value="{{bioRevID}}" name="rev-id">{{/if}}
 <div id="character-caption">
 {{{__ "max characters"}}}
 <span id="character-counter" class="nojs-hidden">{{{__ "remaining characters" "<span id='character-count'></span>"}}}</span>
