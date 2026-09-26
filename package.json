@@ -152,7 +152,9 @@
     "files": [
       "tests/[0-9]*-*.ts"
     ],
-    "extensions": ["ts"],
+    "extensions": [
+      "ts"
+    ],
     "nodeArguments": [
       "--import",
       "tsx/esm"
