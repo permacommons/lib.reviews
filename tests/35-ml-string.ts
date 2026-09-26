@@ -1,6 +1,6 @@
 import test from 'ava';
 
-import { QueryError, ValidationError } from 'rev-dal/lib/errors';
+import { ValidationError } from 'rev-dal/lib/errors';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
 
@@ -55,11 +55,10 @@ test.serial('Integration: Review model rejects HTML in title field', async t => 
   review.originalLanguage = 'en';
 
   const error = await t.throwsAsync(async () => await review.save(), {
-    instanceOf: QueryError,
+    instanceOf: ValidationError,
   });
 
   t.regex(error?.message ?? '', /contains HTML tags/);
-  t.true(error?.originalError instanceof ValidationError);
 });
 
 test.serial('Integration: Review model accepts HTML in html field', async t => {
@@ -97,11 +96,10 @@ test.serial('Integration: Team model rejects HTML in name field', async t => {
   team.createdBy = creator.id;
 
   const error = await t.throwsAsync(async () => await team.save(), {
-    instanceOf: QueryError,
+    instanceOf: ValidationError,
   });
 
   t.regex(error?.message ?? '', /contains HTML tags/);
-  t.true(error?.originalError instanceof ValidationError);
 });
 
 test.serial('Integration: Team model accepts HTML in description.html', async t => {
@@ -131,9 +129,8 @@ test.serial('Integration: Thing model rejects HTML in label field', async t => {
   thing.createdBy = creator.id;
 
   const error = await t.throwsAsync(async () => await thing.save(), {
-    instanceOf: QueryError,
+    instanceOf: ValidationError,
   });
 
   t.regex(error?.message ?? '', /contains HTML tags/);
-  t.true(error?.originalError instanceof ValidationError);
 });

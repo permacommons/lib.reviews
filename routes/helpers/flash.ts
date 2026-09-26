@@ -24,7 +24,6 @@ export default function flashMiddleware(req: Request, _res: Response, next: Next
     }
 
     // Convert validation errors to user-friendly messages.
-    // These may be ValidationError or QueryError (when ValidationError gets wrapped during save)
     if (error instanceof Error) {
       if (error.message?.includes('contains HTML tags')) {
         req.flash('pageErrors', req.__('html in text field'));

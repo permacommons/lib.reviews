@@ -627,7 +627,7 @@ class TeamProvider extends AbstractBREADProvider {
             updatedRev
               .save()
               .then(savedRev => this.res.redirect(`/team/${savedRev.urlID}`))
-              .catch(this.next);
+              .catch(this.getResourceErrorHandler('team', String(this.id)));
           })
           // Slug update failed
           .catch(error => {
