@@ -1,4 +1,5 @@
 import escapeHTML from 'escape-html';
+import { RevisionConflictError } from 'rev-dal/lib/errors';
 import type { MultilingualRichText } from 'rev-dal/lib/ml-string';
 import type { TeamInstance } from '../../models/manifests/team.ts';
 import type { UserMetaInstance } from '../../models/manifests/user-meta.ts';
@@ -9,6 +10,7 @@ import frontendMessages from '../../util/frontend-messages.ts';
 import md from '../../util/md.ts';
 import feeds from '../helpers/feeds.ts';
 import render from '../helpers/render.ts';
+import getResourceErrorHandler from './resource-error-handler.ts';
 import reviewHandlers from './review-handlers.ts';
 
 const userHandlers = {
@@ -63,6 +65,8 @@ const userHandlers = {
         res.redirect(`/user/${user.urlName}`);
       }
     } catch (error) {
+      if (error instanceof RevisionConflictError)
+        return getResourceErrorHandler(req, res, next, 'user', name)(error);
       return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
     }
   },
