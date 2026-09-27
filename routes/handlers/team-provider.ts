@@ -137,8 +137,9 @@ const selectEditedTeamValues = (team: TeamInstance, language: string) => [
   team.motto?.[language],
   team.description?.text?.[language],
   team.rules?.text?.[language],
-  team.onlyModsCanBlog,
-  team.modApprovalToJoin,
+  // Unchecked boxes may be stored as false or null
+  Boolean(team.onlyModsCanBlog),
+  Boolean(team.modApprovalToJoin),
 ];
 
 class TeamProvider extends AbstractBREADProvider {
