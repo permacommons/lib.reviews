@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import test from 'ava';
 import config from 'config';
 import { promises as fs } from 'fs';
 import isUUID from 'is-uuid';
 import supertest from 'supertest';
+import { setupAdapterApiMocks, teardownAdapterApiMocks } from './helpers/adapter-api-mocks.ts';
 import { extractCSRF, registerTestUser } from './helpers/integration-helpers.ts';
 import { mockSearch, unmockSearch } from './helpers/mock-search.ts';
 import { setupPostgresTest } from './helpers/setup-postgres-test.ts';
@@ -18,15 +20,17 @@ const { dalFixture, bootstrapPromise } = setupPostgresTest(test, {
     'review_teams',
     'team_moderators',
     'team_members',
+    'blog_posts',
     'reviews',
     'teams',
     'things',
     'files',
     'users',
+    'user_metas',
   ],
 });
 
-let User, Team, TeamJoinRequest, Review;
+let User, Team, TeamJoinRequest, Review, Thing, BlogPost, UserMeta;
 let app;
 
 test.before(async () => {
@@ -38,12 +42,18 @@ test.before(async () => {
     { key: 'team_slugs', alias: 'TeamSlug' },
     { key: 'team_join_requests', alias: 'TeamJoinRequest' },
     { key: 'reviews', alias: 'Review' },
+    { key: 'things', alias: 'Thing' },
+    { key: 'blog_posts', alias: 'BlogPost' },
+    { key: 'user_metas', alias: 'UserMeta' },
   ]);
 
   User = models.User;
   Team = models.Team;
   TeamJoinRequest = models.TeamJoinRequest;
   Review = models.Review;
+  Thing = models.Thing;
+  BlogPost = models.BlogPost;
+  UserMeta = models.UserMeta;
 
   await fs.mkdir(config.uploadTempDir, { recursive: true });
 
@@ -559,6 +569,390 @@ test.serial('We can create a review with team associations', async t => {
 
   t.pass();
 });
+
+const signInTrustedUser = async () => {
+  const agent = supertest.agent(app);
+  const username = `HistoryEditor-${randomUUID().slice(0, 8)}`;
+  await registerTestUser(agent, { username, password: 'password123' });
+  const user = await User.findByURLName(username);
+  user.isTrusted = true;
+  await user.save();
+  return { agent, user };
+};
+
+// Open a form as a browser would, following slug redirects, and submit it
+const submitForm = async (agent, path: string, fields: Record<string, unknown>) => {
+  const formResponse = await agent.get(path).redirects(5).expect(200);
+  const lastRedirect = formResponse.redirects.at(-1);
+  const formPath = lastRedirect ? new URL(lastRedirect).pathname : path;
+  const revID = formResponse.text.match(/<input type="hidden" value="([^"]*)" name="rev-id"/)?.[1];
+  return agent
+    .post(formPath)
+    .type('form')
+    .send({
+      _csrf: extractCSRF(formResponse.text),
+      ...(revID ? { 'rev-id': revID } : {}),
+      ...fields,
+    });
+};
+
+const expectRedirect = response => {
+  if (response.status !== 302)
+    throw new Error(`Expected a redirect, got ${response.status} for ${response.req?.path}`);
+};
+
+const createThing = async (data: Record<string, unknown>) => {
+  const { actor } = await dalFixture.createTestUser('Thing Creator');
+  const thing = await Thing.createFirstRevision(actor, { tags: ['create'] });
+  thing.urls = [`https://example.com/${randomUUID()}`];
+  thing.label = { en: 'Original label', de: 'Ursprünglicher Name' };
+  thing.metadata = {
+    description: { en: 'Original description', de: 'Ursprüngliche Beschreibung' },
+  };
+  thing.originalLanguage = 'en';
+  thing.createdOn = new Date();
+  thing.createdBy = actor.id;
+  Object.assign(thing, data);
+  await thing.save();
+  return thing;
+};
+
+const createTeamViaForm = async agent => {
+  const response = await submitForm(agent, '/new/team', {
+    'team-name': `Team ${randomUUID().slice(0, 8)}`,
+    'team-motto': 'Original motto',
+    'team-description': 'Original description',
+    'team-rules': 'Original rules',
+    'team-language': 'en',
+    'team-action': 'publish',
+  });
+  expectRedirect(response);
+  return response.headers.location as string;
+};
+
+interface RevisionHistoryCase {
+  name: string;
+  successStatus: number;
+  // Uses the Open Library adapter, whose API is mocked during the edit
+  mockAdapters?: boolean;
+  // Creates the document, with English and German values where the fields are
+  // multilingual, and returns its model, ID and edit form URL
+  setup(agent, user): Promise<{ Model; id: string; editURL: string }>;
+  // Fields submitted with the edit
+  submission: Record<string, unknown>;
+  // Values the edit changes; a RegExp matches rendered HTML
+  changed: Array<{ field: string; read(doc): unknown; value: unknown }>;
+  // Values the edit must leave alone
+  unchanged: Array<{ field: string; read(doc): unknown }>;
+}
+
+const revisionHistoryCases: RevisionHistoryCase[] = [
+  {
+    name: 'review',
+    successStatus: 302,
+    async setup(agent) {
+      const createResponse = await submitForm(agent, '/new/review', {
+        'review-url': `https://example.com/${randomUUID()}`,
+        'review-title': 'Original title',
+        'review-text': 'Original text',
+        'review-rating': '3',
+        'review-language': 'en',
+        'review-action': 'publish',
+      });
+      expectRedirect(createResponse);
+      const thingResponse = await agent.get(createResponse.headers.location).expect(200);
+      const match = thingResponse.text.match(/<a href="\/review\/(.*?)\/edit"/);
+      if (!match) throw new Error('Could not find review edit link');
+      const editURL = `/review/${match[1]}/edit`;
+      expectRedirect(
+        await submitForm(agent, editURL, {
+          'review-title': 'Ursprünglicher Titel',
+          'review-text': 'Ursprünglicher Text',
+          'review-rating': '3',
+          'review-language': 'de',
+          'review-action': 'publish',
+        })
+      );
+      return { Model: Review, id: match[1], editURL };
+    },
+    submission: {
+      'review-title': 'Edited title',
+      'review-text': 'Edited text',
+      'review-rating': '3',
+      'review-language': 'en',
+      'review-action': 'publish',
+    },
+    changed: [
+      { field: 'title.en', read: doc => doc.title.en, value: 'Edited title' },
+      { field: 'text.en', read: doc => doc.text.en, value: 'Edited text' },
+      { field: 'html.en', read: doc => doc.html.en, value: /<p>Edited text<\/p>/ },
+    ],
+    unchanged: [
+      { field: 'title.de', read: doc => doc.title.de },
+      { field: 'text.de', read: doc => doc.text.de },
+      { field: 'html.de', read: doc => doc.html.de },
+      { field: 'starRating', read: doc => doc.starRating },
+    ],
+  },
+  {
+    name: 'blog post',
+    successStatus: 302,
+    async setup(agent) {
+      const teamURL = await createTeamViaForm(agent);
+      const createResponse = await submitForm(agent, `${teamURL}/new/post`, {
+        'post-title': 'Original post title',
+        'post-text': 'Original post text',
+        'post-language': 'en',
+        'post-action': 'publish',
+      });
+      expectRedirect(createResponse);
+      const postURL = createResponse.headers.location as string;
+      const editURL = `${postURL}/edit`;
+      expectRedirect(
+        await submitForm(agent, editURL, {
+          'post-title': 'Ursprünglicher Beitragstitel',
+          'post-text': 'Ursprünglicher Beitragstext',
+          'post-language': 'de',
+          'post-action': 'publish',
+        })
+      );
+      return { Model: BlogPost, id: postURL.split('/').pop() as string, editURL };
+    },
+    submission: {
+      'post-title': 'Edited post title',
+      'post-text': 'Edited post text',
+      'post-language': 'en',
+      'post-action': 'publish',
+    },
+    changed: [
+      { field: 'title.en', read: doc => doc.title.en, value: 'Edited post title' },
+      { field: 'text.en', read: doc => doc.text.en, value: 'Edited post text' },
+      { field: 'html.en', read: doc => doc.html.en, value: /<p>Edited post text<\/p>/ },
+    ],
+    unchanged: [
+      { field: 'title.de', read: doc => doc.title.de },
+      { field: 'text.de', read: doc => doc.text.de },
+      { field: 'html.de', read: doc => doc.html.de },
+      { field: 'teamID', read: doc => doc.teamID },
+    ],
+  },
+  {
+    name: 'team',
+    successStatus: 302,
+    async setup(agent, user) {
+      const teamURL = await createTeamViaForm(agent);
+      const editURL = `${teamURL}/edit`;
+      expectRedirect(
+        await submitForm(agent, editURL, {
+          'team-name': 'Ursprüngliches Team',
+          'team-motto': 'Ursprüngliches Motto',
+          'team-description': 'Ursprüngliche Beschreibung',
+          'team-rules': 'Ursprüngliche Regeln',
+          'team-language': 'de',
+          'team-action': 'publish',
+        })
+      );
+      const team = await Team.filterWhere({ createdBy: user.id }).first();
+      return { Model: Team, id: team.id, editURL };
+    },
+    submission: {
+      'team-name': `Edited team ${randomUUID().slice(0, 8)}`,
+      'team-motto': 'Edited motto',
+      'team-description': 'Edited description',
+      'team-rules': 'Edited rules',
+      'team-language': 'en',
+      'team-action': 'publish',
+    },
+    changed: [
+      { field: 'name.en', read: doc => doc.name.en, value: /^Edited team / },
+      { field: 'motto.en', read: doc => doc.motto.en, value: 'Edited motto' },
+      {
+        field: 'description.text.en',
+        read: doc => doc.description.text.en,
+        value: 'Edited description',
+      },
+      {
+        field: 'description.html.en',
+        read: doc => doc.description.html.en,
+        value: /<p>Edited description<\/p>/,
+      },
+      { field: 'rules.text.en', read: doc => doc.rules.text.en, value: 'Edited rules' },
+      { field: 'rules.html.en', read: doc => doc.rules.html.en, value: /<p>Edited rules<\/p>/ },
+    ],
+    unchanged: [
+      { field: 'name.de', read: doc => doc.name.de },
+      { field: 'motto.de', read: doc => doc.motto.de },
+      { field: 'description.text.de', read: doc => doc.description.text.de },
+      { field: 'description.html.de', read: doc => doc.description.html.de },
+      { field: 'rules.text.de', read: doc => doc.rules.text.de },
+      { field: 'rules.html.de', read: doc => doc.rules.html.de },
+    ],
+  },
+  {
+    name: 'thing label',
+    successStatus: 302,
+    async setup() {
+      const thing = await createThing({});
+      return { Model: Thing, id: thing.id, editURL: `/${thing.id}/edit/label` };
+    },
+    submission: { 'thing-label': 'Edited label', 'thing-language': 'en' },
+    changed: [{ field: 'label.en', read: doc => doc.label.en, value: 'Edited label' }],
+    unchanged: [
+      { field: 'label.de', read: doc => doc.label.de },
+      { field: 'metadata.description.en', read: doc => doc.metadata.description.en },
+    ],
+  },
+  {
+    name: 'thing description',
+    successStatus: 302,
+    async setup() {
+      const thing = await createThing({});
+      return { Model: Thing, id: thing.id, editURL: `/${thing.id}/edit/description` };
+    },
+    submission: { 'thing-description': 'Edited description', 'thing-language': 'en' },
+    changed: [
+      {
+        field: 'metadata.description.en',
+        read: doc => doc.metadata.description.en,
+        value: 'Edited description',
+      },
+    ],
+    unchanged: [
+      { field: 'metadata.description.de', read: doc => doc.metadata.description.de },
+      { field: 'label.en', read: doc => doc.label.en },
+    ],
+  },
+  {
+    // Subtitle and authors have no edit form; they are written by adapter
+    // syncs when a thing's URLs are changed
+    name: 'thing subtitle and authors (Open Library sync)',
+    successStatus: 200,
+    mockAdapters: true,
+    async setup() {
+      const thing = await createThing({
+        metadata: {
+          description: { en: 'Original description' },
+          subtitle: { en: 'Original subtitle' },
+          authors: [{ en: 'Original author' }],
+        },
+      });
+      return { Model: Thing, id: thing.id, editURL: `/${thing.id}/manage/urls` };
+    },
+    submission: { primary: '0', 'urls[]': ['https://openlibrary.org/books/OL25087046M'] },
+    changed: [
+      {
+        field: 'metadata.subtitle',
+        read: doc => doc.metadata.subtitle,
+        value: { en: 'Making Sense of Stories' },
+      },
+      {
+        field: 'metadata.authors',
+        read: doc => doc.metadata.authors,
+        value: [{ und: 'Mock Author' }],
+      },
+      {
+        field: 'label.en',
+        read: doc => doc.label.en,
+        value: 'The Storytelling Animal (Edition)',
+      },
+    ],
+    unchanged: [
+      { field: 'metadata.description.en', read: doc => doc.metadata.description.en },
+      { field: 'originalLanguage', read: doc => doc.originalLanguage },
+    ],
+  },
+  {
+    name: 'thing URLs',
+    successStatus: 200,
+    async setup() {
+      const thing = await createThing({
+        sync: { description: { active: true, source: 'wikidata' } },
+      });
+      return { Model: Thing, id: thing.id, editURL: `/${thing.id}/manage/urls` };
+    },
+    submission: { primary: '0', 'urls[]': ['https://example.org/edited-link'] },
+    changed: [
+      { field: 'urls', read: doc => doc.urls, value: ['https://example.org/edited-link'] },
+      {
+        field: 'sync.description.active',
+        read: doc => doc.sync.description.active,
+        value: false,
+      },
+    ],
+    unchanged: [
+      { field: 'sync.description.source', read: doc => doc.sync.description.source },
+      { field: 'label.en', read: doc => doc.label.en },
+    ],
+  },
+  {
+    name: 'user bio',
+    successStatus: 302,
+    async setup(agent, user) {
+      const editURL = `/user/${user.urlName}/edit/bio`;
+      expectRedirect(
+        await submitForm(agent, editURL, { 'bio-text': 'Original bio', 'bio-language': 'en' })
+      );
+      expectRedirect(
+        await submitForm(agent, editURL, {
+          'bio-text': 'Ursprüngliche Biografie',
+          'bio-language': 'de',
+        })
+      );
+      const userWithMeta = await User.findByURLName(user.urlName, { withData: true });
+      return { Model: UserMeta, id: userWithMeta.meta.id, editURL };
+    },
+    submission: { 'bio-text': 'Edited bio', 'bio-language': 'en' },
+    changed: [
+      { field: 'bio.text.en', read: doc => doc.bio.text.en, value: 'Edited bio' },
+      { field: 'bio.html.en', read: doc => doc.bio.html.en, value: /<p>Edited bio<\/p>/ },
+    ],
+    unchanged: [
+      { field: 'bio.text.de', read: doc => doc.bio.text.de },
+      { field: 'bio.html.de', read: doc => doc.bio.html.de },
+    ],
+  },
+];
+
+for (const historyCase of revisionHistoryCases) {
+  test.serial(`${historyCase.name}: an edit leaves the archived revision intact`, async t => {
+    const { agent, user } = await signInTrustedUser();
+    const { Model, id, editURL } = await historyCase.setup(agent, user);
+
+    const before = await Model.get(id);
+    const oldRevID = before._revID;
+    const oldValues = historyCase.changed.map(({ read }) => read(before));
+    const untouchedValues = historyCase.unchanged.map(({ read }) => read(before));
+    for (const [index, { field }] of historyCase.unchanged.entries())
+      t.not(untouchedValues[index], undefined, `${field} is set before the edit`);
+
+    if (historyCase.mockAdapters) setupAdapterApiMocks();
+    try {
+      const response = await submitForm(agent, editURL, historyCase.submission);
+      t.is(response.status, historyCase.successStatus);
+    } finally {
+      if (historyCase.mockAdapters) teardownAdapterApiMocks();
+    }
+
+    const current = await Model.get(id);
+    const archived = await Model.filterWhere({}).getRevisionByRevId(oldRevID, id).first();
+    t.not(current._revID, oldRevID, 'the edit created a new revision');
+    t.truthy(archived, 'the previous revision can be loaded');
+    t.is(archived._revID, oldRevID);
+
+    for (const [index, { field, read, value }] of historyCase.changed.entries()) {
+      const newValue = read(current);
+      if (value instanceof RegExp) t.regex(String(newValue), value, `current ${field}`);
+      else t.deepEqual(newValue, value, `current ${field}`);
+      t.notDeepEqual(oldValues[index], newValue, `${field} was changed by the edit`);
+      t.deepEqual(read(archived), oldValues[index], `archived ${field} keeps the old value`);
+    }
+
+    for (const [index, { field, read }] of historyCase.unchanged.entries()) {
+      t.deepEqual(read(current), untouchedValues[index], `current ${field} is untouched`);
+      t.deepEqual(read(archived), untouchedValues[index], `archived ${field} is untouched`);
+    }
+  });
+}
 
 test.after.always(async () => {
   unmockSearch();

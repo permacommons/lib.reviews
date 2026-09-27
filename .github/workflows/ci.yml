@@ -100,5 +100,8 @@ jobs:
       - name: Create a deployment build
         run: npm run build:deploy
 
+      - name: Smoke test production startup
+        run: npm run smoke:start
+
       - name: Run tests
         run: npm run test
