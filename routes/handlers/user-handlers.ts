@@ -17,7 +17,6 @@ import {
 } from '../helpers/edit-conflicts.ts';
 import feeds from '../helpers/feeds.ts';
 import render from '../helpers/render.ts';
-import getResourceErrorHandler from './resource-error-handler.ts';
 import reviewHandlers from './review-handlers.ts';
 
 const userHandlers = {
@@ -54,23 +53,27 @@ const userHandlers = {
         res.redirect(`/user/${user.urlName}`);
       } else {
         const meta = user.meta as UserMetaInstance;
+
+        // Show the bio form again, based on the current version of the bio
+        const showConflict = async () => {
+          const pageUser = await User.findByURLName(name, { withData: true, withTeams: true });
+          pageUser.populateUserInfo(req.user);
+          flashEditConflict(req, `/user/${pageUser.urlName}`);
+          res.status(409);
+          await userHandlers.sendUserPage(req, res, pageUser, {
+            editBio: true,
+            bioForm: { text: bio },
+            bioRevID: (pageUser.meta as UserMetaInstance | undefined)?._revID,
+          });
+        };
+
         const conflict = await hasEditConflict(
           UserMeta,
           meta,
           getSubmittedRevID(req.body),
           rev => (rev.bio as MultilingualRichText | undefined)?.text?.[bioLanguage]
         );
-        if (conflict) {
-          const pageUser = await User.findByURLName(name, { withData: true, withTeams: true });
-          pageUser.populateUserInfo(req.user);
-          flashEditConflict(req, `/user/${user.urlName}`);
-          res.status(409);
-          return await userHandlers.sendUserPage(req, res, pageUser, {
-            editBio: true,
-            bioForm: { text: bio },
-            bioRevID: meta._revID,
-          });
-        }
+        if (conflict) return await showConflict();
 
         const metaRev = await meta.newRevision(req.user, {
           tags: ['update-bio-via-user'],
@@ -85,13 +88,17 @@ const userHandlers = {
         bioData.html[bioLanguage] = md.render(bio, { language: req.locale });
         metaRev.bio = bioData;
 
-        await metaRev.save();
+        try {
+          await metaRev.save();
+        } catch (error) {
+          // Another save landed between the conflict check and this one
+          if (error instanceof RevisionConflictError) return await showConflict();
+          throw error;
+        }
         req.flash('pageMessages', req.__('edit saved'));
         res.redirect(`/user/${user.urlName}`);
       }
     } catch (error) {
-      if (error instanceof RevisionConflictError)
-        return getResourceErrorHandler(req, res, next, 'user', name)(error);
       return userHandlers.getUserNotFoundHandler(req, res, next, name)(error);
     }
   },

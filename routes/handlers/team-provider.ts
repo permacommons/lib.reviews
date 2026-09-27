@@ -3,6 +3,7 @@ import url from 'node:url';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import i18n from 'i18n';
+import { RevisionConflictError } from 'rev-dal/lib/errors';
 import mlString, { type MultilingualString } from 'rev-dal/lib/ml-string';
 import { z } from 'zod';
 import BlogPost from '../../models/blog-post.ts';
@@ -617,12 +618,14 @@ class TeamProvider extends AbstractBREADProvider {
     } catch (error) {
       return this.next(error);
     }
-    if (conflict) {
-      this.revID = team._revID;
-      flashEditConflict(this.req, `/team/${team.urlID}`);
+    // Show the form again, based on the given current version of the team
+    const showConflict = (current: TeamInstance) => {
+      this.revID = current._revID;
+      flashEditConflict(this.req, `/team/${current.urlID}`);
       this.res.status(409);
-      return this.edit_GET(formValues);
-    }
+      this.edit_GET(formValues);
+    };
+    if (conflict) return showConflict(team);
 
     team
       .newRevision(currentUser, {
@@ -666,7 +669,12 @@ class TeamProvider extends AbstractBREADProvider {
             updatedRev
               .save()
               .then(savedRev => this.res.redirect(`/team/${savedRev.urlID}`))
-              .catch(this.getResourceErrorHandler('team', String(this.id)));
+              .catch(error => {
+                // Another save landed between the conflict check and this one
+                if (error instanceof RevisionConflictError)
+                  return Team.get(team.id).then(showConflict, this.next);
+                this.getResourceErrorHandler('team', String(this.id))(error);
+              });
           })
           // Slug update failed
           .catch(error => {

@@ -690,9 +690,19 @@ class ReviewProvider extends AbstractBREADProvider {
       await this.add_GET(formValues, review.thing);
     };
 
+    // Show the form again, based on the given current version of the review
+    const showConflict = async (current: ReviewInstance) => {
+      this.revID = current._revID;
+      this.teamIDs = getTeamIDs(current);
+      flashEditConflict(this.req, `/review/${current.id}`);
+      this.res.status(409);
+      await abort();
+    };
+
     const handleSaveError = async (error: unknown) => {
+      // Another save landed between the conflict check and this one
       if (error instanceof RevisionConflictError)
-        return this.getResourceErrorHandler('review', String(this.id))(error);
+        return Review.getWithData(review.id).then(showConflict, abort);
       await abort(error);
     };
 
@@ -717,13 +727,7 @@ class ReviewProvider extends AbstractBREADProvider {
           (await hasEditConflict(Review, review, this.revID, rev =>
             selectEditedReviewValues(rev, language)
           ));
-        if (conflict) {
-          this.revID = review._revID;
-          this.teamIDs = currentTeamIDs;
-          flashEditConflict(this.req, `/review/${review.id}`);
-          this.res.status(409);
-          return abort();
-        }
+        if (conflict) return showConflict(review);
 
         // Save the edit
         review

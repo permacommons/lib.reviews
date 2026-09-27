@@ -473,6 +473,50 @@ for (const formCase of editFormCases) {
   });
 }
 
+// Make the next newRevision() call for this document first save another
+// revision, so the save that follows fails with RevisionConflictError as if
+// another request had saved in between. Returns a function that undoes this.
+const raceNextSave = async (Model, id: string) => {
+  const prototype = Object.getPrototypeOf(await Model.get(id));
+  const ownMethod = Object.hasOwn(prototype, 'newRevision');
+  const originalMethod = prototype.newRevision;
+  const restore = () => {
+    if (ownMethod) prototype.newRevision = originalMethod;
+    else delete prototype.newRevision;
+  };
+  prototype.newRevision = async function (...args) {
+    if (this.id === id) {
+      restore();
+      const { actor } = await dalFixture.createTestUser('Racing Editor');
+      const other = await Model.get(id);
+      await other.newRevision(actor, { tags: ['test-race'] });
+      await other.save();
+    }
+    return originalMethod.apply(this, args);
+  };
+  return restore;
+};
+
+for (const formCase of editFormCases) {
+  test.serial(`${formCase.name}: a save racing the conflict check shows the form`, async t => {
+    const { Model, id, revID, submit } = await openEditForm(formCase);
+    const restore = await raceNextSave(Model, id);
+    try {
+      const response = await submit({ 'rev-id': revID });
+
+      t.is(response.status, 409);
+      t.regex(response.text, CONFLICT_NOTICE);
+      t.regex(response.text, formCase.submissionPattern, "user's input is preserved");
+      const stored = await Model.get(id);
+      t.not(stored._revID, revID, 'the racing save went through');
+      t.is(extractRevID(response.text), stored._revID, 'form is based on the racing save');
+      t.notDeepEqual(formCase.readEditedValue(stored), formCase.userValue, 'nothing was saved');
+    } finally {
+      restore();
+    }
+  });
+}
+
 const [reviewCase] = editFormCases;
 
 test.serial('review: unknown or malformed revision IDs are treated as conflicts', async t => {

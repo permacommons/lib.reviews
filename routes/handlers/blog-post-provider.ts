@@ -3,6 +3,7 @@
 import { resolve as resolveURL } from 'node:url';
 import config from 'config';
 import i18n from 'i18n';
+import { RevisionConflictError } from 'rev-dal/lib/errors';
 import type { MultilingualString } from 'rev-dal/lib/ml-string';
 import { z } from 'zod';
 import type { LocaleCodeWithUndetermined } from '../../locales/languages.ts';
@@ -336,12 +337,14 @@ class BlogPostProvider extends AbstractBREADProvider {
         const conflict = await hasEditConflict(BlogPostModel, blogPost, this.revID, rev =>
           selectEditedPostValues(rev, language)
         );
-        if (conflict) {
-          this.revID = blogPost._revID;
-          flashEditConflict(this.req, `/team/${team.urlID}/post/${blogPost.id}`);
+        // Show the form again, based on the given current version of the post
+        const showConflict = (current: BlogPostInstance) => {
+          this.revID = current._revID;
+          flashEditConflict(this.req, `/team/${team.urlID}/post/${current.id}`);
           this.res.status(409);
-          return this.add_GET(team, formValues);
-        }
+          this.add_GET(team, formValues);
+        };
+        if (conflict) return showConflict(blogPost);
 
         blogPost
           .newRevision(this.req.user, {
@@ -357,7 +360,12 @@ class BlogPostProvider extends AbstractBREADProvider {
                 this.req.flash('pageMessages', this.req.__('edit saved'));
                 this.res.redirect(`/team/${team.urlID}/post/${newRev.id}`);
               })
-              .catch(this.getResourceErrorHandler('post', this.postID));
+              .catch(error => {
+                // Another save landed between the conflict check and this one
+                if (error instanceof RevisionConflictError)
+                  return BlogPostModel.get(blogPost.id).then(showConflict, this.next);
+                this.getResourceErrorHandler('post', this.postID)(error);
+              });
           })
           .catch(this.next);
       })

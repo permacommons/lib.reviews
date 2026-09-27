@@ -171,10 +171,7 @@ router.post(
           thing.populateUserInfo(req.user);
           if (!thing.userCanEdit) return render.permissionError(req, res, { titleKey });
 
-          processThingURLsUpdate(
-            { req, res, thing, titleKey },
-            getResourceErrorHandler(req, res, next, 'thing', id)
-          );
+          processThingURLsUpdate({ req, res, thing, titleKey }, next);
         })
         .catch(getResourceErrorHandler(req, res, next, 'thing', id));
     }
@@ -495,22 +492,25 @@ function processTextFieldUpdate(
 
       const text = parseResult.data[`thing-${field}`] as string;
 
-      const conflict = await hasEditConflict(Thing, thing, submittedRevID, rev =>
-        selectThingFieldValue(rev, field, language)
-      );
-      if (conflict) {
-        flashEditConflict(req, `/${thing.urlID}`);
+      // Show the form again, based on the given current version of the thing
+      const showConflict = (current: ThingInstance) => {
+        flashEditConflict(req, `/${current.urlID}`);
         res.status(409);
-        return sendForm(
+        sendForm(
           req,
           res,
-          thing,
+          current,
           { [field]: true },
           titleKey,
           submittedFormValues,
-          thing._revID
+          current._revID
         );
-      }
+      };
+
+      const conflict = await hasEditConflict(Thing, thing, submittedRevID, rev =>
+        selectThingFieldValue(rev, field, language)
+      );
+      if (conflict) return showConflict(thing);
 
       thing.newRevision(req.user).then(revision => {
         // Handle metadata fields (description, subtitle, authors) differently
@@ -548,8 +548,9 @@ function processTextFieldUpdate(
         else maybeUpdateSlug = Promise.resolve(revision); // Nothing to do
 
         const handleSaveError = (error: unknown) => {
+          // Another save landed between the conflict check and this one
           if (error instanceof RevisionConflictError)
-            return getResourceErrorHandler(req, res, next, 'thing', id)(error);
+            return Thing.getWithData(thing.id).then(showConflict, next);
           req.flashError?.(error);
           const formValues = { [field]: text };
           sendForm(req, res, thing, { [field]: true }, titleKey, formValues, submittedRevID);
@@ -714,12 +715,8 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
   );
 }
 
-// Handle data from a POST request for the "manage URLs" route. Edit conflicts
-// are passed to the resource error handler.
-function processThingURLsUpdate(
-  paramsObj: ThingURLsFormParams,
-  handleResourceError: (error: unknown) => void
-) {
+// Handle data from a POST request for the "manage URLs" route
+function processThingURLsUpdate(paramsObj: ThingURLsFormParams, next: HandlerNext) {
   const { req, res, titleKey, thing } = paramsObj;
   const revID = getSubmittedRevID(req.body);
   const { schema, primaryField, urlsField } = buildThingURLsSchema(req);
@@ -790,12 +787,22 @@ function processThingURLsUpdate(
 
       if (hasDuplicate) return sendThingURLsForm({ req, res, titleKey, thing, formValues, revID });
 
-      const conflict = await hasEditConflict(Thing, thing, revID, rev => rev.urls);
-      if (conflict) {
-        flashEditConflict(req, `/${thing.urlID}`);
+      // Show the form again, based on the given current version of the thing
+      const showConflict = (current: ThingInstance) => {
+        flashEditConflict(req, `/${current.urlID}`);
         res.status(409);
-        return sendThingURLsForm({ req, res, titleKey, thing, formValues, revID: thing._revID });
-      }
+        sendThingURLsForm({
+          req,
+          res,
+          titleKey,
+          thing: current,
+          formValues,
+          revID: current._revID,
+        });
+      };
+
+      const conflict = await hasEditConflict(Thing, thing, revID, rev => rev.urls);
+      if (conflict) return showConflict(thing);
 
       // No dupes or conflicts -- continue!
       thing.newRevision(req.user).then(revision => {
@@ -811,7 +818,9 @@ function processThingURLsUpdate(
             sendThingURLsForm({ req, res, titleKey, thing: revision, revID: revision._revID });
           })
           .catch(error => {
-            if (error instanceof RevisionConflictError) return handleResourceError(error);
+            // Another save landed between the conflict check and this one
+            if (error instanceof RevisionConflictError)
+              return Thing.getWithData(thing.id).then(showConflict, next);
             // Problem with syncs
             req.flashError?.(error);
             sendThingURLsForm({ req, res, titleKey, thing, formValues, revID });
