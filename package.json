@@ -14,6 +14,7 @@
     "clean": "rm -rf build",
     "deploy": "npm run build:deploy",
     "start": "NODE_ENV=production node build/server/bin/www.js",
+    "smoke:start": "node scripts/smoke-start.mjs",
     "start-dev": "NODE_ENV=development DEBUG=libreviews:* tsx bin/www.ts",
     "start-dev-yad": "bash bin/dev-with-tray.sh",
     "test": "NODE_ENV=development NODE_APP_INSTANCE=testing tsx tests/run-ava.ts",
