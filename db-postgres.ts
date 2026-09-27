@@ -19,6 +19,7 @@ const PostgresDALFactory = createDataAccessLayer;
 setLanguageProvider(languages);
 setDebugLogger(debug);
 
+// Set only once the DAL is connected and migrations have run
 let postgresDAL: DataAccessLayer | null = null;
 let connectionPromise: Promise<DataAccessLayer> | null = null;
 
@@ -34,13 +35,10 @@ function getPostgresConfig(): PostgresConfig {
 }
 
 /**
- * Initialize PostgreSQL DAL.
+ * Initialize PostgreSQL DAL. Resolves once the DAL is connected and migrations
+ * have run; every caller shares the same attempt.
  */
 export async function initializePostgreSQL(): Promise<DataAccessLayer> {
-  if (postgresDAL) {
-    return postgresDAL;
-  }
-
   if (connectionPromise) {
     return connectionPromise;
   }
@@ -50,15 +48,15 @@ export async function initializePostgreSQL(): Promise<DataAccessLayer> {
       debug.db('Initializing PostgreSQL DAL...');
 
       const dalConfig = getPostgresConfig();
-      postgresDAL = PostgresDALFactory(
+      const dal = PostgresDALFactory(
         dalConfig as Partial<PostgresConfig> & JsonObject
       ) as unknown as DataAccessLayer;
-      await postgresDAL.connect();
+      await dal.connect();
 
       debug.db('PostgreSQL DAL connected successfully');
 
       try {
-        await postgresDAL.migrate();
+        await dal.migrate();
         debug.db('PostgreSQL migrations completed');
       } catch (migrationError) {
         const message =
@@ -66,7 +64,8 @@ export async function initializePostgreSQL(): Promise<DataAccessLayer> {
         debug.db(`PostgreSQL migration error (may be expected if DB already exists): ${message}`);
       }
 
-      return postgresDAL;
+      postgresDAL = dal;
+      return dal;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       debug.error(`Failed to initialize PostgreSQL DAL: ${message}`);
@@ -82,10 +81,7 @@ export async function initializePostgreSQL(): Promise<DataAccessLayer> {
  * Get the PostgreSQL DAL instance (async).
  */
 export async function getPostgresDAL(): Promise<DataAccessLayer> {
-  if (!postgresDAL) {
-    return initializePostgreSQL();
-  }
-  return postgresDAL;
+  return initializePostgreSQL();
 }
 
 /**
@@ -99,13 +95,18 @@ export async function getDB(): Promise<DataAccessLayer> {
  * Gracefully close database connection.
  */
 export async function closeConnection(): Promise<void> {
-  if (!postgresDAL) {
+  if (!connectionPromise) {
     return;
   }
 
   try {
-    await postgresDAL.disconnect();
-    debug.db('PostgreSQL connection closed');
+    // Wait for an attempt that is still in flight; a failed one leaves nothing
+    // to close
+    const dal = await connectionPromise.catch(() => null);
+    if (dal) {
+      await dal.disconnect();
+      debug.db('PostgreSQL connection closed');
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     debug.error(`Error closing PostgreSQL connection: ${message}`);
