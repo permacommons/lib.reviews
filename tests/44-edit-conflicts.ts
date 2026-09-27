@@ -71,15 +71,30 @@ const signInTrustedUser = async () => {
   return { agent, user };
 };
 
-// Save a newer revision as someone else, as if they edited the document
-// while the form was open
-const saveOtherRevision = async (Model, id: string, change: (doc) => void): Promise<string> => {
-  const { actor } = await dalFixture.createTestUser('Other Editor');
-  const doc = await Model.get(id);
-  await doc.newRevision(actor, { tags: ['test-other-edit'] });
-  change(doc);
-  await doc.save();
-  return doc._revID;
+// Current path of a form, following slug redirects as a browser would
+const resolvePath = async (agent, path: string): Promise<string> => {
+  const response = await agent.get(path).redirects(5).expect(200);
+  const lastRedirect = response.redirects.at(-1);
+  return lastRedirect ? new URL(lastRedirect).pathname : path;
+};
+
+// Open a form in a second tab as the same user and submit it, as if the user
+// saved another copy of the form while the first one was still open
+const saveInSecondTab = async (agent, path: string, fields: Record<string, unknown>) => {
+  const formPath = await resolvePath(agent, path);
+  const formResponse = await agent.get(formPath).expect(200);
+  const revTeams = extractRevTeams(formResponse.text);
+  const response = await agent
+    .post(formPath)
+    .type('form')
+    .send({
+      _csrf: extractCSRF(formResponse.text),
+      'rev-id': extractRevID(formResponse.text) ?? undefined,
+      ...(revTeams === null ? {} : { 'rev-teams': revTeams }),
+      ...fields,
+    });
+  if (response.status >= 400 || CONFLICT_NOTICE.test(response.text))
+    throw new Error(`Second tab could not save ${formPath}: ${response.status}`);
 };
 
 const createThing = async (label: string) => {
@@ -125,10 +140,17 @@ interface EditFormCase {
   // Value the user's edit sets, read from the stored document
   readEditedValue(doc): unknown;
   userValue: unknown;
-  // A concurrent edit of the same field and language
-  otherEditSameField: { apply(doc): void; value: unknown };
-  // A concurrent edit that the user's form does not touch
-  otherEditElsewhere: { apply(doc): void; read(doc): unknown; value: unknown };
+  // A concurrent edit of the same field and language, made in a second tab.
+  // Fields are merged into the submission.
+  otherEditSameField: { fields: Record<string, unknown>; value: unknown };
+  // A concurrent edit that the user's form does not touch. With a path, the
+  // fields are submitted to that form instead of being merged.
+  otherEditElsewhere: {
+    path?: (id: string) => string;
+    fields: Record<string, unknown>;
+    read(doc): unknown;
+    value: unknown;
+  };
 }
 
 const editFormCases: EditFormCase[] = [
@@ -166,11 +188,15 @@ const editFormCases: EditFormCase[] = [
     readEditedValue: doc => doc.title.en,
     userValue: 'My edited title',
     otherEditSameField: {
-      apply: doc => (doc.title = { ...doc.title, en: 'Their title' }),
+      fields: { 'review-title': 'Their title' },
       value: 'Their title',
     },
     otherEditElsewhere: {
-      apply: doc => (doc.title = { ...doc.title, de: 'Ihr Titel' }),
+      fields: {
+        'review-title': 'Ihr Titel',
+        'review-text': 'Ihr Text',
+        'review-language': 'de',
+      },
       read: doc => doc.title.de,
       value: 'Ihr Titel',
     },
@@ -187,11 +213,11 @@ const editFormCases: EditFormCase[] = [
     readEditedValue: doc => doc.label.en,
     userValue: 'My label',
     otherEditSameField: {
-      apply: doc => (doc.label = { ...doc.label, en: 'Their label' }),
+      fields: { 'thing-label': 'Their label' },
       value: 'Their label',
     },
     otherEditElsewhere: {
-      apply: doc => (doc.label = { ...doc.label, de: 'Ihr Name' }),
+      fields: { 'thing-label': 'Ihr Name', 'thing-language': 'de' },
       read: doc => doc.label.de,
       value: 'Ihr Name',
     },
@@ -208,19 +234,11 @@ const editFormCases: EditFormCase[] = [
     readEditedValue: doc => doc.metadata.description.en,
     userValue: 'My description',
     otherEditSameField: {
-      apply: doc =>
-        (doc.metadata = {
-          ...doc.metadata,
-          description: { ...doc.metadata.description, en: 'Their description' },
-        }),
+      fields: { 'thing-description': 'Their description' },
       value: 'Their description',
     },
     otherEditElsewhere: {
-      apply: doc =>
-        (doc.metadata = {
-          ...doc.metadata,
-          description: { ...doc.metadata.description, de: 'Ihre Beschreibung' },
-        }),
+      fields: { 'thing-description': 'Ihre Beschreibung', 'thing-language': 'de' },
       read: doc => doc.metadata.description.de,
       value: 'Ihre Beschreibung',
     },
@@ -238,11 +256,12 @@ const editFormCases: EditFormCase[] = [
     readEditedValue: doc => doc.urls[0],
     userValue: 'https://example.org/my-link',
     otherEditSameField: {
-      apply: doc => (doc.urls = ['https://example.org/their-link']),
+      fields: { 'urls[]': ['https://example.org/their-link'] },
       value: 'https://example.org/their-link',
     },
     otherEditElsewhere: {
-      apply: doc => (doc.label = { ...doc.label, en: 'Their label' }),
+      path: id => `/${id}/edit/label`,
+      fields: { 'thing-label': 'Their label', 'thing-language': 'en' },
       read: doc => doc.label.en,
       value: 'Their label',
     },
@@ -267,11 +286,17 @@ const editFormCases: EditFormCase[] = [
     readEditedValue: doc => doc.motto.en,
     userValue: 'My motto',
     otherEditSameField: {
-      apply: doc => (doc.motto = { ...doc.motto, en: 'Their motto' }),
+      fields: { 'team-motto': 'Their motto' },
       value: 'Their motto',
     },
     otherEditElsewhere: {
-      apply: doc => (doc.motto = { ...doc.motto, de: 'Ihr Motto' }),
+      fields: {
+        'team-name': 'Ihr Team',
+        'team-motto': 'Ihr Motto',
+        'team-description': 'Ihre Beschreibung',
+        'team-rules': 'Ihre Regeln',
+        'team-language': 'de',
+      },
       read: doc => doc.motto.de,
       value: 'Ihr Motto',
     },
@@ -307,11 +332,15 @@ const editFormCases: EditFormCase[] = [
     readEditedValue: doc => doc.title.en,
     userValue: 'My post title',
     otherEditSameField: {
-      apply: doc => (doc.title = { ...doc.title, en: 'Their post title' }),
+      fields: { 'post-title': 'Their post title' },
       value: 'Their post title',
     },
     otherEditElsewhere: {
-      apply: doc => (doc.title = { ...doc.title, de: 'Ihr Beitragstitel' }),
+      fields: {
+        'post-title': 'Ihr Beitragstitel',
+        'post-text': 'Ihr Beitragstext',
+        'post-language': 'de',
+      },
       read: doc => doc.title.de,
       value: 'Ihr Beitragstitel',
     },
@@ -339,19 +368,11 @@ const editFormCases: EditFormCase[] = [
     readEditedValue: doc => doc.bio.text.en,
     userValue: 'My bio',
     otherEditSameField: {
-      apply: doc =>
-        (doc.bio = {
-          text: { ...doc.bio.text, en: 'Their bio' },
-          html: { ...doc.bio.html, en: '<p>Their bio</p>' },
-        }),
+      fields: { 'bio-text': 'Their bio' },
       value: 'Their bio',
     },
     otherEditElsewhere: {
-      apply: doc =>
-        (doc.bio = {
-          text: { ...doc.bio.text, de: 'Ihre Biografie' },
-          html: { ...doc.bio.html, de: '<p>Ihre Biografie</p>' },
-        }),
+      fields: { 'bio-text': 'Ihre Biografie', 'bio-language': 'de' },
       read: doc => doc.bio.text.de,
       value: 'Ihre Biografie',
     },
@@ -369,20 +390,41 @@ const openEditForm = async (formCase: EditFormCase) => {
   if (!csrf) throw new Error(`No CSRF token on the ${formCase.name} form`);
   const revTeams = extractRevTeams(formResponse.text);
   const hiddenFields = revTeams === null ? {} : { 'rev-teams': revTeams };
-  const submit = (fields: Record<string, unknown>) =>
+  // Saves that rename a thing or team change its slug, and a form posted to
+  // the old slug is redirected before it is processed. This posts to the
+  // current path so the conflict check is what gets tested.
+  const submit = async (fields: Record<string, unknown>) =>
     agent
-      .post(editURL)
+      .post(await resolvePath(agent, editURL))
       .type('form')
       .send({ _csrf: csrf, ...hiddenFields, ...formCase.submission, ...fields });
-  return { Model, id, revID, submit, user, agent };
+
+  // Save a competing edit in a second tab and return the new revision ID
+  const saveOtherEdit = async (edit: 'sameField' | 'elsewhere'): Promise<string> => {
+    if (edit === 'sameField')
+      await saveInSecondTab(agent, editURL, {
+        ...formCase.submission,
+        ...formCase.otherEditSameField.fields,
+      });
+    else {
+      const { path, fields } = formCase.otherEditElsewhere;
+      await saveInSecondTab(
+        agent,
+        path ? path(id) : editURL,
+        path ? fields : { ...formCase.submission, ...fields }
+      );
+    }
+    return (await Model.get(id))._revID;
+  };
+  return { Model, id, revID, submit, saveOtherEdit, user, agent };
 };
 
 for (const formCase of editFormCases) {
   test.serial(
     `${formCase.name}: stale revision ID with a conflicting edit is rejected`,
     async t => {
-      const { Model, id, revID, submit } = await openEditForm(formCase);
-      const theirRevID = await saveOtherRevision(Model, id, formCase.otherEditSameField.apply);
+      const { Model, id, revID, submit, saveOtherEdit } = await openEditForm(formCase);
+      const theirRevID = await saveOtherEdit('sameField');
 
       const response = await submit({ 'rev-id': revID });
 
@@ -397,8 +439,8 @@ for (const formCase of editFormCases) {
   );
 
   test.serial(`${formCase.name}: stale revision ID with an unrelated edit saves`, async t => {
-    const { Model, id, revID, submit } = await openEditForm(formCase);
-    await saveOtherRevision(Model, id, formCase.otherEditElsewhere.apply);
+    const { Model, id, revID, submit, saveOtherEdit } = await openEditForm(formCase);
+    await saveOtherEdit('elsewhere');
 
     const response = await submit({ 'rev-id': revID });
 
@@ -420,8 +462,8 @@ for (const formCase of editFormCases) {
   });
 
   test.serial(`${formCase.name}: missing revision ID saves as before`, async t => {
-    const { Model, id, submit } = await openEditForm(formCase);
-    await saveOtherRevision(Model, id, formCase.otherEditSameField.apply);
+    const { Model, id, submit, saveOtherEdit } = await openEditForm(formCase);
+    await saveOtherEdit('sameField');
 
     const response = await submit({});
 
@@ -446,8 +488,8 @@ test.serial('review: unknown or malformed revision IDs are treated as conflicts'
 });
 
 test.serial('review: preview and validation errors keep the submitted revision ID', async t => {
-  const { Model, id, revID, submit } = await openEditForm(reviewCase);
-  await saveOtherRevision(Model, id, reviewCase.otherEditSameField.apply);
+  const { revID, submit, saveOtherEdit } = await openEditForm(reviewCase);
+  await saveOtherEdit('sameField');
 
   const previewResponse = await submit({ 'rev-id': revID, 'review-action': 'preview' });
   t.is(previewResponse.status, 200);
@@ -463,8 +505,8 @@ test.serial('review: preview and validation errors keep the submitted revision I
 });
 
 test.serial('review: resubmitting after a conflict saves', async t => {
-  const { Model, id, revID, submit } = await openEditForm(reviewCase);
-  await saveOtherRevision(Model, id, reviewCase.otherEditSameField.apply);
+  const { Model, id, revID, submit, saveOtherEdit } = await openEditForm(reviewCase);
+  await saveOtherEdit('sameField');
 
   const conflictResponse = await submit({ 'rev-id': revID });
   t.is(conflictResponse.status, 409);
@@ -480,8 +522,8 @@ const thingDescriptionCase = editFormCases.find(
 ) as EditFormCase;
 
 test.serial('thing description: clearing the field is preserved on conflict', async t => {
-  const { Model, id, revID, submit } = await openEditForm(thingDescriptionCase);
-  await saveOtherRevision(Model, id, thingDescriptionCase.otherEditSameField.apply);
+  const { revID, submit, saveOtherEdit } = await openEditForm(thingDescriptionCase);
+  await saveOtherEdit('sameField');
 
   const response = await submit({ 'rev-id': revID, 'thing-description': '' });
 
@@ -489,26 +531,26 @@ test.serial('thing description: clearing the field is preserved on conflict', as
   t.regex(response.text, /id="thing-edit-description" name="thing-description" value=""/);
 });
 
-// Associate the review with a team as someone else, in a new revision
-const saveOtherTeamSelection = async (id: string, teams): Promise<string> => {
-  const { actor } = await dalFixture.createTestUser('Other Editor');
-  const review = await Review.get(id);
-  await review.newRevision(actor, { tags: ['test-other-edit'] });
-  review.teams = teams;
-  await review.saveAll({ teams: true });
-  return review._revID;
-};
-
 const openReviewFormWithTeam = async () => {
   const form = await openEditForm(reviewCase);
   await createTeamViaForm(form.agent);
   const team = await Team.filterWhere({ createdBy: form.user.id }).first();
-  return { ...form, team };
+  // Select the team in a second tab, leaving the review's text unchanged
+  const saveTeamSelection = async (): Promise<string> => {
+    await saveInSecondTab(form.agent, `/review/${form.id}/edit`, {
+      ...reviewCase.submission,
+      'review-title': 'Original title',
+      'review-text': 'Original text',
+      'teams[]': team.id,
+    });
+    return (await Review.get(form.id))._revID;
+  };
+  return { ...form, team, saveTeamSelection };
 };
 
 test.serial('review: a concurrent change of teams alone is a conflict', async t => {
-  const { id, revID, submit, team } = await openReviewFormWithTeam();
-  const theirRevID = await saveOtherTeamSelection(id, [team]);
+  const { id, revID, submit, team, saveTeamSelection } = await openReviewFormWithTeam();
+  const theirRevID = await saveTeamSelection();
 
   const response = await submit({ 'rev-id': revID });
 
@@ -530,8 +572,8 @@ test.serial('review: a concurrent change of teams alone is a conflict', async t 
 });
 
 test.serial('review: team changes without a submitted team baseline save as before', async t => {
-  const { id, revID, submit, team } = await openReviewFormWithTeam();
-  await saveOtherTeamSelection(id, [team]);
+  const { id, revID, submit, saveTeamSelection } = await openReviewFormWithTeam();
+  await saveTeamSelection();
 
   const response = await submit({ 'rev-id': revID, 'rev-teams': undefined });
 
