@@ -1,4 +1,5 @@
 // External dependencies
+import { isDeepStrictEqual } from 'node:util';
 import config from 'config';
 import escapeHTML from 'escape-html';
 import { RevisionConflictError } from 'rev-dal/lib/errors';
@@ -223,6 +224,7 @@ const buildReviewSchema = (
       files: filesField,
       'review-social-image': socialImageField,
       'rev-id': revIDField,
+      'rev-teams': z.string().optional(),
     })
     .strict();
 
@@ -318,6 +320,19 @@ const extractReviewFormValues = (
   return formValues;
 };
 
+// Team associations are not revisioned, so edit forms carry the team IDs
+// they were loaded with as a comma-separated list.
+const REV_TEAMS_FIELD = 'rev-teams';
+
+const getTeamIDs = (review: ReviewInstance): string[] =>
+  (review.teams ?? []).map(team => team.id).sort();
+
+const getSubmittedTeamIDs = (body: unknown): string[] | undefined => {
+  const value = (body as Record<string, unknown> | undefined)?.[REV_TEAMS_FIELD];
+  if (typeof value !== 'string') return undefined;
+  return value.split(',').filter(Boolean).sort();
+};
+
 // Values an edit in the given language may overwrite
 const selectEditedReviewValues = (review: ReviewInstance, language: string) => [
   review.title?.[language],
@@ -329,8 +344,9 @@ const selectEditedReviewValues = (review: ReviewInstance, language: string) => [
 class ReviewProvider extends AbstractBREADProvider {
   protected isPreview = false;
   protected editing = false;
-  // Revision the edit form is based on
+  // Revision and team associations the edit form is based on
   protected revID?: string;
+  protected teamIDs?: string[];
 
   constructor(
     req: HandlerRequest,
@@ -448,6 +464,7 @@ class ReviewProvider extends AbstractBREADProvider {
         thing,
         editing: !!this.editing,
         revID: this.revID,
+        revTeams: this.teamIDs ? { ids: this.teamIDs.join(',') } : undefined,
       },
       {
         editing: !!this.editing,
@@ -615,6 +632,7 @@ class ReviewProvider extends AbstractBREADProvider {
   async edit_GET(review: ReviewInstance): Promise<void> {
     this.editing = true;
     this.revID = review._revID;
+    this.teamIDs = getTeamIDs(review);
     await this.add_GET(review, review.thing);
   }
 
@@ -628,6 +646,7 @@ class ReviewProvider extends AbstractBREADProvider {
         : undefined;
     this.isPreview = reviewActionRaw === 'preview';
     this.revID = getSubmittedRevID(this.req.body);
+    this.teamIDs = getSubmittedTeamIDs(this.req.body);
     validateLanguage(this.req, language);
     const { schema, fields } = buildReviewSchema(this.req, language, {
       requireURL: false,
@@ -688,11 +707,19 @@ class ReviewProvider extends AbstractBREADProvider {
         // are previewing
         if (this.isPreview || this.req.flashHas?.('pageErrors')) return abort();
 
-        const conflict = await hasEditConflict(Review, review, this.revID, rev =>
-          selectEditedReviewValues(rev, language)
-        );
+        const currentTeamIDs = getTeamIDs(review);
+        const teamsChanged =
+          Boolean(this.revID) &&
+          this.teamIDs !== undefined &&
+          !isDeepStrictEqual(this.teamIDs, currentTeamIDs);
+        const conflict =
+          teamsChanged ||
+          (await hasEditConflict(Review, review, this.revID, rev =>
+            selectEditedReviewValues(rev, language)
+          ));
         if (conflict) {
           this.revID = review._revID;
+          this.teamIDs = currentTeamIDs;
           flashEditConflict(this.req, `/review/${review.id}`);
           this.res.status(409);
           return abort();

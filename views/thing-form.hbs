@@ -13,7 +13,7 @@
 
 {{#if edit.label}}
 <label for="thing-edit-label">{{{__ "label"}}}</label>
-<input type="text" id="thing-edit-label" name="thing-label" value="{{#if formValues.label}}{{formValues.label}}{{else}}{{mlSafeText thing.label false}}{{/if}}" placeholder="{{{__ "enter label"}}}" data-auto-trim data-focus>
+<input type="text" id="thing-edit-label" name="thing-label" value="{{#if formValues}}{{formValues.label}}{{else}}{{mlSafeText thing.label false}}{{/if}}" placeholder="{{{__ "enter label"}}}" data-auto-trim data-focus>
 <button type="submit" id="save" name="thing-action" value="save" class="button-compact-primary" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>
@@ -21,7 +21,7 @@
 {{/if}}
 {{#if edit.description}}
 <label for="thing-edit-description">{{{__ "description"}}}</label>
-<input type="text" id="thing-edit-description" name="thing-description" value="{{#if formValues.description}}{{formValues.description}}{{else}}{{mlSafeText thing.description false}}{{/if}}" placeholder="{{{__ "enter thing description"}}}" data-auto-trim data-focus>
+<input type="text" id="thing-edit-description" name="thing-description" value="{{#if formValues}}{{formValues.description}}{{else}}{{mlSafeText thing.description false}}{{/if}}" placeholder="{{{__ "enter thing description"}}}" data-auto-trim data-focus>
 <button type="submit" id="save" name="thing-action" value="save" class="button-compact-primary" accesskey="s" title="{{{__ "accesskey" "s"}}}">{{{__ "save"}}}</button>
 <a class="cancel-link" href="/{{{thing.urlID}}}">{{__ "cancel"}}</a>
 <p>

@@ -56,6 +56,11 @@ const extractRevID = (html: string): string | null => {
   return match ? match[1] : null;
 };
 
+const extractRevTeams = (html: string): string | null => {
+  const match = html.match(/<input type="hidden" value="([^"]*)" name="rev-teams"/);
+  return match ? match[1] : null;
+};
+
 const signInTrustedUser = async () => {
   const agent = supertest.agent(app);
   const username = `Editor-${randomUUID().slice(0, 8)}`;
@@ -362,12 +367,14 @@ const openEditForm = async (formCase: EditFormCase) => {
   if (!revID) throw new Error(`No revision ID on the ${formCase.name} form`);
   const csrf = extractCSRF(formResponse.text);
   if (!csrf) throw new Error(`No CSRF token on the ${formCase.name} form`);
+  const revTeams = extractRevTeams(formResponse.text);
+  const hiddenFields = revTeams === null ? {} : { 'rev-teams': revTeams };
   const submit = (fields: Record<string, unknown>) =>
     agent
       .post(editURL)
       .type('form')
-      .send({ _csrf: csrf, ...formCase.submission, ...fields });
-  return { Model, id, revID, submit };
+      .send({ _csrf: csrf, ...hiddenFields, ...formCase.submission, ...fields });
+  return { Model, id, revID, submit, user, agent };
 };
 
 for (const formCase of editFormCases) {
@@ -466,6 +473,71 @@ test.serial('review: resubmitting after a conflict saves', async t => {
   t.is(response.status, 302);
   const stored = await Model.get(id);
   t.is(stored.title.en, reviewCase.userValue);
+});
+
+const thingDescriptionCase = editFormCases.find(
+  formCase => formCase.name === 'thing description'
+) as EditFormCase;
+
+test.serial('thing description: clearing the field is preserved on conflict', async t => {
+  const { Model, id, revID, submit } = await openEditForm(thingDescriptionCase);
+  await saveOtherRevision(Model, id, thingDescriptionCase.otherEditSameField.apply);
+
+  const response = await submit({ 'rev-id': revID, 'thing-description': '' });
+
+  t.is(response.status, 409);
+  t.regex(response.text, /id="thing-edit-description" name="thing-description" value=""/);
+});
+
+// Associate the review with a team as someone else, in a new revision
+const saveOtherTeamSelection = async (id: string, teams): Promise<string> => {
+  const { actor } = await dalFixture.createTestUser('Other Editor');
+  const review = await Review.get(id);
+  await review.newRevision(actor, { tags: ['test-other-edit'] });
+  review.teams = teams;
+  await review.saveAll({ teams: true });
+  return review._revID;
+};
+
+const openReviewFormWithTeam = async () => {
+  const form = await openEditForm(reviewCase);
+  await createTeamViaForm(form.agent);
+  const team = await Team.filterWhere({ createdBy: form.user.id }).first();
+  return { ...form, team };
+};
+
+test.serial('review: a concurrent change of teams alone is a conflict', async t => {
+  const { id, revID, submit, team } = await openReviewFormWithTeam();
+  const theirRevID = await saveOtherTeamSelection(id, [team]);
+
+  const response = await submit({ 'rev-id': revID });
+
+  t.is(response.status, 409);
+  t.regex(response.text, CONFLICT_NOTICE);
+  t.notRegex(response.text, new RegExp(`value="${team.id}" checked`), "user's selection kept");
+  t.is(extractRevID(response.text), theirRevID);
+  t.is(extractRevTeams(response.text), team.id);
+  const stored = await Review.getWithData(id);
+  t.is(stored.teams?.[0]?.id, team.id, 'team association was not removed');
+
+  const resubmitResponse = await submit({
+    'rev-id': theirRevID,
+    'rev-teams': extractRevTeams(response.text),
+  });
+  t.is(resubmitResponse.status, 302);
+  const resaved = await Review.getWithData(id);
+  t.falsy(resaved.teams?.length, 'deliberate resubmission removes the team');
+});
+
+test.serial('review: team changes without a submitted team baseline save as before', async t => {
+  const { id, revID, submit, team } = await openReviewFormWithTeam();
+  await saveOtherTeamSelection(id, [team]);
+
+  const response = await submit({ 'rev-id': revID, 'rev-teams': undefined });
+
+  t.is(response.status, 302);
+  const stored = await Review.getWithData(id);
+  t.falsy(stored.teams?.length);
 });
 
 test.serial('review: revision ID field is saved with autosaved drafts', async t => {
