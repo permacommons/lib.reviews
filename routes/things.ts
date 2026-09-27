@@ -20,6 +20,12 @@ import getMessages from '../util/get-messages.ts';
 import urlUtils from '../util/url-utils.ts';
 import getResourceErrorHandler from './handlers/resource-error-handler.ts';
 import signinRequiredRoute from './handlers/signin-required-route.ts';
+import {
+  flashEditConflict,
+  getSubmittedRevID,
+  hasEditConflict,
+  revIDField,
+} from './helpers/edit-conflicts.ts';
 import feeds from './helpers/feeds.ts';
 import render from './helpers/render.ts';
 import slugs from './helpers/slugs.ts';
@@ -48,6 +54,8 @@ interface ThingURLsFormParams {
   titleKey: string;
   thing: ThingInstance;
   formValues?: Partial<ThingURLsFormValues>;
+  // Revision the form is based on
+  revID?: string;
 }
 
 const router = Router();
@@ -61,7 +69,17 @@ const buildThingEditSchema = (field: string) => {
   return z.object({
     _csrf: csrfField,
     [fieldName]: z.string().transform(value => escapeHTML(value.trim())),
+    'rev-id': revIDField,
   });
+};
+
+// Value of a text field in the given language, as stored by processTextFieldUpdate
+const selectThingFieldValue = (thing: ThingInstance, field: string, language: string) => {
+  const source =
+    field === 'label'
+      ? thing.label
+      : (thing.metadata as Record<string, MultilingualString | undefined> | undefined)?.[field];
+  return source?.[language];
 };
 
 const normalizeURLValue = (value: unknown) => urlUtils.normalize(String(value ?? '').trim());
@@ -89,6 +107,7 @@ const buildThingURLsSchema = (req: ThingRouteRequest) => {
       _csrf: csrfField,
       primary: primaryField,
       urls: urlsField,
+      'rev-id': revIDField,
     })
     .strict();
 
@@ -128,7 +147,7 @@ router.get(
           thing.populateUserInfo(req.user);
           if (!thing.userCanEdit) return render.permissionError(req, res, { titleKey });
 
-          sendThingURLsForm({ req, res, titleKey, thing });
+          sendThingURLsForm({ req, res, titleKey, thing, revID: thing._revID });
         })
         .catch(getResourceErrorHandler(req, res, next, 'thing', id));
     }
@@ -152,10 +171,7 @@ router.post(
           thing.populateUserInfo(req.user);
           if (!thing.userCanEdit) return render.permissionError(req, res, { titleKey });
 
-          processThingURLsUpdate(
-            { req, res, thing, titleKey },
-            getResourceErrorHandler(req, res, next, 'thing', id)
-          );
+          processThingURLsUpdate({ req, res, thing, titleKey }, next);
         })
         .catch(getResourceErrorHandler(req, res, next, 'thing', id));
     }
@@ -193,7 +209,7 @@ router.get(
             detailsKey: 'cannot edit synced field',
           });
 
-        sendForm(req, res, thing, edit, titleKey);
+        sendForm(req, res, thing, edit, titleKey, undefined, thing._revID);
       })
       .catch(getResourceErrorHandler(req, res, next, 'thing', id));
   }
@@ -427,9 +443,11 @@ function processTextFieldUpdate(
 
   const titleKey = `edit ${field}`;
 
+  const submittedRevID = getSubmittedRevID(req.body);
+
   slugs
     .resolveAndLoadThing(req, res, id)
-    .then(thing => {
+    .then(async thing => {
       thing.populateUserInfo(req.user);
       if (!thing.userCanEdit)
         return render.permissionError(req, res, {
@@ -456,15 +474,43 @@ function processTextFieldUpdate(
         flashZodIssues(req, parseResult.error.issues, issue => formatZodIssueMessage(req, issue));
       }
 
-      if (req.flashHas?.('pageErrors')) {
-        const submittedValue = req.body?.[`thing-${field}`];
-        const formValues = {
-          [field]: typeof submittedValue === 'string' ? submittedValue : '',
-        };
-        return sendForm(req, res, thing, { [field]: true }, titleKey, formValues);
-      }
+      const submittedValue = req.body?.[`thing-${field}`];
+      const submittedFormValues = {
+        [field]: typeof submittedValue === 'string' ? submittedValue : '',
+      };
+
+      if (req.flashHas?.('pageErrors'))
+        return sendForm(
+          req,
+          res,
+          thing,
+          { [field]: true },
+          titleKey,
+          submittedFormValues,
+          submittedRevID
+        );
 
       const text = parseResult.data[`thing-${field}`] as string;
+
+      // Show the form again, based on the given current version of the thing
+      const showConflict = (current: ThingInstance) => {
+        flashEditConflict(req, `/${current.urlID}`);
+        res.status(409);
+        sendForm(
+          req,
+          res,
+          current,
+          { [field]: true },
+          titleKey,
+          submittedFormValues,
+          current._revID
+        );
+      };
+
+      const conflict = await hasEditConflict(Thing, thing, submittedRevID, rev =>
+        selectThingFieldValue(rev, field, language)
+      );
+      if (conflict) return showConflict(thing);
 
       thing.newRevision(req.user).then(revision => {
         // Handle metadata fields (description, subtitle, authors) differently
@@ -502,11 +548,12 @@ function processTextFieldUpdate(
         else maybeUpdateSlug = Promise.resolve(revision); // Nothing to do
 
         const handleSaveError = (error: unknown) => {
+          // Another save landed between the conflict check and this one
           if (error instanceof RevisionConflictError)
-            return getResourceErrorHandler(req, res, next, 'thing', id)(error);
+            return Thing.getWithData(thing.id).then(showConflict, next);
           req.flashError?.(error);
           const formValues = { [field]: text };
-          sendForm(req, res, thing, { [field]: true }, titleKey, formValues);
+          sendForm(req, res, thing, { [field]: true }, titleKey, formValues, submittedRevID);
         };
 
         maybeUpdateSlug
@@ -531,7 +578,8 @@ function sendForm(
   thing: ThingInstance,
   edit: Record<string, boolean>,
   titleKey: string,
-  formValues?: Record<string, string>
+  formValues?: Record<string, string>,
+  revID?: string
 ) {
   edit = Object.assign(
     {
@@ -560,6 +608,7 @@ function sendForm(
     pageMessages,
     edit,
     formValues,
+    revID,
   });
 }
 
@@ -633,7 +682,7 @@ function sendThing(
 // Send the form for the "manage URLs" route, either with the current
 // URLs, or with data from the POST request
 function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
-  const { req, res, titleKey, thing, formValues } = paramsObj;
+  const { req, res, titleKey, thing, formValues, revID } = paramsObj;
   const pageErrors = req.flash('pageErrors'),
     pageMessages = req.flash('pageMessages');
   const baseCount = Array.isArray(thing.urls) ? thing.urls.length : 0;
@@ -652,6 +701,7 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
       // Preserve submission content, if any
       urls: formValues ? formValues.urls : thing.urls,
       primary: formValues ? formValues.primary : 0,
+      revID,
       scripts: ['manage-urls'],
     },
     {
@@ -665,13 +715,10 @@ function sendThingURLsForm(paramsObj: ThingURLsFormParams) {
   );
 }
 
-// Handle data from a POST request for the "manage URLs" route. Edit conflicts
-// are passed to the resource error handler.
-function processThingURLsUpdate(
-  paramsObj: ThingURLsFormParams,
-  handleResourceError: (error: unknown) => void
-) {
+// Handle data from a POST request for the "manage URLs" route
+function processThingURLsUpdate(paramsObj: ThingURLsFormParams, next: HandlerNext) {
   const { req, res, titleKey, thing } = paramsObj;
+  const revID = getSubmittedRevID(req.body);
   const { schema, primaryField, urlsField } = buildThingURLsSchema(req);
   const parseResult = schema.safeParse(req.body);
 
@@ -683,7 +730,7 @@ function processThingURLsUpdate(
       primary: safeParseField<number>(primaryField, req.body?.primary),
       urls: safeParseField<string[]>(urlsField, req.body?.urls),
     };
-    return sendThingURLsForm({ req, res, titleKey, thing, formValues: fallbackValues });
+    return sendThingURLsForm({ req, res, titleKey, thing, formValues: fallbackValues, revID });
   }
 
   const { urls: submittedURLs, primary } = parseResult.data;
@@ -691,7 +738,7 @@ function processThingURLsUpdate(
   for (const value of submittedURLs) {
     if (value.length && !urlUtils.validate(value)) {
       req.flash('pageErrors', req.__('not a url'));
-      return sendThingURLsForm({ req, res, titleKey, thing, formValues });
+      return sendThingURLsForm({ req, res, titleKey, thing, formValues, revID });
     }
   }
 
@@ -704,6 +751,7 @@ function processThingURLsUpdate(
       titleKey,
       thing,
       formValues,
+      revID,
     });
   }
 
@@ -725,7 +773,7 @@ function processThingURLsUpdate(
 
   // Perform lookups
   Promise.all(urlLookups)
-    .then(results => {
+    .then(async results => {
       let hasDuplicate = false;
       results.forEach((matches, index) => {
         if (matches.length) {
@@ -737,9 +785,26 @@ function processThingURLsUpdate(
         }
       });
 
-      if (hasDuplicate) return sendThingURLsForm({ req, res, titleKey, thing, formValues });
+      if (hasDuplicate) return sendThingURLsForm({ req, res, titleKey, thing, formValues, revID });
 
-      // No dupes -- continue!
+      // Show the form again, based on the given current version of the thing
+      const showConflict = (current: ThingInstance) => {
+        flashEditConflict(req, `/${current.urlID}`);
+        res.status(409);
+        sendThingURLsForm({
+          req,
+          res,
+          titleKey,
+          thing: current,
+          formValues,
+          revID: current._revID,
+        });
+      };
+
+      const conflict = await hasEditConflict(Thing, thing, revID, rev => rev.urls);
+      if (conflict) return showConflict(thing);
+
+      // No dupes or conflicts -- continue!
       thing.newRevision(req.user).then(revision => {
         // Reset sync settings for adapters
         revision.setURLs(thingURLs);
@@ -750,20 +815,22 @@ function processThingURLsUpdate(
           .updateActiveSyncs(userID)
           .then(() => {
             req.flash('pageMessages', req.__('links updated'));
-            sendThingURLsForm({ req, res, titleKey, thing: revision });
+            sendThingURLsForm({ req, res, titleKey, thing: revision, revID: revision._revID });
           })
           .catch(error => {
-            if (error instanceof RevisionConflictError) return handleResourceError(error);
+            // Another save landed between the conflict check and this one
+            if (error instanceof RevisionConflictError)
+              return Thing.getWithData(thing.id).then(showConflict, next);
             // Problem with syncs
             req.flashError?.(error);
-            sendThingURLsForm({ req, res, titleKey, thing, formValues });
+            sendThingURLsForm({ req, res, titleKey, thing, formValues, revID });
           });
       });
     })
     .catch(error => {
       // Problem with lookup
       req.flashError?.(error);
-      sendThingURLsForm({ req, res, titleKey, thing, formValues });
+      sendThingURLsForm({ req, res, titleKey, thing, formValues, revID });
     });
 }
 

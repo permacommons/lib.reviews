@@ -10,6 +10,7 @@
 {{/if}}
 <form id="blog-post-form" name="blog-post-form" method="post">
 <input type="hidden" value="{{csrfToken}}" name="_csrf">
+{{#if revID}}<input type="hidden" value="{{revID}}" name="rev-id">{{/if}}
 <fieldset>
   <div class="grid grid-form">
     <div>
