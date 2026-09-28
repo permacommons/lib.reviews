@@ -249,6 +249,7 @@
 	"team deleted": "Team cancellato",
 	"stale revision error title": "Versione obsoleta",
 	"stale revision error": "L'indirizzo fornito punta ad una versione non aggiornata che non può più essere modificata.",
+	"edit conflict notice": "Qualcun altro ha apportato delle modifiche mentre stavi modificando, quindi le tue modifiche non sono ancora state salvate. Confrontale con la <a href='%s' target='_blank'>versione attuale</a>. Se salvi di nuovo, le tue modifiche sostituiranno quelle appena fatte.",
 	"team has been deleted": "Il team è stato cancellato. È ancora accessibile agli amministratori, ma può essere rimosso in modo permanente come parte della manutenzione ordinaria.",
 	"browse teams": "Esplora i team",
 	"new blog post": "Scrivi un nuovo post sul blog",
