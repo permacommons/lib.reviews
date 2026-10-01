@@ -366,6 +366,7 @@
 	"team deleted": "團隊已刪除",
 	"stale revision error title": "過期修訂版本",
 	"stale revision error": "提供的位址指向到一個逾期版本，並且不可再更動。",
+	"edit conflict notice": "在您編輯期間，其他人也做出更改，因此您的更改尚未儲存。請將您的更改內容與<a href='%s' target='_blank'>目前版本</a>進行比較。如果您再次儲存，您的更改會覆蓋掉其他人的更改內容。",
 	"team has been deleted": "團隊已被刪除。雖然對於管理員仍可試著存取，但有可能在維護期間被永久移除。",
 	"browse teams": "瀏覽團隊",
 	"new blog post": "編寫一個新的部落格文章",

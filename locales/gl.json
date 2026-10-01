@@ -361,6 +361,7 @@
 	"team deleted": "Eliminouse o equipo",
 	"stale revision error title": "Recensión anticuada",
 	"stale revision error": "O enderezo proporcionado apunta a unha versión desactualizada que xa non se pode modificar.",
+	"edit conflict notice": "Outra persoa modificou isto mentres estabas editando, polo que os teus cambios aínda non se gardaron. Compáraos coa <a href='%s' target='_blank'>versión actual</a>. Se gardas de novo, os teus cambios substituirán os da outra persoa.",
 	"team has been deleted": "Eliminouse o equipo. A administración aínda pode acceder a el, pero pode ser eliminado permanentemente como parte dun mantemento rutineiro.",
 	"browse teams": "Explorar os equipos",
 	"new blog post": "Escribir unha entrada nova no blog",

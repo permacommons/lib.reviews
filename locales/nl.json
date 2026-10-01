@@ -371,6 +371,7 @@
 	"team deleted": "Team verwijderd",
 	"stale revision error title": "Verouderde versie",
 	"stale revision error": "Het opgegeven adres verwijst naar een verouderde versie die niet meer gewijzigd kan worden.",
+	"edit conflict notice": "Iemand anders heeft dit gewijzigd terwijl u aan het bewerken was, dus uw wijzigingen zijn nog niet opgeslagen. Vergelijk ze met de <a href='%s' target='_blank'>huidige versie</a>. Als u opnieuw opslaat, worden uw wijzigingen in de plaats van die van de ander gezet.",
 	"team has been deleted": "Het team is verwijderd. Het is nog steeds toegankelijk voor de beheerders, maar kan permanent worden verwijderd als onderdeel van routineonderhoud.",
 	"browse teams": "Teams bekijken",
 	"new blog post": "Nieuwe blogpost schrijven",
