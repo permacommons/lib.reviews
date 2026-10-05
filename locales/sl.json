@@ -19,6 +19,7 @@
 	"username": "Uporabniško ime",
 	"enter username": "Vnesite uporabniško ime",
 	"password": "Geslo",
+	"hide password": "Skrij geslo",
 	"enter password": "Vnesite geslo",
 	"reject request": "Zavrni prošnjo",
 	"no account yet": "Še nimate računa? <a href='/register'>Registracija</a> je hitra in preprosta.",
