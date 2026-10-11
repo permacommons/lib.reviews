@@ -43,7 +43,7 @@
     "bcrypt": "^6.0.0",
     "body-parser": "^2.3.0",
     "cldr-localenames-full": "^29.0.0",
-    "compression": "^1.8.1",
+    "compression": "^1.8.2",
     "config": "^4.1.1",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "~1.4.7",
