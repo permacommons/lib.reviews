@@ -17,7 +17,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
@@ -46,7 +46,7 @@ jobs:
           --health-retries 5
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [22.x, 24.x]
 
     steps:
       - name: Checkout repository
