@@ -91,7 +91,7 @@
     "prosemirror-menu": "^1.2.5",
     "prosemirror-schema-list": "^1.5.1",
     "prosemirror-state": "^1.4.3",
-    "prosemirror-view": "^1.41.3",
+    "prosemirror-view": "^1.42.6",
     "rev-dal": "github:permacommons/rev-dal#main",
     "serve-favicon": "~2.5.1",
     "serve-index": "^1.9.1",
