@@ -8,7 +8,7 @@ We welcome contributions to [any of our open issues](https://github.com/permacom
 
 ## Quick Start
 
-1. **Prerequisites:** Node.js 22.x, PostgreSQL 16+
+1. **Prerequisites:** Node.js 24.x (see `.nvmrc`), PostgreSQL 16+
 2. **Clone** the repository
 3. **Setup PostgreSQL** (see Database Setup below)
 4. **Install dependencies:** `npm install`
@@ -139,7 +139,7 @@ lib.reviews is a TypeScript application using modern ESM patterns.
 
 | Technology | Purpose |
 |-----------|---------|
-| [Node.js](https://nodejs.org/en/) 22.x | Server, API, and tests |
+| [Node.js](https://nodejs.org/en/) 24.x | Server, API, and tests |
 | [TypeScript](https://www.typescriptlang.org/) | Type-safe development |
 | [Express](https://expressjs.com/) V5 | Web application framework |
 | [PostgreSQL](https://www.postgresql.org/) | Primary storage backend |
