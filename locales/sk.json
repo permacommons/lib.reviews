@@ -371,6 +371,7 @@
 	"team deleted": "Tím zmazaný",
 	"stale revision error title": "Zastaraná revízia",
 	"stale revision error": "Zadaná adresa smeruje na zastaranú verziu, ktorá sa už nedá upravovať.",
+	"edit conflict notice": "Niekto iný to zmenil, kým ste to upravovali, preto vaše zmeny ešte neboli uložené. Porovnajte ich s <a href='%s' target='_blank'>aktuálnou verziou</a>. Ak uložíte znova, vaše zmeny nahradia tie druhé.",
 	"team has been deleted": "Tím bol zmazaný. Je stále dostupný administrátormi ale môže byť natrvalo vymazaný počas rutinnej údržby.",
 	"browse teams": "Prehliadať tímy",
 	"new blog post": "Napísať nový príspevok na blog",
