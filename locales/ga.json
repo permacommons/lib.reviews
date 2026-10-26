@@ -371,6 +371,7 @@
 	"team deleted": "Foireann scriosta",
 	"stale revision error title": "Athbhreithniú atá as dáta",
 	"stale revision error": "Léiríonn an seoladh a cuireadh ar fáil leagan atá as dáta nach féidir a mhodhnú a thuilleadh.",
+	"edit conflict notice": "Rinne duine éigin eile athrú air seo fad is a bhí tú á chur in eagar, mar sin níl do chuid athruithe sábháilte go fóill. Déan comparáid idir iad agus an <a href='%s' target='_blank'>leagan reatha</a>. Má shábhálann tú arís, cuirfear do chuid athruithe in áit a gcuid athruithe siúd.",
 	"team has been deleted": "Scriosadh an fhoireann. Tá rochtain ag riarthóirí uirthi fós, ach féadfar í a bhaint go buan mar chuid de chothabháil rialta.",
 	"browse teams": "Brabhsáil foirne",
 	"new blog post": "Scríobh post bhlag nua",
