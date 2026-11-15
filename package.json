@@ -92,7 +92,7 @@
     "prosemirror-schema-list": "^1.5.1",
     "prosemirror-state": "^1.4.3",
     "prosemirror-view": "^1.42.6",
-    "rev-dal": "github:permacommons/rev-dal#main",
+    "rev-dal": "0.2.2",
     "serve-favicon": "~2.5.1",
     "serve-index": "^1.9.1",
     "sisyphus.js": "^1.1.3",
